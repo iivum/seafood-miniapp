@@ -1,0 +1,53 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.4' apply false
+    id 'io.spring.dependency-management' version '1.1.4'
+    id 'jacoco'
+}
+
+allprojects {
+    apply plugin: 'jacoco'
+    group = 'com.seafood'
+    version = '1.0.0-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'io.spring.dependency-management'
+
+    // 只对Java项目配置sourceCompatibility
+    if (project.plugins.hasPlugin('java')) {
+        apply plugin: 'java'
+        sourceCompatibility = '17'
+        targetCompatibility = '17'
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:2023.0.0"
+            mavenBom "org.springframework.boot:spring-boot-dependencies:3.2.4"
+        }
+    }
+
+    dependencies {
+        compile 'org.projectlombok:lombok'
+        testCompile 'org.springframework.boot:spring-boot-starter-test'
+        testCompile 'org.junit.jupiter:junit-jupiter'
+    }
+
+    test {
+        useJUnitPlatform()
+        finalizedBy jacocoTestReport
+    }
+
+    jacocoTestReport {
+        dependsOn test
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+}

@@ -1,0 +1,40 @@
+/**app.wxss**/
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 200rpx 0;
+  box-sizing: border-box;
+}
+
+page {
+  background-color: #f8f8f8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei', sans-serif;
+  color: #333;
+}
+
+.primary-color {
+  color: #007aff;
+}
+
+.bg-primary {
+  background-color: #007aff;
+}
+
+.btn {
+  background-color: #007aff;
+  color: #fff;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  text-align: center;
+}
+
+.card {
+  background-color: #fff;
+  border-radius: 12rpx;
+  margin: 20rpx;
+  padding: 20rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+}

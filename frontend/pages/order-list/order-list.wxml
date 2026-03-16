@@ -1,0 +1,29 @@
+<view class="order-list-container">
+  <view class="empty" wx:if="{{orders.length === 0}}">
+    <icon type="info" size="64"></icon>
+    <text>还没有相关订单哦</text>
+  </view>
+
+  <view class="order-card card" wx:for="{{orders}}" wx:key="id">
+    <view class="order-header">
+      <text class="order-id">订单号：{{item.id}}</text>
+      <text class="order-status status-{{item.status}}">{{statusTextMap[item.status]}}</text>
+    </view>
+    
+    <view class="order-items">
+      <view class="item" wx:for="{{item.items}}" wx:for-item="p" wx:key="productId">
+        <text class="item-name">{{p.productName}}</text>
+        <text class="item-qty">x{{p.quantity}}</text>
+        <text class="item-price">￥{{p.price}}</text>
+      </view>
+    </view>
+
+    <view class="order-footer">
+      <text class="total">合计：￥{{item.totalPrice}}</text>
+      <view class="actions">
+        <button class="btn btn-pay" wx:if="{{item.status === 'PENDING_PAYMENT'}}" bindtap="onPay" data-id="{{item.id}}">去支付</button>
+        <button class="btn btn-cancel" wx:if="{{item.status === 'PENDING_PAYMENT'}}" bindtap="onCancel" data-id="{{item.id}}">取消</button>
+      </view>
+    </view>
+  </view>
+</view>

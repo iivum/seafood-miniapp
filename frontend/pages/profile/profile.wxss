@@ -1,0 +1,73 @@
+.profile-container {
+  padding: 20rpx;
+}
+
+.user-header {
+  display: flex;
+  align-items: center;
+  padding: 40rpx;
+  background-color: #007aff;
+  border-radius: 20rpx;
+  color: #fff;
+  margin-bottom: 30rpx;
+}
+
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
+  margin-right: 20rpx;
+}
+
+.nickname {
+  font-size: 36rpx;
+  font-weight: bold;
+}
+
+.role-tag {
+  font-size: 20rpx;
+  background-color: #fff;
+  color: #007aff;
+  padding: 2rpx 10rpx;
+  border-radius: 4rpx;
+  margin-top: 10rpx;
+  display: inline-block;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  margin-bottom: 20rpx;
+}
+
+.order-nav {
+  display: flex;
+  justify-content: space-around;
+  padding: 20rpx 0;
+}
+
+.order-nav .nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 24rpx;
+}
+
+.menu-list {
+  padding: 0;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.arrow {
+  color: #ccc;
+}
+
+.merchant-nav {
+  padding: 20rpx 0;
+}

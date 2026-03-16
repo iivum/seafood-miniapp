@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="zh"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProductController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">product-service</a> &gt; <a href="index.source.html" class="el_package">com.seafood.product.interfaces.rest</a> &gt; <span class="el_source">ProductController.java</span></div><h1>ProductController.java</h1><pre class="source lang-java linenums">package com.seafood.product.interfaces.rest;
+
+import com.seafood.product.application.ProductApplicationService;
+import com.seafood.product.domain.model.Product;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+@RestController
+@RequestMapping(&quot;/products&quot;)
+<span class="fc" id="L14">@RequiredArgsConstructor</span>
+public class ProductController {
+    private final ProductApplicationService productApplicationService;
+
+    @PostMapping
+    public ResponseEntity&lt;Product&gt; createProduct(@RequestBody CreateProductRequest request) {
+<span class="fc" id="L20">        Product product = productApplicationService.createProduct(request.getName(), request.getDescription(), request.getPrice(), request.getStock(), request.getCategory(), request.getImageUrl());</span>
+<span class="fc" id="L21">        return ResponseEntity.ok(product);</span>
+    }
+
+    @GetMapping
+    public ResponseEntity&lt;List&lt;Product&gt;&gt; listAllProducts() {
+<span class="fc" id="L26">        return ResponseEntity.ok(productApplicationService.listAllProducts());</span>
+    }
+
+    @GetMapping(&quot;/{id}&quot;)
+    public ResponseEntity&lt;Product&gt; getProductById(@PathVariable String id) {
+<span class="fc" id="L31">        return productApplicationService.getProductById(id)</span>
+<span class="fc" id="L32">                .map(ResponseEntity::ok)</span>
+<span class="fc" id="L33">                .orElse(ResponseEntity.notFound().build());</span>
+    }
+
+    @GetMapping(&quot;/category/{category}&quot;)
+    public ResponseEntity&lt;List&lt;Product&gt;&gt; findByCategory(@PathVariable String category) {
+<span class="nc" id="L38">        return ResponseEntity.ok(productApplicationService.findByCategory(category));</span>
+    }
+
+    @DeleteMapping(&quot;/{id}&quot;)
+    public ResponseEntity&lt;Void&gt; deleteProduct(@PathVariable String id) {
+<span class="nc" id="L43">        productApplicationService.deleteProduct(id);</span>
+<span class="nc" id="L44">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.8.202204050719</span></div></body></html>

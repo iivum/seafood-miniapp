@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.seafood.product.domain.model.ProductTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-03-15T20:12:58" hostname="iivum" time="0.016">
+  <properties/>
+  <testcase name="testUpdateStock()" classname="com.seafood.product.domain.model.ProductTest" time="0.012"/>
+  <testcase name="testCreateProduct()" classname="com.seafood.product.domain.model.ProductTest" time="0.002"/>
+  <testcase name="testReduceStock()" classname="com.seafood.product.domain.model.ProductTest" time="0.001"/>
+  <testcase name="testReduceStockThrowsExceptionWhenInsufficient()" classname="com.seafood.product.domain.model.ProductTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

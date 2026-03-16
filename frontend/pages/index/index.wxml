@@ -1,0 +1,40 @@
+<view class="home-container">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input">
+      <icon type="search" size="14"></icon>
+      <input placeholder="搜索你心仪的海鲜" />
+    </view>
+  </view>
+
+  <!-- 轮播图 -->
+  <swiper class="banner" indicator-dots="true" autoplay="true" interval="3000" duration="500">
+    <swiper-item>
+      <image src="/images/banner1.jpg" mode="aspectFill"></image>
+    </swiper-item>
+    <swiper-item>
+      <image src="/images/banner2.jpg" mode="aspectFill"></image>
+    </swiper-item>
+  </swiper>
+
+  <!-- 分类入口 -->
+  <view class="category-nav">
+    <view class="nav-item" wx:for="{{categories}}" wx:key="name">
+      <image src="{{item.icon}}"></image>
+      <text>{{item.name}}</text>
+    </view>
+  </view>
+
+  <!-- 今日推荐 -->
+  <view class="section-title">今日推荐</view>
+  <view class="product-list">
+    <view class="product-item" wx:for="{{products}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+      <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill"></image>
+      <view class="product-info">
+        <text class="product-name">{{item.name}}</text>
+        <text class="product-price">￥{{item.price}}</text>
+        <view class="add-cart-btn">加入购物车</view>
+      </view>
+    </view>
+  </view>
+</view>

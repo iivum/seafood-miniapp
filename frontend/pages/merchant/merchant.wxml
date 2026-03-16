@@ -1,0 +1,43 @@
+<view class="merchant-container">
+  <view class="header">
+    <text class="title">商户中心</text>
+    <text class="shop-name">大海的味道</text>
+  </view>
+
+  <view class="stats">
+    <view class="stat-item">
+      <text class="stat-value">￥12,345</text>
+      <text class="stat-label">今日收入</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-value">45</text>
+      <text class="stat-label">今日订单</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-value">120</text>
+      <text class="stat-label">商品总数</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">管理功能</view>
+    <view class="menu-list">
+      <view class="menu-item" bindtap="goToProductManage">
+        <text>商品管理</text>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" bindtap="goToOrderManage">
+        <text>订单管理</text>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item">
+        <text>优惠券管理</text>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item">
+        <text>店铺设置</text>
+        <text class="arrow">></text>
+      </view>
+    </view>
+  </view>
+</view>

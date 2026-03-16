@@ -1,0 +1,9 @@
+rootProject.name = 'seafood-backend'
+
+include 'common'
+include 'gateway'
+include 'product-service'
+include 'order-service'
+include 'user-service'
+include 'discovery-service'
+include 'admin-ui'

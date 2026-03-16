@@ -1,0 +1,53 @@
+<view class="profile-container">
+  <!-- 用户信息 -->
+  <view class="user-header">
+    <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
+    <view class="user-info">
+      <text class="nickname">{{userInfo.nickname || '未登录'}}</text>
+      <view class="role-tag" wx:if="{{userInfo.role === 'MERCHANT'}}">商家</view>
+    </view>
+  </view>
+
+  <!-- 订单中心 -->
+  <view class="card">
+    <view class="section-title">我的订单</view>
+    <view class="order-nav">
+      <view class="nav-item">
+        <icon type="waiting" size="24"></icon>
+        <text>待付款</text>
+      </view>
+      <view class="nav-item">
+        <icon type="success" size="24"></icon>
+        <text>待发货</text>
+      </view>
+      <view class="nav-item">
+        <icon type="download" size="24"></icon>
+        <text>待收货</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 常用功能 -->
+  <view class="card menu-list">
+    <view class="menu-item" bindtap="goToOrderList">
+      <text>全部订单</text>
+      <text class="arrow">></text>
+    </view>
+    <view class="menu-item">
+      <text>收货地址</text>
+      <text class="arrow">></text>
+    </view>
+    <view class="menu-item">
+      <text>联系客服</text>
+      <text class="arrow">></text>
+    </view>
+  </view>
+
+  <!-- 商家后台入口 -->
+  <view class="card" wx:if="{{userInfo.role === 'MERCHANT'}}">
+    <view class="section-title">商家管理</view>
+    <view class="merchant-nav">
+      <view class="btn" bindtap="goToMerchant">进入商家管理后台</view>
+    </view>
+  </view>
+</view>

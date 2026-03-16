@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  discovery-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8761:8761"
+    volumes:
+      - ./backend/discovery-service/build/libs:/app/build/libs
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  gateway-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/gateway/build/libs:/app/build/libs
+    depends_on:
+      - discovery-service
+    environment:
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+
+  product-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./backend/product-service/build/libs:/app/build/libs
+    depends_on:
+      - discovery-service
+      - mongodb
+    environment:
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+      - MONGODB_URI=mongodb://mongodb:27017/seafood_product
+
+  order-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./backend/order-service/build/libs:/app/build/libs
+    depends_on:
+      - discovery-service
+      - mongodb
+    environment:
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+      - MONGODB_URI=mongodb://mongodb:27017/seafood_order
+
+  user-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./backend/user-service/build/libs:/app/build/libs
+    depends_on:
+      - discovery-service
+      - mongodb
+    environment:
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+      - MONGODB_URI=mongodb://mongodb:27017/seafood_user
+
+  admin-ui:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    volumes:
+      - ./backend/admin-ui/build/libs:/app/build/libs
+    depends_on:
+      - discovery-service
+      - product-service
+      - order-service
+    environment:
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+
+volumes:
+  mongodb_data:
