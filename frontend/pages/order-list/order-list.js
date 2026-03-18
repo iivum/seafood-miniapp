@@ -17,14 +17,32 @@ Page({
   },
 
   fetchOrders: function() {
-    const userId = 'mock-user-123'; // 实际应从全局获取
-    request({ url: `/orders/user/${userId}` })
-      .then(res => {
-        this.setData({ orders: res });
-      })
-      .catch(err => {
-        console.error('Fetch orders failed', err);
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      // 未登录，跳转到登录页面
+      wx.navigateTo({
+        url: '/pages/login/login'
       });
+      return;
+    }
+    
+    const userId = app.globalData.userInfo.id;
+    request({ 
+      url: `/orders/user/${userId}`,
+      needAuth: true  // 需要认证
+    })
+    .then(res => {
+      this.setData({ orders: res });
+    })
+    .catch(err => {
+      console.error('Fetch orders failed', err);
+      if (err.statusCode !== 401) { // 401错误已在request.js中处理
+        wx.showToast({
+          title: '加载订单失败',
+          icon: 'none'
+        });
+      }
+    });
   },
 
   onPay: function(e) {

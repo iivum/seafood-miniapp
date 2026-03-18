@@ -1,6 +1,5 @@
-plugins {
-    id 'org.springframework.boot'
-}
+// 插件已在根项目中统一应用
+// 这里配置特定于本项目的依赖
 
 dependencies {
     implementation project(':common')
@@ -10,4 +9,9 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    
+    // 测试依赖
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
 }

@@ -1,0 +1,258 @@
+/* 登录页面样式 */
+.login-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+/* 头部区域 */
+.login-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 60rpx;
+  margin-top: 100rpx;
+}
+
+.logo {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.title {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 10rpx;
+}
+
+.subtitle {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 登录方式切换 */
+.login-tabs {
+  display: flex;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10rpx;
+  padding: 6rpx;
+  margin-bottom: 40rpx;
+  width: 100%;
+  max-width: 600rpx;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx;
+  border-radius: 8rpx;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 30rpx;
+  transition: all 0.3s;
+}
+
+.tab-item.active {
+  background: #fff;
+  color: #667eea;
+  font-weight: bold;
+}
+
+/* 登录表单 */
+.login-form {
+  width: 100%;
+  max-width: 600rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20rpx;
+  padding: 40rpx;
+  box-sizing: border-box;
+}
+
+.form-content {
+  width: 100%;
+}
+
+/* 微信登录按钮 */
+.wechat-login-btn {
+  width: 100%;
+  height: 90rpx;
+  background: #07c160;
+  border-radius: 45rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 32rpx;
+  border: none;
+  margin-bottom: 30rpx;
+  transition: all 0.3s;
+}
+
+.wechat-login-btn:active {
+  transform: scale(0.98);
+}
+
+.wechat-login-btn icon {
+  margin-right: 10rpx;
+}
+
+/* 输入框样式 */
+.input-item {
+  margin-bottom: 30rpx;
+}
+
+.input-item .label {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 10rpx;
+  font-weight: 500;
+}
+
+.input-item .input {
+  width: 100%;
+  height: 80rpx;
+  background: #f5f5f5;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.3s;
+}
+
+.input-item .input:focus {
+  border-color: #667eea;
+  background: #fff;
+}
+
+/* 验证码行 */
+.verify-row {
+  display: flex;
+  gap: 20rpx;
+}
+
+.verify-input {
+  flex: 1;
+}
+
+.verify-btn {
+  min-width: 180rpx;
+  height: 80rpx;
+  background: #667eea;
+  border-radius: 12rpx;
+  color: #fff;
+  font-size: 26rpx;
+  border: none;
+  transition: all 0.3s;
+}
+
+.verify-btn.disabled {
+  background: #ccc;
+  color: #999;
+}
+
+.verify-btn:active:not(.disabled) {
+  transform: scale(0.98);
+}
+
+/* 登录按钮 */
+.login-btn {
+  width: 100%;
+  height: 90rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 45rpx;
+  color: #fff;
+  font-size: 32rpx;
+  border: none;
+  margin-top: 40rpx;
+  transition: all 0.3s;
+}
+
+.login-btn.disabled {
+  background: #ccc;
+  color: #999;
+}
+
+.login-btn:active:not(.disabled) {
+  transform: scale(0.98);
+}
+
+/* 协议 */
+.agreement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 30rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.agreement checkbox {
+  margin-right: 10rpx;
+  transform: scale(0.8);
+}
+
+.agreement .link {
+  color: #667eea;
+  margin: 0 5rpx;
+}
+
+/* 错误提示 */
+.error-tip {
+  display: block;
+  text-align: center;
+  color: #ff5252;
+  font-size: 26rpx;
+  margin-top: 20rpx;
+}
+
+/* 加载遮罩 */
+.loading-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.loading-content {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 60rpx 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loading-content text {
+  margin-top: 20rpx;
+  font-size: 30rpx;
+  color: #667eea;
+}
+
+/* 提示信息 */
+.tips {
+  text-align: center;
+  font-size: 26rpx;
+  color: #666;
+  margin-top: 30rpx;
+}
+
+.tips .link {
+  color: #667eea;
+  margin: 0 5rpx;
+}

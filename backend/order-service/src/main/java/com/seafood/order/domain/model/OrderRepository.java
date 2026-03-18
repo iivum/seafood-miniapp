@@ -8,4 +8,5 @@ public interface OrderRepository {
     Optional<Order> findById(String id);
     List<Order> findByUserId(String userId);
     List<Order> findAll();
+    void delete(Order order);
 }

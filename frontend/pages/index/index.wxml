@@ -28,12 +28,12 @@
   <!-- 今日推荐 -->
   <view class="section-title">今日推荐</view>
   <view class="product-list">
-    <view class="product-item" wx:for="{{products}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
-      <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill"></image>
+    <view class="product-item" wx:for="{{products}}" wx:key="id">
+      <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill" bindtap="goToDetail" data-id="{{item.id}}"></image>
       <view class="product-info">
-        <text class="product-name">{{item.name}}</text>
+        <text class="product-name" bindtap="goToDetail" data-id="{{item.id}}">{{item.name}}</text>
         <text class="product-price">￥{{item.price}}</text>
-        <view class="add-cart-btn">加入购物车</view>
+        <view class="add-cart-btn" bindtap="addToCart" data-product="{{item}}">加入购物车</view>
       </view>
     </view>
   </view>

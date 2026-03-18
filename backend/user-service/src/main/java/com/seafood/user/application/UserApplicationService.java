@@ -33,7 +33,15 @@ public class UserApplicationService {
         return userRepository.findByOpenId(openId);
     }
 
+    public User getUserByPhone(String phone) {
+        return userRepository.findByPhone(phone);
+    }
+
     public java.util.List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    public User createUser(User user) {
+        return userRepository.save(user);
     }
 }

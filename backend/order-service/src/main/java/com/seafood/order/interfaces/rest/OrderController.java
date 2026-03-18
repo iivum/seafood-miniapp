@@ -116,4 +116,36 @@ public class OrderController {
         orderApplicationService.deleteOrder(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/pay")
+    @Operation(
+        summary = "Pay an order",
+        description = "Processes payment for an existing order",
+        parameters = @Parameter(name = "id", description = "Order ID", required = true),
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Payment successful"),
+            @ApiResponse(responseCode = "400", description = "Order cannot be paid"),
+            @ApiResponse(responseCode = "404", description = "Order not found")
+        }
+    )
+    public ResponseEntity<Order> payOrder(@PathVariable String id) {
+        Order order = orderApplicationService.payOrder(id);
+        return ResponseEntity.ok(order);
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Operation(
+        summary = "Cancel an order",
+        description = "Cancels an existing order",
+        parameters = @Parameter(name = "id", description = "Order ID", required = true),
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Order cancelled successfully"),
+            @ApiResponse(responseCode = "400", description = "Order cannot be cancelled"),
+            @ApiResponse(responseCode = "404", description = "Order not found")
+        }
+    )
+    public ResponseEntity<Order> cancelOrder(@PathVariable String id) {
+        Order order = orderApplicationService.cancelOrder(id);
+        return ResponseEntity.ok(order);
+    }
 }
