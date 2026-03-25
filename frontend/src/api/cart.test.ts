@@ -149,7 +149,9 @@ describe('CartAPI', () => {
         totalItems: 0,
         selectedItems: [],
       };
-      mockedRequest.mockResolvedValueOnce(emptyCart);
+      mockedRequest.mockResolvedValueOnce({
+        data: emptyCart,
+      });
 
       // Act
       const result = await CartAPI.getCart();
@@ -162,13 +164,12 @@ describe('CartAPI', () => {
     it('should handle network error when fetching cart', async () => {
       // Arrange
       const networkError = new Error('Network timeout');
-      // Force the actual implementation to reject for this test
-      jest.spyOn(CartAPI, 'getCart').mockRejectedValueOnce(networkError);
+      mockedRequest.mockRejectedValueOnce(networkError);
 
       // Act & Assert
       await expect(CartAPI.getCart())
         .rejects
-        .toThrow('Network timeout');
+        .toThrow('Failed to fetch cart: Network timeout');
     });
   });
 
@@ -216,7 +217,9 @@ describe('CartAPI', () => {
         totalItems: 0,
         selectedItems: [],
       };
-      mockedRequest.mockResolvedValueOnce(emptyCart);
+      mockedRequest.mockResolvedValueOnce({
+        data: emptyCart,
+      });
 
       // Act
       const result = await CartAPI.updateCartItem(updateParams);

@@ -42,3 +42,4 @@ mongodb_data/
 # Temporary files
 *.tmp
 *.bak
+.worktrees/
