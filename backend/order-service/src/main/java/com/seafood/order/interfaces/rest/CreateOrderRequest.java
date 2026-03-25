@@ -1,50 +1,79 @@
 package com.seafood.order.interfaces.rest;
 
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Data;
-
-import java.math.BigDecimal;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
-@Data
-@Schema(description = "创建订单请求")
+/**
+ * Request DTO for creating order from cart
+ * Validates input data for order creation
+ */
 public class CreateOrderRequest {
-    
-    @Schema(description = "用户ID", example = "user123")
+
+    @NotBlank(message = "User ID cannot be blank")
+    @NotNull(message = "User ID cannot be null")
     private String userId;
-    
-    @Schema(description = "订单商品列表")
-    private List<OrderItemRequest> items;
-    
-    @Schema(description = "订单总金额", example = "199.99")
-    private BigDecimal totalAmount;
-    
-    @Schema(description = "收货地址")
-    private String shippingAddress;
-    
-    @Schema(description = "地址ID（关联地址表）")
+
+    @NotBlank(message = "Cart ID cannot be blank")
+    @NotNull(message = "Cart ID cannot be null")
+    private String cartId;
+
+    @NotBlank(message = "Address ID cannot be blank")
+    @NotNull(message = "Address ID cannot be null")
     private String addressId;
-    
-    @Schema(description = "备注信息")
-    private String remark;
-    
-    @Data
-    @Schema(description = "订单商品项")
-    public static class OrderItemRequest {
-        
-        @Schema(description = "商品ID", example = "product123")
-        private String productId;
-        
-        @Schema(description = "商品名称", example = "新鲜三文鱼")
-        private String productName;
-        
-        @Schema(description = "商品价格", example = "99.99")
-        private BigDecimal price;
-        
-        @Schema(description = "商品数量", example = "2")
-        private Integer quantity;
-        
-        @Schema(description = "商品图片URL")
-        private String imageUrl;
+
+    private List<String> selectedItemIds;
+
+    public CreateOrderRequest() {
+    }
+
+    public CreateOrderRequest(String userId, String cartId, String addressId, List<String> selectedItemIds) {
+        this.userId = userId;
+        this.cartId = cartId;
+        this.addressId = addressId;
+        this.selectedItemIds = selectedItemIds;
+    }
+
+    // Getters and Setters
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getCartId() {
+        return cartId;
+    }
+
+    public void setCartId(String cartId) {
+        this.cartId = cartId;
+    }
+
+    public String getAddressId() {
+        return addressId;
+    }
+
+    public void setAddressId(String addressId) {
+        this.addressId = addressId;
+    }
+
+    public List<String> getSelectedItemIds() {
+        return selectedItemIds;
+    }
+
+    public void setSelectedItemIds(List<String> selectedItemIds) {
+        this.selectedItemIds = selectedItemIds;
+    }
+
+    @Override
+    public String toString() {
+        return "CreateOrderRequest{" +
+                "userId='" + userId + '\'' +
+                ", cartId='" + cartId + '\'' +
+                ", addressId='" + addressId + '\'' +
+                ", selectedItemIds=" + selectedItemIds +
+                '}';
     }
 }

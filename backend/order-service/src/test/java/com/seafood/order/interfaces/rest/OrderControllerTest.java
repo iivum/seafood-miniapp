@@ -2,22 +2,22 @@ package com.seafood.order.interfaces.rest;
 
 import com.seafood.order.application.OrderApplicationService;
 import com.seafood.order.domain.model.Order;
-import com.seafood.order.domain.model.OrderItem;
 import com.seafood.order.domain.model.OrderStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.MockBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -27,102 +27,215 @@ class OrderControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @MockBean
     private OrderApplicationService orderApplicationService;
 
+    private Order testOrder;
+    private CreateOrderRequest createOrderRequest;
+    private PaymentRequest paymentRequest;
+    private RefundRequest refundRequest;
+
+    @BeforeEach
+    void setUp() {
+        // Create test order
+        testOrder = new Order("user123", "SHIPPING_ADDRESS");
+        testOrder.setId("order123");
+        testOrder.setOrderNumber("ORD-20260325-001");
+        testOrder.setStatus(OrderStatus.PENDING_PAYMENT);
+
+        // Create test requests
+        createOrderRequest = new CreateOrderRequest("user123", "cart123", "address123", Arrays.asList("item1", "item2"));
+        paymentRequest = new PaymentRequest("wechat", "100.00", "user123", "order123");
+        refundRequest = new RefundRequest("50.00", "Product quality issue", "user123", "order123");
+    }
+
     @Test
-    void testCreateOrder() throws Exception {
-        OrderItem item = new OrderItem("1", "Lobster", new BigDecimal("49.99"), 2);
-        Order order = new Order("user1", Arrays.asList(item), new BigDecimal("99.98"), "123 Main St");
-        order.setId("order1");
+    void shouldCreateOrderFromCartSuccessfully() throws Exception {
+        when(orderApplicationService.createOrderFromCart(anyString(), anyString()))
+                .thenReturn(testOrder);
 
-        when(orderApplicationService.createOrder(any(), any(), any(), any())).thenReturn(order);
-
-        mockMvc.perform(post("/orders")
+        mockMvc.perform(post("/api/orders")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"userId\":\"user1\",\"items\":[{\"productId\":\"1\",\"productName\":\"Lobster\",\"price\":49.99,\"quantity\":2}],\"totalAmount\":99.98,\"shippingAddress\":\"123 Main St\"}"))
+                .content(objectMapper.writeValueAsString(createOrderRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("order123"))
+                .andExpect(jsonPath("$.orderNumber").value("ORD-20260325-001"))
+                .andExpect(jsonPath("$.status").value("PENDING_PAYMENT"));
+    }
+
+    @Test
+    void shouldCreateOrderFromCartWhenCartIsEmpty() throws Exception {
+        when(orderApplicationService.createOrderFromCart(anyString(), anyString()))
+                .thenThrow(new IllegalArgumentException("Cart is empty"));
+
+        mockMvc.perform(post("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(createOrderRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Cart is empty"));
+    }
+
+    @Test
+    void shouldGetOrderByIdSuccessfully() throws Exception {
+        when(orderApplicationService.getOrderOrThrow(anyString())).thenReturn(testOrder);
+
+        mockMvc.perform(get("/api/orders/{id}", "order123"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value("user1"))
-                .andExpect(jsonPath("$.totalAmount").value(99.98));
+                .andExpect(jsonPath("$.id").value("order123"))
+                .andExpect(jsonPath("$.orderNumber").value("ORD-20260325-001"))
+                .andExpect(jsonPath("$.status").value("PENDING_PAYMENT"));
     }
 
     @Test
-    void testListAllOrders() throws Exception {
-        OrderItem item = new OrderItem("1", "Lobster", new BigDecimal("49.99"), 2);
-        Order order = new Order("user1", Arrays.asList(item), new BigDecimal("99.98"), "123 Main St");
-        order.setId("order1");
+    void shouldGetOrderByIdWhenOrderNotFound() throws Exception {
+        when(orderApplicationService.getOrderOrThrow(anyString()))
+                .thenThrow(new OrderNotFoundException("Order not found: order999"));
 
-        when(orderApplicationService.listAllOrders()).thenReturn(Arrays.asList(order));
+        mockMvc.perform(get("/api/orders/{id}", "order999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Order not found: order999"));
+    }
 
-        mockMvc.perform(get("/orders"))
+    @Test
+    void shouldGetOrdersByUserAndStatusSuccessfully() throws Exception {
+        List<Order> orders = Arrays.asList(testOrder);
+        when(orderApplicationService.getOrdersByUserIdAndStatus(anyString(), any()))
+                .thenReturn(orders);
+
+        mockMvc.perform(get("/api/orders")
+                .param("userId", "user123")
+                .param("status", "PENDING_PAYMENT"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].userId").value("user1"))
-                .andExpect(jsonPath("$[0].totalAmount").value(99.98));
+                .andExpect(jsonPath("$[0].id").value("order123"))
+                .andExpect(jsonPath("$[0].status").value("PENDING_PAYMENT"));
     }
 
     @Test
-    void testListAllOrdersEmpty() throws Exception {
-        when(orderApplicationService.listAllOrders()).thenReturn(Collections.emptyList());
+    void shouldProcessPaymentSuccessfully() throws Exception {
+        Order paidOrder = new Order("user123", "SHIPPING_ADDRESS");
+        paidOrder.setId("order123");
+        paidOrder.setOrderNumber("ORD-20260325-001");
+        paidOrder.setStatus(OrderStatus.PAID);
+        paidOrder.setTransactionId("TXN-12345");
 
-        mockMvc.perform(get("/orders"))
+        when(orderApplicationService.processPayment(anyString(), any()))
+                .thenReturn(paidOrder);
+
+        mockMvc.perform(post("/api/orders/{id}/payment", "order123")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.status").value("PAID"))
+                .andExpect(jsonPath("$.transactionId").value("TXN-12345"));
     }
 
     @Test
-    void testGetOrderById() throws Exception {
-        OrderItem item = new OrderItem("1", "Lobster", new BigDecimal("49.99"), 2);
-        Order order = new Order("user1", Arrays.asList(item), new BigDecimal("99.98"), "123 Main St");
-        order.setId("order1");
+    void shouldProcessPaymentWhenOrderStatusInvalid() throws Exception {
+        when(orderApplicationService.processPayment(anyString(), any()))
+                .thenThrow(new IllegalStateException("Order cannot be paid in current status: CANCELLED"));
 
-        when(orderApplicationService.getOrderById("order1")).thenReturn(Optional.of(order));
+        mockMvc.perform(post("/api/orders/{id}/payment", "order123")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(paymentRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Order cannot be paid in current status: CANCELLED"));
+    }
 
-        mockMvc.perform(get("/orders/order1"))
+    @Test
+    void shouldShipOrderSuccessfully() throws Exception {
+        Order shippedOrder = new Order("user123", "SHIPPING_ADDRESS");
+        shippedOrder.setId("order123");
+        shippedOrder.setOrderNumber("ORD-20260325-001");
+        shippedOrder.setStatus(OrderStatus.SHIPPED);
+        shippedOrder.setTrackingNumber("TRACK-12345");
+
+        when(orderApplicationService.shipOrder(anyString(), anyString()))
+                .thenReturn(shippedOrder);
+
+        mockMvc.perform(put("/api/orders/{id}/ship", "order123")
+                .param("trackingNumber", "TRACK-12345"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value("order1"))
-                .andExpect(jsonPath("$.userId").value("user1"));
+                .andExpect(jsonPath("$.status").value("SHIPPED"))
+                .andExpect(jsonPath("$.trackingNumber").value("TRACK-12345"));
     }
 
     @Test
-    void testGetOrderByIdNotFound() throws Exception {
-        when(orderApplicationService.getOrderById("nonexistent")).thenReturn(Optional.empty());
+    void shouldCompleteOrderSuccessfully() throws Exception {
+        Order completedOrder = new Order("user123", "SHIPPING_ADDRESS");
+        completedOrder.setId("order123");
+        completedOrder.setOrderNumber("ORD-20260325-001");
+        completedOrder.setStatus(OrderStatus.DELIVERED);
 
-        mockMvc.perform(get("/orders/nonexistent"))
-                .andExpect(status().isNotFound());
-    }
+        when(orderApplicationService.completeOrder(anyString()))
+                .thenReturn(completedOrder);
 
-    @Test
-    void testGetOrdersByUserId() throws Exception {
-        OrderItem item = new OrderItem("1", "Lobster", new BigDecimal("49.99"), 2);
-        Order order = new Order("user1", Arrays.asList(item), new BigDecimal("99.98"), "123 Main St");
-        order.setId("order1");
-
-        when(orderApplicationService.getOrdersByUserId("user1")).thenReturn(Arrays.asList(order));
-
-        mockMvc.perform(get("/orders/user/user1"))
+        mockMvc.perform(put("/api/orders/{id}/complete", "order123"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].userId").value("user1"));
+                .andExpect(jsonPath("$.status").value("DELIVERED"));
     }
 
     @Test
-    void testUpdateOrderStatus() throws Exception {
-        OrderItem item = new OrderItem("1", "Lobster", new BigDecimal("49.99"), 2);
-        Order order = new Order("user1", Arrays.asList(item), new BigDecimal("99.98"), "123 Main St");
-        order.setId("order1");
-        order.setStatus(OrderStatus.SHIPPED);
+    void shouldCancelOrderSuccessfully() throws Exception {
+        Order cancelledOrder = new Order("user123", "SHIPPING_ADDRESS");
+        cancelledOrder.setId("order123");
+        cancelledOrder.setOrderNumber("ORD-20260325-001");
+        cancelledOrder.setStatus(OrderStatus.CANCELLED);
 
-        when(orderApplicationService.updateOrderStatus(any(), any())).thenReturn(order);
+        when(orderApplicationService.cancelOrder(anyString(), anyString()))
+                .thenReturn(cancelledOrder);
 
-        mockMvc.perform(put("/orders/order1/status")
-                .contentType(MediaType.TEXT_PLAIN)
-                .content("SHIPPED"))
+        mockMvc.perform(put("/api/orders/{id}/cancel", "order123")
+                .param("reason", "User request"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SHIPPED"));
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
     }
 
     @Test
-    void testDeleteOrder() throws Exception {
-        mockMvc.perform(delete("/orders/order1"))
-                .andExpect(status().isNoContent());
+    void shouldProcessRefundSuccessfully() throws Exception {
+        Order refundedOrder = new Order("user123", "SHIPPING_ADDRESS");
+        refundedOrder.setId("order123");
+        refundedOrder.setOrderNumber("ORD-20260325-001");
+        refundedOrder.setStatus(OrderStatus.REFUNDED);
+
+        when(orderApplicationService.processRefund(anyString(), any()))
+                .thenReturn(refundedOrder);
+
+        mockMvc.perform(post("/api/orders/{id}/refund", "order123")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(refundRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REFUNDED"));
+    }
+
+    @Test
+    void shouldGetOrderStatisticsSuccessfully() throws Exception {
+        OrderApplicationService.OrderStatistics stats = new OrderApplicationService.OrderStatistics(
+                10, 1000.0, 100.0, 2, 3, 2, 2, 1, 0
+        );
+
+        when(orderApplicationService.getOrderStatistics(anyString(), any(), any()))
+                .thenReturn(stats);
+
+        mockMvc.perform(get("/api/orders/{id}/statistics", "user123")
+                .param("startDate", "2026-01-01")
+                .param("endDate", "2026-12-31"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalOrders").value(10))
+                .andExpect(jsonPath("$.totalAmount").value(1000.0))
+                .andExpect(jsonPath("$.averageOrderValue").value(100.0));
+    }
+
+    @Test
+    void shouldHandleValidationErrors() throws Exception {
+        CreateOrderRequest invalidRequest = new CreateOrderRequest("", "", "", null);
+
+        mockMvc.perform(post("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists());
     }
 }
