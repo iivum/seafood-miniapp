@@ -1,0 +1,271 @@
+package com.seafood.user.application;
+
+import com.seafood.common.security.JwtUtil;
+import com.seafood.user.domain.model.TokenRepository;
+import com.seafood.user.domain.model.User;
+import com.seafood.user.domain.model.UserRepository;
+import com.seafood.user.interfaces.rest.LoginResponse;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
+
+/**
+ * 认证服务
+ * 处理用户登录、注册、令牌管理等认证相关逻辑
+ */
+@Service
+@Transactional
+public class AuthenticationService implements UserDetailsService {
+
+    private final UserRepository userRepository;
+    private final TokenRepository tokenRepository;
+    private final JwtUtil jwtUtil;
+    private final CustomPasswordEncoder passwordEncoder;
+
+    public AuthenticationService(
+            UserRepository userRepository,
+            TokenRepository tokenRepository,
+            JwtUtil jwtUtil,
+            CustomPasswordEncoder passwordEncoder
+    ) {
+        this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
+        this.jwtUtil = jwtUtil;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    /**
+     * 微信登录或注册
+     * @param openId 微信OpenID
+     * @param nickname 用户昵称
+     * @param avatarUrl 用户头像URL
+     * @return 用户信息和登录响应
+     */
+    public LoginResponse weChatLogin(String openId, String nickname, String avatarUrl) {
+        User user = userRepository.findByOpenId(openId)
+                .orElseGet(() -> {
+                    // 用户不存在，创建新用户
+                    User newUser = new User();
+                    newUser.setOpenId(openId);
+                    newUser.setNickname(nickname);
+                    newUser.setAvatarUrl(avatarUrl);
+                    return userRepository.save(newUser);
+                });
+
+        // 更新用户信息（以防微信信息有变化）
+        user.setNickname(nickname);
+        user.setAvatarUrl(avatarUrl);
+        user = userRepository.save(user);
+
+        return generateLoginResponse(user);
+    }
+
+    /**
+     * 手机号验证码登录
+     * @param phone 手机号
+     * @param verifyCode 验证码
+     * @return 用户信息和登录响应
+     */
+    public LoginResponse phoneLogin(String phone, String verifyCode) {
+        // 验证码验证逻辑（实际应该从Redis获取）
+        // 简化版本：假设验证码正确
+        String storedCode = getVerifyCodeFromStore(phone);
+        if (storedCode == null || !storedCode.equals(verifyCode)) {
+            throw new BadCredentialsException("验证码错误");
+        }
+
+        // 清除已使用的验证码
+        clearVerifyCode(phone);
+
+        User user = userRepository.findByPhone(phone);
+        if (user == null) {
+            throw new UsernameNotFoundException("用户不存在");
+        }
+
+        return generateLoginResponse(user);
+    }
+
+    /**
+     * 手机号注册
+     * @param phone 手机号
+     * @param verifyCode 验证码
+     * @param password 密码
+     * @param nickname 昵称
+     * @return 用户信息和登录响应
+     */
+    public LoginResponse phoneRegister(String phone, String verifyCode, String password, String nickname) {
+        // 验证码验证
+        String storedCode = getVerifyCodeFromStore(phone);
+        if (storedCode == null || !storedCode.equals(verifyCode)) {
+            throw new BadCredentialsException("验证码错误");
+        }
+
+        // 检查用户是否已存在
+        User existingUser = userRepository.findByPhone(phone);
+        if (existingUser != null) {
+            throw new IllegalArgumentException("用户已存在");
+        }
+
+        // 验证密码强度
+        if (password == null || password.length() < 6) {
+            throw new IllegalArgumentException("密码长度至少为6位");
+        }
+
+        // 创建新用户
+        User user = new User();
+        user.setPhone(phone);
+        user.setNickname(nickname != null ? nickname : "用户" + phone.substring(7));
+        user.setPassword(passwordEncoder.encode(password));
+        user = userRepository.save(user);
+
+        // 清除已使用的验证码
+        clearVerifyCode(phone);
+
+        return generateLoginResponse(user);
+    }
+
+    /**
+     * 用户名密码登录
+     * @param username 用户名（手机号或OpenID）
+     * @param password 密码
+     * @return 用户信息和登录响应
+     */
+    public LoginResponse usernamePasswordLogin(String username, String password) {
+        User user = userRepository.findById(username)
+                .orElseThrow(() -> new UsernameNotFoundException("用户不存在"));
+
+        // 验证密码
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadCredentialsException("密码错误");
+        }
+
+        return generateLoginResponse(user);
+    }
+
+    /**
+     * 生成登录响应
+     * @param user 用户信息
+     * @return 登录响应
+     */
+    public LoginResponse generateLoginResponse(User user) {
+        // 生成访问令牌和刷新令牌
+        String accessToken = jwtUtil.generateToken(user.getId(), user.getRole().name());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId());
+
+        // 保存令牌到Redis
+        tokenRepository.saveAccessToken(accessToken, user.getId());
+        tokenRepository.saveRefreshToken(refreshToken, user.getId());
+
+        // 构建响应
+        return new LoginResponse(
+                accessToken,
+                user.getId(),
+                user.getNickname(),
+                user.getAvatarUrl(),
+                user.getRole().name(),
+                refreshToken
+        );
+    }
+
+    /**
+     * 刷新访问令牌
+     * @param refreshToken 刷新令牌
+     * @return 新的访问令牌
+     */
+    public String refreshAccessToken(String refreshToken) {
+        // 验证刷新令牌
+        String userId = tokenRepository.getUserIdByToken(refreshToken);
+        if (userId == null) {
+            throw new BadCredentialsException("无效的刷新令牌");
+        }
+
+        // 获取用户信息
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("用户不存在"));
+
+        // 生成新的访问令牌
+        String newAccessToken = jwtUtil.generateToken(user.getId(), user.getRole().name());
+
+        // 保存新的访问令牌
+        tokenRepository.saveAccessToken(newAccessToken, user.getId());
+
+        return newAccessToken;
+    }
+
+    /**
+     * 用户登出
+     * @param token 访问令牌
+     */
+    public void logout(String token) {
+        // 从令牌获取用户ID
+        String userId = tokenRepository.getUserIdByToken(token);
+        if (userId != null) {
+            // 将令牌加入黑名单
+            tokenRepository.blacklistToken(token);
+        }
+    }
+
+    /**
+     * 强制用户登出（删除所有令牌）
+     * @param userId 用户ID
+     */
+    public void forceLogout(String userId) {
+        tokenRepository.deleteAllUserTokens(userId);
+    }
+
+    /**
+     * 验证令牌有效性
+     * @param token 访问令牌
+     * @return 是否有效
+     */
+    public boolean validateToken(String token) {
+        return tokenRepository.validateToken(token);
+    }
+
+    /**
+     * 根据用户ID获取用户信息
+     * @param userId 用户ID
+     * @return 用户信息
+     */
+    public User getUserById(String userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("用户不存在"));
+    }
+
+    /**
+     * 加载用户详情（Spring Security接口）
+     * @param username 用户名
+     * @return 用户详情
+     */
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userRepository.findById(username)
+                .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + username));
+
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getId())
+                .password(user.getPassword())
+                .roles(user.getRole().name())
+                .build();
+    }
+
+    // 以下方法用于验证码管理（简化实现，实际应该使用Redis）
+
+    private String getVerifyCodeFromStore(String phone) {
+        // 实际应该从Redis获取
+        // 简化实现
+        return "123456"; // 假设验证码总是123456
+    }
+
+    private void clearVerifyCode(String phone) {
+        // 实际应该从Redis清除
+        // 简化实现
+    }
+}
