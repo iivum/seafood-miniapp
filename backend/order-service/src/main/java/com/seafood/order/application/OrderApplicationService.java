@@ -55,7 +55,7 @@ public class OrderApplicationService {
         }
 
         // Create order from cart items
-        Address shippingAddress = cart.getShippingAddress(); // Assuming cart has address
+        Address shippingAddress = createDefaultAddress(); // Use default address for now
         Order order = new Order(userId, shippingAddress);
 
         // Convert cart items to order items
@@ -264,6 +264,15 @@ public class OrderApplicationService {
     private Order getOrderOrThrow(String orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+    }
+
+    /**
+     * Create a default address for order creation
+     *
+     * @return default address
+     */
+    private Address createDefaultAddress() {
+        return new Address("Default User", "13800138000", "123 Main Street", "Beijing", "Beijing", "Chaoyang");
     }
 
     /**
