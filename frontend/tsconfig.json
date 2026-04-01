@@ -107,5 +107,8 @@
     /* Completeness */
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that come from the standard library. */
     "skipLibCheck": true                                 /* Skip type checking of all .d.ts files. */
-  }
+  },
+
+  /* Jest types for testing */
+  "types": ["jest"]
 }
