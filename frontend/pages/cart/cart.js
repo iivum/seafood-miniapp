@@ -4,13 +4,14 @@ Page({
   data: {
     cartItems: [],
     totalPrice: 0,
+    selectedPrice: 0,
+    selectedItems: [],
     selectedAddress: null
   },
 
   onShow: function() {
     this.refreshCart();
 
-    // 从地址列表页面返回后，检查是否有选中的地址
     const pages = getCurrentPages();
     const currentPage = pages[pages.length - 1];
 
@@ -28,10 +29,48 @@ Page({
     items.forEach(item => {
       total += item.price * item.quantity;
     });
+
+    // Calculate selected items price
+    const selectedIds = this.data.selectedItems;
+    let selectedTotal = 0;
+    items.forEach(item => {
+      if (selectedIds.includes(item.id)) {
+        selectedTotal += item.price * item.quantity;
+      }
+    });
+
     this.setData({
       cartItems: items,
-      totalPrice: total.toFixed(2)
+      totalPrice: total.toFixed(2),
+      selectedPrice: selectedTotal.toFixed(2)
     });
+  },
+
+  // Toggle item selection
+  onToggleSelect: function(e) {
+    const id = e.currentTarget.dataset.id;
+    const selectedItems = [...this.data.selectedItems];
+
+    const index = selectedItems.indexOf(id);
+    if (index > -1) {
+      selectedItems.splice(index, 1);
+    } else {
+      selectedItems.push(id);
+    }
+
+    this.setData({ selectedItems });
+    this.refreshCart();
+  },
+
+  // Toggle select all
+  onToggleSelectAll: function() {
+    if (this.data.selectedItems.length === this.data.cartItems.length) {
+      this.setData({ selectedItems: [] });
+    } else {
+      const allIds = this.data.cartItems.map(item => item.id);
+      this.setData({ selectedItems: allIds });
+    }
+    this.refreshCart();
   },
 
   onPlus: function(e) {
