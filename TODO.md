@@ -26,21 +26,21 @@
 ## 🟡 中优先级 (P1)
 
 ### 用户认证
-- [ ] 微信登录集成
-- [ ] JWT Token 管理
-- [ ] 登录页面 `pages/login/`
-- [ ] Token 刷新机制
+- [x] 微信登录集成 - app.js wxLogin()
+- [x] JWT Token 管理 - app.js validateToken()
+- [x] 登录页面 `pages/login/` - 完整实现
+- [x] Token 刷新机制 - request.js 处理
 
 ### 用户中心
-- [ ] 个人中心页面 `pages/profile/`
-- [ ] 收货地址管理 `pages/address/`
-- [ ] 地址编辑功能
+- [x] 个人中心页面 `pages/profile/` - 功能完整
+- [x] 收货地址管理 `pages/address/` - address-list/address-edit
+- [x] 地址编辑功能 - address-edit 完整实现
 
 ### 后端微服务
-- [ ] 完善 product-service CRUD
-- [ ] 实现 order-service 业务逻辑
-- [ ] 实现 user-service 用户管理
-- [ ] 服务间通信优化
+- [x] 完善 product-service CRUD
+- [x] 实现 order-service 业务逻辑
+- [x] 实现 user-service 用户管理
+- [x] 服务间通信优化
 
 ---
 

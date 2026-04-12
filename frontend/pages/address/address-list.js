@@ -108,18 +108,25 @@ Page({
     }
 
     const address = e.currentTarget.dataset.address;
-    
+
     // 使用页面栈传递选择结果
     const pages = getCurrentPages();
-    const cartPage = pages[pages.length - 2]; // 上一个页面是购物车
-    
-    if (cartPage && cartPage.route === 'pages/cart/cart') {
-      // 将选择结果传递给购物车页面
-      cartPage.setData({
-        selectedAddress: address
-      });
+
+    // 查找上一个页面
+    const prevPageIndex = pages.length - 2;
+    if (prevPageIndex < 0) {
+      wx.navigateBack();
+      return;
     }
-    
+
+    const prevPage = pages[prevPageIndex];
+    const prevRoute = prevPage.route;
+
+    // 支持多个页面选择地址后回传
+    if (prevRoute === 'pages/cart/cart' || prevRoute === 'pages/order-confirm/order-confirm') {
+      prevPage.selectedAddressFromList = address;
+    }
+
     wx.navigateBack();
   },
 
