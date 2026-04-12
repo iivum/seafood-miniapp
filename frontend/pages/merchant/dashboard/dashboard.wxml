@@ -1,0 +1,85 @@
+<view class="dashboard-container">
+  <!-- Header -->
+  <view class="header">
+    <view class="header-title">数据统计</view>
+    <text class="header-date">{{today}}</text>
+  </view>
+
+  <!-- Loading -->
+  <view class="loading-state" wx:if="{{isLoading}}">
+    <text>加载中...</text>
+  </view>
+
+  <view class="dashboard-content" wx:else>
+    <!-- Revenue Card -->
+    <view class="stat-card revenue">
+      <view class="stat-icon">💰</view>
+      <view class="stat-content">
+        <text class="stat-value">￥{{formatMoney(todayRevenue)}}</text>
+        <text class="stat-label">今日收入</text>
+        <view class="stat-trend up" wx:if="{{revenueChange > 0}}">
+          <text>↑ {{revenueChange}}%</text>
+        </view>
+        <view class="stat-trend down" wx:elif="{{revenueChange < 0}}">
+          <text>↓ {{revenueChange}}%</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Orders Card -->
+    <view class="stat-card orders">
+      <view class="stat-icon">📦</view>
+      <view class="stat-content">
+        <text class="stat-value">{{todayOrders}}</text>
+        <text class="stat-label">今日订单</text>
+        <view class="stat-trend up" wx:if="{{ordersChange > 0}}">
+          <text>↑ {{ordersChange}}%</text>
+        </view>
+        <view class="stat-trend down" wx:elif="{{ordersChange < 0}}">
+          <text>↓ {{ordersChange}}%</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Products Card -->
+    <view class="stat-card products">
+      <view class="stat-icon">🐟</view>
+      <view class="stat-content">
+        <text class="stat-value">{{totalProducts}}</text>
+        <text class="stat-label">商品总数</text>
+      </view>
+    </view>
+
+    <!-- Users Card -->
+    <view class="stat-card users">
+      <view class="stat-icon">👥</view>
+      <view class="stat-content">
+        <text class="stat-value">{{totalUsers}}</text>
+        <text class="stat-label">用户总数</text>
+      </view>
+    </view>
+
+    <!-- Quick Actions -->
+    <view class="quick-actions">
+      <view class="section-title">快捷操作</view>
+      <view class="action-grid">
+        <view class="action-item" bindtap="goToProductManage">
+          <text class="action-icon">➕</text>
+          <text class="action-text">添加商品</text>
+        </view>
+        <view class="action-item" bindtap="goToOrderManage">
+          <text class="action-icon">📋</text>
+          <text class="action-text">处理订单</text>
+        </view>
+        <view class="action-item" bindtap="goToUserManage">
+          <text class="action-icon">👤</text>
+          <text class="action-text">用户管理</text>
+        </view>
+        <view class="action-item" bindtap="goToProductManage">
+          <text class="action-icon">📊</text>
+          <text class="action-text">数据报表</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
