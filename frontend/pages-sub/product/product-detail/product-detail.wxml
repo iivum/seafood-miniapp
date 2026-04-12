@@ -1,6 +1,6 @@
 <view class="detail-container">
-  <image class="banner" src="{{product.imageUrl}}" mode="aspectFill"></image>
-  
+  <image class="banner" src="{{product.imageUrl}}" mode="aspectFill" lazy-load="{{true}}"></image>
+
   <view class="info card">
     <text class="price">￥{{product.price}}</text>
     <text class="name">{{product.name}}</text>
@@ -17,6 +17,39 @@
       <text class="label">库存</text>
       <text class="value">{{product.stock}} 件</text>
     </view>
+  </view>
+
+  <!-- Recommendations Section -->
+  <view class="recommendations card" wx:if="{{recommendations.length > 0}}">
+    <view class="section-title">商品推荐</view>
+    <block wx:for="{{recommendations}}" wx:key="type">
+      <view class="recommend-group">
+        <view class="recommend-header">
+          <text class="recommend-title">{{item.reason}}</text>
+        </view>
+        <scroll-view class="recommend-scroll" scroll-x="{{true}}">
+          <view class="recommend-list">
+            <view
+              class="recommend-item"
+              wx:for="{{item.products}}"
+              wx:key="id"
+              wx:for-item="recProduct"
+              bindtap="goToProductDetail"
+              data-id="{{recProduct.id}}"
+            >
+              <image class="recommend-img" src="{{recProduct.imageUrl}}" mode="aspectFill" lazy-load="{{true}}"></image>
+              <text class="recommend-name">{{recProduct.name}}</text>
+              <text class="recommend-price">￥{{recProduct.price}}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </block>
+  </view>
+
+  <!-- Loading recommendations -->
+  <view class="loading-recommendations" wx:if="{{isLoadingRecommendations}}">
+    <text>加载推荐中...</text>
   </view>
 
   <view class="footer">

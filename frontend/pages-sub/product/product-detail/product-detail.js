@@ -1,9 +1,12 @@
 const request = require('../../utils/request.js');
 const cartUtil = require('../../utils/cart.js');
+const { recommendationModule } = require('../../src/modules/recommendation/recommendation.js');
 
 Page({
   data: {
-    product: {}
+    product: {},
+    recommendations: [],
+    isLoadingRecommendations: false
   },
 
   onLoad: function(options) {
@@ -12,16 +15,17 @@ Page({
   },
 
   fetchProductDetail: function(id) {
-    request({ 
+    request({
       url: `/products/${id}`,
-      needAuth: true  // 需要认证
+      needAuth: true
     })
     .then(res => {
       this.setData({ product: res });
+      this.fetchRecommendations(res);
     })
     .catch(err => {
       console.error('Fetch product detail failed', err);
-      if (err.statusCode !== 401) { // 401错误已在request.js中处理
+      if (err.statusCode !== 401) {
         wx.showToast({
           title: '加载商品失败',
           icon: 'none'
@@ -30,22 +34,42 @@ Page({
     });
   },
 
+  fetchRecommendations: function(product) {
+    this.setData({ isLoadingRecommendations: true });
+
+    recommendationModule.getProductRecommendations(product)
+      .then(recommendations => {
+        // Filter out empty recommendation groups
+        const validRecommendations = recommendations.filter(rec => rec.products.length > 0);
+        this.setData({ recommendations: validRecommendations });
+      })
+      .catch(err => {
+        console.error('Failed to load recommendations:', err);
+      })
+      .finally(() => {
+        this.setData({ isLoadingRecommendations: false });
+      });
+  },
+
   onAddToCart: function() {
-    cartUtil.addToCart(this.data.product);
+    const product = this.data.product;
+    cartUtil.addToCart(product);
+    recommendationModule.recordPurchase(product);
     wx.showToast({ title: '已加入购物车', icon: 'success' });
   },
 
   onBuyNow: function() {
     const app = getApp();
     if (!app.globalData.userInfo) {
-      // 未登录，跳转到登录页面
       wx.navigateTo({
         url: '/pages-sub/user/login/login'
       });
       return;
     }
-    
-    cartUtil.addToCart(this.data.product);
+
+    const product = this.data.product;
+    cartUtil.addToCart(product);
+    recommendationModule.recordPurchase(product);
     wx.switchTab({ url: '/pages/cart/cart' });
   },
 
@@ -55,5 +79,12 @@ Page({
 
   goToCart: function() {
     wx.switchTab({ url: '/pages/cart/cart' });
+  },
+
+  goToProductDetail: function(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.navigateTo({
+      url: `/pages-sub/product/product-detail/product-detail?id=${id}`
+    });
   }
 })
