@@ -9,11 +9,17 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/products")
@@ -41,7 +47,57 @@ public class ProductController {
         return ResponseEntity.ok(product);
     }
 
+    /**
+     * 获取商品列表（分页）
+     *
+     * @param page     页码（默认 0）
+     * @param pageSize 每页数量（默认 10）
+     * @param category 分类筛选（可选）
+     * @param keyword  搜索关键词（可选）
+     * @return 分页商品列表
+     */
     @GetMapping
+    @Operation(
+        summary = "List products with pagination",
+        description = "Returns a paginated list of products with optional filtering",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Successful operation"),
+            @ApiResponse(responseCode = "400", description = "Invalid pagination parameters")
+        }
+    )
+    public ResponseEntity<Map<String, Object>> listProducts(
+            @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int pageSize,
+            @Parameter(description = "Category filter") @RequestParam(required = false) String category,
+            @Parameter(description = "Search keyword") @RequestParam(required = false) String keyword) {
+
+        // 参数验证
+        if (page < 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (pageSize <= 0 || pageSize > 100) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        // 构建分页请求，按 ID 降序排序
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "id"));
+
+        // 获取分页数据
+        Page<Product> productPage = productApplicationService.listProducts(keyword, category, pageable);
+
+        // 构建响应
+        Map<String, Object> response = new HashMap<>();
+        response.put("products", productPage.getContent());
+        response.put("page", productPage.getNumber());
+        response.put("totalPages", productPage.getTotalPages());
+        response.put("totalProducts", productPage.getTotalElements());
+        response.put("hasNext", productPage.hasNext());
+        response.put("hasPrev", productPage.hasPrevious());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/all")
     @Operation(
         summary = "List all products",
         description = "Returns a list of all available seafood products",

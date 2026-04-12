@@ -19,7 +19,7 @@
 
   <!-- 分类入口 -->
   <view class="category-nav">
-    <view class="nav-item" wx:for="{{categories}}" wx:key="name">
+    <view class="nav-item" wx:for="{{categories}}" wx:key="name" bindtap="onCategoryTap" data-category="{{item.name}}">
       <image src="{{item.icon}}"></image>
       <text>{{item.name}}</text>
     </view>
@@ -27,7 +27,26 @@
 
   <!-- 今日推荐 -->
   <view class="section-title">今日推荐</view>
-  <view class="product-list">
+
+  <!-- 加载中状态 -->
+  <view class="loading-state" wx:if="{{isLoading && products.length === 0}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 错误状态 -->
+  <view class="error-state" wx:elif="{{isError}}">
+    <text class="error-text">{{errorMessage}}</text>
+    <view class="retry-btn" bindtap="onRetry">重新加载</view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{isEmpty}}">
+    <text class="empty-text">{{emptyMessage}}</text>
+    <view class="retry-btn" bindtap="onRetry">重新加载</view>
+  </view>
+
+  <!-- 商品列表 -->
+  <view class="product-list" wx:else>
     <view class="product-item" wx:for="{{products}}" wx:key="id">
       <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill" bindtap="goToDetail" data-id="{{item.id}}"></image>
       <view class="product-info">
@@ -36,5 +55,15 @@
         <view class="add-cart-btn" bindtap="addToCart" data-product="{{item}}">加入购物车</view>
       </view>
     </view>
+  </view>
+
+  <!-- 加载更多状态 -->
+  <view class="loading-more" wx:if="{{isLoadingMore}}">
+    <text>加载更多...</text>
+  </view>
+
+  <!-- 没有更多数据 -->
+  <view class="no-more" wx:if="{{!hasMore && products.length > 0}}">
+    <text>没有更多了</text>
   </view>
 </view>

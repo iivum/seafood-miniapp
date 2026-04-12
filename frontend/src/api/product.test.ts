@@ -30,7 +30,7 @@ describe('ProductAPI', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('getProducts', () => {

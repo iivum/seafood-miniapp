@@ -63,7 +63,8 @@ describe('ProductListModule', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockedProductAPI.getProducts.mockReset();
+    mockedProductAPI.getProducts.mockResolvedValue(samplePaginatedResponse);
   });
 
   describe('Initialization', () => {
