@@ -56,7 +56,7 @@ Page({
   // 添加新地址
   addNewAddress: function() {
     wx.navigateTo({
-      url: '/pages/address/address-edit'
+      url: '/pages-sub/user/address/address-edit'
     });
   },
 
@@ -64,7 +64,7 @@ Page({
   editAddress: function(e) {
     const address = e.currentTarget.dataset.address;
     wx.navigateTo({
-      url: `/pages/address/address-edit?id=${address.id}`
+      url: `/pages-sub/user/address/address-edit?id=${address.id}`
     });
   },
 
@@ -123,7 +123,7 @@ Page({
     const prevRoute = prevPage.route;
 
     // 支持多个页面选择地址后回传
-    if (prevRoute === 'pages/cart/cart' || prevRoute === 'pages/order-confirm/order-confirm') {
+    if (prevRoute === 'pages/cart/cart' || prevRoute === 'pages-sub/order/order-confirm/order-confirm') {
       prevPage.selectedAddressFromList = address;
     }
 

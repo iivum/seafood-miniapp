@@ -194,14 +194,14 @@ Page({
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.navigateTo({
-        url: '/pages/login/login'
+        url: '/pages-sub/user/login/login'
       });
       return;
     }
 
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
-      url: `/pages/product-detail/product-detail?id=${id}`
+      url: `/pages-sub/product/product-detail/product-detail?id=${id}`
     });
   },
 

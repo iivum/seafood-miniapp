@@ -177,14 +177,14 @@ Page({
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.navigateTo({
-        url: '/pages/login/login?redirect=' + encodeURIComponent('/pages/cart/cart')
+        url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages/cart/cart')
       });
       return;
     }
 
     // 跳转到订单确认页面
     wx.navigateTo({
-      url: '/pages/order-confirm/order-confirm'
+      url: '/pages-sub/order/order-confirm/order-confirm'
     });
   },
 
@@ -200,7 +200,7 @@ Page({
 
     const selectedAddress = this.data.selectedAddress || null;
     wx.navigateTo({
-      url: '/pages/address/address-list?selectMode=true&selectedAddress=' +
+      url: '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=' +
         encodeURIComponent(selectedAddress ? JSON.stringify(selectedAddress) : '')
     });
   },

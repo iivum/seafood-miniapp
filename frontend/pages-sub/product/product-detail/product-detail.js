@@ -40,7 +40,7 @@ Page({
     if (!app.globalData.userInfo) {
       // 未登录，跳转到登录页面
       wx.navigateTo({
-        url: '/pages/login/login'
+        url: '/pages-sub/user/login/login'
       });
       return;
     }

@@ -61,7 +61,7 @@ Page({
 
     const selectedAddress = this.data.selectedAddress || null;
     wx.navigateTo({
-      url: '/pages/address/address-list?selectMode=true&selectedAddress=' +
+      url: '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=' +
         encodeURIComponent(selectedAddress ? JSON.stringify(selectedAddress) : '')
     });
   },
@@ -70,7 +70,7 @@ Page({
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.navigateTo({
-        url: '/pages/login/login?redirect=' + encodeURIComponent('/pages/order-confirm/order-confirm')
+        url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages-sub/order/order-confirm/order-confirm')
       });
       return;
     }
@@ -103,7 +103,7 @@ Page({
         // Navigate to order list after short delay
         setTimeout(() => {
           wx.redirectTo({
-            url: '/pages/order-list/order-list'
+            url: '/pages-sub/order/order-list/order-list'
           });
         }, 1500);
       })

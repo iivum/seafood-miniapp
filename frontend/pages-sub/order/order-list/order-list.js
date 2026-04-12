@@ -14,7 +14,7 @@ Page({
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.navigateTo({
-        url: '/pages/login/login'
+        url: '/pages-sub/user/login/login'
       });
       return;
     }
