@@ -30,6 +30,10 @@
         <text>订单管理</text>
         <text class="arrow">></text>
       </view>
+      <view class="menu-item" bindtap="goToUserManage">
+        <text>用户管理</text>
+        <text class="arrow">></text>
+      </view>
       <view class="menu-item">
         <text>优惠券管理</text>
         <text class="arrow">></text>

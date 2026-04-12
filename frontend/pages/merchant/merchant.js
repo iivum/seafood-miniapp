@@ -9,5 +9,11 @@ Page({
     wx.navigateTo({
       url: '/pages/merchant/order-manage/order-manage'
     });
+  },
+
+  goToUserManage: function() {
+    wx.navigateTo({
+      url: '/pages/merchant/user-manage/user-manage'
+    });
   }
 })
