@@ -58,5 +58,11 @@
     ]
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "preloadRule": {
+    "pages/index/index": {
+      "network": "all",
+      "packages": ["pages/order", "pages/user", "pages/product", "pages/merchant"]
+    }
+  }
 }
