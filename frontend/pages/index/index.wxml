@@ -3,8 +3,22 @@
   <view class="search-bar">
     <view class="search-input">
       <icon type="search" size="14"></icon>
-      <input placeholder="搜索你心仪的海鲜" />
+      <input
+        placeholder="搜索你心仪的海鲜"
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+        confirm-type="search"
+      />
+      <icon wx:if="{{searchKeyword}}" type="clear" size="14" bindtap="onClearSearch"></icon>
     </view>
+    <button class="search-btn" bindtap="onSearch">搜索</button>
+  </view>
+
+  <!-- 搜索结果提示 -->
+  <view class="search-tip" wx:if="{{searchKeyword}}">
+    <text>搜索: {{searchKeyword}}</text>
+    <text class="clear-search" bindtap="onClearSearch">清除</text>
   </view>
 
   <!-- 轮播图 -->
@@ -50,7 +64,13 @@
     <view class="product-item" wx:for="{{products}}" wx:key="id">
       <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill" bindtap="goToDetail" data-id="{{item.id}}"></image>
       <view class="product-info">
-        <text class="product-name" bindtap="goToDetail" data-id="{{item.id}}">{{item.name}}</text>
+        <!-- 高亮显示的商品名称 -->
+        <view class="product-name" bindtap="goToDetail" data-id="{{item.id}}">
+          <text wx:if="{{!item.nameHighlighted}}">{{item.name}}</text>
+          <view wx:else class="highlight-wrapper">
+            <text>{{item.nameBefore}}</text><text class="highlight">{{item.nameMatch}}</text><text>{{item.nameAfter}}</text>
+          </view>
+        </view>
         <text class="product-price">￥{{item.price}}</text>
         <view class="add-cart-btn" bindtap="addToCart" data-product="{{item}}">加入购物车</view>
       </view>

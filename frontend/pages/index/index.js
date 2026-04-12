@@ -23,6 +23,8 @@ Page({
     emptyMessage: '',
     // Pull-down refresh enabled
     hasMore: true,
+    // Search
+    searchKeyword: '',
   },
 
   productModule: productListModule,
@@ -32,7 +34,6 @@ Page({
   },
 
   onShow: function () {
-    // 页面显示时刷新购物车角标（如果需要的话）
   },
 
   /**
@@ -40,7 +41,7 @@ Page({
    */
   async initProductList() {
     wx.showLoading({ title: '加载中...' });
-    
+
     try {
       await this.productModule.loadProducts({ page: 0 });
       this.updateViewFromModule();
@@ -56,14 +57,12 @@ Page({
    * Pull down refresh - triggered when user pulls down
    */
   async onPullDownRefresh() {
-    // Clear error state first
     this.productModule.clearError();
-    
+
     try {
       await this.productModule.refreshProducts();
       this.updateViewFromModule();
-      
-      // Show success feedback
+
       wx.showToast({
         title: '刷新成功',
         icon: 'success',
@@ -73,7 +72,6 @@ Page({
       console.error('Pull to refresh failed', err);
       this.handleError(err);
     } finally {
-      // Stop pull-down refresh animation
       wx.stopPullDownRefresh();
     }
   },
@@ -82,12 +80,10 @@ Page({
    * Reach bottom - triggered when user scrolls to bottom (load more)
    */
   async onReachBottom() {
-    // Check if there's more data to load
     if (!this.productModule.hasNext || this.productModule.isLoading) {
       return;
     }
 
-    // Set loading more state
     this.setData({ isLoadingMore: true });
 
     try {
@@ -108,14 +104,49 @@ Page({
    * Update page data from module state
    */
   updateViewFromModule() {
+    const keyword = this.data.searchKeyword;
+    const productsWithHighlight = this.highlightProducts(this.productModule.state.products, keyword);
+
     this.setData({
-      products: this.productModule.state.products,
+      products: productsWithHighlight,
       isLoading: this.productModule.state.isLoading,
       isError: this.productModule.state.isError,
       isEmpty: this.productModule.isEmpty,
       hasMore: this.productModule.hasNext,
       errorMessage: this.productModule.getErrorMessage(),
       emptyMessage: this.productModule.getEmptyStateMessage(),
+    });
+  },
+
+  /**
+   * Highlight matching keyword in product name
+   */
+  highlightProducts: function(products, keyword) {
+    if (!keyword || !keyword.trim()) {
+      return products.map(p => ({ ...p, nameHighlight: p.name, nameHighlighted: false }));
+    }
+
+    const lowerKeyword = keyword.toLowerCase().trim();
+    return products.map(p => {
+      const lowerName = p.name.toLowerCase();
+      const index = lowerName.indexOf(lowerKeyword);
+      if (index === -1) {
+        return { ...p, nameHighlight: p.name, nameHighlighted: false };
+      }
+
+      // Split name into parts: before, match, after
+      const before = p.name.substring(0, index);
+      const match = p.name.substring(index, index + keyword.trim().length);
+      const after = p.name.substring(index + keyword.trim().length);
+
+      return {
+        ...p,
+        nameHighlight: p.name,
+        nameHighlighted: true,
+        nameBefore: before,
+        nameMatch: match,
+        nameAfter: after
+      };
     });
   },
 
@@ -129,7 +160,6 @@ Page({
       errorMessage: errorMessage,
     });
 
-    // Show error toast
     wx.showToast({
       title: errorMessage,
       icon: 'none',
@@ -148,13 +178,12 @@ Page({
   goToDetail: function (e) {
     const app = getApp();
     if (!app.globalData.userInfo) {
-      // 未登录，跳转到登录页面
       wx.navigateTo({
         url: '/pages/login/login'
       });
       return;
     }
-    
+
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
       url: `/pages/product-detail/product-detail?id=${id}`
@@ -175,13 +204,40 @@ Page({
   },
 
   /**
-   * Search functionality
+   * Handle search input
    */
-  onSearch: function () {
-    wx.showToast({
-      title: '搜索功能开发中...',
-      icon: 'none'
+  onSearchInput: function(e) {
+    this.setData({
+      searchKeyword: e.detail.value
     });
+  },
+
+  /**
+   * Execute search
+   */
+  async onSearch() {
+    const keyword = this.data.searchKeyword.trim();
+
+    wx.showLoading({ title: '搜索中...' });
+
+    try {
+      await this.productModule.loadProducts({ page: 0, keyword: keyword });
+      this.updateViewFromModule();
+    } catch (err) {
+      console.error('Search failed', err);
+      this.handleError(err);
+    } finally {
+      wx.hideLoading();
+    }
+  },
+
+  /**
+   * Clear search
+   */
+  onClearSearch: function() {
+    this.setData({ searchKeyword: '' });
+    this.productModule.loadProducts({ page: 0, keyword: '' });
+    this.updateViewFromModule();
   },
 
   /**
@@ -189,9 +245,11 @@ Page({
    */
   onCategoryTap: function (e) {
     const category = e.currentTarget.dataset.category;
-    wx.showToast({
-      title: `${category}分类开发中...`,
-      icon: 'none'
-    });
+    wx.showLoading({ title: '加载中...' });
+
+    this.productModule.loadProducts({ page: 0, category: category })
+      .then(() => this.updateViewFromModule())
+      .catch(err => this.handleError(err))
+      .finally(() => wx.hideLoading());
   },
 });
