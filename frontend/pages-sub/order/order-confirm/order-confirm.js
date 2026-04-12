@@ -1,5 +1,6 @@
 const cartUtil = require('../../utils/cart.js');
-const { OrderAPI } = require('../../src/api/order');
+const { OrderAPI } = require('../../src/api/order.js');
+const { paymentModule } = require('../../src/modules/payment/payment.js');
 
 Page({
   data: {
@@ -8,7 +9,9 @@ Page({
     shippingFee: 0,
     orderTotal: 0,
     selectedAddress: null,
-    isCreating: false
+    isCreating: false,
+    isPaying: false,
+    currentOrder: null
   },
 
   onLoad: function(options) {
@@ -83,29 +86,31 @@ Page({
       return;
     }
 
+    if (!this.data.selectedAddress) {
+      wx.showToast({
+        title: '请选择收货地址',
+        icon: 'none'
+      });
+      return;
+    }
+
     this.setData({ isCreating: true });
     wx.showLoading({ title: '正在创建订单...' });
 
     const userId = app.globalData.userInfo.id;
-    const cartId = 'cart_' + userId; // Cart ID format matches backend expectation
+    const cartId = 'cart_' + userId;
 
     OrderAPI.createOrder(userId, cartId)
       .then(order => {
-        wx.hideLoading();
+        // Clear cart after order created
         cartUtil.clearCart();
-        this.setData({ isCreating: false });
-
-        wx.showToast({
-          title: '订单创建成功',
-          icon: 'success'
+        this.setData({
+          isCreating: false,
+          currentOrder: order
         });
 
-        // Navigate to order list after short delay
-        setTimeout(() => {
-          wx.redirectTo({
-            url: '/pages-sub/order/order-list/order-list'
-          });
-        }, 1500);
+        // Initiate payment
+        this.initiatePayment(order);
       })
       .catch(err => {
         wx.hideLoading();
@@ -115,6 +120,78 @@ Page({
           title: '创建订单失败',
           icon: 'none'
         });
+      });
+  },
+
+  /**
+   * Initiate WeChat Pay payment
+   */
+  initiatePayment: function(order) {
+    this.setData({ isPaying: true });
+    wx.showLoading({ title: '正在发起支付...' });
+
+    const totalAmount = parseFloat(order.totalPrice);
+
+    paymentModule.requestPayment(order.id, totalAmount)
+      .then(result => {
+        wx.hideLoading();
+        this.setData({ isPaying: false });
+
+        if (result.isSuccess()) {
+          // Payment successful
+          wx.showToast({
+            title: '支付成功',
+            icon: 'success'
+          });
+
+          // Navigate to order list after short delay
+          setTimeout(() => {
+            wx.redirectTo({
+              url: '/pages-sub/order/order-list/order-list'
+            });
+          }, 1500);
+        } else if (result.isCancelled()) {
+          // User cancelled payment
+          wx.showToast({
+            title: '已取消支付',
+            icon: 'none'
+          });
+
+          // Order is created but not paid, stay on order list
+          setTimeout(() => {
+            wx.redirectTo({
+              url: '/pages-sub/order/order-list/order-list'
+            });
+          }, 1500);
+        } else {
+          // Payment failed
+          wx.showToast({
+            title: result.errorMessage || '支付失败',
+            icon: 'none'
+          });
+
+          // Navigate to order list to show unpaid order
+          setTimeout(() => {
+            wx.redirectTo({
+              url: '/pages-sub/order/order-list/order-list'
+            });
+          }, 1500);
+        }
+      })
+      .catch(err => {
+        wx.hideLoading();
+        this.setData({ isPaying: false });
+        console.error('Payment failed', err);
+        wx.showToast({
+          title: '支付失败',
+          icon: 'none'
+        });
+
+        setTimeout(() => {
+          wx.redirectTo({
+            url: '/pages-sub/order/order-list/order-list'
+          });
+        }, 1500);
       });
   },
 

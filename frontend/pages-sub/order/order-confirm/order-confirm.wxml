@@ -58,6 +58,18 @@
     </view>
   </view>
 
+  <!-- Payment Method Section -->
+  <view class="section payment-section">
+    <view class="section-header">
+      <text class="section-title">支付方式</text>
+    </view>
+    <view class="payment-method">
+      <view class="wechat-pay-icon">💳</view>
+      <text class="payment-name">微信支付</text>
+      <text class="payment-recommend">推荐</text>
+    </view>
+  </view>
+
   <!-- Submit Button -->
   <view class="bottom-bar">
     <view class="total-info">
@@ -67,8 +79,8 @@
     <button
       class="btn-submit"
       bindtap="onSubmitOrder"
-      disabled="{{isCreating || cartItems.length === 0}}">
-      {{isCreating ? '提交中...' : '提交订单'}}
+      disabled="{{isCreating || isPaying || cartItems.length === 0}}">
+      {{isPaying ? '支付中...' : (isCreating ? '提交中...' : '提交订单'}}
     </button>
   </view>
 </view>
