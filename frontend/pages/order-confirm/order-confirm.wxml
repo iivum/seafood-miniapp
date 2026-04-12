@@ -1,0 +1,74 @@
+<view class="order-confirm-container">
+  <!-- Address Section -->
+  <view class="section address-section" bindtap="selectAddress">
+    <view class="section-header">
+      <text class="section-title">收货地址</text>
+    </view>
+    <view class="address-content">
+      <block wx:if="{{selectedAddress}}">
+        <view class="address-info">
+          <text class="receiver">{{selectedAddress.receiverName}} {{selectedAddress.phone}}</text>
+          <text class="detail">{{selectedAddress.getFullAddress ? selectedAddress.getFullAddress() : selectedAddress.address}}</text>
+        </view>
+      </block>
+      <block wx:else>
+        <view class="address-placeholder">
+          <text>请选择收货地址</text>
+        </view>
+      </block>
+      <view class="arrow">›</view>
+    </view>
+  </view>
+
+  <!-- Order Items Section -->
+  <view class="section items-section">
+    <view class="section-header">
+      <text class="section-title">订单商品</text>
+    </view>
+    <view class="items-list">
+      <view class="item" wx:for="{{cartItems}}" wx:key="id">
+        <image class="item-image" src="{{item.imageUrl}}" mode="aspectFill"></image>
+        <view class="item-info">
+          <text class="item-name">{{item.name}}</text>
+          <text class="item-price">￥{{item.price}}</text>
+        </view>
+        <view class="item-qty">
+          <text>x{{item.quantity}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- Order Summary Section -->
+  <view class="section summary-section">
+    <view class="summary-row">
+      <text class="label">商品总价</text>
+      <text class="value">￥{{totalPrice}}</text>
+    </view>
+    <view class="summary-row">
+      <text class="label">运费</text>
+      <text class="value">
+        <text wx:if="{{shippingFee === 0}}" class="free-shipping">免运费</text>
+        <text wx:else>￥{{shippingFee}}</text>
+      </text>
+    </view>
+    <view class="summary-row total-row">
+      <text class="label">合计</text>
+      <text class="value total-price">￥{{orderTotal}}</text>
+    </view>
+  </view>
+
+  <!-- Submit Button -->
+  <view class="bottom-bar">
+    <view class="total-info">
+      <text class="total-label">实付款：</text>
+      <text class="total-amount">￥{{orderTotal}}</text>
+    </view>
+    <button
+      class="btn-submit"
+      bindtap="onSubmitOrder"
+      disabled="{{isCreating || cartItems.length === 0}}">
+      {{isCreating ? '提交中...' : '提交订单'}}
+    </button>
+  </view>
+</view>

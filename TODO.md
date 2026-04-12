@@ -14,12 +14,12 @@
 - [x] 补充 ProductAPI 单元测试（覆盖率 ≥ 80%）
 
 ### 订单处理模块
-- [ ] 订单创建 API `POST /orders`
-- [ ] 订单查询 API `GET /orders`
-- [ ] 订单状态更新 `PUT /orders/:id/status`
+- [x] 订单创建 API `POST /orders` - OrderAPI.createOrder()
+- [x] 订单查询 API `GET /orders` - OrderAPI.getOrdersByUser()
+- [x] 订单状态更新 `PUT /orders/:id/status` - OrderAPI.cancelOrder()
 - [ ] 订单支付集成（微信支付）
-- [ ] 订单列表页面 `pages/order-list/`
-- [ ] 订单确认页面
+- [x] 订单列表页面 `pages/order-list/` - 已修复API调用
+- [x] 订单确认页面 `pages/order-confirm/`
 
 ---
 

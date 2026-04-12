@@ -167,3 +167,152 @@ export interface CartState extends LoadingState {
   /** Whether cart is being updated */
   isUpdating: boolean;
 }
+
+// ============================================================
+// Order Types
+// ============================================================
+
+/**
+ * Order status enum
+ */
+export enum OrderStatus {
+  PENDING_PAYMENT = 'PENDING_PAYMENT',
+  PAID = 'PAID',
+  SHIPPED = 'SHIPPED',
+  DELIVERED = 'DELIVERED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  REFUNDED = 'REFUNDED',
+}
+
+/**
+ * Order item interface
+ */
+export interface OrderItem {
+  /** Item ID */
+  id: string;
+  /** Product ID */
+  productId: string;
+  /** Product name */
+  name: string;
+  /** Product price */
+  price: number;
+  /** Quantity ordered */
+  quantity: number;
+  /** Item image URL */
+  imageUrl?: string;
+}
+
+/**
+ * Shipping address interface
+ */
+export interface Address {
+  /** Address ID */
+  id?: string;
+  /** Recipient name */
+  receiverName: string;
+  /** Contact phone */
+  phone: string;
+  /** Detailed address */
+  address: string;
+  /** City */
+  city: string;
+  /** District/County */
+  district: string;
+  /** Street/Building */
+  street?: string;
+}
+
+/**
+ * Order interface
+ */
+export interface Order {
+  /** Order ID */
+  id: string;
+  /** Order number */
+  orderNumber: string;
+  /** User ID */
+  userId: string;
+  /** Order items */
+  items: OrderItem[];
+  /** Order status */
+  status: OrderStatus;
+  /** Total price including shipping */
+  totalPrice: number;
+  /** Shipping fee */
+  shippingFee: number;
+  /** Order items total price */
+  itemsTotalPrice: number;
+  /** Shipping address */
+  address: Address;
+  /** Transaction ID from payment */
+  transactionId?: string;
+  /** Tracking number */
+  trackingNumber?: string;
+  /** Cancellation reason */
+  cancelReason?: string;
+  /** Refund transaction ID */
+  refundTransactionId?: string;
+  /** Refund reason */
+  refundReason?: string;
+  /** Creation timestamp */
+  createdAt: string;
+  /** Last update timestamp */
+  updatedAt: string;
+}
+
+/**
+ * Order statistics
+ */
+export interface OrderStatistics {
+  /** Total orders count */
+  totalOrders: number;
+  /** Total amount spent */
+  totalAmount: number;
+  /** Average order value */
+  averageOrderValue: number;
+  /** Pending payment count */
+  pendingCount: number;
+  /** Paid count */
+  paidCount: number;
+  /** Shipped count */
+  shippedCount: number;
+  /** Delivered count */
+  deliveredCount: number;
+  /** Cancelled count */
+  cancelledCount: number;
+  /** Refunded count */
+  refundedCount: number;
+}
+
+/**
+ * Create order request
+ */
+export interface CreateOrderRequest {
+  /** User ID */
+  userId: string;
+  /** Cart ID */
+  cartId: string;
+  /** Shipping address (optional, uses default if not provided) */
+  address?: Address;
+}
+
+/**
+ * Payment request
+ */
+export interface PaymentRequest {
+  /** Payment method */
+  paymentMethod: string;
+  /** Payment amount */
+  amount: number;
+}
+
+/**
+ * Refund request
+ */
+export interface RefundRequest {
+  /** Refund reason */
+  reason: string;
+  /** Refund amount */
+  amount?: number;
+}
