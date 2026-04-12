@@ -6,6 +6,8 @@ public interface UserRepository {
     User save(User user);
     Optional<User> findById(String id);
     Optional<User> findByOpenId(String openId);
-    User findByPhone(String phone);
+    Optional<User> findByPhone(String phone);
+    Optional<User> findByEmail(String email);
     java.util.List<User> findAll();
+    void deleteById(String id);
 }

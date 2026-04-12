@@ -14,7 +14,10 @@ public class User extends AggregateRoot<String> {
     private String openId;
     private String nickname;
     private String avatarUrl;
+    private String email;
     private String phone;
+    private String password;
+    private String address;
     private UserRole role;
 
     public User(String openId, String nickname, String avatarUrl, String phone, UserRole role) {

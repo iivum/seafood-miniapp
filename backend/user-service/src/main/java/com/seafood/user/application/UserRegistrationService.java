@@ -41,7 +41,7 @@ public class UserRegistrationService {
         validateRegistrationInput(phone, password, verifyCode);
 
         // 检查用户是否已存在
-        if (userRepository.findByPhone(phone) != null) {
+        if (userRepository.findByPhone(phone).isPresent()) {
             throw new IllegalArgumentException("手机号已被注册");
         }
 
@@ -52,6 +52,7 @@ public class UserRegistrationService {
 
         // 创建新用户
         User user = new User();
+        user.setOpenId(phone); // Use phone as openId for phone registration
         user.setPhone(phone);
         user.setPassword(passwordEncoder.encode(password));
         user.setNickname(generateNickname(phone, nickname));
@@ -156,7 +157,7 @@ public class UserRegistrationService {
      * @return 是否已被注册
      */
     public boolean isPhoneRegistered(String phone) {
-        return userRepository.findByPhone(phone) != null;
+        return userRepository.findByPhone(phone).isPresent();
     }
 
     /**

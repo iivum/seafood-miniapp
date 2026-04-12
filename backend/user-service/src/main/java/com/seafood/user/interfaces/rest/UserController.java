@@ -2,6 +2,7 @@ package com.seafood.user.interfaces.rest;
 
 import com.seafood.user.application.UserApplicationService;
 import com.seafood.user.domain.model.User;
+import com.seafood.user.domain.model.UserRole;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -36,8 +37,14 @@ public class UserController {
         }
     )
     public ResponseEntity<User> createUser(@RequestBody CreateUserRequest request) {
-        User user = userApplicationService.createUser(request.getUsername(), request.getEmail(), request.getPassword(), request.getPhone(), request.getAddress());
-        return ResponseEntity.ok(user);
+        User user = new User();
+        user.setNickname(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPhone(request.getPhone());
+        user.setPassword(request.getPassword());
+        user.setRole(UserRole.USER);
+        User created = userApplicationService.createUser(user);
+        return ResponseEntity.ok(created);
     }
 
     @GetMapping
@@ -50,7 +57,7 @@ public class UserController {
         }
     )
     public ResponseEntity<List<User>> listAllUsers() {
-        return ResponseEntity.ok(userApplicationService.listAllUsers());
+        return ResponseEntity.ok(userApplicationService.getAllUsers());
     }
 
     @GetMapping("/{id}")

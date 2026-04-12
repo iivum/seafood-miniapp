@@ -126,21 +126,6 @@ public class MongoOrderRepository implements OrderRepository {
     }
 
     @Override
-    public boolean updateOrderStatus(String orderId, OrderStatus newStatus) {
-        Query query = Query.query(Criteria.where("_id").is(orderId));
-        Update update = new Update().set(STATUS_FIELD, newStatus);
-
-        // Add status change to order history
-        Order order = findById(orderId).orElse(null);
-        if (order != null) {
-            order.setStatus(newStatus);
-            mongoTemplate.save(order, COLLECTION_NAME);
-            return true;
-        }
-        return false;
-    }
-
-    @Override
     public List<Order> findAll() {
         return mongoTemplate.findAll(Order.class, COLLECTION_NAME);
     }

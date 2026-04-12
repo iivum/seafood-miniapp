@@ -84,10 +84,8 @@ public class AuthenticationService implements UserDetailsService {
         // 清除已使用的验证码
         clearVerifyCode(phone);
 
-        User user = userRepository.findByPhone(phone);
-        if (user == null) {
-            throw new UsernameNotFoundException("用户不存在");
-        }
+        User user = userRepository.findByPhone(phone)
+                .orElseThrow(() -> new UsernameNotFoundException("用户不存在"));
 
         return generateLoginResponse(user);
     }
@@ -108,8 +106,7 @@ public class AuthenticationService implements UserDetailsService {
         }
 
         // 检查用户是否已存在
-        User existingUser = userRepository.findByPhone(phone);
-        if (existingUser != null) {
+        if (userRepository.findByPhone(phone).isPresent()) {
             throw new IllegalArgumentException("用户已存在");
         }
 

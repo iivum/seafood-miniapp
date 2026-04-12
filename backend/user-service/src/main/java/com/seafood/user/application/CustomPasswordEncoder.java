@@ -49,14 +49,6 @@ public class CustomPasswordEncoder implements PasswordEncoder {
     }
 
     /**
-     * 获取BCrypt密码编码器的强度
-     * @return 强度值（4-31）
-     */
-    public int getStrength() {
-        return bCryptPasswordEncoder.getStrength();
-    }
-
-    /**
      * 使用指定强度创建新的编码器
      * @param strength 强度值（4-31）
      * @return 新的密码编码器

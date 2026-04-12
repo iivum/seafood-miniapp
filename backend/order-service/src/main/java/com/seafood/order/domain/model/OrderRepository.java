@@ -107,11 +107,14 @@ public interface OrderRepository {
     List<Order> findOrdersWithTotalPriceGreaterThan(double minTotalPrice);
 
     /**
-     * Update order status
+     * Find all orders
      *
-     * @param orderId the order ID
-     * @param newStatus the new status
-     * @return true if updated successfully
+     * @return list of all orders
      */
-    boolean updateOrderStatus(String orderId, OrderStatus newStatus);
+    List<Order> findAll();
+
+    /**
+     * Delete all orders
+     */
+    void deleteAll();
 }

@@ -2,6 +2,7 @@ package com.seafood.user.interfaces.rest;
 
 import com.seafood.user.application.AuthenticationService;
 import com.seafood.user.application.UserRegistrationService;
+import com.seafood.user.domain.model.User;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
@@ -181,11 +182,18 @@ public class RateLimitedAuthController {
     )
     public ResponseEntity<LoginResponse> phoneRegister(@RequestBody PhoneRegisterRequest request) {
         return executeWithRateLimit(registerRateLimiter, () -> {
-            LoginResponse response = registrationService.phoneRegister(
+            User user = registrationService.registerByPhone(
                     request.getPhone(),
-                    request.getVerifyCode(),
                     request.getPassword(),
-                    request.getNickname()
+                    request.getNickname(),
+                    request.getVerifyCode()
+            );
+            LoginResponse response = new LoginResponse(
+                    null, // token will be generated
+                    user.getId(),
+                    user.getNickname(),
+                    user.getAvatarUrl(),
+                    user.getRole() != null ? user.getRole().name() : "USER"
             );
             return ResponseEntity.ok(response);
         });
@@ -215,7 +223,12 @@ public class RateLimitedAuthController {
     )
     public ResponseEntity<TokenRefreshResponse> refreshToken(@RequestBody TokenRefreshRequest request) {
         String newAccessToken = authenticationService.refreshAccessToken(request.getRefreshToken());
-        TokenRefreshResponse response = new TokenRefreshResponse(newAccessToken);
+        TokenRefreshResponse response = new TokenRefreshResponse(
+                newAccessToken,
+                null, // refreshToken - may need to generate new one
+                "Bearer",
+                86400L
+        );
         return ResponseEntity.ok(response);
     }
 

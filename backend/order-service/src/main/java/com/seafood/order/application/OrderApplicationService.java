@@ -261,6 +261,18 @@ public class OrderApplicationService {
      * @return the order
      * @throws OrderNotFoundException if order not found
      */
+    public Order getOrderById(String orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+    }
+
+    /**
+     * Get order by ID or throw exception (internal use)
+     *
+     * @param orderId the order ID
+     * @return the order
+     * @throws OrderNotFoundException if order not found
+     */
     private Order getOrderOrThrow(String orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));

@@ -10,14 +10,12 @@ import java.util.Optional;
 @Repository
 public interface MongoUserRepository extends UserRepository, MongoRepository<User, String> {
     Optional<User> findByOpenId(String openId);
-    
+    Optional<User> findByEmail(String email);
+
     @Override
-    default User findByPhone(String phone) {
-        // 由于MongoRepository没有直接支持findByPhone的方法
-        // 我们需要通过findAll来查找（实际生产环境应该添加索引和查询方法）
+    default Optional<User> findByPhone(String phone) {
         return findAll().stream()
                 .filter(user -> phone.equals(user.getPhone()))
-                .findFirst()
-                .orElse(null);
+                .findFirst();
     }
 }
