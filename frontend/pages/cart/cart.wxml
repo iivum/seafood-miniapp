@@ -41,7 +41,7 @@
         <view class="item-checkbox" bindtap="onToggleSelect" data-id="{{item.id}}">
           <icon type="{{selectedItems.includes(item.id) ? 'success' : 'circle'}}" size="20" color="{{selectedItems.includes(item.id) ? '#07c160' : '#999'}}"></icon>
         </view>
-        <image class="item-img" src="{{item.imageUrl}}" mode="aspectFill"></image>
+        <image class="item-img" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
         <view class="item-info">
           <text class="item-name">{{item.name}}</text>
           <text class="item-price">￥{{item.price}}</text>

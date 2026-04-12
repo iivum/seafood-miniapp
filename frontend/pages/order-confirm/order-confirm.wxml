@@ -27,7 +27,7 @@
     </view>
     <view class="items-list">
       <view class="item" wx:for="{{cartItems}}" wx:key="id">
-        <image class="item-image" src="{{item.imageUrl}}" mode="aspectFill"></image>
+        <image class="item-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
         <view class="item-info">
           <text class="item-name">{{item.name}}</text>
           <text class="item-price">￥{{item.price}}</text>
