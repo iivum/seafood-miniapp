@@ -141,8 +141,8 @@ export class CartAPI {
         method: 'DELETE',
       });
 
-      // Return the cart data
-      return response.data;
+      // Return the cart data, falling back to response if .data is undefined
+      return response.data || response;
     } catch (error) {
       // Handle different types of errors
       if (error instanceof Error) {
@@ -180,8 +180,8 @@ export class CartAPI {
         method: 'PATCH',
       });
 
-      // Return the cart data
-      return response.data;
+      // Return the cart data, falling back to response if .data is undefined
+      return response.data || response;
     } catch (error) {
       // Handle different types of errors
       if (error instanceof Error) {
@@ -213,8 +213,8 @@ export class CartAPI {
         method: 'DELETE',
       });
 
-      // Return the cart data
-      return response.data;
+      // Return the cart data, falling back to response if .data is undefined
+      return response.data || response;
     } catch (error) {
       // Handle different types of errors
       if (error instanceof Error) {

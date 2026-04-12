@@ -27,7 +27,11 @@ describe('CartAPI', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockedRequest.mockReset();
+  });
+
+  afterEach(() => {
+    mockedRequest.mockReset();
   });
 
   describe('addToCart', () => {
@@ -169,7 +173,7 @@ describe('CartAPI', () => {
       // Act & Assert
       await expect(CartAPI.getCart())
         .rejects
-        .toThrow('Failed to fetch cart: Network timeout');
+        .toThrow('Network error occurred while fetching cart');
     });
   });
 

@@ -43,3 +43,28 @@ mongodb_data/
 *.tmp
 *.bak
 .worktrees/
+
+# Vaadin Admin UI (generated files)
+backend/admin-ui/frontend/generated/
+backend/admin-ui/node_modules/
+backend/admin-ui/package.json
+backend/admin-ui/tsconfig.json
+backend/admin-ui/vite.config.ts
+backend/admin-ui/vite.generated.ts
+backend/admin-ui/types.d.ts
+
+# Gradle Wrapper
+backend/gradle/
+backend/gradlew
+backend/gradlew.bat
+
+# Test Coverage Reports
+frontend/coverage/
+
+# Documentation
+docs/
+create_doc.py
+*.docx
+
+# Archon Configuration
+.archon/
