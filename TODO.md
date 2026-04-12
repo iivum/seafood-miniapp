@@ -17,7 +17,7 @@
 - [x] 订单创建 API `POST /orders` - OrderAPI.createOrder()
 - [x] 订单查询 API `GET /orders` - OrderAPI.getOrdersByUser()
 - [x] 订单状态更新 `PUT /orders/:id/status` - OrderAPI.cancelOrder()
-- [ ] 订单支付集成（微信支付）
+- [x] 订单支付集成（微信支付） - PaymentModule实现，包含wx.requestPayment集成和模拟支付环境
 - [x] 订单列表页面 `pages/order-list/` - 已修复API调用
 - [x] 订单确认页面 `pages/order-confirm/`
 
