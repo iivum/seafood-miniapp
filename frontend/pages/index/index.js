@@ -4,6 +4,18 @@ const cartUtil = require('../../utils/cart.js');
 // Initialize product list module
 const productListModule = new ProductListModule({ pageSize: 20 });
 
+// Hot search keywords (mock data)
+const HOT_SEARCH_KEYWORDS = [
+  { id: 1, keyword: '三文鱼', count: 5200 },
+  { id: 2, keyword: '龙虾', count: 4800 },
+  { id: 3, keyword: '大闸蟹', count: 4200 },
+  { id: 4, keyword: '生蚝', count: 3800 },
+  { id: 5, keyword: '帝王蟹', count: 3500 },
+  { id: 6, keyword: '鲍鱼', count: 3100 },
+  { id: 7, keyword: '皮皮虾', count: 2900 },
+  { id: 8, keyword: '扇贝', count: 2600 }
+];
+
 Page({
   data: {
     categories: [
@@ -25,6 +37,9 @@ Page({
     hasMore: true,
     // Search
     searchKeyword: '',
+    // Hot search
+    hotSearchKeywords: HOT_SEARCH_KEYWORDS,
+    showHotSearch: true,
   },
 
   productModule: productListModule,
@@ -251,5 +266,24 @@ Page({
       .then(() => this.updateViewFromModule())
       .catch(err => this.handleError(err))
       .finally(() => wx.hideLoading());
+  },
+
+  /**
+   * Handle hot search keyword tap
+   */
+  onHotSearchTap: function(e) {
+    const keyword = e.currentTarget.dataset.keyword;
+    this.setData({
+      searchKeyword: keyword,
+      showHotSearch: false
+    });
+    this.onSearch();
+  },
+
+  /**
+   * Show hot search
+   */
+  onShowHotSearch: function() {
+    this.setData({ showHotSearch: true });
   },
 });

@@ -21,6 +21,24 @@
     <text class="clear-search" bindtap="onClearSearch">清除</text>
   </view>
 
+  <!-- 热门搜索词 -->
+  <view class="hot-search-section" wx:if="{{showHotSearch && !searchKeyword}}">
+    <view class="hot-search-header">
+      <text class="hot-search-title">🔥 热门搜索</text>
+    </view>
+    <view class="hot-search-list">
+      <view
+        class="hot-search-item"
+        wx:for="{{hotSearchKeywords}}"
+        wx:key="id"
+        bindtap="onHotSearchTap"
+        data-keyword="{{item.keyword}}"
+      >
+        <text>{{item.keyword}}</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 轮播图 -->
   <swiper class="banner" indicator-dots="true" autoplay="true" interval="3000" duration="500">
     <swiper-item>
