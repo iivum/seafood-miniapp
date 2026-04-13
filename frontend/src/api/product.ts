@@ -1,5 +1,9 @@
 import { Product, ProductQueryParams, PaginatedProducts, ApiError } from '../types';
 import { request } from '../../utils/request';
+import { cache, SimpleCache } from '../../utils/cache';
+
+// Cache TTL in milliseconds
+const PRODUCT_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 /**
  * Product API for interacting with the backend product service
@@ -15,14 +19,30 @@ export class ProductAPI {
 
   /**
    * Fetch products from the backend with pagination, filtering, and search
+   * Results are cached for 2 minutes to reduce API calls
    *
    * @param params - Query parameters for pagination and filtering
+   * @param useCache - Whether to use cache (default: true for page 0 only)
    * @returns Promise containing paginated products
    * @throws Error if the request fails or validation fails
    */
-  static async getProducts(params: ProductQueryParams): Promise<PaginatedProducts> {
+  static async getProducts(params: ProductQueryParams, useCache: boolean = true): Promise<PaginatedProducts> {
     // Validate input parameters
     ProductAPI.validatePaginationParams(params);
+
+    // Generate cache key
+    const cacheKey = SimpleCache.generateKey('products', params);
+
+    // Only use cache for first page (main list)
+    const shouldCache = useCache && params.page === 0;
+
+    // Try to get from cache first
+    if (shouldCache) {
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        return cached as PaginatedProducts;
+      }
+    }
 
     try {
       const response = await request({
@@ -33,8 +53,6 @@ export class ProductAPI {
 
       // Type guard to ensure response has expected structure
       if (!ProductAPI.isValidPaginatedResponse(response)) {
-        // If response is not in expected format, return empty result
-        // This handles cases where API returns different format
         console.warn('Invalid response format from Product API');
         return {
           products: [],
@@ -46,9 +64,13 @@ export class ProductAPI {
         };
       }
 
+      // Cache the response
+      if (shouldCache) {
+        cache.set(cacheKey, response, PRODUCT_CACHE_TTL);
+      }
+
       return response;
     } catch (error) {
-      // Handle different types of errors
       if (error instanceof Error) {
         if (error.message.includes('Network')) {
           throw new Error('Network error occurred while fetching products');
@@ -63,6 +85,13 @@ export class ProductAPI {
 
       throw new Error('Failed to fetch products: Unknown error occurred');
     }
+  }
+
+  /**
+   * Clear product cache
+   */
+  static clearCache(): void {
+    cache.clear();
   }
 
   /**

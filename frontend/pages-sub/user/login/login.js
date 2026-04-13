@@ -308,8 +308,8 @@ Page({
   handleLoginSuccess: function(res) {
     // 保存token和用户信息
     wx.setStorageSync('token', res.token);
-    this.globalData.token = res.token;
-    this.globalData.userInfo = {
+    app.globalData.token = res.token;
+    app.globalData.userInfo = {
       id: res.userId,
       nickname: res.nickname || '用户',
       avatarUrl: res.avatarUrl || '',

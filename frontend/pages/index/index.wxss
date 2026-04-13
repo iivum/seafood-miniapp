@@ -5,14 +5,78 @@
 .search-bar {
   padding: 20rpx;
   background-color: #fff;
+  display: flex;
+  align-items: center;
 }
 
 .search-input {
+  flex: 1;
   display: flex;
   align-items: center;
   background-color: #f5f5f5;
   border-radius: 30rpx;
   padding: 10rpx 20rpx;
+}
+
+.search-btn {
+  width: 120rpx;
+  height: 60rpx;
+  line-height: 60rpx;
+  background-color: #07c160;
+  color: #fff;
+  font-size: 26rpx;
+  border-radius: 30rpx;
+  margin-left: 20rpx;
+  border: none;
+}
+
+.search-tip {
+  padding: 15rpx 20rpx;
+  background-color: #fff3cd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.clear-search {
+  color: #07c160;
+}
+
+/* 热门搜索 */
+.hot-search-section {
+  background-color: #fff;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.hot-search-header {
+  margin-bottom: 20rpx;
+}
+
+.hot-search-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.hot-search-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.hot-search-item {
+  padding: 10rpx 24rpx;
+  background-color: #f5f5f5;
+  border-radius: 30rpx;
+  margin-right: 20rpx;
+  margin-bottom: 15rpx;
+}
+
+.hot-search-item text {
+  font-size: 26rpx;
+  color: #666;
 }
 
 .banner {
@@ -83,6 +147,15 @@
 .product-name {
   font-size: 28rpx;
   display: block;
+}
+
+.highlight-wrapper {
+  display: inline;
+}
+
+.highlight {
+  color: #ff4d4f;
+  font-weight: bold;
 }
 
 .product-price {

@@ -1,0 +1,191 @@
+.order-confirm-container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding-bottom: 120rpx;
+}
+
+.section {
+  background-color: #fff;
+  margin-bottom: 20rpx;
+  padding: 30rpx;
+}
+
+.section-header {
+  margin-bottom: 20rpx;
+}
+
+.section-title {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 600;
+}
+
+/* Address Section */
+.address-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.address-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.address-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.receiver {
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.detail {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.address-placeholder {
+  flex: 1;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.arrow {
+  font-size: 36rpx;
+  color: #ccc;
+  padding-left: 20rpx;
+}
+
+/* Items Section */
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  padding: 10rpx 0;
+}
+
+.item-image {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 8rpx;
+  background-color: #f0f0f0;
+}
+
+.item-info {
+  flex: 1;
+  margin-left: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.item-name {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.item-price {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.item-qty {
+  font-size: 26rpx;
+  color: #999;
+  padding-left: 20rpx;
+}
+
+/* Summary Section */
+.summary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.value {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.free-shipping {
+  color: #07c160;
+}
+
+.total-row {
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.total-price {
+  font-size: 32rpx;
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+/* Bottom Bar */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100rpx;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30rpx;
+  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.total-info {
+  display: flex;
+  align-items: baseline;
+}
+
+.total-label {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.total-amount {
+  font-size: 36rpx;
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+.btn-submit {
+  width: 200rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  background-color: #07c160;
+  color: #fff;
+  font-size: 28rpx;
+  border-radius: 40rpx;
+  border: none;
+}
+
+.btn-submit[disabled] {
+  background-color: #ccc;
+}

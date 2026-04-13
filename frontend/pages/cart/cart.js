@@ -1,13 +1,39 @@
 const cartUtil = require('../../utils/cart.js');
 
+// Mock coupon codes for demo
+const COUPON_CODES = {
+  'DISCOUNT10': { type: 'percentage', value: 10, minAmount: 100, description: '满100减10%' },
+  'DISCOUNT20': { type: 'percentage', value: 20, minAmount: 200, description: '满200减20%' },
+  'SAVE5': { type: 'fixed', value: 5, minAmount: 50, description: '满50减5元' },
+  'SAVE20': { type: 'fixed', value: 20, minAmount: 100, description: '满100减20元' },
+  'FREESHIP': { type: 'shipping', value: 0, minAmount: 0, description: '免运费' }
+};
+
 Page({
   data: {
     cartItems: [],
-    totalPrice: 0
+    totalPrice: 0,
+    selectedPrice: 0,
+    selectedItems: [],
+    selectedAddress: null,
+    couponCode: '',
+    couponDiscount: 0,
+    couponApplied: null,
+    shippingFee: 0
   },
 
   onShow: function() {
     this.refreshCart();
+
+    const pages = getCurrentPages();
+    const currentPage = pages[pages.length - 1];
+
+    if (currentPage.selectedAddressFromList) {
+      this.setData({
+        selectedAddress: currentPage.selectedAddressFromList
+      });
+      currentPage.selectedAddressFromList = null;
+    }
   },
 
   refreshCart: function() {
@@ -16,10 +42,111 @@ Page({
     items.forEach(item => {
       total += item.price * item.quantity;
     });
+
+    // Calculate selected items price
+    const selectedIds = this.data.selectedItems;
+    let selectedTotal = 0;
+    items.forEach(item => {
+      if (selectedIds.includes(item.id)) {
+        selectedTotal += item.price * item.quantity;
+      }
+    });
+
+    // Calculate shipping fee (free over 99)
+    const shippingFee = selectedTotal >= 99 ? 0 : 10;
+
+    // Calculate final price with coupon discount
+    const discount = this.calculateDiscount(selectedTotal);
+    const finalPrice = selectedTotal + shippingFee - discount;
+
     this.setData({
       cartItems: items,
-      totalPrice: total.toFixed(2)
+      totalPrice: total.toFixed(2),
+      selectedPrice: selectedTotal.toFixed(2),
+      shippingFee: shippingFee,
+      couponDiscount: discount
     });
+  },
+
+  // Calculate discount based on coupon
+  calculateDiscount: function(subtotal) {
+    const coupon = this.data.couponApplied;
+    if (!coupon) return 0;
+
+    if (subtotal < coupon.minAmount) return 0;
+
+    if (coupon.type === 'percentage') {
+      return Math.floor(subtotal * coupon.value / 100);
+    } else if (coupon.type === 'fixed') {
+      return coupon.value;
+    }
+    return 0;
+  },
+
+  // Apply coupon
+  onApplyCoupon: function() {
+    const code = this.data.couponCode.trim().toUpperCase();
+    if (!code) {
+      wx.showToast({ title: '请输入优惠券码', icon: 'none' });
+      return;
+    }
+
+    const coupon = COUPON_CODES[code];
+    if (!coupon) {
+      wx.showToast({ title: '优惠券码无效', icon: 'none' });
+      this.setData({ couponApplied: null, couponDiscount: 0 });
+      this.refreshCart();
+      return;
+    }
+
+    this.setData({ couponApplied: coupon });
+    wx.showToast({ title: `已应用: ${coupon.description}`, icon: 'success' });
+    this.refreshCart();
+  },
+
+  // Remove coupon
+  onRemoveCoupon: function() {
+    this.setData({
+      couponCode: '',
+      couponApplied: null,
+      couponDiscount: 0
+    });
+    this.refreshCart();
+    wx.showToast({ title: '已取消优惠券', icon: 'none' });
+  },
+
+  // Coupon code input
+  onCouponInput: function(e) {
+    this.setData({
+      couponCode: e.detail.value
+    });
+  },
+
+  // Toggle item selection
+  onToggleSelect: function(e) {
+    const id = e.currentTarget.dataset.id;
+    const selectedItems = [...this.data.selectedItems];
+
+    const index = selectedItems.indexOf(id);
+    if (index > -1) {
+      selectedItems.splice(index, 1);
+    } else {
+      selectedItems.push(id);
+    }
+
+    this.setData({ selectedItems });
+    this.refreshCart();
+  },
+
+  // Toggle select all
+  onToggleSelectAll: function() {
+    if (this.data.selectedItems.length === this.data.cartItems.length) {
+      this.setData({ selectedItems: [] });
+    } else {
+      const allIds = this.data.cartItems.map(item => item.id);
+      this.setData({ selectedItems: allIds });
+    }
+    this.refreshCart();
   },
 
   onPlus: function(e) {
@@ -49,69 +176,18 @@ Page({
 
     const app = getApp();
     if (!app.globalData.userInfo) {
-      // 未登录，跳转到登录页面
       wx.navigateTo({
-        url: '/pages/login/login?redirect=' + encodeURIComponent('/pages/cart/cart')
+        url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages/cart/cart')
       });
       return;
     }
 
-    // 检查是否选择了收货地址
-    if (!this.data.selectedAddress) {
-      wx.showToast({
-        title: '请选择收货地址',
-        icon: 'none'
-      });
-      return;
-    }
-
-    wx.showLoading({ title: '正在提交订单...' });
-    
-    const orderData = {
-      userId: app.globalData.userInfo.id,
-      items: this.data.cartItems.map(item => ({
-        productId: item.id,
-        productName: item.name,
-        price: item.price.toString(), // 转换为字符串格式
-        quantity: item.quantity,
-        imageUrl: item.imageUrl || ''
-      })),
-      totalAmount: this.data.totalPrice.toString(), // 添加总金额字段
-      shippingAddress: this.data.selectedAddress.getFullAddress(), // 使用选择的收货地址
-      addressId: this.data.selectedAddress.id, // 地址ID
-      remark: '' // 可选字段
-    };
-
-    request({
-      url: '/orders',
-      method: 'POST',
-      data: orderData,
-      needAuth: true  // 需要认证
-    })
-    .then(res => {
-      wx.hideLoading();
-      wx.showToast({ title: '下单成功', icon: 'success' });
-      cartUtil.clearCart();
-      this.setData({ selectedAddress: null }); // 清空选择的地址
-      setTimeout(() => {
-        wx.navigateTo({
-          url: '/pages/order-list/order-list'
-        });
-      }, 1500);
-    })
-    .catch(err => {
-      wx.hideLoading();
-      console.error('Checkout failed', err);
-      if (err.statusCode !== 401) { // 401错误已在request.js中处理
-        wx.showToast({
-          title: '下单失败，请重试',
-          icon: 'none'
-        });
-      }
+    // 跳转到订单确认页面
+    wx.navigateTo({
+      url: '/pages-sub/order/order-confirm/order-confirm'
     });
   },
 
-  // 选择收货地址
   selectAddress: function() {
     const app = getApp();
     if (!app.globalData.userInfo) {
@@ -122,30 +198,12 @@ Page({
       return;
     }
 
-    // 跳转到地址列表页面，选择模式
     const selectedAddress = this.data.selectedAddress || null;
     wx.navigateTo({
-      url: '/pages/address/address-list?selectMode=true&selectedAddress=' + 
-           encodeURIComponent(selectedAddress ? JSON.stringify(selectedAddress) : '')
+      url: '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=' +
+        encodeURIComponent(selectedAddress ? JSON.stringify(selectedAddress) : '')
     });
   },
-
-  // 页面显示时刷新数据
-  onShow: function() {
-    this.refreshCart();
-    
-    // 从地址列表页面返回后，检查是否有选中的地址
-    const pages = getCurrentPages();
-    const currentPage = pages[pages.length - 1];
-    
-    // 如果当前页面有选中的地址，使用它
-    if (currentPage.selectedAddressFromList) {
-      this.setData({
-        selectedAddress: currentPage.selectedAddressFromList
-      });
-      currentPage.selectedAddressFromList = null; // 清空选择
-    }
-  }
 
   goToIndex: function() {
     wx.switchTab({ url: '/pages/index/index' });

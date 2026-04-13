@@ -3,15 +3,7 @@
     "pages/index/index",
     "pages/category/category",
     "pages/cart/cart",
-    "pages/profile/profile",
-    "pages/product-detail/product-detail",
-    "pages/order-list/order-list",
-    "pages/login/login",
-    "pages/address/address-list",
-    "pages/address/address-edit",
-    "pages/merchant/merchant",
-    "pages/merchant/product-manage/product-manage",
-    "pages/merchant/order-manage/order-manage"
+    "pages/profile/profile"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -57,5 +49,77 @@
     ]
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "preloadRule": {
+    "pages/index/index": {
+      "network": "all",
+      "packages": ["pages-sub/product", "pages-sub/order", "pages-sub/user", "pages-sub/merchant"]
+    }
+  },
+  "subpackages": [
+    {
+      "root": "pages-sub/product",
+      "pages": [
+        {
+          "name": "product-detail",
+          "path": "product-detail/product-detail"
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/order",
+      "pages": [
+        {
+          "name": "order-list",
+          "path": "order-list/order-list"
+        },
+        {
+          "name": "order-confirm",
+          "path": "order-confirm/order-confirm"
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/user",
+      "pages": [
+        {
+          "name": "login",
+          "path": "login/login"
+        },
+        {
+          "name": "address-list",
+          "path": "address/address-list"
+        },
+        {
+          "name": "address-edit",
+          "path": "address/address-edit"
+        }
+      ]
+    },
+    {
+      "root": "pages-sub/merchant",
+      "pages": [
+        {
+          "name": "merchant",
+          "path": "merchant/merchant"
+        },
+        {
+          "name": "product-manage",
+          "path": "product-manage/product-manage"
+        },
+        {
+          "name": "order-manage",
+          "path": "order-manage/order-manage"
+        },
+        {
+          "name": "user-manage",
+          "path": "user-manage/user-manage"
+        },
+        {
+          "name": "dashboard",
+          "path": "dashboard/dashboard"
+        }
+      ]
+    }
+  ]
 }

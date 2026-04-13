@@ -27,7 +27,7 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: '/pages/order-list/order-list'
+      url: '/pages-sub/order/order-list/order-list'
     });
   },
 
@@ -40,7 +40,7 @@ Page({
       return;
     }
     wx.navigateTo({
-      url: '/pages/merchant/merchant'
+      url: '/pages-sub/merchant/merchant/merchant'
     });
   },
 
@@ -57,7 +57,7 @@ Page({
 
     // 跳转到登录页面
     wx.navigateTo({
-      url: '/pages/login/login'
+      url: '/pages-sub/user/login/login'
     });
   },
 

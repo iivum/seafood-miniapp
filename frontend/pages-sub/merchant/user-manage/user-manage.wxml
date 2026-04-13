@@ -1,0 +1,56 @@
+<view class="user-manage-container">
+  <!-- Header -->
+  <view class="header">
+    <view class="header-title">用户管理</view>
+  </view>
+
+  <!-- Role Filter -->
+  <view class="role-filter">
+    <view
+      class="role-tab {{selectedRole === item.value ? 'active' : ''}}"
+      wx:for="{{roleOptions}}"
+      wx:key="value"
+      bindtap="onRoleChange"
+      data-role="{{item.value}}"
+    >
+      <text>{{item.label}}</text>
+    </view>
+  </view>
+
+  <!-- Loading -->
+  <view class="loading-state" wx:if="{{isLoading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- Empty -->
+  <view class="empty-state" wx:elif="{{isEmpty}}">
+    <text>暂无用户</text>
+  </view>
+
+  <!-- User List -->
+  <view class="user-list" wx:else>
+    <view class="user-item" wx:for="{{users}}" wx:key="id">
+      <view class="user-avatar">
+        <image src="{{item.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"></image>
+      </view>
+      <view class="user-info">
+        <view class="user-header">
+          <text class="user-name">{{item.nickname || '未设置昵称'}}</text>
+          <text class="user-role {{getRoleClass(item.role)}}">{{getRoleText(item.role)}}</text>
+        </view>
+        <view class="user-detail">
+          <text class="detail-text">手机: {{item.phone || '-'}}</text>
+          <text class="detail-text">ID: {{item.id}}</text>
+        </view>
+      </view>
+      <view class="user-actions">
+        <text class="action-btn view" bindtap="onViewUser" data-user="{{item}}">详情</text>
+        <text class="action-btn role" bindtap="onToggleRole" data-user="{{item}}">
+          {{item.role === 'ADMIN' ? '降级' : '升级'}}
+        </text>
+        <text wx:if="{{item.role !== 'DISABLED'}}" class="action-btn disable" bindtap="onDisableUser" data-user="{{item}}">禁用</text>
+        <text wx:else class="action-btn enable" bindtap="onEnableUser" data-user="{{item}}">启用</text>
+      </view>
+    </view>
+  </view>
+</view>

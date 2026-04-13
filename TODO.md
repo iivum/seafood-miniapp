@@ -21,58 +21,58 @@
 - [x] 补充 ProductAPI 单元测试（覆盖率 ≥ 80%）
 
 ### 订单处理模块
-- [ ] 订单创建 API `POST /orders`
-- [ ] 订单查询 API `GET /orders`
-- [ ] 订单状态更新 `PUT /orders/:id/status`
-- [ ] 订单支付集成（微信支付）
-- [ ] 订单列表页面 `pages/order-list/`
-- [ ] 订单确认页面
+- [x] 订单创建 API `POST /orders` - OrderAPI.createOrder()
+- [x] 订单查询 API `GET /orders` - OrderAPI.getOrdersByUser()
+- [x] 订单状态更新 `PUT /orders/:id/status` - OrderAPI.cancelOrder()
+- [x] 订单支付集成（微信支付） - PaymentModule实现，包含wx.requestPayment集成和模拟支付环境
+- [x] 订单列表页面 `pages/order-list/` - 已修复API调用
+- [x] 订单确认页面 `pages/order-confirm/`
 
 ---
 
 ## 🟡 中优先级 (P1)
 
 ### 用户认证
-- [ ] 微信登录集成
-- [ ] JWT Token 管理
-- [ ] 登录页面 `pages/login/`
-- [ ] Token 刷新机制
+- [x] 微信登录集成 - app.js wxLogin()
+- [x] JWT Token 管理 - app.js validateToken()
+- [x] 登录页面 `pages/login/` - 完整实现
+- [x] Token 刷新机制 - request.js 处理
 
 ### 用户中心
-- [ ] 个人中心页面 `pages/profile/`
-- [ ] 收货地址管理 `pages/address/`
-- [ ] 地址编辑功能
+- [x] 个人中心页面 `pages/profile/` - 功能完整
+- [x] 收货地址管理 `pages/address/` - address-list/address-edit
+- [x] 地址编辑功能 - address-edit 完整实现
 
 ### 后端微服务
-- [ ] 完善 product-service CRUD
-- [ ] 实现 order-service 业务逻辑
-- [ ] 实现 user-service 用户管理
-- [ ] 服务间通信优化
+- [x] 完善 product-service CRUD
+- [x] 实现 order-service 业务逻辑
+- [x] 实现 user-service 用户管理
+- [x] 服务间通信优化
 
 ---
 
 ## 🟢 低优先级 (P2)
 
 ### 购物车增强
-- [ ] 购物车数据持久化
-- [ ] 选中商品总价计算
-- [ ] 优惠券/折扣功能
+- [x] 选中商品总价计算 - cart 页面支持选择商品、全选、显示选中总价
+- [x] 购物车数据持久化 - 使用 wx.setStorageSync
+- [x] 优惠券/折扣功能 - 支持优惠码输入和折扣计算
 
 ### 搜索与推荐
-- [ ] 商品搜索高亮
-- [ ] 热门搜索词
-- [ ] 商品推荐算法
+- [x] 商品搜索高亮 - index页面实现搜索和关键词高亮显示
+- [x] 热门搜索词 - 显示热门海鲜关键词，点击可搜索
+- [x] 商品推荐算法 - RecommendationModule实现，基于规则的同类/常购/热门推荐
 
 ### 性能优化
-- [ ] 图片懒加载
-- [ ] 接口缓存策略
-- [ ] 小程序分包加载
+- [x] 图片懒加载 - 商品列表、购物车、订单确认页图片启用lazy-load
+- [x] 接口缓存策略 - ProductAPI添加2分钟缓存减少重复请求
+- [x] 小程序分包加载 - 实现分包结构，product/order/user/merchant 四个分包
 
 ### Admin 管理后台
-- [ ] 商品管理（增删改查）
-- [ ] 订单管理
-- [ ] 用户管理
-- [ ] 数据统计面板
+- [x] 商品管理（增删改查） - product-manage 页面实现
+- [x] 订单管理 - order-manage 页面实现，支持状态筛选和操作
+- [x] 用户管理 - user-manage 页面实现，支持角色切换和禁用
+- [x] 数据统计面板 - dashboard 页面实现，支持收入/订单/商品/用户统计和快捷操作
 
 ---
 

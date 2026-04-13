@@ -1,0 +1,78 @@
+<view class="product-manage-container">
+  <!-- Header -->
+  <view class="header">
+    <view class="header-title">商品管理</view>
+    <button class="btn-add" bindtap="onAddProduct">添加商品</button>
+  </view>
+
+  <!-- Loading -->
+  <view class="loading-state" wx:if="{{isLoading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- Empty -->
+  <view class="empty-state" wx:elif="{{isEmpty}}">
+    <text>暂无商品</text>
+  </view>
+
+  <!-- Product List -->
+  <view class="product-list" wx:else>
+    <view class="product-item" wx:for="{{products}}" wx:key="id">
+      <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill"></image>
+      <view class="product-info">
+        <text class="product-name">{{item.name}}</text>
+        <text class="product-desc">{{item.description}}</text>
+        <view class="product-meta">
+          <text class="product-price">￥{{item.price}}</text>
+          <text class="product-stock">库存: {{item.stock}}</text>
+          <text class="product-category">{{item.category}}</text>
+        </view>
+      </view>
+      <view class="product-actions">
+        <text class="action-btn edit" bindtap="onEditProduct" data-product="{{item}}">编辑</text>
+        <text class="action-btn delete" bindtap="onDeleteProduct" data-product="{{item}}">删除</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Add/Edit Modal -->
+  <view class="modal" wx:if="{{showAddModal}}">
+    <view class="modal-mask" bindtap="onModalCancel"></view>
+    <view class="modal-content">
+      <view class="modal-header">
+        <text>{{editingProduct ? '编辑商品' : '添加商品'}}</text>
+        <text class="modal-close" bindtap="onModalCancel">×</text>
+      </view>
+      <view class="modal-body">
+        <view class="form-item">
+          <text class="form-label">商品名称</text>
+          <input class="form-input" data-field="name" value="{{formData.name}}" bindinput="onFormInput" placeholder="请输入商品名称" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">商品描述</text>
+          <input class="form-input" data-field="description" value="{{formData.description}}" bindinput="onFormInput" placeholder="请输入商品描述" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">价格</text>
+          <input class="form-input" type="digit" data-field="price" value="{{formData.price}}" bindinput="onFormInput" placeholder="请输入价格" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">库存</text>
+          <input class="form-input" type="number" data-field="stock" value="{{formData.stock}}" bindinput="onFormInput" placeholder="请输入库存" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">分类</text>
+          <input class="form-input" data-field="category" value="{{formData.category}}" bindinput="onFormInput" placeholder="请输入分类" />
+        </view>
+        <view class="form-item">
+          <text class="form-label">图片URL</text>
+          <input class="form-input" data-field="imageUrl" value="{{formData.imageUrl}}" bindinput="onFormInput" placeholder="请输入图片URL" />
+        </view>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="onModalCancel">取消</button>
+        <button class="btn-submit" bindtap="onSubmit">确定</button>
+      </view>
+    </view>
+  </view>
+</view>
