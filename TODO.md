@@ -34,7 +34,7 @@
 
 ### 微信小程序前端 — 遗留问题修复
 - [x] 实现 `pages/category/category` 分类页面（app.json tabBar 引用但缺失）
-- [ ] 添加 TabBar 图标资源 `images/tabbar/`（home.png, category.png, cart.png, profile.png 等）⚠️ 目录已创建，需补充实际图标文件
+- [x] 添加 TabBar 图标资源 `images/tabbar/`（home.png, category.png, cart.png, profile.png 等）✅ 已生成 8 个图标文件（81x81 PNG）
 - [x] 修复 `src/utils/request.ts` TypeScript 错误（WeChat 全局类型 `wx`, `getApp` 未定义）
 - [x] 安装 `miniprogram-api-typings` 并配置 tsconfig.json types
 
@@ -161,7 +161,7 @@
 
 ### 前端待修复（P0）
 - [x] `pages/category/category` 页面实现 ✅
-- [ ] TabBar 图标 `images/tabbar/` 资源文件 ⚠️ 目录已创建，需补充实际图标文件
+- [x] TabBar 图标 `images/tabbar/` 资源文件 ✅ 已生成 8 个图标
 - [x] TypeScript 类型：`src/utils/request.ts` 中 `wx` / `getApp` 全局类型定义 ✅
 - [x] 安装 `miniprogram-api-typings` 类型包 ✅
 
@@ -212,7 +212,7 @@
 
 #### 前端收尾任务
 1. ✅ 实现分类页面 `pages/category/`
-2. ⚠️ 补充 TabBar 图标资源（目录已创建，需图标文件）
+2. ✅ 补充 TabBar 图标资源（已生成 8 个图标文件）
 3. ✅ 修复 TypeScript 类型错误
 4. 完成 WeChat开发者工具 真机测试
 
