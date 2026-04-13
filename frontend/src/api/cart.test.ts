@@ -125,6 +125,27 @@ describe('CartAPI', () => {
         .rejects
         .toThrow('Invalid quantity');
     });
+
+    it('should handle plain Error without Network keyword', async () => {
+      // Arrange
+      const plainError = new Error('Server error');
+      mockedRequest.mockRejectedValueOnce(plainError);
+
+      // Act & Assert
+      await expect(CartAPI.addToCart({ productId: 'product-1', quantity: 1 }))
+        .rejects
+        .toThrow('Failed to add item to cart: Server error');
+    });
+
+    it('should handle non-object non-Error value', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce('Something went wrong');
+
+      // Act & Assert
+      await expect(CartAPI.addToCart({ productId: 'product-1', quantity: 1 }))
+        .rejects
+        .toThrow('Failed to add item to cart: Unknown error occurred');
+    });
   });
 
   describe('getCart', () => {
@@ -174,6 +195,37 @@ describe('CartAPI', () => {
       await expect(CartAPI.getCart())
         .rejects
         .toThrow('Network error occurred while fetching cart');
+    });
+
+    it('should handle plain Error without Network keyword', async () => {
+      // Arrange
+      const plainError = new Error('Internal server error');
+      mockedRequest.mockRejectedValueOnce(plainError);
+
+      // Act & Assert
+      await expect(CartAPI.getCart())
+        .rejects
+        .toThrow('Failed to fetch cart: Internal server error');
+    });
+
+    it('should handle object error without message property', async () => {
+      // Arrange - plain object without message property hits typeof object branch
+      mockedRequest.mockRejectedValueOnce({ code: 500 });
+
+      // Act & Assert
+      await expect(CartAPI.getCart())
+        .rejects
+        .toThrow('Failed to fetch cart: Unknown error');
+    });
+
+    it('should handle non-object non-Error value', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce(null);
+
+      // Act & Assert
+      await expect(CartAPI.getCart())
+        .rejects
+        .toThrow('Failed to fetch cart: Unknown error occurred');
     });
   });
 
@@ -246,6 +298,37 @@ describe('CartAPI', () => {
         .rejects
         .toThrow('Invalid quantity');
     });
+
+    it('should handle plain Error without Network keyword', async () => {
+      // Arrange
+      const plainError = new Error('Forbidden');
+      mockedRequest.mockRejectedValueOnce(plainError);
+
+      // Act & Assert
+      await expect(CartAPI.updateCartItem({ itemId: '1', quantity: 2 }))
+        .rejects
+        .toThrow('Failed to update cart item: Forbidden');
+    });
+
+    it('should handle object error without message property', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce({ status: 403 });
+
+      // Act & Assert
+      await expect(CartAPI.updateCartItem({ itemId: '1', quantity: 2 }))
+        .rejects
+        .toThrow('Failed to update cart item: Unknown error');
+    });
+
+    it('should handle non-object non-Error value', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce(500);
+
+      // Act & Assert
+      await expect(CartAPI.updateCartItem({ itemId: '1', quantity: 2 }))
+        .rejects
+        .toThrow('Failed to update cart item: Unknown error occurred');
+    });
   });
 
   describe('removeCartItem', () => {
@@ -287,6 +370,27 @@ describe('CartAPI', () => {
         .rejects
         .toThrow('Invalid item ID');
     });
+
+    it('should handle plain Error without Network keyword', async () => {
+      // Arrange
+      const plainError = new Error('Item not found');
+      mockedRequest.mockRejectedValueOnce(plainError);
+
+      // Act & Assert
+      await expect(CartAPI.removeCartItem('1'))
+        .rejects
+        .toThrow('Failed to remove cart item: Item not found');
+    });
+
+    it('should handle non-object non-Error value', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce(undefined);
+
+      // Act & Assert
+      await expect(CartAPI.removeCartItem('1'))
+        .rejects
+        .toThrow('Failed to remove cart item: Unknown error occurred');
+    });
   });
 
   describe('toggleItemSelection', () => {
@@ -319,6 +423,27 @@ describe('CartAPI', () => {
         .rejects
         .toThrow('Invalid item ID');
     });
+
+    it('should handle plain Error without Network keyword', async () => {
+      // Arrange
+      const plainError = new Error('Conflict');
+      mockedRequest.mockRejectedValueOnce(plainError);
+
+      // Act & Assert
+      await expect(CartAPI.toggleItemSelection('1'))
+        .rejects
+        .toThrow('Failed to toggle item selection: Conflict');
+    });
+
+    it('should handle non-object non-Error value', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce(true);
+
+      // Act & Assert
+      await expect(CartAPI.toggleItemSelection('1'))
+        .rejects
+        .toThrow('Failed to toggle item selection: Unknown error occurred');
+    });
   });
 
   describe('clearCart', () => {
@@ -346,6 +471,27 @@ describe('CartAPI', () => {
         method: 'DELETE',
       });
       expect(result).toEqual(emptyCart);
+    });
+
+    it('should handle plain Error without Network keyword', async () => {
+      // Arrange
+      const plainError = new Error('Service unavailable');
+      mockedRequest.mockRejectedValueOnce(plainError);
+
+      // Act & Assert
+      await expect(CartAPI.clearCart())
+        .rejects
+        .toThrow('Failed to clear cart: Service unavailable');
+    });
+
+    it('should handle non-object non-Error value', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce({ error: 'Unknown error' });
+
+      // Act & Assert
+      await expect(CartAPI.clearCart())
+        .rejects
+        .toThrow('Failed to clear cart: Unknown error');
     });
   });
 });

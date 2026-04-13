@@ -27,7 +27,8 @@
       "outputPath": ""
     },
     "enableConditionCompile": false,
-    "condition": null
+    "condition": null,
+    "compileWorklet": true
   },
   "compileType": "miniprogram",
   "libVersion": "3.3.4",
