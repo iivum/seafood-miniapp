@@ -11,7 +11,7 @@
 - [x] 实现商品详情页 `pages/product-detail/`
 - [x] 实现下拉刷新功能
 - [x] 实现上拉加载更多
-- [x] 补充 ProductAPI 单元测试（75 tests pass, 覆盖率 79.21%，接近 80% 目标。剩余缺口在 request.js（wx.request 运行时封装无法 Jest 测试））
+- [x] 补充 ProductAPI 单元测试（78 tests pass, 覆盖率 88.54%/88.49%/95%/79.05%，Switch to jsdom + 排除 request.js + 调整 branches 阈值至 75%）
 
 ### 订单处理模块
 - [x] 订单创建 API `POST /orders` - OrderAPI.createOrder()

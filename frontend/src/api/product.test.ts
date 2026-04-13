@@ -147,6 +147,37 @@ describe('ProductAPI', () => {
         .toThrow('Network error occurred while fetching products');
     });
 
+    it('should handle plain Error without Network keyword', async () => {
+      // Arrange
+      const plainError = new Error('Service unavailable');
+      mockedRequest.mockRejectedValueOnce(plainError);
+
+      // Act & Assert
+      await expect(ProductAPI.getProducts({ page: 0, pageSize: 20 }))
+        .rejects
+        .toThrow('Failed to fetch products: Service unavailable');
+    });
+
+    it('should handle object error without message property', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce({ code: 500 });
+
+      // Act & Assert
+      await expect(ProductAPI.getProducts({ page: 0, pageSize: 20 }))
+        .rejects
+        .toThrow('Failed to fetch products: Unknown error');
+    });
+
+    it('should handle non-object non-Error value', async () => {
+      // Arrange
+      mockedRequest.mockRejectedValueOnce(503);
+
+      // Act & Assert
+      await expect(ProductAPI.getProducts({ page: 0, pageSize: 20 }))
+        .rejects
+        .toThrow('Failed to fetch products: Unknown error occurred');
+    });
+
     it('should handle invalid response format', async () => {
       // Arrange
       const invalidResponse = { invalid: 'data' };
