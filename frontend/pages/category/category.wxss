@@ -1,0 +1,180 @@
+.category-container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+/* Category grid view */
+.category-grid {
+  padding: 20rpx;
+}
+
+.category-grid-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.category-item {
+  width: 32%;
+  background-color: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx 20rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.category-icon-wrapper {
+  width: 120rpx;
+  height: 120rpx;
+  background-color: #f0f8ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+}
+
+.category-icon {
+  width: 80rpx;
+  height: 80rpx;
+}
+
+.category-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.category-desc {
+  font-size: 22rpx;
+  color: #999;
+}
+
+/* Products view */
+.products-view {
+  padding: 0;
+}
+
+.category-header {
+  background-color: #fff;
+  padding: 20rpx 30rpx;
+  display: flex;
+  align-items: center;
+  border-bottom: 1rpx solid #eee;
+}
+
+.category-header-left {
+  display: flex;
+  align-items: center;
+  color: #666;
+  font-size: 26rpx;
+}
+
+.back-arrow {
+  margin-right: 8rpx;
+  font-size: 32rpx;
+}
+
+.category-title {
+  margin-left: 20rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Product list */
+.product-list {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 20rpx;
+  justify-content: space-between;
+}
+
+.product-item {
+  width: 48%;
+  background-color: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.product-img {
+  width: 100%;
+  height: 340rpx;
+}
+
+.product-info {
+  padding: 20rpx;
+}
+
+.product-name {
+  font-size: 28rpx;
+  color: #333;
+  display: block;
+  margin-bottom: 12rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-price {
+  font-size: 32rpx;
+  color: #ff6b6b;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.add-cart-btn {
+  background-color: #007aff;
+  color: #fff;
+  font-size: 24rpx;
+  text-align: center;
+  padding: 12rpx 0;
+  border-radius: 8rpx;
+}
+
+/* Loading, error, empty states */
+.loading-state,
+.error-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+}
+
+.loading-state text,
+.empty-state text {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.error-text,
+.empty-text {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 30rpx;
+}
+
+.retry-btn {
+  background-color: #007aff;
+  color: #fff;
+  font-size: 26rpx;
+  padding: 16rpx 40rpx;
+  border-radius: 8rpx;
+}
+
+.loading-more,
+.no-more {
+  text-align: center;
+  padding: 30rpx;
+  color: #999;
+  font-size: 24rpx;
+}

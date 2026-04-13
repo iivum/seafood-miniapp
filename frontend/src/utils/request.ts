@@ -4,6 +4,7 @@
  * Provides a consistent interface for HTTP requests with error handling,
  * authentication, and request/response interceptors
  */
+/// <reference path="../../node_modules/miniprogram-api-typings/index.d.ts" />
 
 /**
  * Request configuration options
@@ -95,7 +96,7 @@ export const request = async (options: RequestOptions): Promise<any> => {
   return new Promise((resolve, reject) => {
     wx.request({
       url: baseUrl + url,
-      method,
+      method: method as 'GET' | 'POST' | 'PUT' | 'DELETE',
       data,
       header: requestHeader,
       timeout,
@@ -109,7 +110,8 @@ export const request = async (options: RequestOptions): Promise<any> => {
           error.data = res.data;
           reject(error);
         } else {
-          const error: RequestError = new Error(res.data?.message || `Request failed: ${res.statusCode}`);
+          const data = res.data as Record<string, unknown> | null;
+          const error: RequestError = new Error((data?.message as string) || `Request failed: ${res.statusCode}`);
           error.statusCode = res.statusCode;
           error.data = res.data;
           reject(error);

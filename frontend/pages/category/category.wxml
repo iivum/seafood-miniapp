@@ -1,0 +1,71 @@
+<view class="category-container">
+  <!-- Category list view (when no category selected) -->
+  <view class="category-grid" wx:if="{{!selectedCategory}}">
+    <view class="category-grid-inner">
+      <view
+        class="category-item"
+        wx:for="{{categories}}"
+        wx:key="id"
+        bindtap="onCategoryTap"
+        data-id="{{item.id}}"
+      >
+        <view class="category-icon-wrapper">
+          <image class="category-icon" src="{{item.icon}}" mode="aspectFit" lazy-load="true"></image>
+        </view>
+        <text class="category-name">{{item.name}}</text>
+        <text class="category-desc">{{item.description}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Products list view (when category selected) -->
+  <view class="products-view" wx:else>
+    <!-- Category header -->
+    <view class="category-header">
+      <view class="category-header-left" bindtap="onBackToCategories">
+        <text class="back-arrow">←</text>
+        <text>全部分类</text>
+      </view>
+      <text class="category-title">{{categories[selectedCategoryIndex]?.name || ''}}</text>
+    </view>
+
+    <!-- Loading state -->
+    <view class="loading-state" wx:if="{{isLoading && products.length === 0}}">
+      <text>加载中...</text>
+    </view>
+
+    <!-- Error state -->
+    <view class="error-state" wx:elif="{{isError}}">
+      <text class="error-text">{{errorMessage}}</text>
+      <view class="retry-btn" bindtap="loadCategoryProducts" data-id="{{selectedCategory}}">重新加载</view>
+    </view>
+
+    <!-- Empty state -->
+    <view class="empty-state" wx:elif="{{isEmpty}}">
+      <text class="empty-text">该分类暂无商品</text>
+      <view class="retry-btn" bindtap="onBackToCategories">返回分类</view>
+    </view>
+
+    <!-- Products grid -->
+    <view class="product-list" wx:else>
+      <view class="product-item" wx:for="{{products}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+        <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
+        <view class="product-info">
+          <text class="product-name">{{item.name}}</text>
+          <text class="product-price">￥{{item.price}}</text>
+          <view class="add-cart-btn" catchtap="addToCart" data-product="{{item}}">加入购物车</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Loading more -->
+    <view class="loading-more" wx:if="{{isLoadingMore}}">
+      <text>加载更多...</text>
+    </view>
+
+    <!-- No more -->
+    <view class="no-more" wx:if="{{!hasMore && products.length > 0}}">
+      <text>没有更多了</text>
+    </view>
+  </view>
+</view>

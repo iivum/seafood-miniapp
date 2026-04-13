@@ -31,7 +31,7 @@ export class ProductAPI {
     ProductAPI.validatePaginationParams(params);
 
     // Generate cache key
-    const cacheKey = SimpleCache.generateKey('products', params);
+    const cacheKey = SimpleCache.generateKey('products', params as unknown as Record<string, unknown>);
 
     // Only use cache for first page (main list)
     const shouldCache = useCache && params.page === 0;

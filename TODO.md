@@ -21,11 +21,24 @@
 - [x] 订单列表页面 `pages/order-list/` - 已修复API调用
 - [x] 订单确认页面 `pages/order-confirm/`
 
+### 微信开发者工具测试调试 (P0)
+- [ ] 启动微信开发者工具，加载前端项目
+- [ ] 验证所有 TabBar 页面正常切换（首页、分类、购物车、个人中心）
+- [ ] 测试商品列表下拉刷新、上拉加载更多
+- [ ] 测试购物车添加、删除、数量修改
+- [ ] 测试下单流程（订单确认 → 支付）
+- [ ] 测试登录流程（微信授权登录）
+- [ ] 测试地址管理（增删改查）
+- [ ] 使用 `weixin-devtools-mcp` 自动化测试核心路径
+- [ ] 修复开发者工具中发现的 JS Error 和渲染问题
+
 ### 微信小程序前端 — 遗留问题修复
-- [ ] 实现 `pages/category/category` 分类页面（app.json tabBar 引用但缺失）
-- [ ] 添加 TabBar 图标资源 `images/tabbar/`（home.png, category.png, cart.png, profile.png 等）
-- [ ] 修复 `src/utils/request.ts` TypeScript 错误（WeChat 全局类型 `wx`, `getApp` 未定义）
-- [ ] 安装 `miniprogram-api-typings` 并配置 tsconfig.json types
+- [x] 实现 `pages/category/category` 分类页面（app.json tabBar 引用但缺失）
+- [ ] 添加 TabBar 图标资源 `images/tabbar/`（home.png, category.png, cart.png, profile.png 等）⚠️ 目录已创建，需补充实际图标文件
+- [x] 修复 `src/utils/request.ts` TypeScript 错误（WeChat 全局类型 `wx`, `getApp` 未定义）
+- [x] 安装 `miniprogram-api-typings` 并配置 tsconfig.json types
+
+
 
 ### Skyline 渲染引擎迁移
 - [ ] 阅读 [Skyline 迁移文档](https://developers.weixin.qq.com/miniprogram/dev/framework/runtime/skyline/migration/)
@@ -147,10 +160,10 @@
 | 数据看板 `dashboard/` | ✅ 完成 |
 
 ### 前端待修复（P0）
-- [ ] `pages/category/category` 页面实现
-- [ ] TabBar 图标 `images/tabbar/` 资源文件
-- [ ] TypeScript 类型：`src/utils/request.ts` 中 `wx` / `getApp` 全局类型定义
-- [ ] 安装 `miniprogram-api-typings` 类型包
+- [x] `pages/category/category` 页面实现 ✅
+- [ ] TabBar 图标 `images/tabbar/` 资源文件 ⚠️ 目录已创建，需补充实际图标文件
+- [x] TypeScript 类型：`src/utils/request.ts` 中 `wx` / `getApp` 全局类型定义 ✅
+- [x] 安装 `miniprogram-api-typings` 类型包 ✅
 
 ---
 

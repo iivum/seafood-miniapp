@@ -109,6 +109,6 @@
     "skipLibCheck": true                                 /* Skip type checking of all .d.ts files. */
   },
 
-  /* Jest types for testing */
-  "types": ["jest"]
+  /* Type packages: Jest + WeChat Mini-Program types */
+  "types": ["jest", "miniprogram-api-typings"]
 }
