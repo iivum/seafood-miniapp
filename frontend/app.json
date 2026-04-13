@@ -17,6 +17,15 @@
       "enablePullDownRefresh": true
     }
   },
+  "lazyCodeLoading": "requiredComponents",
+  "componentFramework": "glass-easel",
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true,
+      "defaultContentBox": true
+    }
+  },
+  "resizable": true,
   "tabBar": {
     "color": "#999",
     "selectedColor": "#007aff",

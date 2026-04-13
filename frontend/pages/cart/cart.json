@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "购物车",
-  "usingComponents": {}
+  "usingComponents": {},
+  "renderer": "skyline"
 }

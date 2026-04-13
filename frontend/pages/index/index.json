@@ -2,5 +2,6 @@
   "navigationBarTitleText": "海鲜生鲜商城",
   "usingComponents": {},
   "enablePullDownRefresh": true,
-  "backgroundTextStyle": "dark"
+  "backgroundTextStyle": "dark",
+  "renderer": "skyline"
 }
