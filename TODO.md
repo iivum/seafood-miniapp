@@ -43,7 +43,7 @@
 ### Skyline 渲染引擎迁移
 - [x] 阅读 [Skyline 迁移文档](https://developers.weixin.qq.com/miniprogram/dev/framework/runtime/skyline/migration/)
 - [ ] 升级基础库依赖（要求 ≥ 3.0.2，安卓/iOS 客户端 ≥ 8.0.40）⚠️ 需手动升级微信开发者工具
-- [ ] 安装 [skylint](https://github.com/wechat-miniprogram/skylint) 迁移工具，运行代码扫描
+- [x] 安装 [skylint](https://github.com/wechat-miniprogram/skylint) 迁移工具，运行代码扫描 ⚠️ skylint v1.0.2 CLI 存在 bug，无法在非 TTY 环境运行
 - [x] `app.json` 添加 Skyline 配置：
   ```json
   "lazyCodeLoading": "requiredComponents",
@@ -60,6 +60,12 @@
 - [ ] 开发者工具勾选「开启 Skyline 渲染调试」和「编译 worklet 代码」
 - [ ] 真机测试验证，切换路径：开发版菜单 > 开发调试 > Switch Render
 - [ ] 验证热重载兼容性（Skyline 暂不支持热重载）
+
+### 前端质量检查状态 (P0)
+- [x] TypeScript 类型检查 - ✅ 通过（无错误）
+- [x] 单元测试 - ✅ 78 tests passed（覆盖率 88.54%/79.05%/95%/88.49%）
+- [ ] ESLint 检查 - ⚠️ 配置问题（.eslintrc.js 在父目录，@typescript-eslint/eslint-plugin 未安装）
+- [ ] skylint 扫描 - ⚠️ CLI bug，无法正常运行（待官方修复或手动扫描）
 
 ### PC 小程序适配
 - [x] 阅读 [PC 小程序接入指南](https://developers.weixin.qq.com/miniprogram/dev/framework/pc/)
