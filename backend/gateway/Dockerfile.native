@@ -1,0 +1,39 @@
+# ===========================================
+# GraalVM Native Image Dockerfile - Gateway Service
+# ===========================================
+
+FROM ghcr.io/graalvm/native-image:ol9-java17 AS builder
+
+WORKDIR /build
+
+# 复制构建产物 (需要先运行 fixCommonInBootJar)
+COPY build/libs/*-fixed.jar app.jar
+
+RUN mkdir -p /build/extracted && \
+    cd /build/extracted && \
+    jar -xf /build/app.jar
+
+# Gateway 需要额外的反射配置
+RUN native-image \
+    -J--add-opens=java.base/java.lang=ALL-UNNAMED \
+    -J--add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
+    -J--add-opens=java.base/java.util=ALL-UNNAMED \
+    -J--add-opens=java.base/java.security=ALL-UNNAMED \
+    -J--add-opens=java.base/sun.security.ssl=ALL-UNNAMED \
+    -H:+RemoveSaturatedTypeFlows \
+    -H:+ReportExceptionStackTraces \
+    -H:Name=gateway \
+    -H:Class=org.springframework.boot.loader.launch.JarLauncher \
+    -H:+AddAllCharsets \
+    --no-fallback \
+    --install-exit-handlers=true \
+    -cp /build/extracted
+
+FROM ghcr.io/graalvm/native-image:ol9-java17
+
+WORKDIR /app
+COPY --from=builder /build/gateway /app/
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/gateway"]

@@ -1,0 +1,20 @@
+# ===========================================
+# Spring Boot Native Profile 配置 - Admin UI (Vaadin)
+# ===========================================
+
+spring:
+  main:
+    banner-mode: off
+  vaadin:
+    # Vaadin Native 优化
+    production-mode: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+spring.native:
+  remove-yaml-support: true
+  optimize-tests: false

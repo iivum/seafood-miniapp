@@ -1,0 +1,25 @@
+# ===========================================
+# Spring Boot Native Profile 配置
+# ===========================================
+# 此配置优化 GraalVM Native Image 构建
+
+spring:
+  main:
+    # 禁用.banner 以减小镜像体积
+    banner-mode: off
+    
+# Actuator 配置优化
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+# Native Image 构建优化
+spring.native:
+  remove-yaml-support: true
+  optimize-tests: false

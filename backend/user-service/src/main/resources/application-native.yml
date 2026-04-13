@@ -1,0 +1,17 @@
+# ===========================================
+# Spring Boot Native Profile 配置
+# ===========================================
+
+spring:
+  main:
+    banner-mode: off
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+spring.native:
+  remove-yaml-support: true
+  optimize-tests: false

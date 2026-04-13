@@ -1,0 +1,22 @@
+# ===========================================
+# Spring Boot Native Profile 配置
+# ===========================================
+
+spring:
+  main:
+    banner-mode: off
+  cloud:
+    gateway:
+      # Gateway Native 优化
+      default-filters:
+        - DedupeResponseHeader=Vary Access-Control-Allow-Origin
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+spring.native:
+  remove-yaml-support: true
+  optimize-tests: false

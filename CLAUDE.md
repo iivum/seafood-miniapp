@@ -261,6 +261,38 @@ docker-compose logs -f
 docker-compose down
 ```
 
+### GraalVM Native 部署 (可选)
+```bash
+cd seafood-miniapp/backend
+
+# 方式一: 本地构建原生可执行文件 (需要本地安装 GraalVM)
+./gradlew :product-service:nativeRun
+
+# 方式二: 构建 Docker 镜像
+./gradlew :product-service:bootBuildImage
+
+# 方式三: 使用 native profile 构建
+./gradlew build -Pnative
+
+# Docker Compose 启动 Native 模式
+docker-compose -f docker-compose.yml -f docker-compose.native.yml up -d
+```
+
+---
+
+## 📦 技术栈 (更新)
+
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| Java | 17+ | 运行环境 |
+| Spring Boot | 3.2.4 | 应用框架 |
+| Spring Cloud | 2023.0.0 | 微服务 |
+| Spring Native | 0.12.2 | GraalVM 原生镜像支持 |
+| Gradle | 9.x | 构建工具 |
+| MongoDB | 6.x | 数据库 |
+| Eureka | - | 服务发现 |
+| GraalVM | 23.x | 原生镜像编译 |
+
 ---
 
 ## 📋 模块开发顺序
@@ -294,7 +326,9 @@ docker-compose down
 | `frontend/src/utils/request.ts` | HTTP 请求封装 |
 | `frontend/src/modules/*` | 业务模块（TDD 测试优先）|
 | `backend/*/src/main/java/com/seafood/*` | Java 微服务代码 |
-| `docker-compose.yml` | Docker 编排配置 |
+| `docker-compose.yml` | Docker 编排配置（默认 JVM 模式）|
+| `docker-compose.native.yml` | Docker Compose Native 配置 |
+| `backend/*/Dockerfile.native` | GraalVM Native Image Dockerfile |
 
 ---
 

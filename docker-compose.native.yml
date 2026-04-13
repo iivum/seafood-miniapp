@@ -1,0 +1,113 @@
+# ===========================================
+# Docker Compose Native Profile 配置
+# ===========================================
+# 此文件覆盖默认的 JVM 配置,使用 GraalVM 原生镜像
+# 
+# 使用方式:
+#   1. 构建原生镜像: ./gradlew :service-name:nativeRun (本地测试)
+#                   或 ./gradlew :service-name:bootBuildImage (构建 Docker 镜像)
+#   2. 启动服务: docker-compose -f docker-compose.yml -f docker-compose.native.yml up -d
+# ===========================================
+
+services:
+  # ===========================================
+  # 微服务 (Native 模式 - GraalVM 原生镜像)
+  # ===========================================
+  discovery-service:
+    image: docker.io/library/discovery-service:1.0.0-SNAPSHOT
+    build:
+      context: ./backend/discovery-service
+      dockerfile: Dockerfile.native
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  gateway:
+    image: docker.io/library/gateway:1.0.0-SNAPSHOT
+    build:
+      context: ./backend/gateway
+      dockerfile: Dockerfile.native
+    ports:
+      - "8080:8080"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+
+  product-service:
+    image: docker.io/library/product-service:1.0.0-SNAPSHOT
+    build:
+      context: ./backend/product-service
+      dockerfile: Dockerfile.native
+    ports:
+      - "8081:8081"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+      - MONGODB_URI=mongodb://mongodb:27017/seafood_product
+
+  order-service:
+    image: docker.io/library/order-service:1.0.0-SNAPSHOT
+    build:
+      context: ./backend/order-service
+      dockerfile: Dockerfile.native
+    ports:
+      - "8082:8082"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+      - MONGODB_URI=mongodb://mongodb:27017/seafood_order
+
+  user-service:
+    image: docker.io/library/user-service:1.0.0-SNAPSHOT
+    build:
+      context: ./backend/user-service
+      dockerfile: Dockerfile.native
+    ports:
+      - "8083:8083"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+      - MONGODB_URI=mongodb://mongodb:27017/seafood_user
+      - REDIS_URI=redis://redis:6379
+
+  admin-ui:
+    image: docker.io/library/admin-ui:1.0.0-SNAPSHOT
+    build:
+      context: ./backend/admin-ui
+      dockerfile: Dockerfile.native
+    ports:
+      - "8090:8090"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka/

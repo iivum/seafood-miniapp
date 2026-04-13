@@ -6,6 +6,13 @@
 
 ## 🔴 高优先级 (P0)
 
+### Spring Native / GraalVM 集成
+- [ ] 创建 `backend/docker-compose.yml` (JVM 模式)
+- [ ] 创建 `backend/docker-compose.native.yml` (Native 模式)
+- [ ] 各服务 `build.gradle` 配置 native 插件
+- [ ] 验证 Native Image 构建
+- [ ] 验证 Native 模式 Docker 部署
+
 ### 商品列表模块收尾
 - [x] 完成首页商品列表展示
 - [x] 实现商品详情页 `pages/product-detail/`

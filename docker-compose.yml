@@ -1,17 +1,25 @@
-version: '3.8'
+# ===========================================
+# 海鲜商城微服务 - Docker Compose 配置
+# ===========================================
+# 支持两种部署模式:
+#   1. JVM 模式 (默认): ./gradlew build
+#   2. Native 模式: ./gradlew build -Pnative
+# ===========================================
+
+volumes:
+  mongodb_data:
+  redis_data:
 
 services:
+  # ===========================================
+  # 基础设施服务
+  # ===========================================
   mongodb:
-    image: mongo:7
+    image: mongo:latest
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -19,12 +27,10 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
+  # ===========================================
+  # 微服务 (JVM 模式 - 默认)
+  # ===========================================
   discovery-service:
     image: eclipse-temurin:17-jre
     ports:
@@ -32,11 +38,6 @@ services:
     volumes:
       - ./backend/discovery-service/build/libs/discovery-service-1.0.0-SNAPSHOT.jar:/app/app.jar
     command: ["java", "-jar", "/app/app.jar"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   gateway:
     image: eclipse-temurin:17-jre
@@ -46,8 +47,7 @@ services:
       - ./backend/gateway/build/libs/gateway-1.0.0-SNAPSHOT.jar:/app/app.jar
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      discovery-service:
-        condition: service_healthy
+      - discovery-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -60,10 +60,8 @@ services:
       - ./backend/product-service/build/libs/product-service-1.0.0-SNAPSHOT.jar:/app/app.jar
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      mongodb:
-        condition: service_healthy
-      discovery-service:
-        condition: service_healthy
+      - mongodb
+      - discovery-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -77,10 +75,8 @@ services:
       - ./backend/order-service/build/libs/order-service-1.0.0-SNAPSHOT.jar:/app/app.jar
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      mongodb:
-        condition: service_healthy
-      discovery-service:
-        condition: service_healthy
+      - mongodb
+      - discovery-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -94,12 +90,9 @@ services:
       - ./backend/user-service/build/libs/user-service-1.0.0-SNAPSHOT.jar:/app/app.jar
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      discovery-service:
-        condition: service_healthy
+      - mongodb
+      - redis
+      - discovery-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -114,16 +107,13 @@ services:
       - ./backend/admin-ui/build/libs/admin-ui-1.0.0-SNAPSHOT.jar:/app/app.jar
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      discovery-service:
-        condition: service_healthy
-      product-service:
-        condition: service_healthy
-      order-service:
-        condition: service_healthy
+      - discovery-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
 
-volumes:
-  mongodb_data:
-  redis_data:
+# ===========================================
+# Native Profile 覆盖配置
+# 使用方式: docker-compose -f docker-compose.yml -f docker-compose.native.yml up -d
+# 构建命令: ./gradlew build -Pnative
+# ===========================================

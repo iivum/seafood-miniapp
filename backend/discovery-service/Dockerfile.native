@@ -1,0 +1,50 @@
+# ===========================================
+# GraalVM Native Image Dockerfile
+# ===========================================
+# 使用 Spring Boot 3 + GraalVM Native Image 构建极小体积的 Docker 镜像
+#
+# 构建方式:
+#   1. 直接构建: ./gradlew :discovery-service:nativeRun
+#   2. 构建 Docker 镜像: ./gradlew :discovery-service:bootBuildImage
+# ===========================================
+
+FROM ghcr.io/graalvm/native-image:ol9-java17 AS builder
+
+# 安装构建工具
+RUN yum install -y wget curl
+
+WORKDIR /build
+
+# 复制构建产物
+COPY build/libs/*.jar app.jar
+
+# 提取 JAR 内容用于 native-image 构建
+RUN mkdir -p /build/extracted && \
+    cd /build/extracted && \
+    jar -xf /build/app.jar
+
+# 构建原生镜像
+RUN native-image \
+    -J--add-opens=java.base/java.lang=ALL-UNNAMED \
+    -J--add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
+    -J--add-opens=java.base/java.util=ALL-UNNAMED \
+    -J--add-opens=java.base/java.security=ALL-UNNAMED \
+    -H:+RemoveSaturatedTypeFlows \
+    -H:+ReportExceptionStackTraces \
+    -H:Name=discovery-service \
+    -H:Class=org.springframework.boot.loader.launch.JarLauncher \
+    --no-fallback \
+    --install-exit-handlers=true \
+    -cp /build/extracted
+
+# 最终镜像
+FROM ghcr.io/graalvm/native-image:ol9-java17
+
+WORKDIR /app
+
+# 从 builder 复制原生镜像
+COPY --from=builder /build/discovery-service /app/
+
+EXPOSE 8761
+
+ENTRYPOINT ["/app/discovery-service"]
