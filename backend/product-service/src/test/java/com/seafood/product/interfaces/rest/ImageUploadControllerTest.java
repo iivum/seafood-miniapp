@@ -27,28 +27,28 @@ class ImageUploadControllerTest {
     @Test
     void testUploadImage() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
-            "file", 
-            "test.jpg", 
-            MediaType.IMAGE_JPEG_VALUE, 
+            "file",
+            "test.jpg",
+            MediaType.IMAGE_JPEG_VALUE,
             "test image content".getBytes()
         );
 
-        mockMvc.perform(multipart("/products/upload")
+        mockMvc.perform(multipart("/products/images/upload")
                 .file(file))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.imageUrl").exists());
+                .andExpect(jsonPath("$.url").exists());
     }
 
     @Test
     void testUploadImageInvalidFile() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
-            "file", 
-            "", 
-            MediaType.IMAGE_JPEG_VALUE, 
+            "file",
+            "",
+            MediaType.IMAGE_JPEG_VALUE,
             "".getBytes()
         );
 
-        mockMvc.perform(multipart("/products/upload")
+        mockMvc.perform(multipart("/products/images/upload")
                 .file(file)
                 .param("productId", "1"))
                 .andExpect(status().isBadRequest());
@@ -56,7 +56,7 @@ class ImageUploadControllerTest {
 
     @Test
     void testUploadImageNoFile() throws Exception {
-        mockMvc.perform(multipart("/products/upload")
+        mockMvc.perform(multipart("/products/images/upload")
                 .param("productId", "1"))
                 .andExpect(status().isBadRequest());
     }
