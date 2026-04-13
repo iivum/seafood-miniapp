@@ -6,13 +6,6 @@
 
 ## 🔴 高优先级 (P0)
 
-### Spring Native / GraalVM 集成
-- [ ] 创建 `backend/docker-compose.yml` (JVM 模式)
-- [ ] 创建 `backend/docker-compose.native.yml` (Native 模式)
-- [ ] 各服务 `build.gradle` 配置 native 插件
-- [ ] 验证 Native Image 构建
-- [ ] 验证 Native 模式 Docker 部署
-
 ### 商品列表模块收尾
 - [x] 完成首页商品列表展示
 - [x] 实现商品详情页 `pages/product-detail/`
@@ -27,6 +20,12 @@
 - [x] 订单支付集成（微信支付） - PaymentModule实现，包含wx.requestPayment集成和模拟支付环境
 - [x] 订单列表页面 `pages/order-list/` - 已修复API调用
 - [x] 订单确认页面 `pages/order-confirm/`
+
+### 微信小程序前端 — 遗留问题修复
+- [ ] 实现 `pages/category/category` 分类页面（app.json tabBar 引用但缺失）
+- [ ] 添加 TabBar 图标资源 `images/tabbar/`（home.png, category.png, cart.png, profile.png 等）
+- [ ] 修复 `src/utils/request.ts` TypeScript 错误（WeChat 全局类型 `wx`, `getApp` 未定义）
+- [ ] 安装 `miniprogram-api-typings` 并配置 tsconfig.json types
 
 ---
 
@@ -76,6 +75,53 @@
 
 ---
 
+## 📱 微信小程序前端开发进度
+
+### 主包页面（TabBar）
+| 页面 | 路径 | 状态 |
+|------|------|------|
+| 首页/商品列表 | `pages/index/` | ✅ 完成 |
+| 分类 | `pages/category/` | ❌ 缺失 |
+| 购物车 | `pages/cart/` | ✅ 完成 |
+| 个人中心 | `pages/profile/` | ✅ 完成 |
+
+### 分包页面（Subpackages）
+
+#### 商品分包 `pages-sub/product/`
+| 页面 | 状态 |
+|------|------|
+| 商品详情 `product-detail/` | ✅ 完成 |
+
+#### 订单分包 `pages-sub/order/`
+| 页面 | 状态 |
+|------|------|
+| 订单列表 `order-list/` | ✅ 完成 |
+| 订单确认 `order-confirm/` | ✅ 完成 |
+
+#### 用户分包 `pages-sub/user/`
+| 页面 | 状态 |
+|------|------|
+| 登录 `login/` | ✅ 完成 |
+| 地址列表 `address/address-list/` | ✅ 完成 |
+| 地址编辑 `address/address-edit/` | ✅ 完成 |
+
+#### 商户分包 `pages-sub/merchant/`
+| 页面 | 状态 |
+|------|------|
+| 商户中心 `merchant/` | ✅ 完成 |
+| 商品管理 `product-manage/` | ✅ 完成 |
+| 订单管理 `order-manage/` | ✅ 完成 |
+| 用户管理 `user-manage/` | ✅ 完成 |
+| 数据看板 `dashboard/` | ✅ 完成 |
+
+### 前端待修复（P0）
+- [ ] `pages/category/category` 页面实现
+- [ ] TabBar 图标 `images/tabbar/` 资源文件
+- [ ] TypeScript 类型：`src/utils/request.ts` 中 `wx` / `getApp` 全局类型定义
+- [ ] 安装 `miniprogram-api-typings` 类型包
+
+---
+
 ## ✅ 已完成
 
 ### 基础设施
@@ -107,17 +153,24 @@
 
 ## 📅 开发计划
 
-### 阶段 1: 核心功能补全 (当前)
+### 阶段 1: 核心功能补全 ✅
 **目标**: 完成商品浏览和下单流程
 
-### 阶段 2: 用户体系
+### 阶段 2: 用户体系 ✅
 **目标**: 完整的用户登录和订单管理
 
-### 阶段 3: 管理功能
+### 阶段 3: 管理功能 ✅
 **目标**: Admin 后台和数据分析
 
-### 阶段 4: 优化上线
-**目标**: 性能优化和正式发布
+### 阶段 4: 优化上线 (当前)
+**目标**: 修复前端遗留问题，准备发布
+
+#### 前端收尾任务
+1. 实现分类页面 `pages/category/`
+2. 补充 TabBar 图标资源
+3. 修复 TypeScript 类型错误
+4. 完成 WeChat开发者工具 真机测试
+5. 提交审核并发布
 
 ---
 
