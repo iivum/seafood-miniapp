@@ -1,6 +1,7 @@
 import { ProductAPI } from './product';
 import { Product, ProductQueryParams, PaginatedProducts, ApiError } from '../types';
 import { request } from '../../utils/request';
+import { cache } from '../../utils/cache';
 
 // Mock the request utility
 jest.mock('../../utils/request');
@@ -31,6 +32,7 @@ describe('ProductAPI', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    cache.clear();
   });
 
   describe('getProducts', () => {

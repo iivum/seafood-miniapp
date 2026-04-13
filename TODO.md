@@ -11,7 +11,7 @@
 - [x] 实现商品详情页 `pages/product-detail/`
 - [x] 实现下拉刷新功能
 - [x] 实现上拉加载更多
-- [x] 补充 ProductAPI 单元测试（覆盖率 ≥ 80%）
+- [x] 补充 ProductAPI 单元测试（61 tests pass, 覆盖率 67.45%，修复缓存隔离问题）
 
 ### 订单处理模块
 - [x] 订单创建 API `POST /orders` - OrderAPI.createOrder()
@@ -126,7 +126,7 @@
 | 页面 | 路径 | 状态 |
 |------|------|------|
 | 首页/商品列表 | `pages/index/` | ✅ 完成 |
-| 分类 | `pages/category/` | ❌ 缺失 |
+| 分类 | `pages/category/` | ✅ 完成 |
 | 购物车 | `pages/cart/` | ✅ 完成 |
 | 个人中心 | `pages/profile/` | ✅ 完成 |
 
