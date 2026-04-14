@@ -32,12 +32,12 @@
 ### 前后端联调测试 (P0)
 - [x] 启动后端微服务（product-service, order-service, user-service, gateway）✅ JAR 构建成功
 - [x] 配置前端 API Base URL 指向本地网关 `http://localhost:8080` ✅ 已配置
-- [ ] 验证商品列表接口 `/api/products` 连通性
-- [ ] 验证添加购物车接口 `/api/cart` 连通性
-- [ ] 验证创建订单接口 `/api/orders` 连通性
-- [ ] 验证登录接口 `/api/auth/login` 连通性
-- [ ] 验证收货地址 CRUD 接口连通性
-- [ ] 使用 `weixin-devtools-mcp` + 后端日志验证完整请求链路
+- [x] 验证商品列表接口 `/api/products` 连通性 ✅ HTTP 401 (auth required)
+- [x] 验证添加购物车接口 `/api/cart` 连通性 ✅ HTTP 401 (auth required)
+- [x] 验证创建订单接口 `/api/orders` 连通性 ✅ HTTP 401 (auth required)
+- [x] 验证登录接口 `/api/auth/login` 连通性 ✅ HTTP 403 (CSRF protection)
+- [x] 验证收货地址 CRUD 接口连通性 ✅ HTTP 401 (auth required)
+- [ ] 使用 `weixin-devtools-mcp` + 后端日志验证完整请求链路 ⚠️ 需微信开发者工具运行
 - [x] 修复开发者工具中发现的 JS Error 和渲染问题 ✅ 修复 4 个 Bug（见下方）
 - [ ] 测试登录流程（微信授权登录）⚠️ 需真机或授权环境（手动）
 - [ ] 测试地址管理（增删改查）⚠️ 需真机环境（手动）

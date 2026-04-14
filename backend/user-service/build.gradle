@@ -85,10 +85,27 @@ tasks.register('fixCommonInBootJar') {
 
         ant.unzip(src: bootJarFile, dest: tempDir)
 
+        // Find and extract common JARs
+        def commonJars = []
         fileTree("${tempDir}/BOOT-INF/lib").include('common-*.jar').each { jar ->
             println "  Extracting: ${jar.name}"
             ant.unzip(src: jar, dest: "${tempDir}/BOOT-INF/classes")
+            commonJars << jar.name
             delete jar
+        }
+
+        // Fix classpath.idx to remove references to extracted common JARs
+        def classpathIdxFile = new File(tempDir, 'BOOT-INF/classpath.idx')
+        if (classpathIdxFile.exists()) {
+            def content = classpathIdxFile.text
+            commonJars.each { jarName ->
+                def removed = content.replace("\"BOOT-INF/lib/${jarName}\"\n", "")
+                if (removed != content) {
+                    println "  Removed from classpath.idx: ${jarName}"
+                    content = removed
+                }
+            }
+            classpathIdxFile.text = content
         }
 
         delete bootJarFile
