@@ -89,6 +89,7 @@ module.exports = {
 
   ignorePatterns: [
     'node_modules/',
+    'miniprogram_npm/',
     'coverage/',
     'dist/',
     'pages/**/*.js',
