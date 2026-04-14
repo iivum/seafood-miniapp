@@ -42,12 +42,12 @@
 - [ ] 测试登录流程（微信授权登录）⚠️ 需真机或授权环境（手动）
 - [ ] 测试地址管理（增删改查）⚠️ 需真机环境（手动）
 
-### 测试数据准备 (P0)
-- [ ] 创建测试用户数据（用户名、密码、收货地址）
-- [ ] 创建测试商品数据（海鲜商品，分类：鱼类/虾蟹/贝类/藻类）
-- [ ] 创建测试订单数据（已支付/待发货/已完成等状态）
-- [ ] 导出测试数据为 Markdown 表格文档
-- [ ] 将测试数据脚本集成到后端启动流程
+### 测试数据准备 (P0) ✅ 已完成
+- [x] 创建测试用户数据（用户名、密码、收货地址）✅ 4 条测试用户
+- [x] 创建测试商品数据（海鲜商品，分类：鱼类/虾蟹/贝类/藻类）✅ 15 条商品
+- [x] 创建测试订单数据（已支付/待发货/已完成等状态）✅ 6 条订单
+- [x] 导出测试数据为 Markdown 表格文档 ✅ `docs/test-data.md`
+- [x] 将测试数据脚本集成到后端启动流程 ✅ `backend/scripts/init_test_data.py`
 - [x] 实现 `pages/category/category` 分类页面（app.json tabBar 引用但缺失）
 - [x] 添加 TabBar 图标资源 `images/tabbar/`（home.png, category.png, cart.png, profile.png 等）✅ 已生成 8 个图标文件（81x81 PNG）
 - [x] 修复 `src/utils/request.ts` TypeScript 错误（WeChat 全局类型 `wx`, `getApp` 未定义）
