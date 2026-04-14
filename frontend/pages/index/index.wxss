@@ -1,19 +1,24 @@
 .home-container {
   padding-bottom: 50rpx;
+  background-color: var(--color-bg);
 }
 
+/* ============================================
+   Search Bar
+   ============================================ */
 .search-bar {
   padding: 20rpx;
-  background-color: #fff;
+  background-color: var(--color-surface);
   display: flex;
   align-items: center;
+  border-bottom: 1rpx solid var(--color-divider);
 }
 
 .search-input {
   flex: 1;
   display: flex;
   align-items: center;
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-subtle);
   border-radius: 30rpx;
   padding: 10rpx 20rpx;
 }
@@ -22,7 +27,7 @@
   width: 120rpx;
   height: 60rpx;
   line-height: 60rpx;
-  background-color: #07c160;
+  background-color: var(--color-accent);
   color: #fff;
   font-size: 26rpx;
   border-radius: 30rpx;
@@ -32,23 +37,27 @@
 
 .search-tip {
   padding: 15rpx 20rpx;
-  background-color: #fff3cd;
+  background-color: #fff8e6;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 26rpx;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .clear-search {
-  color: #07c160;
+  color: var(--color-accent);
+  font-weight: 500;
 }
 
-/* 热门搜索 */
+/* ============================================
+   Hot Search Section
+   ============================================ */
 .hot-search-section {
-  background-color: #fff;
+  background-color: var(--color-surface);
   padding: 20rpx;
   margin-bottom: 20rpx;
+  border-bottom: 1rpx solid var(--color-divider);
 }
 
 .hot-search-header {
@@ -57,8 +66,8 @@
 
 .hot-search-title {
   font-size: 28rpx;
-  font-weight: bold;
-  color: #333;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 .hot-search-list {
@@ -68,22 +77,27 @@
 
 .hot-search-item {
   padding: 10rpx 24rpx;
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-subtle);
   border-radius: 30rpx;
   margin-right: 20rpx;
   margin-bottom: 15rpx;
+  border: 1rpx solid var(--color-border);
 }
 
 .hot-search-item text {
   font-size: 26rpx;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
+/* ============================================
+   Banner Carousel
+   ============================================ */
 .banner {
   height: 300rpx;
   margin: 20rpx;
-  border-radius: 20rpx;
+  border-radius: 16rpx;
   overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(30, 58, 95, 0.12);
 }
 
 .banner image {
@@ -91,11 +105,15 @@
   height: 100%;
 }
 
+/* ============================================
+   Category Navigation
+   ============================================ */
 .category-nav {
   display: flex;
   justify-content: space-around;
   padding: 30rpx 0;
-  background-color: #fff;
+  background-color: var(--color-surface);
+  margin-bottom: 20rpx;
 }
 
 .nav-item {
@@ -108,22 +126,31 @@
   width: 80rpx;
   height: 80rpx;
   margin-bottom: 10rpx;
+  border-radius: 50%;
+  background-color: var(--color-bg-subtle);
 }
 
 .nav-item text {
   font-size: 24rpx;
+  color: var(--color-text-secondary);
 }
 
+/* ============================================
+   Product Grid
+   ============================================ */
 .section-title {
   padding: 20rpx;
   font-size: 32rpx;
-  font-weight: bold;
+  font-weight: 600;
+  color: var(--color-text);
+  background-color: var(--color-bg);
 }
 
 .product-list {
   display: flex;
   flex-wrap: wrap;
   padding: 10rpx;
+  background-color: var(--color-bg);
 }
 
 .product-item {
@@ -136,17 +163,25 @@
   width: 100%;
   height: 350rpx;
   border-radius: 12rpx;
+  background-color: var(--color-bg-subtle);
 }
 
 .product-info {
-  background-color: #fff;
+  background-color: var(--color-surface);
   padding: 10rpx;
   border-radius: 0 0 12rpx 12rpx;
+  border: 1rpx solid var(--color-border);
+  border-top: none;
 }
 
 .product-name {
   font-size: 28rpx;
   display: block;
+  color: var(--color-text);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .highlight-wrapper {
@@ -154,18 +189,20 @@
 }
 
 .highlight {
-  color: #ff4d4f;
-  font-weight: bold;
+  color: var(--color-price);
+  font-weight: 600;
 }
 
 .product-price {
   font-size: 30rpx;
-  color: #ff4400;
-  font-weight: bold;
+  color: var(--color-price);
+  font-weight: 600;
+  margin-top: 8rpx;
 }
 
+/* Add to Cart Button - Accent Coral */
 .add-cart-btn {
-  background-color: #007aff;
+  background-color: var(--color-accent);
   color: #fff;
   font-size: 24rpx;
   padding: 6rpx 20rpx;
