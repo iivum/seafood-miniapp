@@ -28,6 +28,16 @@
 - [x] 测试购物车添加、删除、数量修改 ✅ 购物车页面正常加载
 - [x] 测试下单流程（订单确认 → 支付）✅ 订单确认页面正常加载
 - [x] 使用 `weixin-devtools-mcp` 自动化测试核心路径 ✅ 通过 miniprogram-automator 完成（19 项测试全通过）
+
+### 前后端联调测试 (P0)
+- [ ] 启动后端微服务（product-service, order-service, user-service, gateway）
+- [ ] 配置前端 API Base URL 指向本地网关 `http://localhost:8080`
+- [ ] 验证商品列表接口 `/api/products` 连通性
+- [ ] 验证添加购物车接口 `/api/cart` 连通性
+- [ ] 验证创建订单接口 `/api/orders` 连通性
+- [ ] 验证登录接口 `/api/auth/login` 连通性
+- [ ] 验证收货地址 CRUD 接口连通性
+- [ ] 使用 `weixin-devtools-mcp` + 后端日志验证完整请求链路
 - [x] 修复开发者工具中发现的 JS Error 和渲染问题 ✅ 修复 4 个 Bug（见下方）
 - [ ] 测试登录流程（微信授权登录）⚠️ 需真机或授权环境（手动）
 - [ ] 测试地址管理（增删改查）⚠️ 需真机环境（手动）
