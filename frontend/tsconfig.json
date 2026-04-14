@@ -23,7 +23,7 @@
     // "moduleDetection": "auto",                        /* Specify what method is used to detect module files for compilation. */
 
     /* Modules */
-    "module": "commonjs",                                /* Specify what module code is generated. */
+    "module": "Node16",                                   /* Specify what module code is generated. */
     // "rootDir": "./",                                  /* Specify the root folder within your source files. */
     // "moduleResolution": "node",                       /* Specify how TypeScript looks up a file from a given module specifier. */
     // "baseUrl": "./",                                  /* Specify the base directory to resolve non-relative module names. */
@@ -32,7 +32,7 @@
     // "typeRoots": [],                                  /* Specify multiple folders that act as <reference noDefaultLib />. */
     // "types": [],                                      /* Specify type package names to be included without a path. */
     // "allowUmdGlobalAccess": true,                     /* Allow accessing UMD globals from modules. */
-    "moduleResolution": "node",                          /* Enable Node.js style module resolution. */
+    "moduleResolution": "node16",                        /* Enable Node.js style module resolution. */
     // "resolveJsonModule": true,                        /* Enable importing .json files. */
     // "allowArbitraryExtensions": true,                 /* Enable importing files with any extension, provided a declaration file is present. */
     // "resolvePackageJsonExports": true,                /* Turn on imports using the package.json 'exports' field. */
@@ -81,7 +81,7 @@
     "esModuleInterop": true,                             /* Emit additional JavaScript to facilitate support for importing CommonJS modules. */
     // "preserveSymlinks": true,                         /* Disable symlinks to .d.js files. */
     "forceConsistentCasingInFileNames": true,            /* Ensure that casing is correct in imports. */
-    "module": "CommonJS",                                /* Specify module code to be emitted. */
+    // "module": "CommonJS",                             /* Specify module code to be emitted. */
 
     /* Type Checking */
     "strict": true,                                      /* Enable all strict type-checking options. */

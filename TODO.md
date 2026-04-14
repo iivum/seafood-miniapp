@@ -63,8 +63,9 @@
 
 ### 前端质量检查状态 (P0)
 - [x] TypeScript 类型检查 - ✅ 通过（无错误）
-- [x] 单元测试 - ✅ 78 tests passed（覆盖率 88.54%/79.05%/95%/88.49%）
+- [x] 单元测试 - ✅ 78 tests passed（覆盖率 88.59%/79.19%/95%/88.54%）
 - [x] ESLint 检查 - ✅ 已修复（创建 frontend/.eslintrc.js，修复所有 TypeScript 类型错误）
+- [x] tsconfig.json 修复 - ✅ 修复 moduleResolution deprecated 警告（node → node16）
 - [ ] skylint 扫描 - ⚠️ CLI bug，无法正常运行（待官方修复或手动扫描）
 
 ### 开发者工具编译 Bug 修复 (P0) ✅ 已完成
