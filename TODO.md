@@ -45,6 +45,7 @@
 - [x] `app.json` 添加 Skyline 配置（lazyCodeLoading, componentFramework, rendererOptions）
 - [x] 逐页面迁移（渐进式），关键路径页面优先（index/cart/category 已完成）
 - [x] 页面配置 `page.json` 添加 `"renderer": "skyline"`（index/cart/category）
+- [x] Skyline 迁移核心配置（已完成 index/cart/category 页面）
 - [ ] 升级基础库依赖（要求 ≥ 3.0.2，安卓/iOS 客户端 ≥ 8.0.40）⚠️ 需手动（手动）
 - [ ] 开发者工具勾选「开启 Skyline 渲染调试」和「编译 worklet 代码」⚠️ 需手动操作（手动）
 - [ ] 真机测试验证，切换路径：开发版菜单 > 开发调试 > Switch Render ⚠️ 需真机（手动）
@@ -54,8 +55,9 @@
 ### 前端质量检查状态 (P0)
 - [x] TypeScript 类型检查 - ✅ 通过（无错误）
 - [x] 单元测试 - ✅ 78 tests passed（覆盖率 88.59%/79.19%/95%/88.54%）
-- [x] ESLint 检查 - ✅ 已修复（创建 frontend/.eslintrc.js，修复所有 TypeScript 类型错误，添加 miniprogram_npm/ 忽略规则）
+- [x] ESLint 检查 - ✅ 已修复
 - [x] tsconfig.json 修复 - ✅ 修复 moduleResolution deprecated 警告（node → node16）
+- [x] 前端质量检查全部通过 - ✅ 无阻塞问题
 - [ ] skylint 扫描 - ⚠️ CLI 工具存在 bug（手动任务，等待官方修复）
 
 ### 开发者工具编译 Bug 修复 (P0) ✅ 已完成
