@@ -30,8 +30,32 @@ spring:
 
 server:
   port: 8080
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 5000
+  graceful:
+    shutdown:
+      wait-time: 30s
 
 eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+  instance:
+    lease-renewal-interval-in-seconds: 10
+    health-check-url-path: /actuator/health
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    eureka:
+      client:
+        enabled: true

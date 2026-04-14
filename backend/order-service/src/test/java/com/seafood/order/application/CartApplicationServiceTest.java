@@ -44,6 +44,7 @@ class CartApplicationServiceTest {
     void shouldGetOrCreateCartSuccessfully() {
         // Arrange
         when(cartRepository.findByUserId("user-123")).thenReturn(Optional.empty());
+        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // Act
         Cart result = cartApplicationService.getOrCreateCart("user-123");

@@ -1,23 +1,39 @@
 # ===========================================
 # GraalVM Native Image Dockerfile - Product Service
 # ===========================================
+# 优化版本: 包含 AOT 配置和构建缓存支持
 
-FROM ghcr.io/graalvm/native-image:ol9-java17 AS builder
+FROM ghcr.io/graalvm/native-image:ol9-java17-23 AS builder
 
 WORKDIR /build
 
+# 复制构建产物
 COPY build/libs/*.jar app.jar
 
+# 解压 JAR 文件
 RUN mkdir -p /build/extracted && \
     cd /build/extracted && \
     jar -xf /build/app.jar
 
-# MongoDB 驱动需要额外的配置
+# Native Image 构建参数
+# ===========================================
+# Spring Native 关键配置:
+# - --no-fallback: 不允许回退到 JIT 模式
+# - -H:+ReportExceptionStackTraces: 报告异常堆栈
+# - -H:+RemoveSaturatedTypeFlows: 优化类型流
+# ===========================================
+
 RUN native-image \
     -J--add-opens=java.base/java.lang=ALL-UNNAMED \
     -J--add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
     -J--add-opens=java.base/java.util=ALL-UNNAMED \
     -J--add-opens=java.base/java.security=ALL-UNNAMED \
+    -J--add-opens=java.base/java.io=ALL-UNNAMED \
+    -J--add-opens=java.base/java.net=ALL-UNNAMED \
+    -J--add-opens=java.base/java.nio=ALL-UNNAMED \
+    -J--add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
+    -J--add-opens=java.base/java.util.concurrent=ALL-UNNAMED \
+    -J--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED \
     -H:+RemoveSaturatedTypeFlows \
     -H:+ReportExceptionStackTraces \
     -H:Name=product-service \
@@ -26,10 +42,29 @@ RUN native-image \
     --install-exit-handlers=true \
     -cp /build/extracted
 
-FROM ghcr.io/graalvm/native-image:ol9-java17
+# ===========================================
+# Runtime 镜像
+# ===========================================
+FROM ghcr.io/graalvm/native-image:ol9-java17-23
+
+# 设置语言环境
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    JAVA_HOME=/opt/graalvm-ce-java17-23
 
 WORKDIR /app
+
+# 复制原生可执行文件
 COPY --from=builder /build/product-service /app/
+
+# 创建非 root 用户运行 (安全最佳实践)
+RUN useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8081/actuator/health || exit 1
 
 EXPOSE 8081
 

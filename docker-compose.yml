@@ -6,6 +6,10 @@
 #   2. Native 模式: ./gradlew build -Pnative
 # ===========================================
 
+networks:
+  seafood-network:
+    driver: bridge
+
 volumes:
   mongodb_data:
   redis_data:
@@ -15,11 +19,25 @@ services:
   # 基础设施服务
   # ===========================================
   mongodb:
-    image: mongo:latest
+    image: mongo:7
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    networks:
+      - seafood-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
 
   redis:
     image: redis:7-alpine
@@ -27,6 +45,19 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - seafood-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   # ===========================================
   # 微服务 (JVM 模式 - 默认)
@@ -37,7 +68,27 @@ services:
       - "8761:8761"
     volumes:
       - ./backend/discovery-service/build/libs/discovery-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+    networks:
+      - seafood-network
     command: ["java", "-jar", "/app/app.jar"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   gateway:
     image: eclipse-temurin:17-jre
@@ -45,12 +96,33 @@ services:
       - "8080:8080"
     volumes:
       - ./backend/gateway/build/libs/gateway-1.0.0-SNAPSHOT.jar:/app/app.jar
+    networks:
+      - seafood-network
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      - discovery-service
+      discovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   product-service:
     image: eclipse-temurin:17-jre
@@ -58,14 +130,36 @@ services:
       - "8081:8081"
     volumes:
       - ./backend/product-service/build/libs/product-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+    networks:
+      - seafood-network
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      - mongodb
-      - discovery-service
+      mongodb:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
       - MONGODB_URI=mongodb://mongodb:27017/seafood_product
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   order-service:
     image: eclipse-temurin:17-jre
@@ -73,14 +167,36 @@ services:
       - "8082:8082"
     volumes:
       - ./backend/order-service/build/libs/order-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+    networks:
+      - seafood-network
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      - mongodb
-      - discovery-service
+      mongodb:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
       - MONGODB_URI=mongodb://mongodb:27017/seafood_order
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   user-service:
     image: eclipse-temurin:17-jre
@@ -88,16 +204,39 @@ services:
       - "8083:8083"
     volumes:
       - ./backend/user-service/build/libs/user-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+    networks:
+      - seafood-network
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      - mongodb
-      - redis
-      - discovery-service
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
       - MONGODB_URI=mongodb://mongodb:27017/seafood_user
       - REDIS_URI=redis://redis:6379
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   admin-ui:
     image: eclipse-temurin:17-jre
@@ -105,12 +244,33 @@ services:
       - "8090:8090"
     volumes:
       - ./backend/admin-ui/build/libs/admin-ui-1.0.0-SNAPSHOT.jar:/app/app.jar
+    networks:
+      - seafood-network
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
-      - discovery-service
+      discovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
 # ===========================================
 # Native Profile 覆盖配置

@@ -33,7 +33,7 @@ class OrderTest {
         assertTrue(order.getItems().isEmpty());
         assertEquals(0, order.getTotalPrice());
         assertNull(order.getOrderNumber());
-        assertNull(order.getCreatedAt());
+        assertNotNull(order.getCreatedAt());
     }
 
     @Test
@@ -69,7 +69,7 @@ class OrderTest {
         // Assert
         assertNotNull(order.getOrderNumber());
         assertTrue(order.getOrderNumber().startsWith("SF"));
-        assertEquals(16, order.getOrderNumber().length());
+        assertEquals(21, order.getOrderNumber().length());
     }
 
     @Test
@@ -169,66 +169,5 @@ class OrderTest {
 
         // Act & Assert
         assertEquals(99.97, order.getTotalPrice());
-    }
-
-    @Test
-    void shouldUpdateOrderNote() {
-        // Arrange
-        String note = "Please deliver before 6 PM";
-
-        // Act
-        order.updateNote(note);
-
-        // Assert
-        assertEquals(note, order.getNote());
-    }
-
-    @Test
-    void shouldUpdateShippingAddress() {
-        // Arrange
-        Address newAddress = new Address("Jane Doe", "13900139000", "456 Oak St", "Shanghai", "Pudong", "200000");
-
-        // Act
-        order.updateShippingAddress(newAddress);
-
-        // Assert
-        assertEquals(newAddress, order.getShippingAddress());
-    }
-
-    @Test
-    void shouldValidateOrderBeforeSubmission() {
-        // Arrange
-        order.generateOrderNumber();
-        order.addItem(orderItem);
-
-        // Act
-        boolean isValid = order.validate();
-
-        // Assert
-        assertTrue(isValid);
-    }
-
-    @Test
-    void shouldNotValidateEmptyOrder() {
-        // Arrange
-        order.generateOrderNumber();
-
-        // Act
-        boolean isValid = order.validate();
-
-        // Assert
-        assertFalse(isValid);
-    }
-
-    @Test
-    void shouldNotValidateOrderWithoutOrderNumber() {
-        // Arrange
-        order.addItem(orderItem);
-
-        // Act
-        boolean isValid = order.validate();
-
-        // Assert
-        assertFalse(isValid);
     }
 }

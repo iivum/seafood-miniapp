@@ -4,6 +4,12 @@ spring:
 
 server:
   port: 8761
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 5000
+  graceful:
+    shutdown:
+      wait-time: 30s
 
 eureka:
   client:
@@ -11,3 +17,14 @@ eureka:
     fetch-registry: false
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true

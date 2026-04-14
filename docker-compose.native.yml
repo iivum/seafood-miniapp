@@ -20,11 +20,25 @@ services:
       dockerfile: Dockerfile.native
     ports:
       - "8761:8761"
+    networks:
+      - seafood-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   gateway:
     image: docker.io/library/gateway:1.0.0-SNAPSHOT
@@ -33,12 +47,26 @@ services:
       dockerfile: Dockerfile.native
     ports:
       - "8080:8080"
+    networks:
+      - seafood-network
     depends_on:
       discovery-service:
         condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 192M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   product-service:
     image: docker.io/library/product-service:1.0.0-SNAPSHOT
@@ -47,6 +75,8 @@ services:
       dockerfile: Dockerfile.native
     ports:
       - "8081:8081"
+    networks:
+      - seafood-network
     depends_on:
       mongodb:
         condition: service_healthy
@@ -56,6 +86,18 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
       - MONGODB_URI=mongodb://mongodb:27017/seafood_product
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 192M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   order-service:
     image: docker.io/library/order-service:1.0.0-SNAPSHOT
@@ -64,6 +106,8 @@ services:
       dockerfile: Dockerfile.native
     ports:
       - "8082:8082"
+    networks:
+      - seafood-network
     depends_on:
       mongodb:
         condition: service_healthy
@@ -73,6 +117,18 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
       - MONGODB_URI=mongodb://mongodb:27017/seafood_order
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 192M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   user-service:
     image: docker.io/library/user-service:1.0.0-SNAPSHOT
@@ -81,6 +137,8 @@ services:
       dockerfile: Dockerfile.native
     ports:
       - "8083:8083"
+    networks:
+      - seafood-network
     depends_on:
       mongodb:
         condition: service_healthy
@@ -93,6 +151,18 @@ services:
       - EUREKA_URI=http://discovery-service:8761/eureka/
       - MONGODB_URI=mongodb://mongodb:27017/seafood_user
       - REDIS_URI=redis://redis:6379
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   admin-ui:
     image: docker.io/library/admin-ui:1.0.0-SNAPSHOT
@@ -101,6 +171,8 @@ services:
       dockerfile: Dockerfile.native
     ports:
       - "8090:8090"
+    networks:
+      - seafood-network
     depends_on:
       discovery-service:
         condition: service_healthy
@@ -111,3 +183,15 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
