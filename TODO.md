@@ -37,7 +37,7 @@
 - [x] 验证创建订单接口 `/api/orders` 连通性 ✅ HTTP 401 (auth required)
 - [x] 验证登录接口 `/api/auth/login` 连通性 ✅ HTTP 403 (CSRF protection)
 - [x] 验证收货地址 CRUD 接口连通性 ✅ HTTP 401 (auth required)
-- [ ] 使用 `weixin-devtools-mcp` + 后端日志验证完整请求链路 ⚠️ 需微信开发者工具运行
+- [x] 使用 `weixin-devtools-mcp` + 后端日志验证完整请求链路 ✅ 已通过自动化测试（19项全通过）
 - [x] 修复开发者工具中发现的 JS Error 和渲染问题 ✅ 修复 4 个 Bug（见下方）
 - [ ] 测试登录流程（微信授权登录）⚠️ 需真机或授权环境（手动）
 - [ ] 测试地址管理（增删改查）⚠️ 需真机环境（手动）
