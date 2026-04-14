@@ -1,7 +1,9 @@
 package com.seafood.order.interfaces.rest;
 
 import com.seafood.order.application.OrderApplicationService;
+import com.seafood.order.domain.model.Address;
 import com.seafood.order.domain.model.Order;
+import com.seafood.order.domain.model.OrderNotFoundException;
 import com.seafood.order.domain.model.OrderStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,8 +42,11 @@ class OrderControllerTest {
 
     @BeforeEach
     void setUp() {
+        // Create test address
+        Address testAddress = new Address("张三", "13800138000", "北京市朝阳区某街道", "北京", "北京市", "朝阳区");
+
         // Create test order
-        testOrder = new Order("user123", "SHIPPING_ADDRESS");
+        testOrder = new Order("user123", testAddress);
         testOrder.setId("order123");
         testOrder.setOrderNumber("ORD-20260325-001");
         testOrder.setStatus(OrderStatus.PENDING_PAYMENT);
@@ -80,7 +85,7 @@ class OrderControllerTest {
 
     @Test
     void shouldGetOrderByIdSuccessfully() throws Exception {
-        when(orderApplicationService.getOrderOrThrow(anyString())).thenReturn(testOrder);
+        when(orderApplicationService.getOrderById(anyString())).thenReturn(testOrder);
 
         mockMvc.perform(get("/api/orders/{id}", "order123"))
                 .andExpect(status().isOk())
@@ -91,7 +96,7 @@ class OrderControllerTest {
 
     @Test
     void shouldGetOrderByIdWhenOrderNotFound() throws Exception {
-        when(orderApplicationService.getOrderOrThrow(anyString()))
+        when(orderApplicationService.getOrderById(anyString()))
                 .thenThrow(new OrderNotFoundException("Order not found: order999"));
 
         mockMvc.perform(get("/api/orders/{id}", "order999"))
@@ -115,7 +120,8 @@ class OrderControllerTest {
 
     @Test
     void shouldProcessPaymentSuccessfully() throws Exception {
-        Order paidOrder = new Order("user123", "SHIPPING_ADDRESS");
+        Address testAddress = new Address("张三", "13800138000", "北京市朝阳区某街道", "北京", "北京市", "朝阳区");
+        Order paidOrder = new Order("user123", testAddress);
         paidOrder.setId("order123");
         paidOrder.setOrderNumber("ORD-20260325-001");
         paidOrder.setStatus(OrderStatus.PAID);
@@ -146,7 +152,8 @@ class OrderControllerTest {
 
     @Test
     void shouldShipOrderSuccessfully() throws Exception {
-        Order shippedOrder = new Order("user123", "SHIPPING_ADDRESS");
+        Address testAddress = new Address("张三", "13800138000", "北京市朝阳区某街道", "北京", "北京市", "朝阳区");
+        Order shippedOrder = new Order("user123", testAddress);
         shippedOrder.setId("order123");
         shippedOrder.setOrderNumber("ORD-20260325-001");
         shippedOrder.setStatus(OrderStatus.SHIPPED);
@@ -164,7 +171,8 @@ class OrderControllerTest {
 
     @Test
     void shouldCompleteOrderSuccessfully() throws Exception {
-        Order completedOrder = new Order("user123", "SHIPPING_ADDRESS");
+        Address testAddress = new Address("张三", "13800138000", "北京市朝阳区某街道", "北京", "北京市", "朝阳区");
+        Order completedOrder = new Order("user123", testAddress);
         completedOrder.setId("order123");
         completedOrder.setOrderNumber("ORD-20260325-001");
         completedOrder.setStatus(OrderStatus.DELIVERED);
@@ -179,7 +187,8 @@ class OrderControllerTest {
 
     @Test
     void shouldCancelOrderSuccessfully() throws Exception {
-        Order cancelledOrder = new Order("user123", "SHIPPING_ADDRESS");
+        Address testAddress = new Address("张三", "13800138000", "北京市朝阳区某街道", "北京", "北京市", "朝阳区");
+        Order cancelledOrder = new Order("user123", testAddress);
         cancelledOrder.setId("order123");
         cancelledOrder.setOrderNumber("ORD-20260325-001");
         cancelledOrder.setStatus(OrderStatus.CANCELLED);
@@ -195,7 +204,8 @@ class OrderControllerTest {
 
     @Test
     void shouldProcessRefundSuccessfully() throws Exception {
-        Order refundedOrder = new Order("user123", "SHIPPING_ADDRESS");
+        Address testAddress = new Address("张三", "13800138000", "北京市朝阳区某街道", "北京", "北京市", "朝阳区");
+        Order refundedOrder = new Order("user123", testAddress);
         refundedOrder.setId("order123");
         refundedOrder.setOrderNumber("ORD-20260325-001");
         refundedOrder.setStatus(OrderStatus.REFUNDED);

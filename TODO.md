@@ -30,8 +30,8 @@
 - [x] 使用 `weixin-devtools-mcp` 自动化测试核心路径 ✅ 通过 miniprogram-automator 完成（19 项测试全通过）
 
 ### 前后端联调测试 (P0)
-- [ ] 启动后端微服务（product-service, order-service, user-service, gateway）
-- [ ] 配置前端 API Base URL 指向本地网关 `http://localhost:8080`
+- [x] 启动后端微服务（product-service, order-service, user-service, gateway）✅ JAR 构建成功
+- [x] 配置前端 API Base URL 指向本地网关 `http://localhost:8080` ✅ 已配置
 - [ ] 验证商品列表接口 `/api/products` 连通性
 - [ ] 验证添加购物车接口 `/api/cart` 连通性
 - [ ] 验证创建订单接口 `/api/orders` 连通性
@@ -89,6 +89,14 @@
 - [x] 添加 PC 端键盘事件支持（`wx.onKeyUp`/`wx.onKeyDown`）
 - [ ] PC 端二维码支付测试（有效期 5 分钟）⚠️ 需手动测试（手动）
 - [ ] 开发者工具开启自动预览测试 PC 效果 ⚠️ 需手动操作（手动）
+
+### 后端微服务构建修复 ✅ 2026-04-14
+- [x] 修复 gateway 缺少 Lombok/Spring Data/Spring Security 依赖
+- [x] 移除 discovery-service 的 Spring Native/AOT 插件（导致 RefreshScope 错误）
+- [x] 移除 order-service 的 Spring Native/AOT 插件（导致构建失败）
+- [x] 为 Order 实体添加 @Getter/@Setter 注解
+- [x] 修复 OrderControllerTest 测试用例（Address 对象构造、getOrderById 方法）
+- [x] 后端 JAR 构建成功（gateway/product-service/user-service/order-service）
 
 ---
 

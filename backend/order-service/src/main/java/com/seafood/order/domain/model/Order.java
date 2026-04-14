@@ -1,5 +1,7 @@
 package com.seafood.order.domain.model;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.ArrayList;
@@ -8,6 +10,8 @@ import java.util.List;
 import java.util.UUID;
 
 @Document(collection = "orders")
+@Getter
+@Setter
 public class Order {
 
     private String id;
@@ -33,6 +37,10 @@ public class Order {
     private Date cancelledAt;
     private Date refundedAt;
     private List<OrderHistory> orderHistory;
+
+    public Order() {
+        // Default constructor for MongoDB/JPA
+    }
 
     public Order(String userId, Address shippingAddress) {
         this.id = UUID.randomUUID().toString();
