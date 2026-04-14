@@ -26,7 +26,7 @@
         <text class="back-arrow">←</text>
         <text>全部分类</text>
       </view>
-      <text class="category-title">{{categories[selectedCategoryIndex]?.name || ''}}</text>
+      <text class="category-title">{{selectedCategoryName}}</text>
     </view>
 
     <!-- Loading state -->

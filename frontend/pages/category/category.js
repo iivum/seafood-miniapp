@@ -17,6 +17,7 @@ Page({
   data: {
     categories: CATEGORIES,
     selectedCategory: null,
+    selectedCategoryName: '',
     products: [],
     isLoading: false,
     isLoadingMore: false,
@@ -51,7 +52,7 @@ Page({
     const categoryId = e.currentTarget.dataset.id;
     const category = CATEGORIES.find(c => c.id === categoryId);
 
-    this.setData({ selectedCategory: categoryId });
+    this.setData({ selectedCategory: categoryId, selectedCategoryName: category ? category.name : '' });
     this.loadCategoryProducts(categoryId);
   },
 
@@ -170,6 +171,7 @@ Page({
   onBackToCategories: function () {
     this.setData({
       selectedCategory: null,
+      selectedCategoryName: '',
       products: [],
       isEmpty: false,
       isError: false

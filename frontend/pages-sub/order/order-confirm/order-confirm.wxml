@@ -8,7 +8,7 @@
       <block wx:if="{{selectedAddress}}">
         <view class="address-info">
           <text class="receiver">{{selectedAddress.receiverName}} {{selectedAddress.phone}}</text>
-          <text class="detail">{{selectedAddress.getFullAddress ? selectedAddress.getFullAddress() : selectedAddress.address}}</text>
+          <text class="detail">{{selectedAddress.address}}</text>
         </view>
       </block>
       <block wx:else>
@@ -80,7 +80,7 @@
       class="btn-submit"
       bindtap="onSubmitOrder"
       disabled="{{isCreating || isPaying || cartItems.length === 0}}">
-      {{isPaying ? '支付中...' : (isCreating ? '提交中...' : '提交订单'}}
+      {{isPaying ? '支付中...' : (isCreating ? '提交中...' : '提交订单')}}
     </button>
   </view>
 </view>

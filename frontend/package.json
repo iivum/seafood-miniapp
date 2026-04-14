@@ -69,5 +69,8 @@
       "/node_modules/",
       "utils/request.js"
     ]
+  },
+  "dependencies": {
+    "@vant/weapp": "^1.11.7"
   }
 }

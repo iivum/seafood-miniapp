@@ -12,11 +12,6 @@
     "navigationBarTextStyle": "white",
     "enablePullDownRefresh": false
   },
-  "page": {
-    "pages/index/index": {
-      "enablePullDownRefresh": true
-    }
-  },
   "lazyCodeLoading": "requiredComponents",
   "componentFramework": "glass-easel",
   "rendererOptions": {
@@ -69,65 +64,32 @@
     {
       "root": "pages-sub/product",
       "pages": [
-        {
-          "name": "product-detail",
-          "path": "product-detail/product-detail"
-        }
+        "product-detail/product-detail"
       ]
     },
     {
       "root": "pages-sub/order",
       "pages": [
-        {
-          "name": "order-list",
-          "path": "order-list/order-list"
-        },
-        {
-          "name": "order-confirm",
-          "path": "order-confirm/order-confirm"
-        }
+        "order-list/order-list",
+        "order-confirm/order-confirm"
       ]
     },
     {
       "root": "pages-sub/user",
       "pages": [
-        {
-          "name": "login",
-          "path": "login/login"
-        },
-        {
-          "name": "address-list",
-          "path": "address/address-list"
-        },
-        {
-          "name": "address-edit",
-          "path": "address/address-edit"
-        }
+        "login/login",
+        "address/address-list",
+        "address/address-edit"
       ]
     },
     {
       "root": "pages-sub/merchant",
       "pages": [
-        {
-          "name": "merchant",
-          "path": "merchant/merchant"
-        },
-        {
-          "name": "product-manage",
-          "path": "product-manage/product-manage"
-        },
-        {
-          "name": "order-manage",
-          "path": "order-manage/order-manage"
-        },
-        {
-          "name": "user-manage",
-          "path": "user-manage/user-manage"
-        },
-        {
-          "name": "dashboard",
-          "path": "dashboard/dashboard"
-        }
+        "merchant/merchant",
+        "product-manage/product-manage",
+        "order-manage/order-manage",
+        "user-manage/user-manage",
+        "dashboard/dashboard"
       ]
     }
   ]
