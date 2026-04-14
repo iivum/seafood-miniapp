@@ -1,4 +1,4 @@
-import { Product, ProductQueryParams, PaginatedProducts, ApiError } from '../types';
+import { ProductQueryParams, PaginatedProducts, ApiError } from '../types';
 import { request } from '../../utils/request';
 import { cache, SimpleCache } from '../../utils/cache';
 
@@ -126,15 +126,17 @@ export class ProductAPI {
    * @param response - Response to validate
    * @returns true if response has valid paginated format
    */
-  private static isValidPaginatedResponse(response: any): response is PaginatedProducts {
+  private static isValidPaginatedResponse(response: unknown): response is PaginatedProducts {
+    const r = response as Record<string, unknown> | null;
     return (
-      response &&
-      Array.isArray(response.products) &&
-      typeof response.page === 'number' &&
-      typeof response.totalPages === 'number' &&
-      typeof response.totalProducts === 'number' &&
-      typeof response.hasNext === 'boolean' &&
-      typeof response.hasPrev === 'boolean'
+      r !== null &&
+      r !== undefined &&
+      Array.isArray(r.products) &&
+      typeof r.page === 'number' &&
+      typeof r.totalPages === 'number' &&
+      typeof r.totalProducts === 'number' &&
+      typeof r.hasNext === 'boolean' &&
+      typeof r.hasPrev === 'boolean'
     );
   }
 

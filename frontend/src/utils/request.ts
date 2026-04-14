@@ -4,6 +4,7 @@
  * Provides a consistent interface for HTTP requests with error handling,
  * authentication, and request/response interceptors
  */
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../../node_modules/miniprogram-api-typings/index.d.ts" />
 
 /**
@@ -15,7 +16,7 @@ export interface RequestOptions {
   /** HTTP method */
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   /** Request data (for POST, PUT, PATCH) */
-  data?: any;
+  data?: unknown;
   /** Custom headers */
   header?: Record<string, string>;
   /** Whether authentication is required */
@@ -32,7 +33,7 @@ export type RequestInterceptor = (options: RequestOptions) => RequestOptions | P
 /**
  * Response interceptor function type
  */
-export type ResponseInterceptor = (response: any) => any | Promise<any>;
+export type ResponseInterceptor = (response: unknown) => unknown | Promise<unknown>;
 
 /**
  * Request error interface
@@ -41,7 +42,7 @@ export interface RequestError extends Error {
   /** HTTP status code if available */
   statusCode?: number;
   /** Original error data */
-  data?: any;
+  data?: unknown;
 }
 
 /**
@@ -51,6 +52,7 @@ export interface RequestError extends Error {
  * @returns Promise with response data
  * @throws RequestError if request fails
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const request = async (options: RequestOptions): Promise<any> => {
   const {
     url,
@@ -97,7 +99,8 @@ export const request = async (options: RequestOptions): Promise<any> => {
     wx.request({
       url: baseUrl + url,
       method: method as 'GET' | 'POST' | 'PUT' | 'DELETE',
-      data,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data: data as any,
       header: requestHeader,
       timeout,
       success: (res) => {
@@ -184,10 +187,11 @@ export const responseInterceptor: ResponseInterceptor = (response) => {
 /**
  * HTTP GET request
  */
-export const get = (url: string, params?: Record<string, any>, options?: Partial<RequestOptions>): Promise<any> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const get = (url: string, params?: Record<string, unknown>, options?: Partial<RequestOptions>): Promise<any> => {
   const queryString = params ? Object.keys(params)
     .filter(key => params[key] !== undefined)
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(String(params[key]))}`)
     .join('&') : '';
 
   const fullUrl = queryString ? `${url}?${queryString}` : url;
@@ -197,20 +201,23 @@ export const get = (url: string, params?: Record<string, any>, options?: Partial
 /**
  * HTTP POST request
  */
-export const post = (url: string, data?: any, options?: Partial<RequestOptions>): Promise<any> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const post = (url: string, data?: unknown, options?: Partial<RequestOptions>): Promise<any> => {
   return request({ ...options, url, method: 'POST', data });
 };
 
 /**
  * HTTP PUT request
  */
-export const put = (url: string, data?: any, options?: Partial<RequestOptions>): Promise<any> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const put = (url: string, data?: unknown, options?: Partial<RequestOptions>): Promise<any> => {
   return request({ ...options, url, method: 'PUT', data });
 };
 
 /**
  * HTTP DELETE request
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const del = (url: string, options?: Partial<RequestOptions>): Promise<any> => {
   return request({ ...options, url, method: 'DELETE' });
 };
@@ -218,13 +225,15 @@ export const del = (url: string, options?: Partial<RequestOptions>): Promise<any
 /**
  * HTTP PATCH request
  */
-export const patch = (url: string, data?: any, options?: Partial<RequestOptions>): Promise<any> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const patch = (url: string, data?: unknown, options?: Partial<RequestOptions>): Promise<any> => {
   return request({ ...options, url, method: 'PATCH', data });
 };
 
 /**
  * Authenticated request (shorthand for request with needAuth=true)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const authRequest = (options: RequestOptions): Promise<any> => {
   return request({ ...options, needAuth: true });
 };
@@ -232,14 +241,16 @@ export const authRequest = (options: RequestOptions): Promise<any> => {
 /**
  * Authenticated GET request
  */
-export const authGet = (url: string, params?: Record<string, any>, options?: Partial<RequestOptions>): Promise<any> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const authGet = (url: string, params?: Record<string, unknown>, options?: Partial<RequestOptions>): Promise<any> => {
   return get(url, params, { ...options, needAuth: true });
 };
 
 /**
  * Authenticated POST request
  */
-export const authPost = (url: string, data?: any, options?: Partial<RequestOptions>): Promise<any> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const authPost = (url: string, data?: unknown, options?: Partial<RequestOptions>): Promise<any> => {
   return post(url, data, { ...options, needAuth: true });
 };
 

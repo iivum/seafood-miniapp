@@ -64,7 +64,7 @@
 ### 前端质量检查状态 (P0)
 - [x] TypeScript 类型检查 - ✅ 通过（无错误）
 - [x] 单元测试 - ✅ 78 tests passed（覆盖率 88.54%/79.05%/95%/88.49%）
-- [ ] ESLint 检查 - ⚠️ 配置问题（.eslintrc.js 在父目录，@typescript-eslint/eslint-plugin 未安装）
+- [x] ESLint 检查 - ✅ 已修复（创建 frontend/.eslintrc.js，修复所有 TypeScript 类型错误）
 - [ ] skylint 扫描 - ⚠️ CLI bug，无法正常运行（待官方修复或手动扫描）
 
 ### PC 小程序适配

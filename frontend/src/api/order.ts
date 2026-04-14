@@ -93,7 +93,7 @@ export class OrderAPI {
         return [];
       }
 
-      return response.map((order: any) => OrderAPI.validateOrderResponse(order));
+      return (response as unknown[]).map((order: unknown) => OrderAPI.validateOrderResponse(order));
     } catch (error) {
       return OrderAPI.handleError(error, 'Failed to get orders');
     }
@@ -266,34 +266,35 @@ export class OrderAPI {
    * @param response - Response to validate
    * @returns Validated order object
    */
-  private static validateOrderResponse(response: any): Order {
+  private static validateOrderResponse(response: unknown): Order {
     if (!response || typeof response !== 'object') {
       throw new Error('Invalid order response');
     }
 
+    const r = response as Record<string, unknown>;
     // Map status string to OrderStatus enum if needed
-    let status = response.status;
+    let status = r.status;
     if (typeof status === 'string') {
       status = OrderStatus[status as keyof typeof OrderStatus] || OrderStatus.PENDING_PAYMENT;
     }
 
     return {
-      id: response.id,
-      orderNumber: response.orderNumber,
-      userId: response.userId,
-      items: response.items || [],
-      status,
-      totalPrice: response.totalPrice,
-      shippingFee: response.shippingFee || 0,
-      itemsTotalPrice: response.itemsTotalPrice || response.totalPrice,
-      address: response.address,
-      transactionId: response.transactionId,
-      trackingNumber: response.trackingNumber,
-      cancelReason: response.cancelReason,
-      refundTransactionId: response.refundTransactionId,
-      refundReason: response.refundReason,
-      createdAt: response.createdAt,
-      updatedAt: response.updatedAt,
+      id: r.id as string,
+      orderNumber: r.orderNumber as string,
+      userId: r.userId as string,
+      items: (r.items as Order['items']) || [],
+      status: status as Order['status'],
+      totalPrice: r.totalPrice as number,
+      shippingFee: (r.shippingFee as number) || 0,
+      itemsTotalPrice: (r.itemsTotalPrice as number) || (r.totalPrice as number),
+      address: r.address as Order['address'],
+      transactionId: r.transactionId as string | undefined,
+      trackingNumber: r.trackingNumber as string | undefined,
+      cancelReason: r.cancelReason as string | undefined,
+      refundTransactionId: r.refundTransactionId as string | undefined,
+      refundReason: r.refundReason as string | undefined,
+      createdAt: r.createdAt as string,
+      updatedAt: r.updatedAt as string,
     };
   }
 
@@ -303,21 +304,22 @@ export class OrderAPI {
    * @param response - Response to validate
    * @returns Validated statistics object
    */
-  private static validateStatisticsResponse(response: any): OrderStatistics {
+  private static validateStatisticsResponse(response: unknown): OrderStatistics {
     if (!response || typeof response !== 'object') {
       throw new Error('Invalid statistics response');
     }
 
+    const r = response as Record<string, unknown>;
     return {
-      totalOrders: response.totalOrders || 0,
-      totalAmount: response.totalAmount || 0,
-      averageOrderValue: response.averageOrderValue || 0,
-      pendingCount: response.pendingCount || 0,
-      paidCount: response.paidCount || 0,
-      shippedCount: response.shippedCount || 0,
-      deliveredCount: response.deliveredCount || 0,
-      cancelledCount: response.cancelledCount || 0,
-      refundedCount: response.refundedCount || 0,
+      totalOrders: (r.totalOrders as number) || 0,
+      totalAmount: (r.totalAmount as number) || 0,
+      averageOrderValue: (r.averageOrderValue as number) || 0,
+      pendingCount: (r.pendingCount as number) || 0,
+      paidCount: (r.paidCount as number) || 0,
+      shippedCount: (r.shippedCount as number) || 0,
+      deliveredCount: (r.deliveredCount as number) || 0,
+      cancelledCount: (r.cancelledCount as number) || 0,
+      refundedCount: (r.refundedCount as number) || 0,
     };
   }
 

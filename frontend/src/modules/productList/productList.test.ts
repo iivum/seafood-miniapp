@@ -10,7 +10,7 @@
  */
 
 import { ProductListModule } from './productList';
-import { Product, ProductQueryParams, PaginatedProducts } from '../../types';
+import { Product, PaginatedProducts } from '../../types';
 import { ProductAPI } from '../../api/product';
 
 // Mock the ProductAPI

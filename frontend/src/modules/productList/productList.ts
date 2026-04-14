@@ -5,7 +5,7 @@
  * for the seafood mini-app frontend.
  */
 
-import { Product, ProductQueryParams, PaginatedProducts } from '../../types';
+import { Product, ProductQueryParams } from '../../types';
 import { ProductAPI } from '../../api/product';
 
 /**

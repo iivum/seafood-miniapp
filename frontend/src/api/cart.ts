@@ -1,4 +1,4 @@
-import { Cart, CartItem, AddToCartParams, UpdateCartItemParams, ApiError } from '../types';
+import { Cart, AddToCartParams, UpdateCartItemParams, ApiError } from '../types';
 import { request } from '../../utils/request';
 
 /**

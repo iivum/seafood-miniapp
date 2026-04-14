@@ -44,12 +44,21 @@ export interface RequestError extends Error {
 /**
  * Request function signature
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function request(options: RequestOptions): Promise<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function get(url: string, params?: Record<string, unknown>, options?: Partial<RequestOptions>): Promise<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function post(url: string, data?: unknown, options?: Partial<RequestOptions>): Promise<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function put(url: string, data?: unknown, options?: Partial<RequestOptions>): Promise<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function del(url: string, options?: Partial<RequestOptions>): Promise<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function patch(url: string, data?: unknown, options?: Partial<RequestOptions>): Promise<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function authRequest(options: RequestOptions): Promise<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function authGet(url: string, params?: Record<string, unknown>, options?: Partial<RequestOptions>): Promise<any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function authPost(url: string, data?: unknown, options?: Partial<RequestOptions>): Promise<any>;
