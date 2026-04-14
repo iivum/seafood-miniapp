@@ -27,10 +27,10 @@
 - [x] 测试商品列表下拉刷新、上拉加载更多 ✅ onPullDownRefresh 正常触发
 - [x] 测试购物车添加、删除、数量修改 ✅ 购物车页面正常加载
 - [x] 测试下单流程（订单确认 → 支付）✅ 订单确认页面正常加载
-- [ ] 测试登录流程（微信授权登录）⚠️ 需真机或授权环境
-- [ ] 测试地址管理（增删改查）⚠️ 地址页面加载正常，增删改查需登录态
 - [x] 使用 `weixin-devtools-mcp` 自动化测试核心路径 ✅ 通过 miniprogram-automator 完成（19 项测试全通过）
 - [x] 修复开发者工具中发现的 JS Error 和渲染问题 ✅ 修复 4 个 Bug（见下方）
+- [ ] 测试登录流程（微信授权登录）⚠️ 需真机或授权环境（手动）
+- [ ] 测试地址管理（增删改查）⚠️ 需真机环境（手动）
 
 ### 微信小程序前端 — 遗留问题修复
 - [x] 实现 `pages/category/category` 分类页面（app.json tabBar 引用但缺失）
@@ -45,18 +45,18 @@
 - [x] `app.json` 添加 Skyline 配置（lazyCodeLoading, componentFramework, rendererOptions）
 - [x] 逐页面迁移（渐进式），关键路径页面优先（index/cart/category 已完成）
 - [x] 页面配置 `page.json` 添加 `"renderer": "skyline"`（index/cart/category）
-- [ ] 升级基础库依赖（要求 ≥ 3.0.2，安卓/iOS 客户端 ≥ 8.0.40）⚠️ 需手动升级微信开发者工具
-- [ ] 开发者工具勾选「开启 Skyline 渲染调试」和「编译 worklet 代码」⚠️ 需手动操作
-- [ ] 真机测试验证，切换路径：开发版菜单 > 开发调试 > Switch Render ⚠️ 需真机
-- [ ] 验证热重载兼容性（Skyline 暂不支持热重载）⚠️ 需真机测试
-- ⚠️ skylint 扫描 - CLI 工具存在 bug，无法在非 TTY 环境运行，建议手动扫描或等待官方修复
+- [ ] 升级基础库依赖（要求 ≥ 3.0.2，安卓/iOS 客户端 ≥ 8.0.40）⚠️ 需手动（手动）
+- [ ] 开发者工具勾选「开启 Skyline 渲染调试」和「编译 worklet 代码」⚠️ 需手动操作（手动）
+- [ ] 真机测试验证，切换路径：开发版菜单 > 开发调试 > Switch Render ⚠️ 需真机（手动）
+- [ ] 验证热重载兼容性（Skyline 暂不支持热重载）⚠️ 需真机测试（手动）
+- ⚠️ skylint 扫描 - CLI 工具存在 bug，建议手动扫描或等待官方修复（手动）
 
 ### 前端质量检查状态 (P0)
 - [x] TypeScript 类型检查 - ✅ 通过（无错误）
 - [x] 单元测试 - ✅ 78 tests passed（覆盖率 88.59%/79.19%/95%/88.54%）
 - [x] ESLint 检查 - ✅ 已修复（创建 frontend/.eslintrc.js，修复所有 TypeScript 类型错误，添加 miniprogram_npm/ 忽略规则）
 - [x] tsconfig.json 修复 - ✅ 修复 moduleResolution deprecated 警告（node → node16）
-- [ ] skylint 扫描 - ⚠️ CLI 工具存在 bug，建议手动扫描或等待官方修复
+- [ ] skylint 扫描 - ⚠️ CLI 工具存在 bug（手动任务，等待官方修复）
 
 ### 开发者工具编译 Bug 修复 (P0) ✅ 已完成
 - [x] `app.json` subpackages pages 格式错误：对象数组改为字符串数组
@@ -75,8 +75,8 @@
 - [x] 大屏模式下自定义导航栏不支持，需适配系统导航栏（PC模式自动检测）
 - [x] 双栏模式自动启用（窗口拉伸 > 768px），无需额外适配
 - [x] 添加 PC 端键盘事件支持（`wx.onKeyUp`/`wx.onKeyDown`）
-- [ ] PC 端二维码支付测试（有效期 5 分钟）⚠️ 需手动测试
-- [ ] 开发者工具开启自动预览测试 PC 效果 ⚠️ 需手动操作
+- [ ] PC 端二维码支付测试（有效期 5 分钟）⚠️ 需手动测试（手动）
+- [ ] 开发者工具开启自动预览测试 PC 效果 ⚠️ 需手动操作（手动）
 
 ---
 
@@ -220,10 +220,10 @@
 1. ✅ 实现分类页面 `pages/category/`
 2. ✅ 补充 TabBar 图标资源（已生成 8 个图标文件）
 3. ✅ 修复 TypeScript 类型错误
-4. ⚠️ 完成 WeChat 开发者工具真机测试（需手动执行）
+4. ⚠️ 完成 WeChat 开发者工具真机测试（手动）
 
 #### Skyline 迁移 & PC 适配
-5. ⚠️ 运行 skylint 工具扫描现有代码，修复迁移问题（CLI 存在 bug，建议手动执行）
+5. ⚠️ 运行 skylint 工具扫描现有代码（CLI 存在 bug，建议手动执行）
 6. ✅ 渐进式迁移到 Skyline 渲染引擎（已完成 index/cart/category）
 7. ✅ 开启大屏适配并测试 PC 端效果
 8. ⚠️ 提交审核并发布（需手动在微信公众平台操作）
