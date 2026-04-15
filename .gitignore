@@ -63,8 +63,6 @@ backend/admin-ui/types.d.ts
 
 # Gradle Wrapper
 backend/gradle/
-backend/gradlew
-backend/gradlew.bat
 
 # Test Coverage Reports
 frontend/coverage/
