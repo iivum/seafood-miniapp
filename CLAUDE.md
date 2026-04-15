@@ -1,64 +1,85 @@
-# CLAUDE.md - 海鲜商城小程序
+# CLAUDE.md
 
-> 本文件为 Claude Code 等 AI 编程工具提供项目开发指导。
+本文件为 Claude Code 等 AI 编程工具提供项目开发指导。
 
 ---
 
 ## 项目概述
 
-| 项目 | 说明 |
-|------|------|
-| **名称** | 海鲜商城小程序 (Seafood E-commerce Mini Program) |
-| **类型** | 微信小程序 + Spring Cloud 微服务 |
-| **状态** | 开发中 |
+**海鲜商城小程序** - 微信小程序 + Spring Cloud 微服务电商平台
 
-**技术栈：**
-- 前端：微信小程序 (TypeScript 5.x, Jest 29.x, ESLint 8.x)
-- 后端：Java 17+, Spring Boot 3.2.4, Spring Cloud 2023.0.0, Gradle 9.x
-- 数据库：MongoDB 6.x
-- 服务发现：Eureka
+- **前端**：微信小程序 (TypeScript 5.x, Jest 29.x, ESLint 8.x)
+- **后端**：Java 17+, Spring Boot 3.2.4, Spring Cloud 2023.0.0, Gradle 9.x
+- **数据库**：MongoDB 6.x
+- **服务发现**：Eureka
+- **测试覆盖率**：前端 ≥88%, 后端 ≥80%
 
-**目录结构：**
+---
+
+## 运行测试
+
+```bash
+# 前端测试
+cd frontend
+npm test                                    # 运行所有测试
+npm test -- src/api/product.test.ts         # 单文件测试
+npm test -- --coverage                      # 带覆盖率
+
+# 后端测试
+cd backend
+./gradlew test                              # 运行所有测试
+./gradlew :product-service:test            # 单模块测试
+```
+
+---
+
+## 项目架构
+
 ```
 seafood-miniapp/
-├── frontend/              # 微信小程序
+├── frontend/                           # 微信小程序
 │   ├── src/
-│   │   ├── api/         # API调用层
-│   │   ├── modules/     # 业务模块 (TDD测试优先)
-│   │   ├── types/       # TypeScript类型定义
-│   │   └── utils/       # 工具函数
-│   └── pages/           # 页面
-└── backend/             # Spring Cloud微服务
-    ├── gateway/         # API网关 - 8080
-    ├── product-service/ # 商品服务 - 8081
-    ├── order-service/   # 订单服务 - 8082
-    └── user-service/    # 用户服务 - 8083
+│   │   ├── api/                      # API调用层
+│   │   ├── modules/                  # 业务模块 (TDD测试优先)
+│   │   ├── types/                    # TypeScript类型定义
+│   │   └── utils/                    # 工具函数
+│   └── pages/                        # 页面目录
+│
+└── backend/                           # Spring Cloud微服务
+    ├── gateway/                      # API网关 - 8080
+    ├── product-service/              # 商品服务 - 8081
+    ├── order-service/                # 订单服务 - 8082
+    ├── user-service/                 # 用户服务 - 8083
+    └── common/                       # 公共模块
+
+服务依赖关系：
+gateway (8080) → product-service (8081), order-service (8082), user-service (8083)
+                         ↓
+                   MongoDB (27017)
 ```
 
 ---
 
 ## 关键规则
 
-### 1. 代码组织
-- 多小文件优于少大文件：单个文件 200-400 行，控制在 800 行以内
+### 代码组织
+- 多小文件优于少大文件：单文件 200-400 行，≤800 行
 - 高内聚低耦合：按功能/领域组织，而非按类型
 - 前后端分离：前端 `frontend/`，后端 `backend/`
 
-### 2. 代码风格
+### 代码风格
 - **前端**：TypeScript strict mode，禁止 `any`（测试文件除外）
 - **后端**：Google Java Format，行宽 120 字符
-- 使用 MapStruct 进行对象映射，Lombok 简化代码
 - 无 `console.log` 在生产代码中
 
-### 3. 测试要求
-- TDD 优先：先写测试 → 实现 → 重构
+### 测试要求
+- **TDD 优先**：先写测试 → 实现 → 重构
 - 覆盖率：全局 ≥80%，核心模块 ≥90%，关键功能 100%
 
-### 4. 安全要求
-- 禁止硬编码密钥，所有敏感信息使用环境变量
-- 所有用户输入必须验证和过滤
-- XSS 防护：参数 HTML 转义
-- JWT Token 认证（待实现）
+### 安全要求
+- 禁止硬编码密钥，使用环境变量
+- 所有用户输入验证和过滤
+- XSS 防护，JWT Token 认证（待实现）
 
 ---
 
@@ -78,99 +99,15 @@ seafood-miniapp/
 
 ```typescript
 interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  category: string;
-  imageUrl: string;
-  onSale: boolean;
+  id: string; name: string; description: string;
+  price: number; stock: number; category: string;
+  imageUrl: string; onSale: boolean;
 }
 
 interface CartItem {
-  id: string;
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  imageUrl: string;
+  id: string; productId: string; name: string;
+  price: number; quantity: number; imageUrl: string;
 }
-
-interface Cart {
-  id: string;
-  items: CartItem[];
-  totalPrice: number;
-  totalItems: number;
-  selectedItems: string[];
-}
-```
-
-### 前端 API 层
-
-```typescript
-// src/api/product.ts
-export const ProductAPI = {
-  async getProducts(params: {
-    page?: number;
-    pageSize?: number;
-    category?: string;
-    keyword?: string;
-  }): Promise<PaginatedProducts> {
-    return request.get('/products', { params });
-  },
-};
-```
-
-### 后端 Controller
-
-```java
-@RestController
-@RequestMapping("/products")
-@RequiredArgsConstructor
-public class ProductController {
-    private final ProductService productService;
-
-    @GetMapping
-    public ApiResponse<PagedResult<ProductDTO>> getProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        return ApiResponse.success(productService.findProducts(page, pageSize));
-    }
-}
-```
-
-### 服务依赖关系
-
-```
-                ┌─────────────────┐
-                │  Gateway 8080  │
-                └────────┬────────┘
-                         │
-    ┌────────────────────┼────────────────────┐
-    │                    │                    │
-┌───▼────┐        ┌─────▼─────┐      ┌──────▼──────┐
-│Product │        │  Order    │      │    User     │
-│  8081  │        │   8082    │      │    8083    │
-└────────┘        └───────────┘      └─────────────┘
-                         │
-                   ┌─────▼─────┐
-                   │  MongoDB  │
-                   │   27017   │
-                   └───────────┘
-```
-
----
-
-## 环境变量
-
-```bash
-# 后端
-SPRING_DATA_MONGODB_URI=mongodb://localhost:27017/seafood
-EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://localhost:8761/eureka/
-
-# 前端
-API_BASE_URL=http://localhost:8080
 ```
 
 ---
@@ -182,45 +119,34 @@ API_BASE_URL=http://localhost:8080
 | `/plan` | 创建实施计划 |
 | `/tdd` | 测试驱动开发工作流 |
 | `/code-review` | 代码质量审查 |
-
-### 前端
-```bash
-cd frontend && npm test                  # 运行测试
-npm test -- --coverage                   # 带覆盖率
-npm run lint && npm run type-check       # 检查
-```
-
-### 后端
-```bash
-cd backend && ./gradlew build            # 构建
-./gradlew :product-service:bootRun       # 运行服务
-./gradlew test                          # 测试
-```
-
-### Docker
-```bash
-docker-compose up -d                     # 启动
-docker-compose logs -f                   # 日志
-```
+| `/security-scan` | 安全漏洞扫描 |
+| `/build-fix` | 修复构建错误 |
 
 ---
 
-## Git 工作流
+## 开发说明
 
-**提交格式 (Conventional Commits)：**
-```
-feat: 新功能 | fix: 修复bug | refactor: 重构
-docs: 文档 | test: 测试 | style: 格式
-```
+### 环境变量
+```bash
+# 后端
+SPRING_DATA_MONGODB_URI=mongodb://localhost:27017/seafood
+EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://localhost:8761/eureka/
 
-**分支策略：**
-```
-main ──────────────────────────────────┐
-  └─ develop ─── feat/user-login       │
-              └── feat/product-detail  │
+# 前端
+API_BASE_URL=http://localhost:8080
 ```
 
-**PR 要求：** 代码审查 + 测试通过 + ESLint 通过
+### Docker 部署
+```bash
+docker-compose up -d              # 启动所有服务
+docker-compose logs -f            # 查看日志
+docker-compose down               # 停止服务
+```
+
+### Git 工作流
+- **提交格式**：`feat:` `fix:` `refactor:` `docs:` `test:`
+- **分支策略**：`main` → `develop` → `feat/*` 或 `fix/*`
+- **PR 要求**：代码审查 + 测试通过 + ESLint 通过
 
 ---
 
@@ -240,4 +166,13 @@ main ─────────────────────────
 
 ---
 
-*详细文档：ARCHITECTURE.md, SPEC.md, TODO.md*
+## 相关文档
+
+- `ARCHITECTURE.md` - 系统架构详细文档
+- `SPEC.md` - 功能规格说明
+- `TODO.md` - 开发任务列表
+- `docs/` - 其他文档
+
+---
+
+*本文件为 AI 开发辅助文档，具体实现请参考代码注释和测试用例。*
