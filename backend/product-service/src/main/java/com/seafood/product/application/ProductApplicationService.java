@@ -13,6 +13,11 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Product application service handling business logic for product operations.
+ * Provides methods for CRUD operations on seafood products including
+ * creation, retrieval, search, and inventory management.
+ */
 @Service
 @RequiredArgsConstructor
 public class ProductApplicationService {

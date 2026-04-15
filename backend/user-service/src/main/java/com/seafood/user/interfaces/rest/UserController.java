@@ -9,12 +9,18 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST controller for user management operations.
+ * Provides endpoints for user registration, authentication, profile retrieval,
+ * updates and deletion. Handles validation and error responses.
+ */
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -36,7 +42,7 @@ public class UserController {
             @ApiResponse(responseCode = "400", description = "Invalid input data")
         }
     )
-    public ResponseEntity<User> createUser(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<User> createUser(@Valid @RequestBody CreateUserRequest request) {
         User user = new User();
         user.setNickname(request.getUsername());
         user.setEmail(request.getEmail());

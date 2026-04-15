@@ -1,5 +1,6 @@
 package com.seafood.user.interfaces.rest;
 
+import com.seafood.common.security.JwtAuthFilter;
 import com.seafood.user.application.UserApplicationService;
 import com.seafood.user.domain.model.User;
 import com.seafood.user.domain.model.UserRole;
@@ -30,6 +31,9 @@ class UserControllerTest {
 
     @MockBean
     private UserApplicationService userApplicationService;
+
+    @MockBean
+    private JwtAuthFilter jwtAuthFilter;
 
     @Test
     void testCreateUser() throws Exception {

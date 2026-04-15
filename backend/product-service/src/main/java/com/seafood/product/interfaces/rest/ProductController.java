@@ -21,6 +21,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * REST controller for product management operations.
+ * Provides endpoints for creating, retrieving, updating and deleting seafood products.
+ * All endpoints return proper HTTP status codes and JSON responses.
+ */
 @RestController
 @RequestMapping("/products")
 @RequiredArgsConstructor

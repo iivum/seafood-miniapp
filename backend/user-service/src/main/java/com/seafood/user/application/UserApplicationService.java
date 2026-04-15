@@ -8,6 +8,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+/**
+ * User application service handling business logic for user management.
+ * Provides methods for user registration, authentication, profile management,
+ * and role-based access control for the seafood e-commerce platform.
+ */
 @Service
 @RequiredArgsConstructor
 public class UserApplicationService {
