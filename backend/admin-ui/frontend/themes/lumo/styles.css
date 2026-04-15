@@ -1,0 +1,373 @@
+/* ================================================
+   Seafood Admin — Ocean Professional Theme
+   Lumo Variable Overrides + Custom Styles
+   ================================================ */
+
+/* ── Brand Palette ──────────────────────────────── */
+html {
+  /* Primary ocean colors */
+  --lumo-primary-color: #0096c7;
+  --lumo-primary-color-50pct: rgba(0, 150, 199, 0.5);
+  --lumo-primary-color-10pct: rgba(0, 150, 199, 0.1);
+  --lumo-primary-text-color: #ffffff;
+  --lumo-primary-contrast-color: #0096c7;
+
+  /* Accent teal */
+  --lumo-accent-color: #00b4d8;
+  --lumo-accent-color-50pct: rgba(0, 180, 216, 0.5);
+  --lumo-accent-color-10pct: rgba(0, 180, 216, 0.1);
+  --lumo-accent-text-color: #ffffff;
+
+  /* Background layers */
+  --lumo-base-color: #f0f7fa;
+  --lumo-background-color: #f0f7fa;
+  --lumo-surface-color: #ffffff;
+
+  /* Text */
+  --lumo-body-text-color: #1e3a4c;
+  --lumo-header-text-color: #0c1929;
+
+  /* Borders */
+  --lumo-border-radius: 10px;
+  --lumo-radius-m: 8px;
+  --lumo-radius-l: 12px;
+
+  /* Typography */
+  --lumo-font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ── App Layout — Header ───────────────────────── */
+[part="navbar"] {
+  background: linear-gradient(135deg, #0c1929 0%, #023e6a 100%) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2) !important;
+  z-index: 100;
+}
+
+[part="navbar"] h1,
+[part="navbar"] vaadin-anchor,
+[part="navbar"] a {
+  color: #ffffff !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-size: 1.05rem;
+}
+
+[part="navbar"] h1 {
+  font-size: 1.1rem !important;
+}
+
+/* ── App Layout — Drawer ───────────────────────── */
+[part="drawer"] {
+  background: #ffffff !important;
+  border-right: 1px solid #dce9f0;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.06);
+}
+
+[part="drawer"] vaadin-router-link {
+  color: #1e3a4c;
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: var(--lumo-radius-m);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+[part="drawer"] vaadin-router-link:hover {
+  background: #e8f4fb;
+  color: #0096c7;
+}
+
+[part="drawer"] vaadin-router-link[active] {
+  background: linear-gradient(135deg, #0096c7, #00b4d8);
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 150, 199, 0.3);
+}
+
+/* ── View Container ────────────────────────────── */
+.view-container {
+  background: #f0f7fa;
+  min-height: 100vh;
+  padding: 28px 32px;
+}
+
+/* ── Section Headers ────────────────────────────── */
+.section-header {
+  margin: 0 0 24px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #dce9f0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0c1929;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.section-header::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, #0096c7, transparent);
+  border-radius: 2px;
+}
+
+/* ── Stat Cards ────────────────────────────────── */
+.stat-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 22px 26px !important;
+  box-shadow: 0 2px 12px rgba(0, 40, 70, 0.08);
+  border: 1px solid #dce9f0;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  min-width: 180px;
+}
+
+.stat-card:hover {
+  box-shadow: 0 6px 24px rgba(0, 100, 160, 0.14);
+  transform: translateY(-2px);
+}
+
+.stat-card .stat-icon {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.stat-card .stat-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b8fa3;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.stat-card .stat-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #0c1929;
+  line-height: 1;
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+
+.stat-card .stat-subtitle {
+  font-size: 0.78rem;
+  color: #8aaabf;
+  margin: 0;
+}
+
+/* ── Quick Action Buttons ──────────────────────── */
+.quick-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 20px 0 32px 0;
+}
+
+.quick-action-btn {
+  background: linear-gradient(135deg, #0096c7, #023e6a);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 22px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+  box-shadow: 0 3px 12px rgba(0, 100, 160, 0.25);
+}
+
+.quick-action-btn:hover {
+  box-shadow: 0 6px 20px rgba(0, 100, 160, 0.35);
+  transform: translateY(-1px);
+}
+
+.quick-action-btn:active {
+  transform: translateY(0);
+}
+
+/* ── Feature Cards ─────────────────────────────── */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.feature-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 22px !important;
+  border: 1px solid #dce9f0;
+  box-shadow: 0 1px 6px rgba(0, 40, 70, 0.06);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.feature-card:hover {
+  border-color: #0096c7;
+  box-shadow: 0 4px 16px rgba(0, 100, 160, 0.12);
+}
+
+.feature-card .feature-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0096c7;
+  margin-bottom: 6px;
+}
+
+.feature-card .feature-desc {
+  font-size: 0.82rem;
+  color: #6b8fa3;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ── Progress Bars ─────────────────────────────── */
+vaadin-progress-bar {
+  border-radius: 6px;
+  overflow: hidden;
+  height: 8px;
+  background: #dce9f0;
+}
+
+[part="bar"] {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #0096c7, #00b4d8);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Grid / Table ──────────────────────────────── */
+vaadin-grid {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 40, 70, 0.08);
+  border: 1px solid #dce9f0;
+  background: #ffffff;
+}
+
+vaadin-grid-cell-container {
+  font-size: 0.875rem;
+  color: #1e3a4c;
+}
+
+vaadin-grid-header-cell {
+  background: #f0f7fa !important;
+  color: #0c1929;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+vaadin-grid-row:hover > td {
+  background: #e8f4fb !important;
+}
+
+/* ── Toolbar ───────────────────────────────────── */
+.toolbar {
+  background: #ffffff;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  border: 1px solid #dce9f0;
+  box-shadow: 0 1px 4px rgba(0, 40, 70, 0.06);
+}
+
+/* ── Buttons ───────────────────────────────────── */
+vaadin-button {
+  border-radius: var(--lumo-radius-m) !important;
+  font-weight: 600;
+}
+
+/* ── Form ──────────────────────────────────────── */
+.product-form {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px !important;
+  border: 1px solid #dce9f0;
+  box-shadow: 0 2px 12px rgba(0, 40, 70, 0.08);
+}
+
+.product-form h3 {
+  color: #0c1929;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #0096c7;
+}
+
+/* ── Status Badges ────────────────────────────── */
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-badge.paid     { background: #e8f5e9; color: #2e7d32; }
+.status-badge.shipped  { background: #e3f2fd; color: #1565c0; }
+.status-badge.pending  { background: #fff8e1; color: #f57f17; }
+.status-badge.completed { background: #0096c7; color: #ffffff; }
+.status-badge.cancelled { background: #ffebee; color: #c62828; }
+
+/* ── Welcome Hero ─────────────────────────────── */
+.welcome-hero {
+  background: linear-gradient(135deg, #0c1929 0%, #023e6a 60%, #0096c7 100%);
+  border-radius: 16px;
+  padding: 40px 48px;
+  margin-bottom: 32px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-hero::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(0, 180, 216, 0.2) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.welcome-hero::after {
+  content: '🐟';
+  position: absolute;
+  bottom: 10px;
+  right: 30px;
+  font-size: 5rem;
+  opacity: 0.12;
+}
+
+.welcome-hero h2 {
+  color: #ffffff !important;
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.welcome-hero p {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* ── Notification Override ──────────────────────── */
+vaadin-notification-card {
+  border-radius: 10px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+

@@ -41,41 +41,5 @@ bootJar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-// Task to fix the bootJar by extracting common classes and removing nested common-*.jar
-tasks.register('fixCommonInBootJar') {
-    group = 'build'
-    description = 'Extracts common module classes from nested jar and removes the nested jar'
-
-    dependsOn bootJar
-
-    doLast {
-        def bootJarFile = bootJar.archiveFile.get().asFile
-        def tempDir = new File(buildDir, "temp-fix-${System.currentTimeMillis()}")
-
-        println "Processing: ${bootJarFile.name}"
-
-        delete tempDir
-        mkdir tempDir
-
-        ant.unzip(src: bootJarFile, dest: tempDir)
-
-        fileTree("${tempDir}/BOOT-INF/lib").include('common-*.jar').each { jar ->
-            println "  Extracting: ${jar.name}"
-            ant.unzip(src: jar, dest: "${tempDir}/BOOT-INF/classes")
-            delete jar
-        }
-
-        delete bootJarFile
-        ant.zip(destfile: bootJarFile) {
-            fileset(dir: tempDir) {
-                include(name: '**/*')
-            }
-        }
-
-        delete tempDir
-        println "  Done: ${bootJarFile.name}"
-    }
-}
-
 bootJar.dependsOn tasks.named('compileJava')
-bootJar.finalizedBy 'fixCommonInBootJar'
+bootJar.dependsOn tasks.named('vaadinBuildFrontend')

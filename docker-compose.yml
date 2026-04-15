@@ -241,7 +241,7 @@ services:
   admin-ui:
     image: eclipse-temurin:17-jre
     ports:
-      - "8090:8090"
+      - "8090:8084"
     volumes:
       - ./backend/admin-ui/build/libs/admin-ui-1.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
@@ -251,7 +251,7 @@ services:
       discovery-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5

@@ -7,6 +7,8 @@ import com.seafood.admin.views.user.UserListView;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -20,24 +22,84 @@ public class MainLayout extends AppLayout {
     }
 
     private void createHeader() {
-        H1 logo = new H1("大海的味道 - 商家管理后台");
-        logo.addClassNames("text-l", "m-m");
+        H1 logo = new H1("🐠 大海的味道");
+        logo.getStyle()
+            .set("font-size", "1.15rem")
+            .set("font-weight", "800")
+            .set("letter-spacing", "0.01em")
+            .set("margin", "0")
+            .set("color", "#ffffff");
 
-        HorizontalLayout header = new HorizontalLayout(new DrawerToggle(), logo);
+        H1 subtitle = new H1("商家管理后台");
+        subtitle.getStyle()
+            .set("font-size", "0.8rem")
+            .set("font-weight", "400")
+            .set("opacity", "0.7")
+            .set("margin", "0 0 0 8px")
+            .set("color", "#ffffff");
+
+        HorizontalLayout brand = new HorizontalLayout(logo, subtitle);
+        brand.setAlignItems(FlexComponent.Alignment.CENTER);
+
+        HorizontalLayout header = new HorizontalLayout(new DrawerToggle(), brand);
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         header.setWidthFull();
-        header.addClassNames("py-0", "px-m");
+        header.addClassNames("px-m");
+        header.getStyle()
+            .set("background", "linear-gradient(135deg, #0c1929 0%, #023e6a 100%)")
+            .set("min-height", "56px");
 
         addToNavbar(header);
     }
 
     private void createDrawer() {
-        VerticalLayout layout = new VerticalLayout(
-                new RouterLink("数据概览", DashboardView.class),
-                new RouterLink("商品管理", ProductListView.class),
-                new RouterLink("订单管理", OrderListView.class),
-                new RouterLink("用户管理", UserListView.class)
-        );
-        addToDrawer(layout);
+        VerticalLayout logoArea = new VerticalLayout();
+        logoArea.setPadding(false);
+        logoArea.setSpacing(false);
+        logoArea.setAlignItems(FlexComponent.Alignment.START);
+        logoArea.addClassName("drawer-logo");
+
+        RouterLink dashboard = createNavLink(
+            new Icon(VaadinIcon.DASHBOARD), "数据概览", DashboardView.class);
+        RouterLink products = createNavLink(
+            new Icon(VaadinIcon.PACKAGE), "商品管理", ProductListView.class);
+        RouterLink orders = createNavLink(
+            new Icon(VaadinIcon.CART), "订单管理", OrderListView.class);
+        RouterLink users = createNavLink(
+            new Icon(VaadinIcon.USERS), "用户管理", UserListView.class);
+
+        VerticalLayout nav = new VerticalLayout(dashboard, products, orders, users);
+        nav.setPadding(false);
+        nav.setSpacing(true);
+        nav.setPadding(true);
+        nav.getStyle().set("gap", "4px");
+
+        VerticalLayout drawer = new VerticalLayout(logoArea, nav);
+        drawer.setSizeFull();
+        drawer.setPadding(false);
+        drawer.getStyle()
+            .set("height", "100%")
+            .set("padding-top", "12px");
+
+        addToDrawer(drawer);
+    }
+
+    private <T extends com.vaadin.flow.component.Component> RouterLink createNavLink(Icon icon, String label, Class<T> target) {
+        icon.setSize("18px");
+        icon.getStyle().set("margin-right", "10px");
+        RouterLink link = new RouterLink();
+        link.add(icon, new com.vaadin.flow.component.Text(label));
+        link.setRoute(target);
+        link.getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("padding", "10px 20px")
+            .set("border-radius", "8px")
+            .set("color", "#1e3a4c")
+            .set("text-decoration", "none")
+            .set("font-weight", "500")
+            .set("font-size", "0.9rem")
+            .set("transition", "all 0.15s ease");
+        return link;
     }
 }
