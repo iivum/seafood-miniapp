@@ -60,7 +60,7 @@ jobs:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
       - name: Build backend JARs
         run: ./gradlew build -x test
