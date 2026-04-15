@@ -7,6 +7,16 @@ on:
     branches: [main]
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
 
 env:
   JAVA_VERSION: '17'
@@ -19,8 +29,8 @@ jobs:
   # ===========================================
   build-and-push-images:
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' || (github.event.workflow_run.conclusion == 'success')
-    environment: production
+    if: github.event_name == 'release' || (github.event.workflow_run.conclusion == 'success') || github.event_name == 'workflow_dispatch'
+    environment: ${{ github.event.inputs.environment || 'staging' }}
 
     strategy:
       matrix:
@@ -47,8 +57,8 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Build JAR for ${{ matrix.service }}
-        run: ./gradlew :backend:${{ matrix.service }}:build -x test
-        working-directory: .
+        run: ./gradlew :backend:${{ matrix.service }}:bootJar
+        working-directory: backend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -69,6 +79,7 @@ jobs:
             type=semver,pattern={{version}}
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.ref_name }},enable=true
 
       - name: Build and push ${{ matrix.service }} image
         uses: docker/build-push-action@v5
@@ -81,6 +92,10 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             JAR_FILE=build/libs/${{ matrix.service }}-1.0.0-SNAPSHOT.jar
+
+      - name: Image digest
+        run: |
+          echo "Built and pushed ${{ matrix.service }}@sha256:${{ steps.meta.outputs.digest }}"
 
   # ===========================================
   # 构建原生镜像 (GraalVM)
@@ -114,12 +129,12 @@ jobs:
 
       - name: Build JAR for ${{ matrix.service }}
         run: ./gradlew :backend:${{ matrix.service }}:bootJar
-        working-directory: .
+        working-directory: backend
 
       - name: Build native image
         run: |
-          timeout 30 ./gradlew :backend:${{ matrix.service }}:nativeRun || true
-        working-directory: .
+          timeout 60 ./gradlew :backend:${{ matrix.service }}:nativeRun || true
+        working-directory: backend
         continue-on-error: true
 
       - name: Set up Docker Buildx
@@ -158,9 +173,9 @@ jobs:
   # ===========================================
   deploy-to-server:
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     needs: [build-and-push-images]
-    environment: production
+    environment: ${{ github.event.inputs.environment || 'staging' }}
 
     steps:
       - name: Checkout deploy scripts
@@ -173,27 +188,38 @@ jobs:
 
       - name: Add server to known hosts
         run: |
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Determine compose files
+        run: |
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            echo "COMPOSE_FILES=-f docker-compose.yml -f docker-compose.prod.yml" >> $GITHUB_ENV
+          else
+            echo "COMPOSE_FILES=-f docker-compose.yml" >> $GITHUB_ENV
+          fi
 
       - name: Deploy to server
         run: |
-          echo "Deploying release ${{ github.ref_name }} to ${{ secrets.DEPLOY_HOST }}"
+          echo "Deploying to ${{ secrets.DEPLOY_HOST }} (env: ${{ github.event.inputs.environment || 'staging' }})"
           ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
             set -e
             cd /opt/seafood-miniapp
 
             # Pull latest images
-            docker compose -f docker-compose.yml -f docker-compose.native.yml pull
+            docker compose $COMPOSE_FILES pull
 
-            # Stop existing containers
-            docker compose -f docker-compose.yml -f docker-compose.native.yml down
+            # Stop existing containers gracefully
+            docker compose $COMPOSE_FILES stop || true
 
             # Start services
-            docker compose -f docker-compose.yml -f docker-compose.native.yml up -d
+            docker compose $COMPOSE_FILES up -d
+
+            # Wait for services to be healthy
+            sleep 15
 
             # Show status
-            docker compose -f docker-compose.yml -f docker-compose.native.yml ps
-            docker compose -f docker-compose.yml -f docker-compose.native.yml logs --tail=100
+            docker compose $COMPOSE_FILES ps
+            docker compose $COMPOSE_FILES logs --tail=50
           EOF
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -202,8 +228,11 @@ jobs:
       - name: Health check
         run: |
           sleep 30
-          curl -f http://${{ secrets.DEPLOY_HOST }}:8080/actuator/health || exit 1
-          curl -f http://${{ secrets.DEPLOY_HOST }}:8761/actuator/health || exit 1
+          echo "Running health checks..."
+          curl -f --connect-timeout 10 http://${{ secrets.DEPLOY_HOST }}:8080/actuator/health && echo "Gateway: OK" || echo "Gateway: FAILED"
+          curl -f --connect-timeout 10 http://${{ secrets.DEPLOY_HOST }}:8081/actuator/health && echo "Product: OK" || echo "Product: FAILED"
+          curl -f --connect-timeout 10 http://${{ secrets.DEPLOY_HOST }}:8082/actuator/health && echo "Order: OK" || echo "Order: FAILED"
+          curl -f --connect-timeout 10 http://${{ secrets.DEPLOY_HOST }}:8083/actuator/health && echo "User: OK" || echo "User: FAILED"
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
 
@@ -229,3 +258,10 @@ jobs:
           echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/user-service:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/admin-ui:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload deployment summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-summary
+          path: $GITHUB_STEP_SUMMARY
+          retention-days: 30

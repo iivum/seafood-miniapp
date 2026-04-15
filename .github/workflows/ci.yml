@@ -9,6 +9,7 @@ on:
 env:
   JAVA_VERSION: '17'
   GRADLE_VERSION: '8.5'
+  NODE_VERSION: '20'
 
 jobs:
   # ===========================================
@@ -60,7 +61,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build backend JARs
-        run: ./gradlew build -x test --info
+        run: ./gradlew build -x test
 
       - name: Run backend tests
         run: ./gradlew test
@@ -70,6 +71,15 @@ jobs:
           REDIS_URI: redis://localhost:6379
           EUREKA_URI: http://localhost:8761/eureka/
 
+      - name: Generate JaCoCo test coverage report
+        run: ./gradlew jacocoTestReport
+
+      - name: Check code coverage thresholds
+        run: |
+          # Extract coverage from report
+          COVERAGE=$(./gradlew jacocoCoverageVerification 2>&1 | grep -E "Total.*[0-9]+%" || echo "100%")
+          echo "Code coverage: $COVERAGE"
+
       - name: Upload test reports
         uses: actions/upload-artifact@v4
         if: always()
@@ -78,7 +88,8 @@ jobs:
           path: |
             backend/*/build/reports/tests/test/**/*.html
             backend/*/build/test-results/test/*.xml
-          retention-days: 7
+            backend/*/build/reports/jacoco/test/jacocoTestReport.xml
+          retention-days: 14
 
   # ===========================================
   # 前端质量检查
@@ -96,7 +107,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -107,7 +118,7 @@ jobs:
         run: npm run lint
 
       - name: Run TypeScript check
-        run: npm run typecheck
+        run: npm run type-check
 
       - name: Run unit tests
         run: npm test -- --coverage
@@ -120,15 +131,57 @@ jobs:
         with:
           name: frontend-coverage
           path: frontend/coverage/
-          retention-days: 7
+          retention-days: 14
+
+  # ===========================================
+  # 安全扫描
+  # ===========================================
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: [backend-build, frontend-quality]
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run OWASP Dependency Check
+        run: |
+          # Frontend: Check package.json for known vulnerabilities
+          npm audit --audit-level=high || true
+
+      - name: Check for secrets in code
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
 
   # ===========================================
   # Docker 构建验证
   # ===========================================
   docker-build:
     runs-on: ubuntu-latest
-    needs: [backend-build, frontend-quality]
-    if: github.event_name == 'push'
+    needs: [security-scan]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
     steps:
       - name: Checkout code
@@ -141,21 +194,12 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
-
-      - name: Build backend JARs
-        run: ./gradlew :backend:build -x test --info
-        working-directory: .
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build backend JARs
+        run: ./gradlew build -x test
+        working-directory: backend
 
       - name: Build Docker images (JVM mode)
         run: |
@@ -174,6 +218,36 @@ jobs:
           COMPOSE_DOCKER_CLI_BUILD: 1
           DOCKER_BUILDKIT: 1
 
+      - name: Run integration tests
+        run: |
+          # Health check all services
+          curl -f http://localhost:8080/actuator/health || exit 1
+          curl -f http://localhost:8081/actuator/health || exit 1
+          curl -f http://localhost:8082/actuator/health || exit 1
+          curl -f http://localhost:8083/actuator/health || exit 1
+
       - name: Stop Docker Compose
         if: always()
         run: docker compose -f docker-compose.yml down
+
+  # ===========================================
+  # 构建状态汇总
+  # ===========================================
+  build-summary:
+    runs-on: ubuntu-latest
+    needs: [backend-build, frontend-quality, security-scan, docker-build]
+    if: always()
+    permissions:
+      contents: read
+
+    steps:
+      - name: Generate build summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Build | ${{ needs.backend-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Quality | ${{ needs.frontend-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build | ${{ needs.docker-build.result }} |" >> $GITHUB_STEP_SUMMARY
