@@ -1,5 +1,6 @@
 package com.seafood.admin.views.main;
 
+import com.seafood.admin.views.dashboard.DashboardView;
 import com.seafood.admin.views.order.OrderListView;
 import com.seafood.admin.views.product.ProductListView;
 import com.seafood.admin.views.user.UserListView;
@@ -32,6 +33,7 @@ public class MainLayout extends AppLayout {
 
     private void createDrawer() {
         VerticalLayout layout = new VerticalLayout(
+                new RouterLink("数据概览", DashboardView.class),
                 new RouterLink("商品管理", ProductListView.class),
                 new RouterLink("订单管理", OrderListView.class),
                 new RouterLink("用户管理", UserListView.class)

@@ -10,6 +10,7 @@ import com.seafood.admin.views.main.MainLayout;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H5;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -108,24 +109,24 @@ public class DashboardView extends VerticalLayout {
 
         container.add(new Paragraph(statusText));
 
-        // Progress bars for each status
+        // Progress bars for each status (Vaadin ProgressBar doesn't have setLabel)
         if (paid > 0) {
             ProgressBar paidBar = new ProgressBar();
             paidBar.setValue((double) paid / total);
-            paidBar.setLabel("已支付 " + paid);
-            container.add(paidBar);
+            paidBar.setVisible(true);
+            container.add(new Span("已支付: " + paid), paidBar);
         }
         if (shipped > 0) {
             ProgressBar shippedBar = new ProgressBar();
             shippedBar.setValue((double) shipped / total);
-            shippedBar.setLabel("已发货 " + shipped);
-            container.add(shippedBar);
+            shippedBar.setVisible(true);
+            container.add(new Span("已发货: " + shipped), shippedBar);
         }
         if (completed > 0) {
             ProgressBar completedBar = new ProgressBar();
             completedBar.setValue((double) completed / total);
-            completedBar.setLabel("已完成 " + completed);
-            container.add(completedBar);
+            completedBar.setVisible(true);
+            container.add(new Span("已完成: " + completed), completedBar);
         }
 
         return container;

@@ -23,6 +23,7 @@ public class ProductForm extends FormLayout {
     IntegerField stock = new IntegerField("库存");
     ComboBox<String> category = new ComboBox<>("分类");
     TextField imageUrl = new TextField("图片地址");
+    com.vaadin.flow.component.checkbox.Checkbox onSale = new com.vaadin.flow.component.checkbox.Checkbox("上架销售");
 
     Button save = new Button("保存");
     Button delete = new Button("删除");
@@ -36,7 +37,7 @@ public class ProductForm extends FormLayout {
 
         category.setItems("鱼类", "虾蟹", "贝类", "活鲜");
 
-        add(name, description, price, stock, category, imageUrl, createButtonsLayout());
+        add(name, description, price, stock, category, imageUrl, onSale, createButtonsLayout());
     }
 
     private HorizontalLayout createButtonsLayout() {

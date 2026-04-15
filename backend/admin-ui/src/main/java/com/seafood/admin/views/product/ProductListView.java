@@ -1,5 +1,6 @@
 package com.seafood.admin.views.product;
 
+import com.seafood.admin.client.CreateProductRequest;
 import com.seafood.admin.client.ProductClient;
 import com.seafood.admin.client.ProductResponse;
 import com.seafood.admin.views.main.MainLayout;
@@ -7,6 +8,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
@@ -25,7 +27,7 @@ public class ProductListView extends VerticalLayout {
     public ProductListView(ProductClient productClient) {
         this.productClient = productClient;
         this.form = new ProductForm();
-        
+
         setSizeFull();
         configureGrid();
         configureForm();
@@ -52,14 +54,30 @@ public class ProductListView extends VerticalLayout {
     }
 
     private void saveProduct(ProductForm.SaveEvent event) {
-        // 由于没有具体的 Create/Update 逻辑，这里暂时简单调用 client
-        // 生产环境下需要根据 id 是否为空决定调用 POST 或 PUT
+        ProductResponse product = event.getProduct();
+        CreateProductRequest request = new CreateProductRequest();
+        request.setName(product.getName());
+        request.setDescription(product.getDescription());
+        request.setPrice(product.getPrice());
+        request.setStock(product.getStock());
+        request.setCategory(product.getCategory());
+        request.setImageUrl(product.getImageUrl());
+        request.setOnSale(product.isOnSale());
+
+        if (product.getId() == null || product.getId().isEmpty()) {
+            productClient.createProduct(request);
+            Notification.show("商品创建成功");
+        } else {
+            productClient.updateProduct(product.getId(), request);
+            Notification.show("商品更新成功");
+        }
         updateList();
         closeEditor();
     }
 
     private void deleteProduct(ProductForm.DeleteEvent event) {
         productClient.deleteProduct(event.getProduct().getId());
+        Notification.show("商品已删除");
         updateList();
         closeEditor();
     }
@@ -68,7 +86,7 @@ public class ProductListView extends VerticalLayout {
         grid.setSizeFull();
         grid.setColumns("name", "category", "price", "stock", "onSale");
         grid.getColumns().forEach(col -> col.setAutoWidth(true));
-        
+
         grid.asSingleSelect().addValueChangeListener(event -> editProduct(event.getValue()));
     }
 

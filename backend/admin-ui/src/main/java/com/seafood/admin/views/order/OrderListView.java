@@ -31,14 +31,26 @@ public class OrderListView extends VerticalLayout {
     private void configureGrid() {
         grid.setSizeFull();
         grid.setColumns("id", "userId", "totalPrice", "status", "shippingAddress");
-        
+
+        grid.addColumn(order -> {
+            if (order.getItems() == null || order.getItems().isEmpty()) {
+                return "无商品";
+            }
+            return order.getItems().size() + " 件商品";
+        }).setHeader("商品数量").setAutoWidth(true);
+
         grid.addComponentColumn(order -> {
             Button shipButton = new Button("发货");
             shipButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
             shipButton.setEnabled("PAID".equals(order.getStatus()));
             shipButton.addClickListener(click -> {
-                Notification.show("订单 " + order.getId() + " 已发货 (模拟)");
-                updateList();
+                try {
+                    orderClient.updateOrderStatus(order.getId(), "SHIPPED");
+                    Notification.show("订单 " + order.getId() + " 已发货");
+                    updateList();
+                } catch (Exception e) {
+                    Notification.show("发货失败: " + e.getMessage());
+                }
             });
             return shipButton;
         }).setHeader("操作");
