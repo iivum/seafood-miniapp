@@ -57,7 +57,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
 
       - name: Build JAR for ${{ matrix.service }}
-        run: ./gradlew :backend:${{ matrix.service }}:bootJar
+        run: ./gradlew :${{ matrix.service }}:bootJar
         working-directory: backend
 
       - name: Set up Docker Buildx
