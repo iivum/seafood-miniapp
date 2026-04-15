@@ -1,40 +1,48 @@
 .detail-container {
   padding-bottom: 120rpx;
+  background-color: var(--color-bg);
 }
 
 .banner {
   width: 100%;
   height: 600rpx;
+  background-color: var(--color-bg-subtle);
 }
 
 .info {
   display: flex;
   flex-direction: column;
   padding: 30rpx;
+  background-color: var(--color-surface);
+  margin-bottom: 20rpx;
 }
 
 .price {
-  color: #ff4400;
+  color: var(--color-price);
   font-size: 48rpx;
-  font-weight: bold;
+  font-weight: 600;
 }
 
 .name {
   font-size: 36rpx;
-  font-weight: bold;
+  font-weight: 600;
   margin-top: 20rpx;
+  color: var(--color-text);
+  line-height: 1.3;
 }
 
 .desc {
   font-size: 28rpx;
-  color: #666;
+  color: var(--color-text-secondary);
   margin-top: 15rpx;
+  line-height: 1.6;
 }
 
 .section-title {
   font-size: 30rpx;
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 20rpx;
+  color: var(--color-text);
 }
 
 .param-item {
@@ -42,23 +50,36 @@
   justify-content: space-between;
   padding: 15rpx 0;
   font-size: 28rpx;
+  border-bottom: 1rpx solid var(--color-divider);
+}
+
+.param-item:last-child {
+  border-bottom: none;
 }
 
 .label {
-  color: #999;
+  color: var(--color-text-secondary);
 }
 
+.value {
+  color: var(--color-text);
+}
+
+/* ============================================
+   Footer Action Bar
+   ============================================ */
 .footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   height: 100rpx;
-  background-color: #fff;
+  background-color: var(--color-surface);
   display: flex;
   align-items: center;
   padding: 0 20rpx;
-  box-shadow: 0 -2rpx 10rpx rgba(0,0,0,0.05);
+  box-shadow: 0 -4rpx 20rpx rgba(30, 58, 95, 0.1);
+  border-top: 1rpx solid var(--color-border);
 }
 
 .home-btn, .cart-btn {
@@ -68,6 +89,11 @@
   justify-content: center;
   font-size: 20rpx;
   margin: 0 20rpx;
+  color: var(--color-text-secondary);
+}
+
+.home-btn icon, .cart-btn icon {
+  font-size: 40rpx;
 }
 
 .add-cart, .buy-now {
@@ -77,22 +103,30 @@
   border-radius: 35rpx;
   font-size: 26rpx;
   margin-left: 10rpx;
+  font-weight: 500;
+  color: #fff;
 }
 
+/* Add to Cart - Accent Coral */
 .add-cart {
-  background-color: #ff9500;
-  color: #fff;
+  background-color: var(--color-accent);
 }
 
+/* Buy Now - Primary Navy */
 .buy-now {
-  background-color: #ff4400;
-  color: #fff;
+  background-color: var(--color-primary);
 }
 
-/* Recommendations Section */
+/* ============================================
+   Recommendations Section
+   ============================================ */
 .recommendations {
   padding: 30rpx;
   margin-top: 20rpx;
+  background-color: var(--color-surface);
+  border-radius: 12rpx;
+  margin: 20rpx;
+  border: 1rpx solid var(--color-border);
 }
 
 .recommend-group {
@@ -108,8 +142,8 @@
 
 .recommend-title {
   font-size: 28rpx;
-  color: #333;
-  font-weight: bold;
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .recommend-scroll {
@@ -134,12 +168,12 @@
   width: 180rpx;
   height: 180rpx;
   border-radius: 12rpx;
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-subtle);
 }
 
 .recommend-name {
   font-size: 24rpx;
-  color: #333;
+  color: var(--color-text);
   margin-top: 10rpx;
   width: 180rpx;
   overflow: hidden;
@@ -149,22 +183,24 @@
 
 .recommend-price {
   font-size: 24rpx;
-  color: #ff4400;
+  color: var(--color-price);
   margin-top: 5rpx;
+  font-weight: 600;
 }
 
 .loading-recommendations {
   text-align: center;
   padding: 30rpx;
-  color: #999;
+  color: var(--color-text-muted);
   font-size: 26rpx;
 }
 
 .card {
-  background-color: #fff;
+  background-color: var(--color-surface);
   margin: 20rpx;
   border-radius: 12rpx;
   padding: 20rpx;
+  border: 1rpx solid var(--color-border);
 }
 
 .section {

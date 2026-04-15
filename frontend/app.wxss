@@ -1,4 +1,5 @@
-/**app.wxss**/
+/**app.wxss - Ocean Market Premium **/
+
 .container {
   height: 100%;
   display: flex;
@@ -10,21 +11,59 @@
 }
 
 page {
-  background-color: #f8f8f8;
+  /* Ocean Market Palette */
+  --color-primary: #1e3a5f;
+  --color-accent: #e07a5f;
+  --color-success: #38a89d;
+  --color-price: #c45c3e;
+  --color-bg: #faf8f5;
+  --color-surface: #ffffff;
+  --color-bg-subtle: #f5f3ef;
+  --color-text: #2d3748;
+  --color-text-secondary: #718096;
+  --color-text-muted: #a0aec0;
+  --color-border: #e2e0dc;
+  --color-divider: #edebe7;
+
+  background-color: var(--color-bg);
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei', sans-serif;
-  color: #333;
+  color: var(--color-text);
 }
 
 .primary-color {
-  color: #007aff;
+  color: var(--color-primary);
 }
 
 .bg-primary {
-  background-color: #007aff;
+  background-color: var(--color-primary);
+}
+
+.accent-color {
+  color: var(--color-accent);
+}
+
+.bg-accent {
+  background-color: var(--color-accent);
+}
+
+.success-color {
+  color: var(--color-success);
+}
+
+.price-color {
+  color: var(--color-price);
 }
 
 .btn {
-  background-color: #007aff;
+  background-color: var(--color-primary);
+  color: #fff;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  text-align: center;
+}
+
+.btn-accent {
+  background-color: var(--color-accent);
   color: #fff;
   border-radius: 8rpx;
   padding: 20rpx;
@@ -32,9 +71,16 @@ page {
 }
 
 .card {
-  background-color: #fff;
+  background-color: var(--color-surface);
   border-radius: 12rpx;
   margin: 20rpx;
   padding: 20rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+  box-shadow: 0 2rpx 10rpx rgba(30, 58, 95, 0.08);
+  border: 1rpx solid var(--color-border);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--color-text);
 }
