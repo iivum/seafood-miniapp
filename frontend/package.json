@@ -2,6 +2,9 @@
   "name": "seafood-miniapp-frontend",
   "version": "1.0.0",
   "description": "Seafood E-commerce Mini Program Frontend",
+  "author": "iivum",
+  "repository": "https://github.com/iivum/seafood-miniapp",
+  "license": "MIT",
   "main": "app.js",
   "scripts": {
     "test": "jest",
@@ -15,8 +18,8 @@
     "e-commerce",
     "mini-program"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "iivum",
+  "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

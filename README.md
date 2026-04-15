@@ -108,4 +108,4 @@ docker-compose logs -f
 
 ## 📝 License
 
-ISC
+MIT

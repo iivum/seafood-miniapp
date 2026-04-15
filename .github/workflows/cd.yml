@@ -118,10 +118,7 @@ jobs:
 
       - name: Build native image
         run: |
-          ./gradlew :backend:${{ matrix.service }}:nativeRun &
-          NATIVE_PID=$!
-          sleep 5
-          kill $NATIVE_PID 2>/dev/null || true
+          timeout 30 ./gradlew :backend:${{ matrix.service }}:nativeRun || true
         working-directory: .
         continue-on-error: true
 

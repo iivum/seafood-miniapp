@@ -6,6 +6,7 @@ Thumbs.db
 .gradle/
 build/
 backend/*/build/libs/*.jar
+backend/gradle.properties
 bin/
 !**/src/main/resources/bin/
 !**/src/test/resources/bin/
@@ -54,7 +55,7 @@ mongodb_data/
 # Vaadin Admin UI (generated files)
 backend/admin-ui/frontend/generated/
 backend/admin-ui/node_modules/
-backend/admin-ui/package.json
+# admin-ui/package.json should be tracked for npm dependencies
 backend/admin-ui/tsconfig.json
 backend/admin-ui/vite.config.ts
 backend/admin-ui/vite.generated.ts
