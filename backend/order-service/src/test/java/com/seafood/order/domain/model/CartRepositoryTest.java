@@ -4,8 +4,14 @@ import com.seafood.order.infrastructure.persistence.MongoCartRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.mongo.DataMongoTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.ActiveProfiles;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.util.Optional;
 
@@ -14,10 +20,30 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test class for CartRepository
  * Tests MongoDB persistence operations for Cart
+ * Uses Testcontainers to provide a real MongoDB instance
+ *
+ * Note: These tests require Docker to be running and accessible.
+ * If Docker is not available, these tests will fail with
+ * "Could not find a valid Docker environment".
+ *
+ * To run these tests:
+ * 1. Ensure Docker Desktop is running
+ * 2. Ensure testcontainers can access Docker (check ~/.testcontainers.properties)
+ * 3. MongoDB images must be cached locally (docker pull mongo:6)
  */
-@DataMongoTest
+@SpringBootTest
 @ActiveProfiles("test")
+@Testcontainers(disabledWithoutDocker = true)
 class CartRepositoryTest {
+
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer(DockerImageName.parse("mongo:6"))
+            .withExposedPorts(27017);
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+    }
 
     @Autowired
     private MongoCartRepository cartRepository;

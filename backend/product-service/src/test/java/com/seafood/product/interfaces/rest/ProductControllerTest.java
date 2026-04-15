@@ -250,4 +250,44 @@ class ProductControllerTest {
                         .param("pageSize", "0"))
                 .andExpect(status().isBadRequest());
     }
+
+    // ========== keyword 为 null/空 的回归测试 (SWO-34) ==========
+
+    @Test
+    void testGetProductsWithNullKeyword() throws Exception {
+        Product product = new Product("Lobster", "Fresh lobster", new BigDecimal("49.99"), 100, "Seafood", "url");
+        // 验证 service 接收 null keyword 时不报错，返回完整列表
+        when(productApplicationService.listProducts(any(), any(), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(
+                        Arrays.asList(product),
+                        org.springframework.data.domain.PageRequest.of(0, 10),
+                        1
+                ));
+
+        mockMvc.perform(get("/products")
+                        .param("page", "0")
+                        .param("pageSize", "10"))
+                // 不传 keyword 参数时应返回 200，不应返回 403
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.products").isArray())
+                .andExpect(jsonPath("$.products.length()").value(1));
+    }
+
+    @Test
+    void testGetProductsWithBlankKeyword() throws Exception {
+        Product product = new Product("Salmon", "Fresh salmon", new BigDecimal("29.99"), 200, "Fish", "url");
+        when(productApplicationService.listProducts(any(), any(), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(
+                        Arrays.asList(product),
+                        org.springframework.data.domain.PageRequest.of(0, 10),
+                        1
+                ));
+
+        mockMvc.perform(get("/products")
+                        .param("keyword", "   ")
+                        .param("page", "0")
+                        .param("pageSize", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.products").isArray());
+    }
 }
