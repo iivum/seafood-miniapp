@@ -1,7 +1,7 @@
 package com.seafood.admin.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -9,4 +9,10 @@ import java.util.List;
 public interface OrderClient {
     @GetMapping("/orders")
     List<OrderResponse> getAllOrders();
+
+    @GetMapping("/orders/{id}")
+    OrderResponse getOrder(@PathVariable("id") String id);
+
+    @PutMapping("/orders/{id}/status")
+    OrderResponse updateOrderStatus(@PathVariable("id") String id, @RequestParam("status") String status);
 }

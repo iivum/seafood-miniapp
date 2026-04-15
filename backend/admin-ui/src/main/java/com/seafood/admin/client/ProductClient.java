@@ -10,19 +10,15 @@ public interface ProductClient {
     @GetMapping("/products")
     List<ProductResponse> getAllProducts();
 
+    @GetMapping("/products/{id}")
+    ProductResponse getProduct(@PathVariable("id") String id);
+
     @PostMapping("/products")
     ProductResponse createProduct(@RequestBody CreateProductRequest request);
 
+    @PutMapping("/products/{id}")
+    ProductResponse updateProduct(@PathVariable("id") String id, @RequestBody CreateProductRequest request);
+
     @DeleteMapping("/products/{id}")
     void deleteProduct(@PathVariable("id") String id);
-}
-
-@lombok.Data
-class CreateProductRequest {
-    private String name;
-    private String description;
-    private java.math.BigDecimal price;
-    private int stock;
-    private String category;
-    private String imageUrl;
 }
