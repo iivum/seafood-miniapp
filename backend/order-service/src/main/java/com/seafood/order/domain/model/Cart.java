@@ -5,8 +5,17 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Cart aggregate root representing a user's shopping cart
- * Implements domain-driven design principles
+ * Cart aggregate root representing a user's shopping cart.
+ * Implements domain-driven design principles to encapsulate cart-related business logic.
+ * 
+ * <p>The Cart manages items that users intend to purchase, including
+ * adding, removing, updating quantities, and calculating totals.</p>
+ * 
+ * <p>Cart items can be selected/deselected for batch operations
+ * like creating orders or applying discounts.</p>
+ * 
+ * @see CartItem
+ * @see com.seafood.order.domain.model.Order
  */
 public class Cart {
 
@@ -17,6 +26,13 @@ public class Cart {
     private int totalItems;
     private List<String> selectedItems;
 
+    /**
+     * Creates a new Cart for the specified user.
+     * Cart ID is automatically generated as "cart-{userId}".
+     *
+     * @param userId The user ID this cart belongs to (required, non-empty)
+     * @throws IllegalArgumentException if userId is null or empty
+     */
     public Cart(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             throw new IllegalArgumentException("User ID cannot be null or empty");
