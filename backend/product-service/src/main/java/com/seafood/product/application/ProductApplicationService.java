@@ -32,15 +32,17 @@ public class ProductApplicationService {
      * @return 分页商品列表
      */
     public Page<Product> listProducts(String keyword, String category, Pageable pageable) {
-        return productRepository.findByKeywordAndCategory(keyword, category, pageable);
+        String effectiveKeyword = (keyword == null || keyword.isBlank()) ? "" : keyword;
+        return productRepository.findByKeywordAndCategory(effectiveKeyword, category, pageable);
     }
 
     /**
      * 获取商品列表（分页 + 搜索）- 兼容旧方法签名
      */
     public Page<Product> listProducts(String keyword, String category, String dummy, int page, int pageSize) {
+        String effectiveKeyword = (keyword == null || keyword.isBlank()) ? "" : keyword;
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "id"));
-        return productRepository.findByKeywordAndCategory(keyword, category, pageable);
+        return productRepository.findByKeywordAndCategory(effectiveKeyword, category, pageable);
     }
 
     public List<Product> listAllProducts() {
