@@ -199,23 +199,25 @@ interface Cart {
 | 页面 | 文件路径 | 状态 |
 |------|----------|------|
 | 首页/商品列表 | `pages/index/` | ✅ |
-| 商品详情 | `pages/product-detail/` | ✅ |
+| 商品详情 | `pages-sub/product/product-detail/` | ✅ |
 | 购物车 | `pages/cart/` | ✅ |
-| 订单列表 | `pages/order-list/` | 🚧 |
-| 地址管理 | `pages/address/` | ✅ |
-| 登录 | `pages/login/` | 🚧 |
-| 个人中心 | `pages/profile/` | 🚧 |
+| 订单列表 | `pages-sub/order/order-list/` | ✅ |
+| 地址管理 | `pages-sub/user/address/` | ✅ |
+| 登录 | `pages-sub/user/login/` | ✅ |
+| 个人中心 | `pages/profile/` | ✅ |
+
+> **注意**: 商品详情、订单列表、地址管理、登录页面使用微信小程序**分包**机制 (`pages-sub/`)，而非主包页面。这是正确的架构设计，可以优化首屏加载速度。
 
 ### 页面跳转关系
 ```
 首页 (index)
-  ├── 商品详情 (product-detail)
+  ├── 商品详情 (product-detail) [分包]
   │     └── 加入购物车 → 购物车 (cart)
   ├── 购物车 (cart)
-  │     └── 结算 → 订单确认
+  │     └── 结算 → 订单确认 (order-confirm) [分包]
   └── 个人中心 (profile)
-        ├── 登录 (login)
-        └── 地址管理 (address)
+        ├── 登录 (login) [分包]
+        └── 地址管理 (address-list, address-edit) [分包]
 ```
 
 ---
