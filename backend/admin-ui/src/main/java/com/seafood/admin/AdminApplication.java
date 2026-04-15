@@ -10,7 +10,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableFeignClients
-@Theme(value = "seafood-admin")
+@Theme("lumo")
 public class AdminApplication implements AppShellConfigurator {
     public static void main(String[] args) {
         SpringApplication.run(AdminApplication.class, args);

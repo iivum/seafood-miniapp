@@ -56,11 +56,29 @@ mongodb_data/
 # Vaadin Admin UI (generated files)
 backend/admin-ui/frontend/generated/
 backend/admin-ui/node_modules/
-# admin-ui/package.json should be tracked for npm dependencies
 backend/admin-ui/tsconfig.json
 backend/admin-ui/vite.config.ts
 backend/admin-ui/vite.generated.ts
 backend/admin-ui/types.d.ts
+backend/admin-ui/package-lock.json
+
+# Root-level build scaffolding (not part of the project)
+backend/package.json
+backend/package-lock.json
+backend/tsconfig.json
+backend/types.d.ts
+backend/vite.config.ts
+backend/vite.generated.ts
+backend/target/
+backend/test-results/
+backend/frontend/
+
+# Playwright browser automation
+.playwright-mcp/
+
+# Admin UI test scaffolding
+backend/admin-ui/tests/
+
 
 # Gradle Wrapper
 backend/gradle/wrapper/dists/
