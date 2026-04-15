@@ -2,8 +2,9 @@ package com.seafood.common.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -20,19 +21,18 @@ public class JwtUtil {
     private final JwtProperties jwtProperties;
     private final SecretKey key;
 
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
+
     @Autowired
     public JwtUtil(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
-        // 从配置中获取密钥，如果没有则生成新的密钥
         String secret = jwtProperties.getSecret();
-        if (secret != null && !secret.isEmpty()) {
-            // 使用Base64解码的密钥
-            byte[] keyBytes = java.util.Base64.getDecoder().decode(secret);
-            this.key = Keys.hmacShaKeyFor(keyBytes);
-        } else {
-            // 生成新的密钥（仅用于开发环境）
-            this.key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        if (secret == null || secret.isEmpty()) {
+            throw new IllegalStateException(
+                "JWT secret is not configured. Set 'jwt.secret' in application.yml with a Base64-encoded key (min 32 bytes for HS256)");
         }
+        byte[] keyBytes = java.util.Base64.getDecoder().decode(secret);
+        this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
     /**
@@ -77,8 +77,13 @@ public class JwtUtil {
     public Boolean validateToken(String token, String userId) {
         try {
             final String extractedUserId = extractUserId(token);
-            return extractedUserId.equals(userId) && !isTokenExpired(token);
+            boolean valid = extractedUserId.equals(userId) && !isTokenExpired(token);
+            if (!valid) {
+                log.warn("JWT validation failed for userId={} (token subject={})", userId, extractedUserId);
+            }
+            return valid;
         } catch (Exception e) {
+            log.warn("JWT validation error for userId={}: {}", userId, e.getMessage());
             return false;
         }
     }
