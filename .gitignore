@@ -40,7 +40,7 @@ out/
 node_modules/
 dist/
 miniprogram_npm/
-package-lock.json
+!frontend/package-lock.json
 project.private.config.json
 
 # Docker & Local Data
