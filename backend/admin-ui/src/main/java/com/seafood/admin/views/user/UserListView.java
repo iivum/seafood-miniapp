@@ -6,8 +6,11 @@ import com.seafood.admin.views.main.MainLayout;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -24,8 +27,33 @@ public class UserListView extends VerticalLayout {
     public UserListView(UserClient userClient) {
         this.userClient = userClient;
         setSizeFull();
-        add(new H2("用户列表"), grid);
+        setPadding(false);
+        setSpacing(false);
+        getStyle().set("padding", "28px 32px");
+        
+        add(createViewHeader(), grid);
         configureGrid();
+    }
+
+    private HorizontalLayout createViewHeader() {
+        HorizontalLayout header = new HorizontalLayout();
+        header.setWidthFull();
+        header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.addClassName("view-header");
+        
+        H2 title = new H2("用户管理");
+        title.getStyle().set("margin", "0").set("font-size", "1.5rem").set("font-weight", "700").set("color", "#0c1929");
+        
+        Div subtitle = new Div();
+        subtitle.setText("查看和管理商城用户");
+        subtitle.getStyle().set("font-size", "0.85rem").set("color", "#8aaabf").set("margin-top", "4px");
+        
+        VerticalLayout titleArea = new VerticalLayout(title, subtitle);
+        titleArea.setMargin(false);
+        titleArea.setSpacing(false);
+        
+        header.add(titleArea);
+        return header;
     }
 
     private void configureGrid() {
