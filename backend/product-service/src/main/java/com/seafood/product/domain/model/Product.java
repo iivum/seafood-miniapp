@@ -9,27 +9,59 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.math.BigDecimal;
 
 /**
- * 商品聚合根 (Product Aggregate Root)
- * 遵循 DDD 设计原则，封装商品领域逻辑。
+ * Product aggregate root representing a seafood product in the catalog.
+ * Follows Domain-Driven Design principles and encapsulates product-related business logic.
+ * 
+ * <p>Products are the core entities in the product catalog and contain
+ * information such as name, description, price, stock, category, and image.</p>
+ * 
+ * @see AggregateRoot
+ * @see org.springframework.data.mongodb.core.mapping.Document
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @Document(collection = "products")
 public class Product extends AggregateRoot<String> {
-    private String name;        // 商品名称
-    private String description; // 商品描述
-    private BigDecimal price;   // 商品价格
-    private int stock;          // 商品库存
-    private String category;    // 商品分类
-    private String imageUrl;    // 商品图片地址
-    private boolean onSale;     // 是否在售
+    
+    /** Product name displayed to customers */
+    private String name;
+    
+    /** Detailed product description */
+    private String description;
+    
+    /** Product price in decimal format */
+    private BigDecimal price;
+    
+    /** Current stock quantity available for sale */
+    private int stock;
+    
+    /** Product category for filtering and organization */
+    private String category;
+    
+    /** URL to product image in CDN or storage */
+    private String imageUrl;
+    
+    /** Flag indicating if product is available for purchase */
+    private boolean onSale;
 
     /**
-     * 创建商品
+     * Creates a new Product with the specified attributes.
+     * The product is automatically set to on-sale status.
+     *
+     * @param name        Product display name (required)
+     * @param description Detailed product description
+     * @param price       Product price (must be non-negative)
+     * @param stock       Initial stock quantity (must be non-negative)
+     * @param category    Product category for organization
+     * @param imageUrl    URL to product image
+     * @throws IllegalArgumentException if name is null or empty
      */
     public Product(String name, String description, BigDecimal price, int stock, String category, String imageUrl) {
         super();
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Product name cannot be null or empty");
+        }
         this.name = name;
         this.description = description;
         this.price = price;
@@ -40,15 +72,21 @@ public class Product extends AggregateRoot<String> {
     }
 
     /**
-     * 更新库存 (增加)
+     * Increases the product stock by the specified quantity.
+     * Used when restocking inventory.
+     *
+     * @param quantity Amount to add to current stock (can be negative to reduce)
      */
     public void updateStock(int quantity) {
         this.stock += quantity;
     }
 
     /**
-     * 扣减库存 (减少)
-     * @throws RuntimeException 当库存不足时抛出异常
+     * Decreases the product stock by the specified quantity.
+     * Used when an order is placed or stock is consumed.
+     *
+     * @param quantity Amount to reduce from current stock
+     * @throws RuntimeException when stock would become negative (insufficient stock)
      */
     public void reduceStock(int quantity) {
         if (this.stock < quantity) {
@@ -58,7 +96,10 @@ public class Product extends AggregateRoot<String> {
     }
 
     /**
-     * 设置上下架状态
+     * Sets the product's on-sale status.
+     * When false, product will not be displayed or be purchasable.
+     *
+     * @param onSale true to make product available, false to mark as unavailable
      */
     public void setOnSale(boolean onSale) {
         this.onSale = onSale;

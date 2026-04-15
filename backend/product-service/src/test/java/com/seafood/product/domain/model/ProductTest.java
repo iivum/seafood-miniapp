@@ -35,4 +35,19 @@ class ProductTest {
         Product product = new Product("Lobster", "Fresh Atlantic Lobster", new BigDecimal("49.99"), 10, "Seafood", "imageUrl");
         assertThrows(RuntimeException.class, () -> product.reduceStock(20));
     }
+
+    @Test
+    void testSetOnSale() {
+        Product product = new Product("Lobster", "Fresh Atlantic Lobster", new BigDecimal("49.99"), 100, "Seafood", "imageUrl");
+        assertTrue(product.isOnSale());
+        product.setOnSale(false);
+        assertFalse(product.isOnSale());
+    }
+
+    @Test
+    void testNoArgsConstructor() {
+        Product product = new Product();
+        assertNull(product.getName());
+        assertNull(product.getPrice());
+    }
 }

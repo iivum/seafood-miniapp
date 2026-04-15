@@ -60,4 +60,10 @@ class ImageUploadControllerTest {
                 .param("productId", "1"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void testGetImageNotFound() throws Exception {
+        mockMvc.perform(get("/products/images/nonexistent.jpg"))
+                .andExpect(status().isNotFound());
+    }
 }
