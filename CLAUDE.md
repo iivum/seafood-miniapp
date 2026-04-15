@@ -121,6 +121,8 @@ interface CartItem {
 | `/code-review` | 代码质量审查 |
 | `/security-scan` | 安全漏洞扫描 |
 | `/build-fix` | 修复构建错误 |
+| `/learn` | 从会话中提取模式 |
+| `/skill-create` | 从 Git 历史生成 Skills |
 
 ---
 
