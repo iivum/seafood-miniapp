@@ -162,10 +162,11 @@ jobs:
           npm audit --audit-level=high || true
 
       - name: Check for secrets in code
+        if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
+          base: ${{ github.event.pull_request.base.ref }}
           head: HEAD
           extra_args: --only-verified
 
