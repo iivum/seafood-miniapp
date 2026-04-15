@@ -23,14 +23,15 @@ jobs:
 
     services:
       mongodb:
-        image: mongo:7
+        image: mongo:6
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --eval db.adminCommand('ping')"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 3
+          --health-cmd "mongosh --eval 'db.adminCommand({ping:1})'"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 5
+          --health-start-period 30s
       redis:
         image: redis:7-alpine
         ports:
