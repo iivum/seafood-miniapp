@@ -5,6 +5,7 @@ Thumbs.db
 # Gradle
 .gradle/
 build/
+backend/*/build/libs/*.jar
 bin/
 !**/src/main/resources/bin/
 !**/src/test/resources/bin/
