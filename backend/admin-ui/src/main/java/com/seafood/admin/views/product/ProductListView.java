@@ -6,9 +6,11 @@ import com.seafood.admin.client.ProductResponse;
 import com.seafood.admin.views.main.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
@@ -92,10 +94,13 @@ public class ProductListView extends VerticalLayout {
 
     private HorizontalLayout getToolbar() {
         Button addProductButton = new Button("添加商品");
+        addProductButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addProductButton.addClickListener(click -> addProduct());
 
-        var toolbar = new HorizontalLayout(addProductButton);
+        HorizontalLayout toolbar = new HorizontalLayout(addProductButton);
         toolbar.addClassName("toolbar");
+        toolbar.setWidthFull();
+        toolbar.setAlignItems(FlexComponent.Alignment.START);
         return toolbar;
     }
 
