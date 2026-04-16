@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   padding: 40rpx;
-  background-color: #007aff;
+  background-color: var(--color-primary);
   border-radius: 20rpx;
   color: #fff;
   margin-bottom: 30rpx;
@@ -27,7 +27,7 @@
 .role-tag {
   font-size: 20rpx;
   background-color: #fff;
-  color: #007aff;
+  color: var(--color-primary);
   padding: 2rpx 10rpx;
   border-radius: 4rpx;
   margin-top: 10rpx;
@@ -61,13 +61,15 @@
   display: flex;
   justify-content: space-between;
   padding: 30rpx;
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 1rpx solid var(--color-divider);
 }
 
 .arrow {
-  color: #ccc;
+  color: var(--color-text-muted);
 }
 
 .merchant-nav {
+  display: flex;
+  justify-content: center;
   padding: 20rpx 0;
 }
