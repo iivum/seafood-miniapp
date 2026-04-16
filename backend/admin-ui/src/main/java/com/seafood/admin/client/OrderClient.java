@@ -15,4 +15,7 @@ public interface OrderClient {
 
     @PutMapping("/orders/{id}/status")
     OrderResponse updateOrderStatus(@PathVariable("id") String id, @RequestParam("status") String status);
+
+    @PutMapping("/orders/{id}/ship")
+    OrderResponse shipOrder(@PathVariable("id") String id, @RequestBody ShipOrderRequest request);
 }

@@ -14,9 +14,6 @@ spring:
           uri: lb://order-service
           predicates:
             - Path=/api/orders/**
-          filters:
-            - StripPrefix=1
-            - name: AuthenticationFilter
         - id: user-service
           uri: lb://user-service
           predicates:
@@ -27,6 +24,8 @@ spring:
           uri: lb://admin-ui
           predicates:
             - Path=/admin/**
+  security:
+    enabled: false
 
 server:
   port: 8080

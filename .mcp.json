@@ -1,0 +1,13 @@
+{
+    "mcpServers": {
+        "weixin-devtools-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "weixin-devtools-mcp",
+                "--tools-profile=full"
+            ],
+            "env": {}
+        }
+    }
+}

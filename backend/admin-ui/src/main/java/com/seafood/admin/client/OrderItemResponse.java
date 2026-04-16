@@ -9,4 +9,5 @@ public class OrderItemResponse {
     private String productName;
     private BigDecimal price;
     private int quantity;
+    private BigDecimal subtotal;
 }

@@ -4,6 +4,15 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/seafood_user}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      url: ${REDIS_URI:redis://localhost:6379}
+
+jwt:
+  secret: ${JWT_SECRET:dXNlci1zZWNyZXQta2V5LWZvci1zZWFmb29kLW1pbmlhcHAtMjU2Yml0}
+  expiration: 86400000
+  refreshExpiration: 604800000
 
 server:
   port: 8083

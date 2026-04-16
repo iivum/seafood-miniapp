@@ -1,18 +1,19 @@
 spring:
   application:
-    name: admin-ui
-  main:
-    allow-circular-references: true
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+    name: user-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/seafood_user}
+    redis:
+      uri: ${REDIS_URI:redis://localhost:6379}
 
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-for-admin-ui-jwt-signing}
+  secret: ${JWT_SECRET:dXNlci1zZWNyZXQta2V5LWZvci1zZWFmb29kLW1pbmlhcHAtMjU2Yml0}
   expiration: 86400000
+  refreshExpiration: 604800000
 
 server:
-  port: 8084
+  port: 8083
   shutdown: graceful
   tomcat:
     connection-timeout: 5000
@@ -27,18 +28,6 @@ eureka:
   instance:
     lease-renewal-interval-in-seconds: 10
     health-check-url-path: /actuator/health
-
-vaadin:
-  productionMode: false
-  url-mapping: /admin/*
-
----
-spring:
-  config:
-    activate:
-      on-profile: docker
-vaadin:
-  productionMode: true
 
 management:
   endpoints:
