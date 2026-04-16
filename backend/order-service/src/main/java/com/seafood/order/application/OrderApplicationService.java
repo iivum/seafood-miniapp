@@ -234,6 +234,15 @@ public class OrderApplicationService {
     }
 
     /**
+     * Get all orders (for admin)
+     *
+     * @return list of all orders
+     */
+    public List<Order> getAllOrders() {
+        return orderRepository.findAll();
+    }
+
+    /**
      * Get order statistics for a user
      *
      * @param userId the user ID
