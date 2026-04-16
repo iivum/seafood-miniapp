@@ -26,7 +26,7 @@ class OrderAPI {
    * Base API endpoint for orders
    */
   static get BASE_ENDPOINT() {
-    return '/api/orders';
+    return '/orders';
   }
 
   /**

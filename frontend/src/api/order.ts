@@ -11,7 +11,7 @@ export class OrderAPI {
   /**
    * Base API endpoint for orders
    */
-  private static readonly BASE_ENDPOINT = '/api/orders';
+  private static readonly BASE_ENDPOINT = '/orders';
 
   /**
    * Create order from shopping cart
