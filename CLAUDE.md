@@ -81,6 +81,12 @@ gateway (8080) → product-service (8081), order-service (8082), user-service (8
 - 所有用户输入验证和过滤
 - XSS 防护，JWT Token 认证（待实现）
 
+### 设计准则
+- **颜色变量**：所有颜色使用 `app.wxss` 中的 CSS 变量（`--color-*`）
+- **安全区域**：固定底部栏必须添加 `padding-bottom: var(--safe-area-bottom)`
+- **禁用 gap**：`gap` 属性在微信小程序不支持，使用 Flex + margin 替代
+- 详细规范见 [`DESIGN.md`](./DESIGN.md)
+
 ---
 
 ## 核心模式
@@ -173,6 +179,7 @@ docker-compose down               # 停止服务
 - `ARCHITECTURE.md` - 系统架构详细文档
 - `SPEC.md` - 功能规格说明
 - `TODO.md` - 开发任务列表
+- `DESIGN.md` - **微信小程序设计准则**（颜色、安全区域、布局规范）
 - `docs/` - 其他文档
 
 ---

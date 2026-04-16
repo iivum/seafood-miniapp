@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: center;
   padding-top: 200rpx;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .order-card {
@@ -20,12 +20,12 @@
   display: flex;
   justify-content: space-between;
   padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 1rpx solid var(--color-divider);
 }
 
 .order-id {
   font-size: 24rpx;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .order-status {
@@ -34,10 +34,10 @@
 }
 
 .status-PENDING_PAYMENT { color: #ff9500; }
-.status-PAID { color: #007aff; }
-.status-SHIPPED { color: #52c41a; }
-.status-COMPLETED { color: #999; }
-.status-CANCELLED { color: #ff4d4f; }
+.status-PAID { color: var(--color-primary); }
+.status-SHIPPED { color: var(--color-success); }
+.status-COMPLETED { color: var(--color-text-muted); }
+.status-CANCELLED { color: var(--color-price); }
 
 .order-items {
   padding: 20rpx 0;
@@ -57,7 +57,7 @@
 .item-qty {
   width: 80rpx;
   text-align: center;
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .item-price {
@@ -71,13 +71,13 @@
   justify-content: space-between;
   align-items: center;
   padding-top: 20rpx;
-  border-top: 1rpx solid #eee;
+  border-top: 1rpx solid var(--color-divider);
 }
 
 .total {
   font-size: 30rpx;
   font-weight: bold;
-  color: #ff4400;
+  color: var(--color-price);
 }
 
 .actions {
@@ -94,11 +94,11 @@
 }
 
 .btn-pay {
-  background-color: #007aff;
+  background-color: var(--color-primary);
   color: #fff;
 }
 
 .btn-cancel {
-  background-color: #f5f5f5;
-  color: #666;
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
 }

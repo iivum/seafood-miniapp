@@ -15,7 +15,8 @@
 }
 
 .category-item {
-  width: 32%;
+  width: 31%;
+  min-width: 180rpx;
   background-color: #fff;
   border-radius: 16rpx;
   padding: 30rpx 20rpx;
@@ -24,6 +25,7 @@
   flex-direction: column;
   align-items: center;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
 }
 
 .category-icon-wrapper {

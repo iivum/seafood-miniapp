@@ -1,20 +1,20 @@
 /* 地址列表页面样式 */
 .address-list-container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--color-bg);
   padding: 20rpx;
   box-sizing: border-box;
 }
 
 /* 地址列表 */
 .address-list {
-  padding-bottom: 120rpx;
+  padding-bottom: calc(140rpx + var(--safe-area-bottom));
 }
 
 .address-item {
   margin-bottom: 20rpx;
   padding: 30rpx;
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12rpx;
   transition: all 0.3s;
 }
@@ -32,18 +32,18 @@
 .address-header .name {
   font-size: 32rpx;
   font-weight: bold;
-  color: #333;
+  color: var(--color-text);
   margin-right: 20rpx;
 }
 
 .address-header .phone {
   font-size: 28rpx;
-  color: #666;
+  color: var(--color-text-secondary);
   flex: 1;
 }
 
 .address-header .default-tag {
-  background: #ff5252;
+  background: var(--color-price);
   color: #fff;
   font-size: 22rpx;
   padding: 4rpx 12rpx;
@@ -56,29 +56,31 @@
 
 .address-content .address-text {
   font-size: 28rpx;
-  color: #333;
+  color: var(--color-text);
   line-height: 1.5;
 }
 
 .address-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 40rpx;
   padding-top: 20rpx;
-  border-top: 2rpx solid #f0f0f0;
+  border-top: 2rpx solid var(--color-divider);
+}
+
+.address-actions > .action-item + .action-item {
+  margin-left: 40rpx;
 }
 
 .action-item {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 26rpx;
   transition: all 0.3s;
 }
 
 .action-item:active {
-  color: #007aff;
+  color: var(--color-primary);
 }
 
 /* 空状态 */
@@ -97,36 +99,36 @@
 
 .empty-state .empty-text {
   font-size: 32rpx;
-  color: #999;
+  color: var(--color-text-muted);
   margin-bottom: 10rpx;
 }
 
 .empty-state .empty-subtext {
   font-size: 26rpx;
-  color: #ccc;
+  color: var(--color-text-muted);
 }
 
 /* 添加地址按钮 */
 .add-address-btn {
   position: fixed;
-  bottom: 40rpx;
+  bottom: calc(40rpx + var(--safe-area-bottom));
   left: 40rpx;
   right: 40rpx;
   height: 90rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   border-radius: 45rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-size: 32rpx;
-  box-shadow: 0 10rpx 30rpx rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10rpx 30rpx rgba(30, 58, 95, 0.3);
   transition: all 0.3s;
 }
 
 .add-address-btn:active {
   transform: scale(0.98);
-  box-shadow: 0 5rpx 20rpx rgba(102, 126, 234, 0.3);
+  box-shadow: 0 5rpx 20rpx rgba(30, 58, 95, 0.2);
 }
 
 .add-address-btn icon {
@@ -147,14 +149,14 @@
   transform: translateY(-50%);
   width: 32rpx;
   height: 32rpx;
-  border: 2rpx solid #ccc;
+  border: 2rpx solid var(--color-border);
   border-radius: 50%;
   transition: all 0.3s;
 }
 
 .address-item.select-mode.selected::before {
-  background: #667eea;
-  border-color: #667eea;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .address-item.select-mode.selected::after {
