@@ -295,6 +295,14 @@
 | ADM-003 | 无法完整测试 CRUD 操作 | P1 | 待修复 | 由于无测试数据，商品/订单/用户增删改查无法验证 |
 | ADM-004 | Vaadin Invalid security key 警告 | P3 | 观察中 | 日志中出现多次警告，不影响功能 |
 
+### ✅ 已修复问题
+| ID | 问题描述 | 修复方式 |
+|----|----------|----------|
+| ADM-FIX-01 | OrderResponse 合并冲突 | 解决冲突并保留所有字段 |
+| ADM-FIX-02 | Feign Client 路径错误 | OrderClient `/api/orders` → `/orders` |
+| ADM-FIX-03 | ProductClient 路径错误 | `/products/all` → `/products` |
+| ADM-FIX-04 | 订单状态映射问题 | 添加 `getDisplayStatus()` 方法 |
+
 ### Admin UI 服务状态
 - Admin UI 服务: healthy (port 8090)
 - Gateway: healthy (port 8080)
