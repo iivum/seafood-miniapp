@@ -131,4 +131,19 @@ public class UserController {
         userApplicationService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}/role")
+    @Operation(
+        summary = "Update user role",
+        description = "Updates the role of a user (USER, ADMIN, MERCHANT)",
+        parameters = @Parameter(name = "id", description = "User ID", required = true),
+        responses = {
+            @ApiResponse(responseCode = "200", description = "User role updated successfully"),
+            @ApiResponse(responseCode = "404", description = "User not found"),
+            @ApiResponse(responseCode = "400", description = "Invalid role value")
+        }
+    )
+    public ResponseEntity<User> updateUserRole(@PathVariable String id, @RequestParam("role") String role) {
+        return ResponseEntity.ok(userApplicationService.updateUserRole(id, role));
+    }
 }

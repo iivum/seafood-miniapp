@@ -67,4 +67,12 @@ public class UserApplicationService {
     public void deleteUser(String id) {
         userRepository.deleteById(id);
     }
+
+    public User updateUserRole(String id, String role) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+        UserRole userRole = UserRole.valueOf(role.toUpperCase());
+        user.setRole(userRole);
+        return userRepository.save(user);
+    }
 }
