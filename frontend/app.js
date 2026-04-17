@@ -159,42 +159,52 @@ App({
 
   wxLogin: function() {
     return new Promise((resolve, reject) => {
-      // 先获取用户信息授权以获取 openId
-      wx.getUserProfile({
-        desc: '用于完善用户资料',
-        success: userRes => {
-          // 使用 getUserInfo 返回的加密数据获取 openId
-          // 注意：正式项目应由后端使用 code 换取 openId
-          const encryptedData = userRes.encryptedData;
-          const iv = userRes.iv;
+      // 1. 获取微信登录凭证 code
+      wx.login({
+        success: loginRes => {
+          if (!loginRes.code) {
+            reject(new Error('获取微信登录凭证失败'));
+            return;
+          }
           
-          // 临时方案：直接使用 encryptedData 作为标识
-          // 实际应通过后端接口用 code 换取 openId
-          this.fetchWeChatToken(encryptedData)
-            .then(data => {
-              resolve(data);
-            })
-            .catch(err => {
-              reject(err);
-            });
+          // 2. 获取用户信息（昵称、头像）
+          wx.getUserInfo({
+            desc: '用于完善用户资料',
+            success: userRes => {
+              // 注意：实际生产环境需要将 code 发送到后端
+              // 后端使用 code 调用微信接口换取 openId
+              // 当前测试环境直接使用 userInfo 中的 openId（模拟）
+              const openId = userRes.userInfo?.openId || ('wx_' + loginRes.code);
+              
+              this.fetchWeChatToken(openId, userRes.userInfo)
+                .then(data => {
+                  resolve(data);
+                })
+                .catch(err => {
+                  reject(err);
+                });
+            },
+            fail: err => {
+              reject(new Error('获取用户信息失败: ' + err.errMsg));
+            }
+          });
         },
         fail: err => {
-          reject(new Error('获取用户信息失败: ' + err.errMsg));
+          reject(new Error('微信登录失败: ' + err.errMsg));
         }
       });
     });
   },
 
-  fetchWeChatToken: function(openId) {
+  fetchWeChatToken: function(openId, userInfo) {
     const request = require('./utils/request.js');
     return request({
       url: '/api/auth/wx-login',
       method: 'POST',
       data: {
         openId: openId,
-        // 可以从wx.getSetting获取用户信息
-        nickname: '微信用户', // 实际应从用户授权获取
-        avatarUrl: '' // 实际应从用户授权获取
+        nickname: userInfo?.nickName || '微信用户',
+        avatarUrl: userInfo?.avatarUrl || ''
       }
     })
     .then(res => {
@@ -233,7 +243,7 @@ App({
   globalData: {
     userInfo: null,
     token: null,
-    baseUrl: 'http://localhost:8080/api', // 网关地址
+    baseUrl: 'http://localhost:8080', // 网关地址（注意：路径使用/api/xxx格式）
     // Platform info
     platform: 'unknown',
     isPC: false,

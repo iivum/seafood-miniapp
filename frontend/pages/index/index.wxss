@@ -8,6 +8,7 @@
    ============================================ */
 .search-bar {
   padding: 20rpx;
+  padding-top: calc(20rpx + env(safe-area-inset-top));
   background-color: var(--color-surface);
   display: flex;
   align-items: center;

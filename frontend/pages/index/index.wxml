@@ -1,6 +1,6 @@
 <view class="home-container">
-  <!-- 搜索栏 -->
-  <view class="search-bar">
+  <!-- 搜索栏 - 适配异形屏 -->
+  <view class="search-bar safe-area-top">
     <view class="search-input">
       <icon type="search" size="14"></icon>
       <input

@@ -7,13 +7,16 @@ import lombok.Data;
 @Schema(description = "微信登录请求")
 public class WeChatLoginRequest {
     
-    @Schema(description = "微信OpenID", example = "oV6Dt123456789", required = true)
+    @Schema(description = "微信OpenID（直接登录时使用）", example = "oV6Dt123456789")
     private String openId;
     
-    @Schema(description = "微信昵称", example = "微信昵称", required = true)
+    @Schema(description = "微信登录凭证code（需后端兑换openId）", example = "071XXXXXXXX")
+    private String code;
+    
+    @Schema(description = "微信昵称", example = "微信昵称")
     private String nickname;
     
-    @Schema(description = "微信头像URL", example = "https://example.com/avatar.jpg", required = true)
+    @Schema(description = "微信头像URL", example = "https://example.com/avatar.jpg")
     private String avatarUrl;
     
     @Schema(description = "手机号", example = "13800138000")
