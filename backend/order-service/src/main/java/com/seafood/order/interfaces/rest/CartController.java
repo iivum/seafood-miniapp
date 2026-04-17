@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  * Follows RESTful principles and handles request/response mapping
  */
 @RestController
-@RequestMapping("/api/cart")
+@RequestMapping("/cart")
 public class CartController {
 
     private final CartApplicationService cartApplicationService;

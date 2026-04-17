@@ -16,20 +16,28 @@ spring:
             - Path=/api/orders/**
           filters:
             - StripPrefix=1
-        - id: auth-service
+        - id: cart-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/cart/**
+          filters:
+            - StripPrefix=1
+        - id: auth-service-api
           uri: lb://user-service
           predicates:
             - Path=/api/auth/**
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/api/users/**
           filters:
             - StripPrefix=1
         - id: auth-service
           uri: lb://user-service
           predicates:
             - Path=/auth/**
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
         - id: admin-ui
           uri: lb://admin-ui
           predicates:

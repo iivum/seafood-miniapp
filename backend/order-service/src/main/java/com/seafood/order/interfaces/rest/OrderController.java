@@ -17,7 +17,7 @@ import java.util.List;
  * Provides API endpoints for order management
  */
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/orders")
 public class OrderController {
 
     private final OrderApplicationService orderApplicationService;
