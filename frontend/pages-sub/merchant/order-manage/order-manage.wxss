@@ -165,16 +165,14 @@
 
 .order-actions {
   display: flex;
-}
-
-.order-actions > *:not(:first-child) {
-  margin-left: 15rpx;
+  margin: -5rpx 0;
 }
 
 .action-btn {
   font-size: 24rpx;
   padding: 8rpx 20rpx;
   border-radius: 8rpx;
+  margin: 5rpx;
 }
 
 .action-btn.ship {
@@ -194,16 +192,15 @@
 
 .order-info {
   display: flex;
+  flex-wrap: wrap;
   padding-top: 15rpx;
   border-top: 1rpx solid var(--color-border);
   margin-top: 10rpx;
-}
-
-.order-info > *:not(:first-child) {
-  margin-left: 20rpx;
+  margin: -5rpx;
 }
 
 .info-text {
   font-size: 24rpx;
   color: var(--color-text-muted);
+  margin: 5rpx;
 }

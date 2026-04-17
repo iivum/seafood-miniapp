@@ -81,16 +81,14 @@
 .user-header {
   display: flex;
   align-items: center;
-}
-
-.user-header > *:not(:first-child) {
-  margin-left: 15rpx;
+  margin: -5rpx;
 }
 
 .user-name {
   font-size: 30rpx;
   font-weight: bold;
   color: #333;
+  margin: 5rpx;
 }
 
 .user-role {
@@ -116,25 +114,21 @@
 
 .user-detail {
   display: flex;
+  flex-wrap: wrap;
   margin-top: 10rpx;
-}
-
-.user-detail > *:not(:first-child) {
-  margin-left: 20rpx;
+  margin: -5rpx;
 }
 
 .detail-text {
   font-size: 24rpx;
   color: #999;
+  margin: 5rpx;
 }
 
 .user-actions {
   display: flex;
   flex-direction: column;
-}
-
-.user-actions > *:not(:first-child) {
-  margin-top: 10rpx;
+  margin: -5rpx;
 }
 
 .action-btn {
@@ -142,6 +136,7 @@
   padding: 8rpx 16rpx;
   border-radius: 6rpx;
   text-align: center;
+  margin: 5rpx;
 }
 
 .action-btn.view {

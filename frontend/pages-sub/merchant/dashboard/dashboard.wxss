@@ -97,29 +97,27 @@
 }
 
 .action-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.action-grid > * {
-  margin-right: 20rpx;
-  margin-bottom: 20rpx;
-}
-
-.action-grid > *:nth-child(4n) {
-  margin-right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  margin: -10rpx;
 }
 
 .action-item {
+  width: 25%;
+  padding: 10rpx;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 30rpx 10rpx;
-  background-color: var(--color-bg-subtle);
-  border-radius: 12rpx;
 }
 
 .action-icon {
+  width: 80rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  background-color: var(--color-bg-subtle);
+  border-radius: 12rpx;
   font-size: 48rpx;
   margin-bottom: 10rpx;
 }
@@ -127,4 +125,5 @@
 .action-text {
   font-size: 24rpx;
   color: var(--color-text-secondary);
+  text-align: center;
 }
