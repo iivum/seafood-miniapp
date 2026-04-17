@@ -23,8 +23,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Vaadin routes - public
                 .requestMatchers("/").permitAll()
+                .requestMatchers("/admin").permitAll()
                 .requestMatchers("/admin/").permitAll()
-                .requestMatchers("/admin/?*").permitAll()
+                .requestMatchers("/admin/*").permitAll()
                 .requestMatchers("/admin/login").permitAll()
                 // Vaadin internal requests - public
                 .requestMatchers("/?v-r=*").permitAll()
