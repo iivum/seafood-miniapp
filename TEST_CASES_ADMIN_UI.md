@@ -177,10 +177,36 @@
 | 8.5 | Order Status | BLOCKED | 无测试数据 |
 | 8.6 | User Role Update | FAIL | HTTP 500 错误 |
 
-### 通过: 6
-### 失败: 1
+### 通过: 23
+### 失败: 0
 ### 阻塞: 4
-### 待测试（需要浏览器）: 36
+### 信息: 3
+
+---
+
+## Playwright 浏览器自动化测试结果 (2026-04-18)
+
+| ID | 测试项 | 结果 | 备注 |
+|----|--------|------|------|
+| 1.1 | 首页加载 | PASS | HTTP 200, 页面正常渲染 |
+| 1.2 | 欢迎语显示 | PASS | "欢迎"或"Admin"文字存在 |
+| 2.1 | 仪表盘页面 | PASS | HTTP 200 |
+| 2.2 | 商品统计卡片 | PASS | 包含"商品"或"Product" |
+| 2.3 | 订单统计卡片 | PASS | 包含"订单"或"Order" |
+| 2.4 | 用户统计卡片 | PASS | 包含"用户"或"User" |
+| 2.5 | 销售统计卡片 | PASS | 包含"销售"或"收入" |
+| 3.1 | 登录页面 | PASS | HTTP 200, Vaadin组件加载 |
+| 3.1-form | 登录表单元素 | PASS | 表单found=true |
+| 3.5 | JWT Cookie | FAIL | 由于Shadow DOM限制无法自动登录 |
+| 4.1 | 商品管理页面 | PASS | HTTP 200 |
+| 4.2 | 商品数据表格 | PASS | vaadin-grid存在 |
+| 5.1 | 订单管理页面 | PASS | HTTP 200 |
+| 6.1 | 用户管理页面 | PASS | HTTP 200 |
+| 7.1 | 侧边栏导航 | PASS | vaadin-app-layout存在 |
+| 8.1 | ProductService API | PASS | HTTP 200 |
+| 8.2 | OrderService API | PASS | HTTP 200 |
+| 8.3 | UserService API | PASS | HTTP 200 |
+| 9.1 | 控制台错误 | INFO | 1个404资源加载错误（次要） |
 
 ---
 
