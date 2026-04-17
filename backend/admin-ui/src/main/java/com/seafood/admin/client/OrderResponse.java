@@ -27,6 +27,20 @@ public class OrderResponse {
     private String note;
     private List<OrderHistoryResponse> orderHistory;
 
+    // Helper method to convert internal status to admin display status
+    public String getDisplayStatus() {
+        if (status == null) return "PENDING";
+        switch (status) {
+            case "PENDING_PAYMENT": return "PENDING";
+            case "PAID": return "PAID";
+            case "SHIPPED": return "SHIPPED";
+            case "DELIVERED": return "COMPLETED";
+            case "CANCELLED": return "CANCELLED";
+            case "REFUNDED": return "REFUNDED";
+            default: return status;
+        }
+    }
+
     @Data
     public static class AddressResponse {
         private String city;

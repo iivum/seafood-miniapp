@@ -56,15 +56,15 @@ public class OrderService {
 
     public long countByStatus(String status) {
         return getAllOrders().stream()
-            .filter(o -> status.equals(o.getStatus()))
+            .filter(o -> status.equals(o.getDisplayStatus()))
             .count();
     }
 
     public BigDecimal calculateRevenue() {
         return getAllOrders().stream()
-            .filter(o -> "PAID".equals(o.getStatus()) ||
-                        "SHIPPED".equals(o.getStatus()) ||
-                        "COMPLETED".equals(o.getStatus()))
+            .filter(o -> "PAID".equals(o.getDisplayStatus()) ||
+                        "SHIPPED".equals(o.getDisplayStatus()) ||
+                        "COMPLETED".equals(o.getDisplayStatus()))
             .map(OrderResponse::getTotalPrice)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
