@@ -56,6 +56,7 @@ public class AuthenticationService implements UserDetailsService {
                     newUser.setOpenId(openId);
                     newUser.setNickname(nickname);
                     newUser.setAvatarUrl(avatarUrl);
+                    newUser.setRole(com.seafood.user.domain.model.UserRole.USER); // 设置默认角色
                     return userRepository.save(newUser);
                 });
 
@@ -166,7 +167,7 @@ public class AuthenticationService implements UserDetailsService {
                 user.getId(),
                 user.getNickname(),
                 user.getAvatarUrl(),
-                user.getRole().name(),
+                user.getRole() != null ? user.getRole().name() : "USER",
                 refreshToken
         );
     }
