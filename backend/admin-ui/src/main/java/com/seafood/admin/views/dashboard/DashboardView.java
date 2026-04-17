@@ -58,13 +58,13 @@ public class DashboardView extends VerticalLayout {
         int totalOrders = orders.size();
         int totalUsers = users.size();
 
-        long paidOrders = orders.stream().filter(o -> "PAID".equals(o.getStatus())).count();
-        long shippedOrders = orders.stream().filter(o -> "SHIPPED".equals(o.getStatus())).count();
-        long completedOrders = orders.stream().filter(o -> "COMPLETED".equals(o.getStatus())).count();
-        long pendingOrders = orders.stream().filter(o -> "PENDING".equals(o.getStatus())).count();
+        long paidOrders = orders.stream().filter(o -> "PAID".equals(o.getDisplayStatus())).count();
+        long shippedOrders = orders.stream().filter(o -> "SHIPPED".equals(o.getDisplayStatus())).count();
+        long completedOrders = orders.stream().filter(o -> "COMPLETED".equals(o.getDisplayStatus())).count();
+        long pendingOrders = orders.stream().filter(o -> "PENDING".equals(o.getDisplayStatus())).count();
 
         BigDecimal totalRevenue = orders.stream()
-                .filter(o -> "PAID".equals(o.getStatus()) || "SHIPPED".equals(o.getStatus()) || "COMPLETED".equals(o.getStatus()))
+                .filter(o -> "PAID".equals(o.getDisplayStatus()) || "SHIPPED".equals(o.getDisplayStatus()) || "COMPLETED".equals(o.getDisplayStatus()))
                 .map(OrderResponse::getTotalPrice)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -191,9 +191,9 @@ public class DashboardView extends VerticalLayout {
 
         // Progress bars
         if (total > 0) {
-            long paid = orders.stream().filter(o -> "PAID".equals(o.getStatus())).count();
-            long shipped = orders.stream().filter(o -> "SHIPPED".equals(o.getStatus())).count();
-            long completed = orders.stream().filter(o -> "COMPLETED".equals(o.getStatus())).count();
+            long paid = orders.stream().filter(o -> "PAID".equals(o.getDisplayStatus())).count();
+            long shipped = orders.stream().filter(o -> "SHIPPED".equals(o.getDisplayStatus())).count();
+            long completed = orders.stream().filter(o -> "COMPLETED".equals(o.getDisplayStatus())).count();
 
             if (paid > 0) section.add(createStatusBar("已支付", paid, total, "#2e7d32"));
             if (shipped > 0) section.add(createStatusBar("已发货", shipped, total, "#1565c0"));
@@ -208,7 +208,7 @@ public class DashboardView extends VerticalLayout {
 
     private VerticalLayout createStatusBadge(String status, String label,
                                              String color, List<OrderResponse> orders) {
-        long count = orders.stream().filter(o -> status.equals(o.getStatus())).count();
+        long count = orders.stream().filter(o -> status.equals(o.getDisplayStatus())).count();
         VerticalLayout badge = new VerticalLayout();
         badge.setSpacing(false);
         badge.setPadding(false);

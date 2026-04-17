@@ -70,7 +70,7 @@ public class OrderListView extends VerticalLayout {
         grid.addComponentColumn(order -> {
             Button shipButton = new Button("发货");
             shipButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
-            shipButton.setEnabled("PAID".equals(order.getStatus()));
+            shipButton.setEnabled("PAID".equals(order.getDisplayStatus()));
             shipButton.addClickListener(click -> {
                 try {
                     orderClient.updateOrderStatus(order.getId(), "SHIPPED");
