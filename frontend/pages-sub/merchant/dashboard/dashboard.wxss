@@ -99,7 +99,15 @@
 .action-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20rpx;
+}
+
+.action-grid > * {
+  margin-right: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.action-grid > *:nth-child(4n) {
+  margin-right: 0;
 }
 
 .action-item {

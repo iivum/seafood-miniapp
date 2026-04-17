@@ -36,7 +36,10 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
+}
+
+.address-info > *:not(:first-child) {
+  margin-top: 10rpx;
 }
 
 .receiver {
@@ -66,7 +69,10 @@
 .items-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+}
+
+.items-list > *:not(:first-child) {
+  margin-top: 20rpx;
 }
 
 .item {
@@ -87,7 +93,10 @@
   margin-left: 20rpx;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+}
+
+.item-info > *:not(:first-child) {
+  margin-top: 8rpx;
 }
 
 .item-name {
@@ -110,7 +119,10 @@
 .summary-section {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+}
+
+.summary-section > *:not(:first-child) {
+  margin-top: 20rpx;
 }
 
 .summary-row {

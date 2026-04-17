@@ -81,7 +81,10 @@
 .user-header {
   display: flex;
   align-items: center;
-  gap: 15rpx;
+}
+
+.user-header > *:not(:first-child) {
+  margin-left: 15rpx;
 }
 
 .user-name {
@@ -113,8 +116,11 @@
 
 .user-detail {
   display: flex;
-  gap: 20rpx;
   margin-top: 10rpx;
+}
+
+.user-detail > *:not(:first-child) {
+  margin-left: 20rpx;
 }
 
 .detail-text {
@@ -125,7 +131,10 @@
 .user-actions {
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
+}
+
+.user-actions > *:not(:first-child) {
+  margin-top: 10rpx;
 }
 
 .action-btn {
