@@ -62,6 +62,18 @@ public class ProductApplicationService {
         return productRepository.findById(id);
     }
 
+    public Product updateProduct(String id, String name, String description, BigDecimal price, int stock, String category, String imageUrl) {
+        Product product = productRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+        if (name != null) product.setName(name);
+        if (description != null) product.setDescription(description);
+        if (price != null) product.setPrice(price);
+        if (stock >= 0) product.setStock(stock);
+        if (category != null) product.setCategory(category);
+        if (imageUrl != null) product.setImageUrl(imageUrl);
+        return productRepository.save(product);
+    }
+
     public Product updateProductStock(String id, int quantity) {
         Product product = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found"));
         product.updateStock(quantity);

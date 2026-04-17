@@ -159,4 +159,44 @@ public class ProductController {
         productApplicationService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}")
+    @Operation(
+        summary = "Update a product",
+        description = "Updates an existing product with the provided details",
+        parameters = @Parameter(name = "id", description = "Product ID", required = true),
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Product updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Product not found")
+        }
+    )
+    public ResponseEntity<Product> updateProduct(
+            @PathVariable String id,
+            @RequestBody CreateProductRequest request) {
+        Product product = productApplicationService.updateProduct(
+            id, request.getName(), request.getDescription(),
+            request.getPrice(), request.getStock(),
+            request.getCategory(), request.getImageUrl());
+        return ResponseEntity.ok(product);
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(
+        summary = "Partially update a product",
+        description = "Updates specific fields of an existing product",
+        parameters = @Parameter(name = "id", description = "Product ID", required = true),
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Product updated successfully"),
+            @ApiResponse(responseCode = "404", description = "Product not found")
+        }
+    )
+    public ResponseEntity<Product> patchProduct(
+            @PathVariable String id,
+            @RequestBody CreateProductRequest request) {
+        Product product = productApplicationService.updateProduct(
+            id, request.getName(), request.getDescription(),
+            request.getPrice(), request.getStock(),
+            request.getCategory(), request.getImageUrl());
+        return ResponseEntity.ok(product);
+    }
 }
