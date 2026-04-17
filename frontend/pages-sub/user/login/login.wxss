@@ -137,7 +137,15 @@
 /* 验证码行 */
 .verify-row {
   display: flex;
-  gap: 20rpx;
+}
+
+.verify-input {
+  flex: 1;
+  margin-right: 20rpx;
+}
+
+.verify-input:last-child {
+  margin-right: 0;
 }
 
 .verify-input {
