@@ -1,4 +1,4 @@
-# 联调测试待修复项 - 2026-04-17
+# 联调测试待修复项 - 2026-04-18
 
 ## Admin UI 联调测试 - 已完成 ✅
 
@@ -21,6 +21,19 @@
 | product-service 缺少 PUT/PATCH | ✅ 已修复 | ProductController 添加 @PutMapping/@PatchMapping |
 | order-service 路径不匹配 | ✅ 已修复 | 移除 `/api` 前缀统一为 `/orders` |
 | gateway cart 路由缺失 | ✅ 已修复 | 添加 cart-service 路由 |
+| **搜索功能返回0结果** | ✅ 已修复 | MongoDB `findByKeyword` 查询修复 |
+| **分类图标不显示** | ✅ 已修复 | 改用 emoji 🐟🦐🐚🦞 |
+| **Admin UI Dashboard/Orders Server Error** | ✅ 已修复 | OrderClient路径修正、字段类型修正 |
+
+### 新增修复 (2026-04-18)
+
+| 问题 | 状态 | 修复方式 |
+|------|------|----------|
+| 搜索 API keyword 参数返回 0 结果 | ✅ 已修复 | `MongoProductRepository` 添加 `findByKeyword` 方法 |
+| 首页分类图标损坏 (1x1像素) | ✅ 已修复 | 改用 emoji 替代 PNG 文件 |
+| Admin UI OrderClient 内部调用 500 | ✅ 已修复 | `/api/orders` → `/orders` |
+| Admin UI 日期时间解析错误 | ✅ 已修复 | `LocalDateTime` → `String` |
+| Admin UI OrderItem 字段不匹配 | ✅ 已修复 | `productName`→`name`, `subtotal`→`totalPrice` |
 
 ---
 
@@ -54,18 +67,17 @@
 docker ps | grep seafood
 
 # 2. 验证 API 连通性
-curl http://localhost:8080/api/products | jq '.totalProducts'
-curl http://localhost:8080/api/orders | jq 'length'
-curl http://localhost:8080/api/users | jq 'length'
+curl http://localhost:8080/api/products | jq '.totalProducts'  # 应返回 15
+curl http://localhost:8080/api/products?keyword=小龙虾 | jq '.totalProducts'  # 应返回 1
+curl http://localhost:8080/api/orders | jq 'length'  # 应返回 6
+curl http://localhost:8080/api/users | jq 'length'  # 应返回 4
 
 # 3. 验证 Admin UI
-curl -I http://localhost:8090/
+curl -I http://localhost:8090/  # 应返回 200
 
 # 4. 前端测试
 cd frontend && npm test
 ```
-
----
 
 ## 修复进度
 
@@ -73,4 +85,8 @@ cd frontend && npm test
 - [x] Admin UI 所有问题已修复
 - [x] WeChat MiniApp 联调测试
 - [x] WeChat MiniApp 所有问题已修复
+- [x] 搜索功能修复
+- [x] 分类图标修复
+- [x] Admin UI Dashboard/Orders 修复
+- [x] 最终验收测试通过
 - [ ] 最终验收 (人工审核)
