@@ -138,7 +138,7 @@ App({
   validateToken: function(token) {
     const request = require('./utils/request.js');
     request({
-      url: '/auth/me',
+      url: '/api/auth/me',
       header: {
         'Authorization': `Bearer ${token}`
       }
@@ -183,7 +183,7 @@ App({
   fetchWeChatToken: function(code) {
     const request = require('./utils/request.js');
     return request({
-      url: '/auth/wx-login',
+      url: '/api/auth/wx-login',
       method: 'POST',
       data: {
         code: code,
@@ -211,7 +211,7 @@ App({
     const token = this.globalData.token;
     
     return request({
-      url: '/auth/logout',
+      url: '/api/auth/logout',
       method: 'POST',
       header: {
         'Authorization': `Bearer ${token}`
