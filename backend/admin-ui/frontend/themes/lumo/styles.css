@@ -351,6 +351,15 @@ vaadin-button:active {
   transform: translateY(1px);
 }
 
+/* Ensure button text color is preserved in grid cells */
+vaadin-grid vaadin-button {
+  color: var(--lumo-primary-text-color, #ffffff) !important;
+}
+
+vaadin-grid vaadin-button:not([theme~="primary"]) {
+  color: var(--lumo-body-text-color, #1e3a4c) !important;
+}
+
 /* ── Form ──────────────────────────────────────── */
 .product-form {
   background: #ffffff;
