@@ -1,5 +1,6 @@
 const app = getApp();
 const request = require('../../../utils/request.js');
+const { OrderAPI } = require('../../../api/order.js');
 
 Page({
   data: {
@@ -32,30 +33,22 @@ Page({
   },
 
   loadOrders: function() {
-    this.setData({ isLoading: true });
+    const self = this;
+    self.setData({ isLoading: true });
 
-    const params = {};
-    if (this.data.selectedStatus !== 'ALL') {
-      params.status = this.data.selectedStatus;
-    }
+    const status = self.data.selectedStatus !== 'ALL' ? self.data.selectedStatus : undefined;
 
-    request({
-      url: '/api/orders',
-      method: 'GET',
-      data: params,
-      needAuth: true
-    })
-    .then(res => {
-      const orders = Array.isArray(res) ? res : [];
-      this.setData({
-        orders: orders,
+    OrderAPI.getOrdersByUser(app.globalData.userInfo.id, status)
+    .then(orders => {
+      self.setData({
+        orders: orders || [],
         isLoading: false,
-        isEmpty: orders.length === 0
+        isEmpty: !orders || orders.length === 0
       });
     })
     .catch(err => {
       console.error('Load orders failed', err);
-      this.setData({ isLoading: false, isEmpty: true });
+      self.setData({ isLoading: false, isEmpty: true });
       wx.showToast({ title: '加载失败', icon: 'none' });
     });
   },
@@ -104,25 +97,23 @@ Page({
   },
 
   updateOrderStatus: function(orderId, action, param) {
-    let url = `/api/orders/${orderId}`;
-    let method = 'PUT';
+    const self = this;
+    let promise;
 
     if (action === 'ship') {
-      url = `/api/orders/${orderId}/ship?trackingNumber=${param || ''}`;
+      promise = OrderAPI.shipOrder(orderId, param || '');
     } else if (action === 'cancel') {
-      url = `/api/orders/${orderId}/cancel?reason=${encodeURIComponent(param || '')}`;
+      promise = OrderAPI.cancelOrder(orderId, param || '');
     } else if (action === 'complete') {
-      url = `/api/orders/${orderId}/complete`;
+      promise = OrderAPI.completeOrder(orderId);
+    } else {
+      return;
     }
 
-    request({
-      url,
-      method,
-      needAuth: true
-    })
+    promise
     .then(() => {
       wx.showToast({ title: '操作成功', icon: 'success' });
-      this.loadOrders();
+      self.loadOrders();
     })
     .catch(err => {
       console.error('Update order failed', err);

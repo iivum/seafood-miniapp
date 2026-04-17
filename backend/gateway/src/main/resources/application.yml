@@ -28,6 +28,10 @@ spring:
             - Path=/api/users/**
           filters:
             - StripPrefix=1
+        - id: auth-service
+          uri: lb://user-service
+          predicates:
+            - Path=/auth/**
         - id: admin-ui
           uri: lb://admin-ui
           predicates:
