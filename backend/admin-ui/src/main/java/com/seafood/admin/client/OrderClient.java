@@ -7,12 +7,15 @@ import java.util.List;
 
 @FeignClient(name = "order-service")
 public interface OrderClient {
-    @GetMapping("/orders")
+    @GetMapping("/api/orders")
     List<OrderResponse> getAllOrders();
 
-    @GetMapping("/orders/{id}")
+    @GetMapping("/api/orders/{id}")
     OrderResponse getOrder(@PathVariable("id") String id);
 
-    @PutMapping("/orders/{id}/status")
+    @PutMapping("/api/orders/{id}/status")
     OrderResponse updateOrderStatus(@PathVariable("id") String id, @RequestParam("status") String status);
+
+    @PutMapping("/api/orders/{id}/ship")
+    OrderResponse shipOrder(@PathVariable("id") String id, @RequestBody ShipOrderRequest request);
 }

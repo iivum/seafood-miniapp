@@ -1,5 +1,6 @@
 package com.seafood.user.interfaces.rest;
 
+import com.seafood.common.security.JwtUtil;
 import com.seafood.user.application.AuthenticationService;
 import com.seafood.user.application.UserRegistrationService;
 import com.seafood.user.domain.model.User;
@@ -30,6 +31,7 @@ public class RateLimitedAuthController {
     private final AuthenticationService authenticationService;
     private final UserRegistrationService registrationService;
     private final RateLimiterRegistry rateLimiterRegistry;
+    private final JwtUtil jwtUtil;
 
     // 每种认证类型的限流器
     private final RateLimiter loginRateLimiter;
@@ -41,11 +43,13 @@ public class RateLimitedAuthController {
     public RateLimitedAuthController(
             AuthenticationService authenticationService,
             UserRegistrationService registrationService,
-            RateLimiterRegistry rateLimiterRegistry
+            RateLimiterRegistry rateLimiterRegistry,
+            JwtUtil jwtUtil
     ) {
         this.authenticationService = authenticationService;
         this.registrationService = registrationService;
         this.rateLimiterRegistry = rateLimiterRegistry;
+        this.jwtUtil = jwtUtil;
 
         // 配置各种限流器
         this.loginRateLimiter = createRateLimiter("login", 5, Duration.ofMinutes(1));
@@ -210,6 +214,33 @@ public class RateLimitedAuthController {
     public ResponseEntity<Void> logout(@RequestHeader("Authorization") String token) {
         authenticationService.logout(token.replace("Bearer ", ""));
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/me")
+    @Operation(
+            summary = "获取当前用户信息",
+            description = "Returns the current authenticated user information based on JWT token",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "获取成功"),
+                    @ApiResponse(responseCode = "401", description = "未授权或Token无效")
+            }
+    )
+    public ResponseEntity<LoginResponse> getCurrentUser(@RequestHeader("Authorization") String token) {
+        try {
+            String jwt = token.replace("Bearer ", "");
+            String userId = jwtUtil.extractUserId(jwt);
+            User user = authenticationService.getUserById(userId);
+            LoginResponse response = new LoginResponse(
+                    null, // accessToken not needed for /me
+                    user.getId(),
+                    user.getNickname(),
+                    user.getAvatarUrl(),
+                    user.getRole() != null ? user.getRole().name() : "USER"
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
     }
 
     @PostMapping("/refresh")

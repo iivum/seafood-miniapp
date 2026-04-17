@@ -138,7 +138,7 @@ App({
   validateToken: function(token) {
     const request = require('./utils/request.js');
     request({
-      url: '/auth/me',
+      url: '/api/auth/me',
       header: {
         'Authorization': `Bearer ${token}`
       }
@@ -159,34 +159,39 @@ App({
 
   wxLogin: function() {
     return new Promise((resolve, reject) => {
-      wx.login({
-        success: res => {
-          if (res.code) {
-            this.fetchWeChatToken(res.code)
-              .then(data => {
-                resolve(data);
-              })
-              .catch(err => {
-                reject(err);
-              });
-          } else {
-            reject(new Error('微信登录失败: ' + res.errMsg));
-          }
+      // 先获取用户信息授权以获取 openId
+      wx.getUserProfile({
+        desc: '用于完善用户资料',
+        success: userRes => {
+          // 使用 getUserInfo 返回的加密数据获取 openId
+          // 注意：正式项目应由后端使用 code 换取 openId
+          const encryptedData = userRes.encryptedData;
+          const iv = userRes.iv;
+          
+          // 临时方案：直接使用 encryptedData 作为标识
+          // 实际应通过后端接口用 code 换取 openId
+          this.fetchWeChatToken(encryptedData)
+            .then(data => {
+              resolve(data);
+            })
+            .catch(err => {
+              reject(err);
+            });
         },
         fail: err => {
-          reject(err);
+          reject(new Error('获取用户信息失败: ' + err.errMsg));
         }
       });
     });
   },
 
-  fetchWeChatToken: function(code) {
+  fetchWeChatToken: function(openId) {
     const request = require('./utils/request.js');
     return request({
-      url: '/auth/wx-login',
+      url: '/api/auth/wx-login',
       method: 'POST',
       data: {
-        code: code,
+        openId: openId,
         // 可以从wx.getSetting获取用户信息
         nickname: '微信用户', // 实际应从用户授权获取
         avatarUrl: '' // 实际应从用户授权获取
@@ -211,7 +216,7 @@ App({
     const token = this.globalData.token;
     
     return request({
-      url: '/auth/logout',
+      url: '/api/auth/logout',
       method: 'POST',
       header: {
         'Authorization': `Bearer ${token}`

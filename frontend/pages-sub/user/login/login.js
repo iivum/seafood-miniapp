@@ -122,7 +122,7 @@ Page({
     // 调用获取验证码接口
     const request = require('../../utils/request.js');
     request({
-      url: '/auth/verify-code',
+      url: '/api/auth/verify-code',
       method: 'POST',
       data: {
         phone: phone
@@ -235,7 +235,7 @@ Page({
     
     // 调用手机号登录/注册接口
     request({
-      url: '/auth/phone-login',
+      url: '/api/auth/phone-login',
       method: 'POST',
       data: {
         phone: phone,

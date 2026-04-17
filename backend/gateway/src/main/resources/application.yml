@@ -16,13 +16,20 @@ spring:
             - Path=/api/orders/**
           filters:
             - StripPrefix=1
-            - name: AuthenticationFilter
+        - id: auth-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/auth/**
         - id: user-service
           uri: lb://user-service
           predicates:
             - Path=/api/users/**
           filters:
             - StripPrefix=1
+        - id: auth-service
+          uri: lb://user-service
+          predicates:
+            - Path=/auth/**
         - id: admin-ui
           uri: lb://admin-ui
           predicates:
