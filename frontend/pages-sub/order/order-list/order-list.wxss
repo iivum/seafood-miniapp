@@ -33,7 +33,7 @@
   font-weight: bold;
 }
 
-.status-PENDING_PAYMENT { color: #ff9500; }
+.status-PENDING_PAYMENT { color: var(--color-accent); }
 .status-PAID { color: var(--color-primary); }
 .status-SHIPPED { color: var(--color-success); }
 .status-COMPLETED { color: var(--color-text-muted); }
