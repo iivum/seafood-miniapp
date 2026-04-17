@@ -7,7 +7,7 @@ import java.util.List;
 
 @FeignClient(name = "order-service")
 public interface OrderClient {
-    @GetMapping("/api/orders")
+    @GetMapping("/api/orders/all")
     List<OrderResponse> getAllOrders();
 
     @GetMapping("/api/orders/{id}")

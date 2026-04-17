@@ -13,11 +13,3 @@ public class OrderResponse {
     private String status;
     private String shippingAddress;
 }
-
-@Data
-class OrderItemResponse {
-    private String productId;
-    private String productName;
-    private BigDecimal price;
-    private int quantity;
-}

@@ -71,6 +71,16 @@ public class OrderController {
     }
 
     /**
+     * Get all orders (for admin)
+     *
+     * @return list of all orders
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<Order>> getAllOrders() {
+        return ResponseEntity.ok(orderApplicationService.getAllOrders());
+    }
+
+    /**
      * Process payment for an order
      *
      * @param orderId the order ID
