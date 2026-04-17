@@ -1,4 +1,4 @@
-<view class="category-container">
+<view class="category-container safe-area-top">
   <!-- Category list view (when no category selected) -->
   <view class="category-grid" wx:if="{{!selectedCategory}}">
     <view class="category-grid-inner">
@@ -10,7 +10,7 @@
         data-id="{{item.id}}"
       >
         <view class="category-icon-wrapper">
-          <image class="category-icon" src="{{item.icon}}" mode="aspectFit" lazy-load="true"></image>
+          <text class="category-icon">{{item.icon}}</text>
         </view>
         <text class="category-name">{{item.name}}</text>
         <text class="category-desc">{{item.description}}</text>
@@ -21,7 +21,7 @@
   <!-- Products list view (when category selected) -->
   <view class="products-view" wx:else>
     <!-- Category header -->
-    <view class="category-header">
+    <view class="category-header safe-area-top">
       <view class="category-header-left" bindtap="onBackToCategories">
         <text class="back-arrow">←</text>
         <text>全部分类</text>
@@ -37,7 +37,7 @@
     <!-- Error state -->
     <view class="error-state" wx:elif="{{isError}}">
       <text class="error-text">{{errorMessage}}</text>
-      <view class="retry-btn" bindtap="loadCategoryProducts" data-id="{{selectedCategory}}">重新加载</view>
+      <view class="retry-btn" bindtap="onRetry">重新加载</view>
     </view>
 
     <!-- Empty state -->

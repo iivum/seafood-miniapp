@@ -23,6 +23,19 @@ Page({
   },
 
   onShow: function() {
+    // Check login status before allowing cart access
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      });
+      wx.navigateTo({
+        url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages/cart/cart')
+      });
+      return;
+    }
+
     this.refreshCart();
 
     const pages = getCurrentPages();
@@ -134,22 +147,31 @@ Page({
       selectedItems.push(id);
     }
 
-    this.setData({ selectedItems });
-    this.refreshCart();
+    this.setData({ selectedItems }, () => {
+      this.refreshCart();
+    });
   },
 
   // Toggle select all
   onToggleSelectAll: function() {
     if (this.data.selectedItems.length === this.data.cartItems.length) {
-      this.setData({ selectedItems: [] });
+      this.setData({ selectedItems: [] }, () => {
+        this.refreshCart();
+      });
     } else {
       const allIds = this.data.cartItems.map(item => item.id);
-      this.setData({ selectedItems: allIds });
+      this.setData({ selectedItems: allIds }, () => {
+        this.refreshCart();
+      });
     }
-    this.refreshCart();
   },
 
   onPlus: function(e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
     const id = e.currentTarget.dataset.id;
     const item = this.data.cartItems.find(i => i.id === id);
     cartUtil.updateQuantity(id, item.quantity + 1);
@@ -157,6 +179,11 @@ Page({
   },
 
   onMinus: function(e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
     const id = e.currentTarget.dataset.id;
     const item = this.data.cartItems.find(i => i.id === id);
     if (item.quantity > 1) {
@@ -166,6 +193,11 @@ Page({
   },
 
   onRemove: function(e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
     const id = e.currentTarget.dataset.id;
     cartUtil.removeFromCart(id);
     this.refreshCart();

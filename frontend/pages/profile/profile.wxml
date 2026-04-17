@@ -3,9 +3,9 @@
   <view class="user-header" bindtap="onLogin">
     <image class="avatar" src="{{userInfo ? userInfo.avatarUrl : '/images/default-avatar.png'}}"></image>
     <view class="user-info">
-      <text class="nickname">{{userInfo ? userInfo.nickname : '点击登录'}}</text>
-      <view class="role-tag" wx:if="{{userInfo && userInfo.role === 'MERCHANT'}}">商家</view>
-      <view class="login-btn" wx:if="{{!userInfo}}">立即登录</view>
+      <text class="nickname">{{userInfo ? userInfo.nickname : '未登录'}}</text>
+      <view class="role_tag" wx:if="{{userInfo && userInfo.role === 'MERCHANT'}}">商家</view>
+      <view class="login-tip" wx:if="{{!userInfo}}">点击登录</view>
     </view>
   </view>
 

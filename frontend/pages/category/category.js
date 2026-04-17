@@ -3,14 +3,14 @@ const { ProductListModule } = require('../../src/modules/productList/productList
 // Initialize product list module
 const productListModule = new ProductListModule({ pageSize: 20 });
 
-// Category definitions with icons
+// Category definitions with emoji icons (fallback when images fail)
 const CATEGORIES = [
-  { id: 'fish', name: '鱼类', icon: '/images/icons/fish.png', description: '新鲜海鱼' },
-  { id: 'shrimp', name: '虾蟹', icon: '/images/icons/shrimp.png', description: '虾蟹贝类' },
-  { id: 'shell', name: '贝类', icon: '/images/icons/shell.png', description: '各类贝壳' },
-  { id: 'live', name: '活鲜', icon: '/images/icons/live.png', description: '鲜活水产' },
-  { id: 'frozen', name: '冷冻', icon: '/images/icons/frozen.png', description: '冷冻海鲜' },
-  { id: 'dried', name: '干货', icon: '/images/icons/dried.png', description: '海鲜干货' }
+  { id: 'fish', name: '鱼类', icon: '🐟', description: '新鲜海鱼' },
+  { id: 'shrimp', name: '虾蟹', icon: '🦐', description: '虾蟹贝类' },
+  { id: 'shell', name: '贝类', icon: '🐚', description: '各类贝壳' },
+  { id: 'live', name: '活鲜', icon: '🦞', description: '鲜活水产' },
+  { id: 'frozen', name: '冷冻', icon: '🧊', description: '冷冻海鲜' },
+  { id: 'dried', name: '干货', icon: '🏺', description: '海鲜干货' }
 ];
 
 Page({
@@ -37,17 +37,10 @@ Page({
   onShow: function () {
   },
 
-  /**
-   * Initialize category view
-   */
   async initCategories() {
-    // Show all categories on load, don't auto-select
     this.setData({ selectedCategory: null, products: [] });
   },
 
-  /**
-   * Handle category tap - load products for that category
-   */
   onCategoryTap: function (e) {
     const categoryId = e.currentTarget.dataset.id;
     const category = CATEGORIES.find(c => c.id === categoryId);
@@ -56,9 +49,6 @@ Page({
     this.loadCategoryProducts(categoryId);
   },
 
-  /**
-   * Load products for a specific category
-   */
   async loadCategoryProducts(categoryId) {
     wx.showLoading({ title: '加载中...' });
 
@@ -73,9 +63,6 @@ Page({
     }
   },
 
-  /**
-   * Update page data from module state
-   */
   updateViewFromModule() {
     this.setData({
       products: this.productModule.state.products,
@@ -88,9 +75,6 @@ Page({
     });
   },
 
-  /**
-   * Handle errors
-   */
   handleError(err) {
     this.setData({
       isError: true,
@@ -98,9 +82,6 @@ Page({
     });
   },
 
-  /**
-   * Pull down refresh
-   */
   async onPullDownRefresh() {
     const categoryId = this.data.selectedCategory;
     if (!categoryId) {
@@ -120,9 +101,6 @@ Page({
     }
   },
 
-  /**
-   * Load more (reach bottom)
-   */
   async onReachBottom() {
     if (!this.data.selectedCategory || !this.productModule.hasNext || this.productModule.isLoading) {
       return;
@@ -141,20 +119,26 @@ Page({
     }
   },
 
-  /**
-   * Navigate to product detail
-   */
   goToDetail: function (e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.navigateTo({
+        url: '/pages-sub/user/login/login'
+      });
+      return;
+    }
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
       url: `/pages-sub/product/product-detail/product-detail?id=${id}`
     });
   },
 
-  /**
-   * Add product to cart
-   */
   addToCart: function (e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
     const product = e.currentTarget.dataset.product;
     const cartUtil = require('../../utils/cart.js');
     cartUtil.addToCart(product);
@@ -165,9 +149,13 @@ Page({
     });
   },
 
-  /**
-   * Back to category list
-   */
+  onRetry: function () {
+    const categoryId = this.data.selectedCategory;
+    if (categoryId) {
+      this.loadCategoryProducts(categoryId);
+    }
+  },
+
   onBackToCategories: function () {
     this.setData({
       selectedCategory: null,

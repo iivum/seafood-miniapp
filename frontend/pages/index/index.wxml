@@ -50,9 +50,11 @@
   </swiper>
 
   <!-- 分类入口 -->
-  <view class="category-nav">
+  <view class="category-nav safe-area-bottom-fixed">
     <view class="nav-item" wx:for="{{categories}}" wx:key="name" bindtap="onCategoryTap" data-category="{{item.name}}">
-      <text class="category-icon">{{item.icon}}</text>
+      <view class="category-icon-wrapper">
+        <text class="category-icon">{{item.icon}}</text>
+      </view>
       <text>{{item.name}}</text>
     </view>
   </view>
