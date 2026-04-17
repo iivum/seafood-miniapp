@@ -52,7 +52,7 @@
   <!-- 分类入口 -->
   <view class="category-nav">
     <view class="nav-item" wx:for="{{categories}}" wx:key="name" bindtap="onCategoryTap" data-category="{{item.name}}">
-      <image src="{{item.icon}}" lazy-load="true"></image>
+      <text class="category-icon">{{item.icon}}</text>
       <text>{{item.name}}</text>
     </view>
   </view>
