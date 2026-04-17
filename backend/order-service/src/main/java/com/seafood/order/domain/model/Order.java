@@ -1,5 +1,7 @@
 package com.seafood.order.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -12,6 +14,8 @@ import java.util.UUID;
 @Document(collection = "orders")
 @Getter
 @Setter
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "_class")
 public class Order {
 
     private String id;

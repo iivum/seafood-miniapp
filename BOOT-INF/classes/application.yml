@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: user-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/seafood_user}
+    redis:
+      uri: ${REDIS_URI:redis://localhost:6379}
+
+jwt:
+  secret: ${JWT_SECRET:dXNlci1zZWNyZXQta2V5LWZvci1zZWFmb29kLW1pbmlhcHAtMjU2Yml0}
+  expiration: 86400000
+  refreshExpiration: 604800000
+
+server:
+  port: 8083
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 5000
+  graceful:
+    shutdown:
+      wait-time: 30s
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+  instance:
+    lease-renewal-interval-in-seconds: 10
+    health-check-url-path: /actuator/health
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    eureka:
+      client:
+        enabled: true

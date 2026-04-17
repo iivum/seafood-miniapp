@@ -21,15 +21,26 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/admin/login", "/login").permitAll()
+                // Vaadin routes - public
+                .requestMatchers("/").permitAll()
+                .requestMatchers("/admin/").permitAll()
+                .requestMatchers("/admin/?*").permitAll()
+                .requestMatchers("/admin/login").permitAll()
+                // Vaadin internal requests - public
+                .requestMatchers("/?v-r=*").permitAll()
+                .requestMatchers("/admin/?v-r=*").permitAll()
+                .requestMatchers("/login").permitAll()
+                // Vaadin static resources - public
+                .requestMatchers("/VAADIN/**").permitAll()
+                .requestMatchers("/admin/VAADIN/**").permitAll()
+                .requestMatchers("/frontend/**").permitAll()
+                .requestMatchers("/admin/frontend/**").permitAll()
+                .requestMatchers("/build/**").permitAll()
+                .requestMatchers("/admin/build/**").permitAll()
+                // All other admin routes require authentication
                 .requestMatchers("/admin/**").authenticated()
+                // Allow everything else (API endpoints, etc.)
                 .anyRequest().permitAll()
-            )
-            .httpBasic(basic -> {})
-            .formLogin(form -> form
-                .loginPage("/admin/login")
-                .defaultSuccessUrl("/admin/", true)
-                .permitAll()
             )
             .logout(logout -> logout
                 .logoutUrl("/admin/logout")

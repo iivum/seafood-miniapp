@@ -29,8 +29,9 @@ public class ProductSecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/products/**").permitAll()
+                .requestMatchers("/api/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
-                .anyRequest().authenticated()
+                .anyRequest().permitAll()
             );
         return http.build();
     }

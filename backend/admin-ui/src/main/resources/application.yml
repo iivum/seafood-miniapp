@@ -7,6 +7,10 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-for-admin-ui-jwt-signing}
+  expiration: 86400000
+
 server:
   port: 8084
   shutdown: graceful
