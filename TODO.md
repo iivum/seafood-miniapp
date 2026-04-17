@@ -261,4 +261,34 @@
 
 ---
 
+## 🔴 Admin UI 测试问题 (P0)
+
+### 测试执行日期: 2026-04-18
+
+| ID | 问题描述 | 严重程度 | 状态 | 备注 |
+|----|----------|----------|------|------|
+| ADM-001 | 测试数据未初始化 - MongoDB 中无商品/订单/用户数据 | P1 | 待修复 | 执行 `backend/scripts/init_test_data.py` 初始化数据 |
+| ADM-002 | UserClient.updateUserRole() 返回 HTTP 500 | P2 | 待调查 | user-service 的 /users/{id}/role 接口报错 |
+| ADM-003 | 无法完整测试 CRUD 操作 | P1 | 待修复 | 由于无测试数据，商品/订单/用户增删改查无法验证 |
+| ADM-004 | Vaadin Invalid security key 警告 | P3 | 观察中 | 日志中出现多次警告，不影响功能 |
+
+### Admin UI 服务状态
+- Admin UI 服务: healthy (port 8090)
+- Gateway: healthy (port 8080)
+- Product Service: healthy (port 8081)
+- Order Service: healthy (port 8082)
+- User Service: healthy (port 8083)
+- MongoDB: healthy (port 27017)
+
+### 待手动测试项目（需要浏览器）
+由于 Vaadin 是 SPA 框架，部分功能需要通过浏览器测试：
+- [ ] 登录功能 (admin/admin123)
+- [ ] 首页导航按钮
+- [ ] Dashboard 统计数据展示
+- [ ] 商品添加/编辑/删除
+- [ ] 订单发货操作
+- [ ] 用户角色设置
+
+---
+
 *任务状态随开发进度更新。*
