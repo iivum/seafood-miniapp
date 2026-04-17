@@ -143,11 +143,17 @@
 - [x] 接口缓存策略 - ProductAPI添加2分钟缓存减少重复请求
 - [x] 小程序分包加载 - 实现分包结构，product/order/user/merchant 四个分包
 
-### Admin 管理后台
+### Admin UI 管理后台
 - [x] 商品管理（增删改查） - product-manage 页面实现
 - [x] 订单管理 - order-manage 页面实现，支持状态筛选和操作
 - [x] 用户管理 - user-manage 页面实现，支持角色切换和禁用
 - [x] 数据统计面板 - dashboard 页面实现，支持收入/订单/商品/用户统计和快捷操作
+- [x] **修复 Dashboard/Orders Server Error 问题** - OrderClient 路径和字段修正
+
+### 微信小程序修复
+
+- [x] **搜索功能** - MongoDB findByKeyword 查询修复
+- [x] **分类图标** - 改用 emoji 🐟🦐🐚🦞
 
 ---
 

@@ -6,14 +6,9 @@ import com.seafood.admin.client.OrderResponse;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H4;
-import com.vaadin.flow.component.html.H5;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.renderer.LocalDateRenderer;
-import com.vaadin.flow.data.renderer.TextRenderer;
 
 import java.math.BigDecimal;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -22,8 +17,6 @@ import java.util.Map;
  * Shows order items, pricing, shipping address, tracking, and history.
  */
 public class OrderDetailDialog extends Dialog {
-
-    private static final DateTimeFormatter DATETIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public OrderDetailDialog(OrderResponse order) {
         setWidth("600px");
@@ -175,10 +168,10 @@ public class OrderDetailDialog extends Dialog {
                 .set("font-size", "0.85rem")
                 .set("align-items", "center");
 
-            String productName = item.getProductName() != null ? item.getProductName() : "-";
+            String productName = item.getName() != null ? item.getName() : "-";
             String price = formatPrice(item.getPrice());
             String qty = String.valueOf(item.getQuantity());
-            String subtotal = formatPrice(item.getSubtotal());
+            String subtotal = formatPrice(item.getTotalPrice());
 
             row.add(createCell(productName, 3), createCell(price, 1), createCell(qty, 1), createCell(subtotal, 1));
             table.add(row);
@@ -251,9 +244,10 @@ public class OrderDetailDialog extends Dialog {
         };
     }
 
-    private String formatDateTime(java.time.LocalDateTime dateTime) {
-        if (dateTime == null) return "-";
-        return dateTime.format(DATETIME_FORMAT);
+    private String formatDateTime(String dateTimeStr) {
+        if (dateTimeStr == null) return "-";
+        // dateTimeStr is already formatted from the API, just return it
+        return dateTimeStr.replace("T", " ").substring(0, 19);
     }
 
     private String formatPrice(BigDecimal price) {

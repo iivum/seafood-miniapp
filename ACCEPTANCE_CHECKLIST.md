@@ -1,23 +1,38 @@
 # 验收清单 - 海鲜商城小程序联调测试
 
 **项目**: seafood-miniapp 海鲜商城小程序
-**测试日期**: 2026-04-17
+**测试日期**: 2026-04-17 (初测) / 2026-04-18 (复测)
 **测试人**: AI (Claude) + 人工审核
 
 ---
 
 ## 一、Docker 服务状态
 
-| 服务 | 端口 | 状态 | 验证命令 |
-|------|------|------|----------|
-| gateway | 8080 | [ ] | `curl http://localhost:8080/actuator/health` |
-| product-service | 8081 | [ ] | `curl http://localhost:8081/actuator/health` |
-| order-service | 8082 | [ ] | `curl http://localhost:8082/actuator/health` |
-| user-service | 8083 | [ ] | `curl http://localhost:8083/actuator/health` |
-| admin-ui | 8090 | [ ] | `curl http://localhost:8090/admin/` |
-| mongodb | 27017 | [ ] | `docker ps \| grep mongo` |
-| redis | 6379 | [ ] | `docker ps \| grep redis` |
-| discovery-service | 8761 | [ ] | `curl http://localhost:8761/` |
+验证命令：
+
+```bash
+# 验证所有服务状态
+docker ps | grep seafood
+
+# 逐个验证服务健康状态
+curl http://localhost:8080/actuator/health   # gateway
+curl http://localhost:8081/actuator/health   # product-service
+curl http://localhost:8082/actuator/health   # order-service
+curl http://localhost:8083/actuator/health   # user-service
+curl http://localhost:8090/admin/             # admin-ui
+curl http://localhost:8761/                   # discovery-service
+```
+
+| 服务                | 端口    | 状态  | 验证 |
+|-------------------|-------|-----|----|
+| gateway           | 8080  | [x] |    |
+| product-service   | 8081  | [x] |    |
+| order-service     | 8082  | [x] |    |
+| user-service      | 8083  | [x] |    |
+| admin-ui          | 8090  | [x] |    |
+| mongodb           | 27017 | [x] |    |
+| redis             | 6379  | [x] |    |
+| discovery-service | 8761  | [x] |    |
 
 ---
 
@@ -25,25 +40,25 @@
 
 ### 2.1 页面访问
 
-| 页面 | URL | 预期 | 实际 | 通过 |
-|------|-----|------|------|------|
-| 根路径 | http://localhost:8090/ | 302 重定向到 /admin/ | [ ] | [ ] |
-| 管理首页 | http://localhost:8090/admin/ | 显示仪表盘 | [ ] | [ ] |
-| 登录页 | http://localhost:8090/admin/login | 显示登录表单 | [ ] | [ ] |
-| 数据概览 | http://localhost:8090/admin/dashboard | 显示统计卡片 | [ ] | [ ] |
-| 商品管理 | http://localhost:8090/admin/products | 显示商品列表 | [ ] | [ ] |
-| 订单管理 | http://localhost:8090/admin/orders | 显示订单列表 | [ ] | [ ] |
-| 用户管理 | http://localhost:8090/admin/users | 显示用户列表 | [ ] | [ ] |
+| 页面   | URL                                   | 预期               | 实际  | 通过  |
+|------|---------------------------------------|------------------|-----|-----|
+| 根路径  | http://localhost:8090/                | 302 重定向到 /admin/ | [x] | [x] |
+| 管理首页 | http://localhost:8090/admin/          | 显示仪表盘            | [x] | [x] |
+| 登录页  | http://localhost:8090/admin/login     | 显示登录表单           | [x] | [x] |
+| 数据概览 | http://localhost:8090/admin/dashboard | 显示统计卡片           | [x] | [x] |
+| 商品管理 | http://localhost:8090/admin/products  | 显示商品列表           | [x] | [x] |
+| 订单管理 | http://localhost:8090/admin/orders    | 显示订单列表           | [x] | [x] |
+| 用户管理 | http://localhost:8090/admin/users     | 显示用户列表           | [x] | [x] |
 
 ### 2.2 功能测试
 
-| 功能 | 操作 | 预期结果 | 实际结果 | 通过 |
-|------|------|----------|----------|------|
-| 管理员登录 | admin/admin123 | 登录成功，跳转 dashboard | [ ] | [ ] |
-| 商品创建 | 添加测试商品 | 显示"商品创建成功" | [ ] | [ ] |
-| 商品编辑 | 修改商品价格 | 显示"商品更新成功" | [ ] | [ ] |
-| 商品删除 | 删除测试商品 | 显示"商品已删除" | [ ] | [ ] |
-| 侧边栏 | 展开/折叠 | 菜单正常切换 | [ ] | [ ] |
+| 功能    | 操作             | 预期结果              | 实际结果 | 通过  |
+|-------|----------------|-------------------|------|-----|
+| 管理员登录 | admin/admin123 | 登录成功，跳转 dashboard | [x]  | [x] |
+| 商品创建  | 添加测试商品         | 显示"商品创建成功"        | [x]  | [x] |
+| 商品编辑  | 修改商品价格         | 显示"商品更新成功"        | [ ]  | [ ] |
+| 商品删除  | 删除测试商品         | 显示"商品已删除"         | [x]  | [x] |
+| 侧边栏   | 展开/折叠          | 菜单正常切换            | [x]  | [x] |
 
 ---
 
@@ -51,20 +66,46 @@
 
 ### 3.1 后端 API 测试
 
-| API | 方法 | 端点 | 预期响应 | 实际响应 | 通过 |
-|-----|------|------|----------|----------|------|
-| 商品列表 | GET | /api/products | 15+ 商品 | [ ] | [ ] |
-| 订单列表 | GET | /api/orders | 6+ 订单 | [ ] | [ ] |
-| 用户列表 | GET | /api/users | 4+ 用户 | [ ] | [ ] |
-| 微信登录 | POST | /api/auth/wx-login | 返回 token | [ ] | [ ] |
+验证命令：
+
+```bash
+# 商品列表
+curl http://localhost:8080/api/products
+
+# 商品搜索
+curl "http://localhost:8080/api/products?keyword=小龙虾"
+
+# 订单列表
+curl http://localhost:8080/api/orders
+
+# 用户列表
+curl http://localhost:8080/api/users
+```
+
+| API  | 方法   | 端点                        | 预期响应     | 实际响应 | 通过  |
+|------|------|---------------------------|----------|------|-----|
+| 商品列表 | GET  | /api/products             | 15+ 商品   | 10商品 | [ ] |
+| 商品搜索 | GET  | /api/products?keyword=小龙虾 | 1+ 商品    | [x]  | [x] |
+| 订单列表 | GET  | /api/orders               | 6+ 订单    | [x]  | [x] |
+| 用户列表 | GET  | /api/users                | 4+ 用户    | [x]  | [x] |
+| 微信登录 | POST | /api/auth/wx-login        | 返回 token | 404  | [ ] |
 
 ### 3.2 前端测试
 
-| 测试项 | 操作 | 预期结果 | 实际结果 | 通过 |
-|--------|------|----------|----------|------|
-| npm test | 前端测试套件 | 全部通过 | [ ] | [ ] |
-| TypeScript | tsc --noEmit | 无错误 | [ ] | [ ] |
-| ESLint | npx eslint | 无错误 | [ ] | [ ] |
+验证命令：
+
+```bash
+cd frontend
+npm test        # 运行所有测试
+npm run lint    # ESLint 检查
+npx tsc --noEmit  # TypeScript 检查
+```
+
+| 测试项        | 操作           | 预期结果 | 实际结果                           | 通过  |
+|------------|--------------|------|--------------------------------|-----|
+| npm test   | 前端测试套件       | 全部通过 | [x]                            | [x] |
+| TypeScript | tsc --noEmit | 无错误  | `Found 267 errors in 3 files.` | [ ] | 
+| ESLint     | npx eslint   | 无错误  | [ ]                            | [ ] |
 
 ---
 
@@ -72,29 +113,29 @@
 
 ### 4.1 页面加载
 
-| 页面 | TabBar | 加载状态 | 数据显示 | 通过 |
-|------|--------|----------|----------|------|
-| 首页 | ✅ | [ ] | [ ] | [ ] |
-| 分类页 | ✅ | [ ] | [ ] | [ ] |
-| 购物车 | ✅ | [ ] | [ ] | [ ] |
-| 个人中心 | ✅ | [ ] | [ ] | [ ] |
+| 页面   | TabBar | 加载状态 | 数据显示   | 通过            |
+|------|--------|------|--------|---------------|
+| 首页   | ✅      | [x]  | [x]    | 只有点击分类后数据显示正常 |
+| 分类页  | ✅      | [ ]  | 不兼容异形屏 | [ ]           |
+| 购物车  | ✅      | [ ]  | [ ]    | [ ]           |
+| 个人中心 | ✅      | [ ]  | [ ]    | [ ]           |
 
 ### 4.2 异形屏适配
 
-| 检查项 | 检查位置 | 通过 |
-|--------|----------|------|
-| 状态栏不遮挡内容 | 首页搜索栏 | [ ] |
-| 底部安全区 | TabBar 区域 | [ ] |
-| 刘海屏适配 | iPhone X/12/13 等 | [ ] |
+| 检查项      | 检查位置             | 通过                    |
+|----------|------------------|-----------------------|
+| 状态栏不遮挡内容 | 首页搜索栏            | 遮挡                    |
+| 底部安全区    | TabBar 区域        | [x]                   |
+| 刘海屏适配    | iPhone X/12/13 等 | 只对iphone做了适配,其它机型存在问题 |
 
 ### 4.3 核心功能
 
-| 功能 | 操作 | 预期结果 | 实际结果 | 通过 |
-|------|------|----------|----------|------|
-| 商品列表 | 首页下拉刷新 | 显示商品 | [ ] | [ ] |
-| 商品详情 | 点击商品 | 显示详情 | [ ] | [ ] |
-| 加入购物车 | 点击加入按钮 | 购物车数量+1 | [ ] | [ ] |
-| 微信登录 | 点击登录 | 授权并获取 token | [ ] | [ ] |
+| 功能    | 操作     | 预期结果        | 实际结果                  | 通过  |
+|-------|--------|-------------|-----------------------|-----|
+| 商品列表  | 首页下拉刷新 | 显示商品        | 未实现                   | [ ] |
+| 商品详情  | 点击商品   | 显示详情        | 查看商品需要登录,登录流程阻塞无法查看详情 | [ ] |
+| 加入购物车 | 点击加入按钮 | 购物车数量+1     | [x]                   | [x] |
+| 微信登录  | 点击登录   | 授权并获取 token | [ ]                   | [ ] |
 
 ---
 
@@ -113,39 +154,43 @@
 
 ### 6.1 自动化测试通过
 
-- [ ] Docker 服务全部健康
-- [ ] Gateway API 路由正确
-- [ ] Admin UI 所有页面可访问
-- [ ] Admin UI 商品 CRUD 功能正常
-- [ ] 前端 npm test 全部通过
-- [ ] TypeScript 编译无错误
+- [x] Docker 服务全部健康
+- [ ] Gateway API 路由正确 结论: 未通过gateway api验证方式
+- [x] Admin UI 所有页面可访问
+- [ ] Admin UI 商品 CRUD 功能正常 结论: 无法更新商品
+- [x] 前端 npm test 全部通过
+- [ ] TypeScript 编译无错误 有错误
 
 ### 6.2 待人工验证
 
-- [ ] 微信开发者工具打开 frontend/ 目录
-- [ ] 验证首页商品列表显示
-- [ ] 验证商品详情页
-- [ ] 验证购物车功能
-- [ ] 验证微信登录流程 (需真机)
+- [x] 微信开发者工具打开 frontend/ 目录
+- [ ] 验证首页商品列表显示 结论: 展示内容异常,测试数据不全或展示bug
+- [ ] 验证商品详情页 结论: 被登录流程阻塞
+- [ ] 验证购物车功能 结论:布局错误
+- [ ] 验证微信登录流程 (需真机) 结论: 微信开发者工具可以走微信登录流程
 
 ### 6.3 最终签字
 
-| 角色 | 姓名 | 日期 | 签字 |
-|------|------|------|------|
-| 开发 | Claude AI | 2026-04-17 | - |
-| 测试 | [人工] | [日期] | |
-| 审核 | [人工] | [日期] | |
+| 角色 | 姓名        | 日期         | 签字 |
+|----|-----------|------------|----|
+| 开发 | Claude AI | 2026-04-17 | -  |
+| 测试 | iivum     | 026-04-17  |    |
+| 审核 | iivum     | 026-04-17  |    |
 
 ---
 
 ## 七、修复历史
 
-| 日期 | 问题 | 修复方式 | 状态 |
-|------|------|----------|------|
-| 2026-04-17 | admin-ui 根 URL 404 | 添加 RootController.java | ✅ |
-| 2026-04-17 | product-service 缺少 PUT/PATCH | 添加 @PutMapping/@PatchMapping | ✅ |
-| 2026-04-17 | order-service 路径不匹配 | 统一为 /orders | ✅ |
-| 2026-04-17 | gateway cart 路由缺失 | 添加 cart-service 路由 | ✅ |
-| 2026-04-17 | baseUrl 路径重复 /api | 改为 http://localhost:8080 | ✅ |
-| 2026-04-17 | 首页异形屏不适配 | 添加 safe-area padding | ✅ |
-| 2026-04-17 | wx.getUserProfile 已废弃 | 改用 wx.login() | ✅ |
+| 日期             | 问题                                   | 修复方式                                        | 状态 |
+|----------------|--------------------------------------|---------------------------------------------|----|
+| 2026-04-17     | admin-ui 根 URL 404                   | 添加 RootController.java                      | ✅  |
+| 2026-04-17     | product-service 缺少 PUT/PATCH         | 添加 @PutMapping/@PatchMapping                | ✅  |
+| 2026-04-17     | order-service 路径不匹配                  | 统一为 /orders                                 | ✅  |
+| 2026-04-17     | gateway cart 路由缺失                    | 添加 cart-service 路由                          | ✅  |
+| 2026-04-17     | baseUrl 路径重复 /api                    | 改为 http://localhost:8080                    | ✅  |
+| 2026-04-17     | 首页异形屏不适配                             | 添加 safe-area padding                        | ✅  |
+| 2026-04-17     | wx.getUserProfile 已废弃                | 改用 wx.login()                               | ✅  |
+| **2026-04-18** | **搜索 API 返回 0 结果**                   | **MongoProductRepository 添加 findByKeyword** | ✅  |
+| **2026-04-18** | **首页分类图标损坏 (1x1像素)**                 | **改用 emoji 🐟🦐🐚🦞**                       | ✅  |
+| **2026-04-18** | **Admin UI Dashboard/Orders 500 错误** | **OrderClient 路径修正、字段类型修正**                 | ✅  |
+| **2026-04-18** | **app.js API 路径不一致**                 | **baseUrl 改为 /api 后缀**                      | ✅  |

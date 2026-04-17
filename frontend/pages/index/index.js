@@ -19,10 +19,10 @@ const HOT_SEARCH_KEYWORDS = [
 Page({
   data: {
     categories: [
-      { name: '鱼类', icon: '/images/icons/fish.png' },
-      { name: '虾蟹', icon: '/images/icons/shrimp.png' },
-      { name: '贝类', icon: '/images/icons/shell.png' },
-      { name: '活鲜', icon: '/images/icons/live.png' }
+        {name: '鱼类', icon: '🐟'},
+        {name: '虾蟹', icon: '🦐'},
+        {name: '贝类', icon: '🐚'},
+        {name: '活鲜', icon: '🦞'}
     ],
     products: [],
     // Loading states

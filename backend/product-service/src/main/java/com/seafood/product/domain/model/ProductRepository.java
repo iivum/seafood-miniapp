@@ -10,7 +10,11 @@ public interface ProductRepository {
     Product save(Product product);
     Optional<Product> findById(String id);
     List<Product> findAll();
+
+    Page<Product> findAll(Pageable pageable);
     List<Product> findByCategory(String category);
+
+    Page<Product> findByKeyword(String keyword, Pageable pageable);
     Page<Product> findByKeywordAndCategory(String keyword, String category, Pageable pageable);
     void deleteById(String id);
 }

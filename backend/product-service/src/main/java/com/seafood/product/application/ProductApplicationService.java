@@ -2,6 +2,7 @@ package com.seafood.product.application;
 
 import com.seafood.product.domain.model.Product;
 import com.seafood.product.domain.model.ProductRepository;
+import com.seafood.product.infrastructure.persistence.MongoProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,8 +38,20 @@ public class ProductApplicationService {
      * @return 分页商品列表
      */
     public Page<Product> listProducts(String keyword, String category, Pageable pageable) {
-        String effectiveKeyword = (keyword == null || keyword.isBlank()) ? "" : keyword;
-        return productRepository.findByKeywordAndCategory(effectiveKeyword, category, pageable);
+        String effectiveKeyword = (keyword == null || keyword.isBlank()) ? "" : keyword.trim();
+        String effectiveCategory = (category == null || category.isBlank()) ? null : category.trim();
+
+        if (effectiveCategory == null || effectiveCategory.isEmpty()) {
+            // Search by keyword only across all categories
+            if (effectiveKeyword.isEmpty()) {
+                // No keyword and no category - return all products
+                return productRepository.findAll(pageable);
+            }
+            return ((MongoProductRepository) productRepository).findByKeyword(effectiveKeyword, pageable);
+        } else {
+            // Search by both keyword and category
+            return productRepository.findByKeywordAndCategory(effectiveKeyword, effectiveCategory, pageable);
+        }
     }
 
     /**

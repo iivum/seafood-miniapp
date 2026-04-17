@@ -2,7 +2,6 @@ package com.seafood.admin.client;
 
 import lombok.Data;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -16,10 +15,10 @@ public class OrderResponse {
     private BigDecimal discountAmount;
     private BigDecimal finalPrice;
     private String status;
-    private LocalDateTime createdAt;
-    private LocalDateTime paidAt;
-    private LocalDateTime shippedAt;
-    private LocalDateTime deliveredAt;
+    private String createdAt;
+    private String paidAt;
+    private String shippedAt;
+    private String deliveredAt;
     private AddressResponse shippingAddress;
     private String trackingNumber;
     private String carrierName;
