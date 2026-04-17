@@ -51,17 +51,22 @@ public class OrderController {
     }
 
     /**
-     * Get orders by user ID and status
+     * Get orders by user ID and status (both parameters optional for admin)
      *
-     * @param userId the user ID
-     * @param status the order status
+     * @param userId the user ID (optional)
+     * @param status the order status (optional)
      * @return list of orders
      */
     @GetMapping
     public ResponseEntity<List<Order>> getOrdersByUserAndStatus(
-            @RequestParam("userId") String userId,
-            @RequestParam("status") OrderStatus status) {
-        List<Order> orders = orderApplicationService.getOrdersByUserIdAndStatus(userId, status);
+            @RequestParam(value = "userId", required = false) String userId,
+            @RequestParam(value = "status", required = false) OrderStatus status) {
+        List<Order> orders;
+        if (userId != null && status != null) {
+            orders = orderApplicationService.getOrdersByUserIdAndStatus(userId, status);
+        } else {
+            orders = orderApplicationService.getAllOrders();
+        }
         return ResponseEntity.ok(orders);
     }
 

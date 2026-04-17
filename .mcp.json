@@ -1,13 +1,14 @@
 {
-    "mcpServers": {
-        "weixin-devtools-mcp": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "weixin-devtools-mcp",
-                "--tools-profile=full"
-            ],
-            "env": {}
-        }
+  "mcpServers": {
+    "weapp-dev": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@yfme/weapp-dev-mcp"
+      ],
+      "env": {
+        "WEAPP_WS_ENDPOINT": "ws://localhost:9420"
+      }
     }
+  }
 }

@@ -21,6 +21,12 @@
     }
   },
   "resizable": true,
+  "safeArea": {
+    "left": "resizable",
+    "right": "resizable",
+    "top": "resizable",
+    "bottom": "resizable"
+  },
   "tabBar": {
     "color": "#718096",
     "selectedColor": "#1e3a5f",

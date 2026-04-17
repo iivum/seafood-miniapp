@@ -1,6 +1,6 @@
 # Admin UI Integration Testing - TODO
 
-**Test Date:** 2026-04-17
+**Test Date:** 2026-04-17 (Updated 09:35)
 **Branch:** test/admin-ui-integration
 **Admin UI URL:** http://localhost:8090/admin
 
@@ -8,64 +8,106 @@
 
 ## Environment Status
 
-### Docker Services
-| Service | Status | Notes |
-|---------|--------|-------|
-| discovery-service | Healthy | Running |
-| mongodb | Healthy | Running |
-| redis | Healthy | Running |
-| product-service | Healthy | Running |
-| order-service | Healthy | Running |
-| gateway | Unhealthy | Has MongoDB connection issues |
-| admin-ui | Unhealthy | JAR build issue (using ui-design worktree JAR) |
-| user-service | Restarting | NoClassDefFoundError - JAR is corrupt |
+### Docker Services (Updated 2026-04-17 09:32)
+| Service | Status | Port | Notes |
+|---------|--------|------|-------|
+| discovery-service | Healthy | 8761 | Running |
+| mongodb | Healthy | 27017 | Running |
+| redis | Healthy | 6379 | Running |
+| gateway | Healthy | 8080 | Running |
+| product-service | Healthy | 8081 | Running |
+| order-service | Healthy | 8082 | Running (returns 500 on /orders) |
+| user-service | Healthy | 8083 | Running |
+| admin-ui | Healthy | 8090 | Running |
 
-### Critical Issue: Admin UI JAR Cannot Be Built
-- **Problem:** `backend/admin-ui/build/libs/admin-ui-1.0.0-SNAPSHOT.jar` is created as a **directory** instead of a file
-- **Cause:** Gradle bootJar task fails with compilation errors:
-  ```
-  OrderDetailDialog.java:149: cannot find symbol: class OrderItemResponse
-  OrderDetailDialog.java:195: cannot find symbol: class OrderHistoryResponse
-  ```
-- **Root Cause:** `OrderResponse` class uses package-private inner classes `OrderItemResponse` and `OrderHistoryResponse`, but `OrderDetailDialog` references them as `OrderResponse.OrderItemResponse` and `OrderResponse.OrderHistoryResponse`
-- **Workaround Used:** Copied JAR from `.worktrees/ui-design/` to proceed with testing
+### Gateway Routes
+| Path | Service | Status |
+|------|---------|--------|
+| /api/products | product-service | ✓ Working |
+| /api/orders | order-service | ✗ Returns 500 |
+| /api/users | user-service | ✓ Working |
+| /admin/** | admin-ui | ✗ CSS/JS blocked by Security |
 
 ---
 
-## Issue #1: Login Functionality - BYPASSED (Security Issue)
+## Critical Issue #1: Login Page Cannot Render (CSS/JS Blocked)
 
 **Severity:** CRITICAL
 
-**Finding:** No login screen is displayed. The admin UI dashboard is accessible directly at `http://localhost:8090/admin/` without any authentication. The page shows "欢迎回来，管理员 👋" (Welcome back, Admin) without requiring credentials.
+**Finding:** The login page at `http://localhost:8090/admin/login` returns HTTP 200 but the page appears blank/empty in the browser.
 
-**Expected Behavior:** User should be redirected to a login page and must authenticate with `admin/admin123` before accessing any functionality.
+**Browser Console Errors:**
+```
+Refused to apply style from 'http://localhost:8090/admin/VAADIN/themes/lumo/styles.css' 
+because its MIME type ('application/json') is not a supported stylesheets MIME type
 
-**Impact:** 
-- No authentication protection on admin panel
-- Any unauthorized user can access all admin functions
-- Security vulnerability - all operations are exposed
+Failed to load resource: the server responded with a status of 401 ()
+```
+
+**Root Cause:** Spring Security Configuration
+
+In `SecurityConfig.java`:
+```java
+.requestMatchers("/admin/login", "/login").permitAll()   // ✓ login page permitted
+.requestMatchers("/admin/**").authenticated()            // ✗ VAADIN resources blocked
+```
+
+When the browser requests `/admin/VAADIN/themes/lumo/styles.css`, Spring Security returns 401 Unauthorized because the VAADIN resources are not in the permitted list.
+
+**Impact:**
+- Login page cannot load CSS, appearing blank/empty
+- Authentication cannot proceed
+- Admin UI is completely unusable
+
+**Fix Required:**
+Update SecurityConfig to permit Vaadin static resources:
+```java
+.requestMatchers("/admin/login", "/login", "/admin/VAADIN/**", "/admin/frontend/**").permitAll()
+```
+
+**Reference File:**
+- `backend/admin-ui/src/main/java/com/seafood/admin/config/SecurityConfig.java` (lines 23-26)
 
 ---
 
-## Issue #2: Product Management - API Deserialization Error
+## Issue #2: Order Management - Internal Server Error
 
 **Severity:** HIGH
 
 **Error:**
+```bash
+$ curl -s --noproxy '*' http://localhost:8082/orders
+{"message":"Internal server error"}
 ```
-com.fasterxml.jackson.databind.exc.MismatchedInputException: 
-Cannot deserialize value of type `java.util.ArrayList<ProductResponse>` 
-from Object value (token `JsonToken.START_OBJECT`)
+
+**Also via Gateway:**
+```bash
+$ curl -s --noproxy '*' http://localhost:8080/api/orders
+{"message":"Internal server error"}
 ```
 
-**URL:** http://localhost:8090/admin/products
+**Investigation:**
+- order-service container shows as healthy
+- MongoDB connection is established successfully
+- The `/orders` endpoint returns 500 immediately
+- No obvious exceptions in recent logs (30+ minutes)
 
-**Root Cause Analysis:**
-- Product API returns a paginated response: `{"hasPrev":false,"totalProducts":0,"totalPages":0,"hasNext":false,"page":0,"products":[]}`
-- Admin UI `ProductClient` expects `List<ProductResponse>` directly
-- The client expects an array but receives an object with pagination wrapper
+**Possible Causes:**
+- Database query exception
+- Missing collection or data initialization issue
+- Invalid order data in database
 
-**API Response (product-service):**
+**Reference File:**
+- `backend/order-service/src/main/java/.../OrderController.java`
+- `backend/order-service/src/main/java/.../OrderRepository.java`
+
+---
+
+## Issue #3: Product API Response - Paginated vs Array
+
+**Severity:** MEDIUM
+
+**API Response:**
 ```json
 {
   "hasPrev": false,
@@ -77,133 +119,61 @@ from Object value (token `JsonToken.START_OBJECT`)
 }
 ```
 
-**Admin UI Client Expectation:**
-```java
-@GetMapping("/products")
-List<ProductResponse> getAllProducts();
-```
+**Issue:** API returns a paginated wrapper object, not a direct array.
 
-**Fix Required:** 
-- Option 1: Update Admin UI client to expect a paginated wrapper response
-- Option 2: Create a separate endpoint in product-service that returns a simple array
-- Option 3: Update the ProductResponse to match the API structure
+**Current Status:** Admin UI may expect direct array. Cannot verify because login page is broken.
+
+**Reference Files:**
+- `backend/product-service/src/main/java/.../ProductController.java` (API response structure)
+- `backend/admin-ui/src/main/java/.../ProductClient.java` (client expectation)
 
 ---
 
-## Issue #3: Order Management - Internal Server Error
+## Issue #4: Gateway Routes Not Working (404)
 
-**Severity:** HIGH
+**Severity:** MEDIUM (Dev Environment Only)
 
-**Error:**
+**Finding:** Direct paths `/products`, `/orders`, `/users` return 404 through gateway.
+
+**Correct Paths:**
+- `/api/products` → product-service
+- `/api/orders` → order-service
+- `/api/users` → user-service
+
+This is expected behavior based on gateway configuration (`application.yml`):
+```yaml
+predicates:
+  - Path=/api/products/**
+  - Path=/api/orders/**
+  - Path=/api/users/**
+filters:
+  - StripPrefix=1
 ```
-feign.FeignException$InternalServerError: [500] during [GET] to 
-[http://order-service/orders] [OrderClient#getAllOrders()]: 
-[{"message":"Internal server error"}]
-```
-
-**URL:** http://localhost:8090/admin/orders
-
-**Investigation:**
-- Direct curl to `http://localhost:8082/orders` returns `{"message":"Internal server error"}`
-- order-service is showing as healthy in Docker
-- The 500 error indicates a server-side issue in order-service
-
-**Possible Causes:**
-- Database connection issue
-- Missing data/initialization problem
-- Code exception in the order controller
-
----
-
-## Issue #4: User Management - Service Unavailable
-
-**Severity:** CRITICAL (Service Down)
-
-**Error:**
-```
-feign.FeignException$ServiceUnavailable: [503] during [GET] to 
-[http://user-service/users] [UserClient#getAllUsers()]: 
-[Load balancer does not contain an instance for the service user-service]
-```
-
-**URL:** http://localhost:8090/admin/users
-
-**Root Cause:** user-service container is in a restart loop with the following error:
-```
-java.lang.NoClassDefFoundError: org/springframework/boot/SpringApplication
-Caused by: java.lang.ClassNotFoundException: org.springframework.boot.SpringApplication
-```
-
-**Impact:** user-service is completely non-functional
-
----
-
-## Issue #5: Dashboard - API Deserialization Error
-
-**Severity:** HIGH
-
-**Error:** Same deserialization error as Product Management
-```
-com.fasterxml.jackson.databind.exc.MismatchedInputException: 
-Cannot deserialize value of type `java.util.ArrayList<ProductResponse>` 
-from Object value (token `JsonToken.START_OBJECT`)
-```
-
-**URL:** http://localhost:8090/admin/dashboard
-
-**Note:** Dashboard likely fetches product data to display statistics, causing the same deserialization issue.
-
----
-
-## Issue #6: UI Design/Layout Observations
-
-**Severity:** LOW (Cosmetic/Design)
-
-### Observations:
-1. **Navigation Sidebar:** Toggle button exists but sidebar appears always expanded on desktop
-2. **Date Display:** Shows "2026年04月16日 Thu" - date may be stale or incorrect timezone
-3. **"Online" Indicator:** Small text in bottom-right shows "Online" status, but this is misleading since the backend services have errors
-4. **Quick Entry Buttons:** Redundant with sidebar navigation - consider consolidating
-5. **Feature Module Cards:** Description text is duplicated from quick entry tooltips
 
 ---
 
 ## Summary of Required Fixes
 
 ### Priority 1 (Critical):
-1. **Fix Admin UI JAR build** - Compilation errors in OrderDetailDialog.java
-2. **Fix user-service** - NoClassDefFoundError, service won't start
-3. **Implement Authentication** - No login protection currently
+1. **Fix Spring Security Config** - Add `/admin/VAADIN/**` and `/admin/frontend/**` to permitted patterns
+   - File: `backend/admin-ui/src/main/java/com/seafood/admin/config/SecurityConfig.java`
+   - Lines: 23-26
+
+2. **Fix order-service 500 error** - Investigate why `/orders` endpoint returns internal server error
+   - File: `backend/order-service/src/main/java/.../OrderController.java`
+   - Check MongoDB repository queries and data initialization
 
 ### Priority 2 (High):
-4. **Fix Product API response mismatch** - Client expects List, API returns paginated object
-5. **Fix order-service 500 error** - Investigate and resolve internal server error
-6. **Fix Dashboard** - Same deserialization issue as products
+3. **Test Product API with non-empty data** - Verify deserialization works
+4. **Test Dashboard after login fix** - Confirm statistics display properly
+5. **Test User Management** - Verify user list displays
 
-### Priority 3 (Medium/Low):
-7. **Improve error handling UI** - Current error messages show Java stack traces
-8. **Add loading states** - No visual feedback during API calls
-9. **Add connection status indicator** - "Online" text is misleading
-
----
-
-## Files to Review for Fixes
-
-### Compilation Error:
-- `backend/admin-ui/src/main/java/com/seafood/admin/views/order/OrderDetailDialog.java` (lines 149, 195)
-- `backend/admin-ui/src/main/java/com/seafood/admin/client/OrderResponse.java` (inner classes visibility)
-
-### API Mismatch:
-- `backend/admin-ui/src/main/java/com/seafood/admin/client/ProductClient.java`
-- `backend/admin-ui/src/main/java/com/seafood/admin/client/ProductResponse.java`
-- `backend/product-service/src/main/java/.../ProductController.java` (API response structure)
-
-### User Service:
-- `backend/user-service/build/libs/` - JAR may be corrupt
-
-### Authentication:
-- Check if there's a security configuration that needs to be enabled
-- `backend/admin-ui/src/main/java/com/seafood/admin/` - security/auth related files
+### Priority 3 (Medium):
+6. **Verify all admin-ui pages work after fixes**:
+   - /admin/dashboard
+   - /admin/products
+   - /admin/orders
+   - /admin/users
 
 ---
 
@@ -214,15 +184,41 @@ from Object value (token `JsonToken.START_OBJECT`)
 docker ps --filter "name=seafood-miniapp"
 
 # Check specific service logs
-docker logs seafood-miniapp-admin-ui-1 --tail 20
-docker logs seafood-miniapp-user-service-1 --tail 20
-docker logs seafood-miniapp-product-service-1 --tail 20
-docker logs seafood-miniapp-order-service-1 --tail 20
+docker logs seafood-miniapp-admin-ui-1 --tail 30
+docker logs seafood-miniapp-order-service-1 --tail 30
 
-# Test API endpoints
+# Test API endpoints via services directly
 curl -s --noproxy '*' http://localhost:8081/products
 curl -s --noproxy '*' http://localhost:8082/orders
+curl -s --noproxy '*' http://localhost:8083/users
+
+# Test API endpoints via gateway
+curl -s --noproxy '*' http://localhost:8080/api/products
+curl -s --noproxy '*' http://localhost:8080/api/orders
+curl -s --noproxy '*' http://localhost:8080/api/users
+
+# Check login page (will show 401 for CSS)
+curl -s --noproxy '*' -I http://localhost:8090/admin/login
+curl -s --noproxy '*' http://localhost:8090/admin/VAADIN/themes/lumo/styles.css
 
 # Access Admin UI
-open http://localhost:8090/admin
+open http://localhost:8090/admin/login
 ```
+
+---
+
+## Files to Review
+
+### Security Issue:
+- `backend/admin-ui/src/main/java/com/seafood/admin/config/SecurityConfig.java`
+
+### Order Service Issue:
+- `backend/order-service/src/main/java/.../OrderController.java`
+- `backend/order-service/src/main/java/.../OrderRepository.java`
+
+### API Response Structure:
+- `backend/product-service/src/main/java/.../ProductController.java`
+- `backend/admin-ui/src/main/java/.../ProductClient.java`
+
+### Login View:
+- `backend/admin-ui/src/main/java/com/seafood/admin/views/login/LoginView.java`

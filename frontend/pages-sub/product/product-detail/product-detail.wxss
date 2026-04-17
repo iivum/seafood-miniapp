@@ -1,5 +1,5 @@
 .detail-container {
-  padding-bottom: 120rpx;
+  padding-bottom: calc(140rpx + var(--safe-area-bottom));
   background-color: var(--color-bg);
 }
 
@@ -73,11 +73,12 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 100rpx;
+  height: var(--fixed-bar-height);
   background-color: var(--color-surface);
   display: flex;
   align-items: center;
   padding: 0 20rpx;
+  padding-bottom: var(--safe-area-bottom);
   box-shadow: 0 -4rpx 20rpx rgba(30, 58, 95, 0.1);
   border-top: 1rpx solid var(--color-border);
 }
@@ -122,10 +123,9 @@
    ============================================ */
 .recommendations {
   padding: 30rpx;
-  margin-top: 20rpx;
+  margin: 20rpx;
   background-color: var(--color-surface);
   border-radius: 12rpx;
-  margin: 20rpx;
   border: 1rpx solid var(--color-border);
 }
 
