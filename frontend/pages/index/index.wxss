@@ -22,6 +22,11 @@
   background-color: var(--color-bg-subtle);
   border-radius: 30rpx;
   padding: 10rpx 20rpx;
+  box-shadow: inset 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+}
+
+.search-input:focus-within {
+  box-shadow: inset 0 2rpx 8rpx rgba(0, 0, 0, 0.06), 0 0 0 2rpx var(--color-primary);
 }
 
 .search-btn {
@@ -96,15 +101,15 @@
 .banner {
   height: 300rpx;
   margin: 20rpx;
-  border-radius: 16rpx;
+  border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 4rpx 20rpx rgba(30, 58, 95, 0.12);
+  box-shadow: 0 8rpx 30rpx rgba(255, 107, 107, 0.2);
 }
 
 .banner-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+  background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -135,7 +140,8 @@
   justify-content: space-around;
   padding: 30rpx 0;
   background-color: var(--color-surface);
-  margin-bottom: 20rpx;
+  margin: 0 20rpx 20rpx;
+  border-radius: 16rpx;
 }
 
 .nav-item {
@@ -149,7 +155,14 @@
   height: 80rpx;
   margin-bottom: 10rpx;
   border-radius: 50%;
-  background-color: var(--color-bg-subtle);
+  background-color: var(--color-bg);
+  box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.15);
+  transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+}
+
+.nav-item:active image {
+  transform: scale(0.92);
+  box-shadow: 0 2rpx 8rpx rgba(255, 107, 107, 0.1);
 }
 
 .nav-item text {
@@ -193,10 +206,11 @@
 
 .product-info {
   background-color: var(--color-surface);
-  padding: 10rpx;
-  border-radius: 0 0 12rpx 12rpx;
+  padding: 16rpx;
+  border-radius: 0 0 16rpx 16rpx;
   border: 1rpx solid var(--color-border);
   border-top: none;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.1);
 }
 
 .product-name {
@@ -225,13 +239,26 @@
   margin-top: 8rpx;
 }
 
-/* Add to Cart Button - Accent Coral */
+/* Add to Cart Button - Vibrant Gradient Coral */
 .add-cart-btn {
-  background-color: var(--color-accent);
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
   color: #fff;
   font-size: 24rpx;
-  padding: 6rpx 20rpx;
+  font-weight: 600;
+  padding: 8rpx 24rpx;
   border-radius: 20rpx;
   margin-top: 10rpx;
   text-align: center;
+  box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
+  transition: transform 0.3s ease-out, box-shadow 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.add-cart-btn:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+  box-shadow: 0 2rpx 6rpx rgba(255, 107, 107, 0.2);
+}
+
+.product-item:active {
+  opacity: 0.9;
 }
