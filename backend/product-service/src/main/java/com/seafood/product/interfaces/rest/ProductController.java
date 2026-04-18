@@ -53,18 +53,20 @@ public class ProductController {
     }
 
     /**
-     * 获取商品列表（分页）
+     * 获取商品列表（分页 + 筛选 + 排序）
      *
      * @param page     页码（默认 0）
-     * @param pageSize 每页数量（默认 10）
+     * @param pageSize 每页数量（默认 20，最大 100）
      * @param category 分类筛选（可选）
      * @param keyword  搜索关键词（可选）
+     * @param sortBy   排序字段（可选，默认 createdAt）
+     * @param sortDir  排序方向（可选，默认 desc）
      * @return 分页商品列表
      */
     @GetMapping
     @Operation(
-        summary = "List products with pagination",
-        description = "Returns a paginated list of products with optional filtering",
+        summary = "List products with pagination, filtering and sorting",
+        description = "Returns a paginated list of products with optional filtering and sorting",
         responses = {
             @ApiResponse(responseCode = "200", description = "Successful operation"),
             @ApiResponse(responseCode = "400", description = "Invalid pagination parameters")
@@ -72,9 +74,11 @@ public class ProductController {
     )
     public ResponseEntity<Map<String, Object>> listProducts(
             @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int pageSize,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") int pageSize,
             @Parameter(description = "Category filter") @RequestParam(required = false) String category,
-            @Parameter(description = "Search keyword") @RequestParam(required = false) String keyword) {
+            @Parameter(description = "Search keyword") @RequestParam(required = false) String keyword,
+            @Parameter(description = "Sort field (createdAt, price, name, stock)") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc, desc)") @RequestParam(defaultValue = "desc") String sortDir) {
 
         // 参数验证
         if (page < 0) {
@@ -84,8 +88,14 @@ public class ProductController {
             return ResponseEntity.badRequest().build();
         }
 
-        // 构建分页请求，按 ID 降序排序
-        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "id"));
+        // 验证排序方向
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+
+        // 验证并转换排序字段
+        String validSortField = getValidSortField(sortBy);
+
+        // 构建分页请求
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.by(direction, validSortField));
 
         // 获取分页数据
         Page<Product> productPage = productApplicationService.listProducts(keyword, category, pageable);
@@ -94,6 +104,7 @@ public class ProductController {
         Map<String, Object> response = new HashMap<>();
         response.put("products", productPage.getContent());
         response.put("page", productPage.getNumber());
+        response.put("pageSize", productPage.getSize());
         response.put("totalPages", productPage.getTotalPages());
         response.put("totalProducts", productPage.getTotalElements());
         response.put("hasNext", productPage.hasNext());
@@ -198,5 +209,33 @@ public class ProductController {
             request.getPrice(), request.getStock(),
             request.getCategory(), request.getImageUrl());
         return ResponseEntity.ok(product);
+    }
+
+    /**
+     * Get valid sort field name for product queries
+     */
+    private String getValidSortField(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return "createdAt";
+        }
+        switch (sortBy.toLowerCase()) {
+            case "price":
+            case "productprice":
+                return "price";
+            case "name":
+            case "productname":
+                return "name";
+            case "stock":
+            case "inventory":
+                return "stock";
+            case "category":
+                return "category";
+            case "createdat":
+            case "created_at":
+            case "createtime":
+                return "createdAt";
+            default:
+                return "createdAt";
+        }
     }
 }

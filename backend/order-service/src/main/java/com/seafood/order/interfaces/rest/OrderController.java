@@ -55,17 +55,25 @@ public class OrderController {
      *
      * @param userId the user ID (optional)
      * @param status the order status (optional)
+     * @param sortBy sort field (optional, default: createdAt)
+     * @param sortDir sort direction (optional, default: desc)
      * @return list of orders
      */
     @GetMapping
     public ResponseEntity<List<Order>> getOrdersByUserAndStatus(
             @RequestParam(value = "userId", required = false) String userId,
-            @RequestParam(value = "status", required = false) OrderStatus status) {
+            @RequestParam(value = "status", required = false) OrderStatus status,
+            @RequestParam(value = "sortBy", defaultValue = "createdAt") String sortBy,
+            @RequestParam(value = "sortDir", defaultValue = "desc") String sortDir) {
         List<Order> orders;
         if (userId != null && status != null) {
-            orders = orderApplicationService.getOrdersByUserIdAndStatus(userId, status);
+            orders = orderApplicationService.getOrdersByUserIdAndStatus(userId, status, sortBy, sortDir);
+        } else if (userId != null) {
+            orders = orderApplicationService.getOrdersByUserId(userId, sortBy, sortDir);
+        } else if (status != null) {
+            orders = orderApplicationService.getOrdersByStatus(status, sortBy, sortDir);
         } else {
-            orders = orderApplicationService.getAllOrders();
+            orders = orderApplicationService.getAllOrders(sortBy, sortDir);
         }
         return ResponseEntity.ok(orders);
     }
@@ -73,11 +81,15 @@ public class OrderController {
     /**
      * Get all orders (for admin)
      *
+     * @param sortBy sort field (optional, default: createdAt)
+     * @param sortDir sort direction (optional, default: desc)
      * @return list of all orders
      */
     @GetMapping("/all")
-    public ResponseEntity<List<Order>> getAllOrders() {
-        return ResponseEntity.ok(orderApplicationService.getAllOrders());
+    public ResponseEntity<List<Order>> getAllOrders(
+            @RequestParam(value = "sortBy", defaultValue = "createdAt") String sortBy,
+            @RequestParam(value = "sortDir", defaultValue = "desc") String sortDir) {
+        return ResponseEntity.ok(orderApplicationService.getAllOrders(sortBy, sortDir));
     }
 
     /**

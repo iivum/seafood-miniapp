@@ -1,6 +1,7 @@
 package com.seafood.order.interfaces.rest;
 
 import com.seafood.order.application.CartApplicationService;
+import com.seafood.order.application.CartPriceResult;
 import com.seafood.order.domain.model.Cart;
 import com.seafood.order.domain.model.CartItem;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -192,6 +193,58 @@ public class CartController {
             Cart cart = cartApplicationService.deselectAllItems(userId);
             CartResponse response = convertToResponse(cart);
             return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * POST /api/cart/calculate-price - Calculate price for selected items
+     *
+     * @param userId the user ID
+     * @param request the price calculation request with selected item IDs
+     * @return CartPriceResponse with price breakdown
+     */
+    @PostMapping("/calculate-price")
+    public ResponseEntity<CartPriceResponse> calculatePrice(
+            @RequestAttribute("userId") String userId,
+            @Valid @RequestBody CalculatePriceRequest request) {
+        try {
+            CartPriceResult result = cartApplicationService.calculateSelectedItemsPrice(
+                    userId,
+                    request.getSelectedItemIds()
+            );
+            CartPriceResponse response = new CartPriceResponse(
+                    result.getSubtotal(),
+                    result.getShippingFee(),
+                    result.getTotal(),
+                    result.getTotalItems()
+            );
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * GET /api/cart/freight/{addressId} - Calculate shipping fee for address
+     *
+     * @param userId the user ID
+     * @param addressId the address ID
+     * @return FreightResponse with shipping fee
+     */
+    @GetMapping("/freight/{addressId}")
+    public ResponseEntity<FreightResponse> calculateFreight(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String addressId) {
+        try {
+            double shippingFee = cartApplicationService.calculateShippingFee(userId, addressId);
+            FreightResponse response = new FreightResponse(shippingFee);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

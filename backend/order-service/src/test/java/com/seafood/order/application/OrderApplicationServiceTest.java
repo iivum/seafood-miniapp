@@ -176,17 +176,17 @@ class OrderApplicationServiceTest {
     @Test
     void shouldGetOrdersByUserIdAndStatus() {
         // Arrange
-        when(orderRepository.findByUserIdAndStatus(anyString(), any(OrderStatus.class)))
+        when(orderRepository.findByUserIdAndStatus(anyString(), any(OrderStatus.class), anyString(), anyString()))
                 .thenReturn(Arrays.asList(testOrder));
 
         // Act
-        List<Order> result = orderApplicationService.getOrdersByUserIdAndStatus("user-123", OrderStatus.PENDING_PAYMENT);
+        List<Order> result = orderApplicationService.getOrdersByUserIdAndStatus("user-123", OrderStatus.PENDING_PAYMENT, "createdAt", "desc");
 
         // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testOrder.getId(), result.get(0).getId());
-        verify(orderRepository, times(1)).findByUserIdAndStatus("user-123", OrderStatus.PENDING_PAYMENT);
+        verify(orderRepository, times(1)).findByUserIdAndStatus("user-123", OrderStatus.PENDING_PAYMENT, "createdAt", "desc");
     }
 
     @Test
