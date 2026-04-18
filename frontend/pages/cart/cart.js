@@ -45,16 +45,15 @@ Page({
 
   refreshCart: function() {
     const items = cartUtil.getCart();
-    let total = 0;
-    items.forEach(item => {
-      total += item.price * item.quantity;
-    });
+
+    // Filter out stale selected items that no longer exist in cart (zombie bug fix)
+    const validIds = items.map(item => item.id);
+    const selectedItems = this.data.selectedItems.filter(id => validIds.includes(id));
 
     // Calculate selected items price
-    const selectedIds = this.data.selectedItems;
     let selectedTotal = 0;
     items.forEach(item => {
-      if (selectedIds.includes(item.id)) {
+      if (selectedItems.includes(item.id)) {
         selectedTotal += item.price * item.quantity;
       }
     });
@@ -67,69 +66,59 @@ Page({
     }
 
     // Calculate total price (前端暂时计算，后续由后端计算)
-    const totalPrice = (selectedTotal + shippingFee).toFixed(2);
+    const totalPrice = parseFloat((selectedTotal + shippingFee).toFixed(2));
 
     this.setData({
       cartItems: items,
       totalPrice: totalPrice,
-      selectedPrice: selectedTotal.toFixed(2),
+      selectedPrice: parseFloat(selectedTotal.toFixed(2)),
+      selectedItems: selectedItems,
       shippingFee: shippingFee
     });
   },
 
-  // Toggle item selection
-  onToggleSelect: function(e) {
-    const id = e.currentTarget.dataset.id;
-    const selectedItems = [...this.data.selectedItems];
-
-    const index = selectedItems.indexOf(id);
-    if (index > -1) {
-      selectedItems.splice(index, 1);
-    } else {
-      selectedItems.push(id);
+  // Handle checkbox group change from native checkbox-group component
+  onCheckboxChange: function(e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
     }
-
-    this.setData({ selectedItems: selectedItems });
+    this.setData({ selectedItems: e.detail.value });
     this.refreshCart();
   },
 
-  // Toggle select all
-  onToggleSelectAll: function() {
-    if (this.data.selectedItems.length === this.data.cartItems.length) {
+  // Handle select all checkbox change
+  onSelectAll: function(e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    const allSelected = e.detail.checked;
+    if (allSelected) {
+      this.setData({ selectedItems: this.data.cartItems.map(item => item.id) });
+    } else {
       this.setData({ selectedItems: [] });
-    } else {
-      const allIds = this.data.cartItems.map(item => item.id);
-      this.setData({ selectedItems: allIds });
     }
     this.refreshCart();
   },
 
-  onPlus: function(e) {
+  // Handle quantity change from native input type="number"
+  onQuantityChange: function(e) {
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
     const id = e.currentTarget.dataset.id;
-    const item = this.data.cartItems.find(i => i.id === id);
-    cartUtil.updateQuantity(id, item.quantity + 1);
+    let quantity = parseInt(e.detail.value, 10) || 1;
+    quantity = Math.max(1, quantity); // Enforce minimum of 1
+    cartUtil.updateQuantity(id, quantity);
     this.refreshCart();
   },
 
-  onMinus: function(e) {
-    const app = getApp();
-    if (!app.globalData.userInfo) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
-    const id = e.currentTarget.dataset.id;
-    const item = this.data.cartItems.find(i => i.id === id);
-    if (item.quantity > 1) {
-      cartUtil.updateQuantity(id, item.quantity - 1);
-      this.refreshCart();
-    }
-  },
-
+  // Handle remove item
   onRemove: function(e) {
     const app = getApp();
     if (!app.globalData.userInfo) {
@@ -142,13 +131,16 @@ Page({
   },
 
   onCheckout: function() {
-    if (this.data.cartItems.length === 0) return;
-
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.navigateTo({
         url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages/cart/cart')
       });
+      return;
+    }
+
+    if (this.data.selectedItems.length === 0) {
+      wx.showToast({ title: '请先选择商品', icon: 'none' });
       return;
     }
 
@@ -173,9 +165,5 @@ Page({
       url: '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=' +
         encodeURIComponent(selectedAddress ? JSON.stringify(selectedAddress) : '')
     });
-  },
-
-  goToIndex: function() {
-    wx.switchTab({ url: '/pages/index/index' });
   }
 })
