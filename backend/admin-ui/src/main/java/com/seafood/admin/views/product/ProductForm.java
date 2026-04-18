@@ -46,7 +46,7 @@ public class ProductForm extends FormLayout {
         imagePreview.setHeight("150px");
         imagePreview.getStyle()
             .set("border", "1px solid #dce9f0")
-            .set("border-radius", "8px")
+            .set("border-radius", "12px")
             .set("display", "flex")
             .set("align-items", "center")
             .set("justify-content", "center")
@@ -82,6 +82,11 @@ public class ProductForm extends FormLayout {
     }
 
     private HorizontalLayout createButtonsLayout() {
+        // Gradient save button with shadow and hover effect
+        save.getStyle()
+            .set("background", "linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%)")
+            .set("box-shadow", "0 4px 12px rgba(255, 107, 107, 0.35)")
+            .set("border-radius", "8px");
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
         close.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
