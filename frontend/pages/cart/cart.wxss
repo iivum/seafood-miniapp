@@ -1,100 +1,96 @@
+/* Cart Page - Vibrant Modern */
 .cart-container {
-  padding-bottom: calc(140rpx + var(--safe-area-bottom));
   background-color: var(--color-bg);
+  min-height: 100vh;
+  padding-bottom: 140rpx;
 }
 
 .cart-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-top: 200rpx;
+  text-align: center;
+  padding: 160rpx 40rpx;
+}
+
+.cart-empty icon {
   color: var(--color-text-muted);
+  margin-bottom: 30rpx;
 }
 
 .cart-empty text {
-  margin: 30rpx 0;
+  display: block;
+  font-size: 28rpx;
+  color: var(--color-text-secondary);
+  margin-bottom: 40rpx;
 }
 
-/* ============================================
-   Address Section
-   ============================================ */
+/* Address Section */
 .address-section {
-  margin-bottom: 20rpx;
-  padding: 30rpx;
-  background: var(--color-surface);
-  border-radius: 12rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: all 0.3s;
-  border: 1rpx solid var(--color-border);
+  border-radius: 16rpx;
+  margin: 20rpx;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(255, 107, 107, 0.12);
 }
 
-.address-section:active {
-  transform: scale(0.98);
-  background-color: var(--color-bg-subtle);
+.address-info {
+  flex: 1;
 }
 
-.address-info .address-header {
+.address-header {
   display: flex;
   align-items: center;
-  margin-bottom: 15rpx;
+  margin-bottom: 10rpx;
 }
 
-.address-info .name {
-  font-size: 32rpx;
+.address-header .name {
+  font-size: 30rpx;
   font-weight: 600;
   color: var(--color-text);
-  margin-right: 20rpx;
+  margin-right: 16rpx;
 }
 
-.address-info .phone {
-  font-size: 28rpx;
-  color: var(--color-text-secondary);
-}
-
-.address-info .address-content {
+.address-header .phone {
   font-size: 26rpx;
   color: var(--color-text-secondary);
-  line-height: 1.5;
+}
+
+.address-text {
+  font-size: 26rpx;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
 }
 
 .address-empty {
   display: flex;
   align-items: center;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+  font-size: 28rpx;
 }
 
 .address-empty icon {
   margin-right: 10rpx;
+  color: var(--color-primary);
 }
 
 .arrow-icon {
   color: var(--color-text-muted);
 }
 
-/* ============================================
-   Select All Bar
-   ============================================ */
+/* Select All Bar */
 .select-all-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20rpx 30rpx;
-  background: var(--color-surface);
-  margin-bottom: 20rpx;
+  padding: 20rpx;
+  background-color: var(--color-surface);
+  margin: 0 20rpx;
   border-radius: 12rpx;
-  border: 1rpx solid var(--color-border);
 }
 
 .select-all {
   display: flex;
   align-items: center;
-}
-
-.select-all text {
-  margin-left: 10rpx;
   font-size: 28rpx;
   color: var(--color-text);
 }
@@ -104,192 +100,170 @@
   color: var(--color-text-secondary);
 }
 
-/* ============================================
-   Cart Items List
-   ============================================ */
+/* Cart Item */
 .cart-list {
-  margin-bottom: 20rpx;
+  padding: 0 20rpx;
 }
 
 .cart-item {
   display: flex;
   align-items: center;
   padding: 20rpx;
-  position: relative;
-  margin-bottom: 20rpx;
-  background: var(--color-surface);
-  border-radius: 12rpx;
+  margin-bottom: 16rpx;
+  background-color: var(--color-surface);
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.1);
   border: 1rpx solid var(--color-border);
 }
 
 .item-checkbox {
-  margin-right: 10px;
-}
-
-checkbox {
-  transform: scale(0.9);
+  margin-right: 16rpx;
 }
 
 .item-img {
-  width: 150rpx;
-  height: 150rpx;
-  border-radius: 8rpx;
-  margin-right: 20rpx;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 12rpx;
+  margin-right: 16rpx;
   background-color: var(--color-bg-subtle);
 }
 
 .item-info {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  min-width: 0;
 }
 
 .item-name {
-  font-size: 30rpx;
-  font-weight: 600;
+  font-size: 28rpx;
   color: var(--color-text);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 8rpx;
 }
 
 .item-price {
+  font-size: 30rpx;
   color: var(--color-price);
-  font-size: 28rpx;
-  margin-top: 10rpx;
-  font-weight: 600;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 12rpx;
 }
 
 .quantity-control {
   display: flex;
   align-items: center;
-  margin-top: 20rpx;
 }
 
-.minus, .plus {
-  width: 60rpx;
-  height: 60rpx;
+.quantity-control .minus,
+.quantity-control .plus {
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  text-align: center;
   background-color: var(--color-bg-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36rpx;
   border-radius: 8rpx;
   color: var(--color-text);
+  font-size: 28rpx;
+  padding: 0;
 }
 
-.minus {
-  color: var(--color-text-secondary);
-}
-
-.plus {
-  color: var(--color-accent);
-}
-
-.num {
+.quantity-control .num {
   width: 80rpx;
   text-align: center;
   font-size: 28rpx;
   color: var(--color-text);
-}
-
-.quantity-input {
-  width: 60px;
-  height: 30px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 14px;
+  margin: 0 8rpx;
+  background-color: var(--color-bg-subtle);
+  border-radius: 8rpx;
+  height: 56rpx;
 }
 
 .remove-btn {
-  position: absolute;
-  top: 10rpx;
-  right: 10rpx;
   color: var(--color-text-muted);
+  font-size: 36rpx;
+  padding: 0 16rpx;
+  background: none;
 }
 
-/* ============================================
-   Order Info Summary
-   ============================================ */
+/* Order Info */
 .order-info {
-  background: var(--color-surface);
-  border-radius: 12rpx;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
-  border: 1rpx solid var(--color-border);
+  margin: 20rpx;
+  padding: 20rpx;
+  background-color: var(--color-surface);
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.1);
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 20rpx;
-}
-
-.info-item:last-child {
-  margin-bottom: 0;
+  padding: 10rpx 0;
+  font-size: 28rpx;
 }
 
 .info-item .label {
-  font-size: 28rpx;
   color: var(--color-text-secondary);
 }
 
 .info-item .value {
-  font-size: 28rpx;
   color: var(--color-text);
+  font-weight: 500;
 }
 
-.info-item .value .free {
-  color: var(--color-success);
+.info-item .free {
+  color: var(--color-secondary);
   font-weight: 600;
 }
 
-/* ============================================
-   Footer Checkout Bar
-   ============================================ */
+/* Footer */
 .footer {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--fixed-bar-height);
-  background-color: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 30rpx;
-  padding-bottom: var(--safe-area-bottom);
-  box-shadow: 0 -4rpx 20rpx rgba(30, 58, 95, 0.1);
-  border-top: 1rpx solid var(--color-border);
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background-color: var(--color-dark);
+  z-index: 100;
 }
 
 .total-info {
   display: flex;
   align-items: center;
-}
-
-.total-info text:first-child {
+  color: #fff;
   font-size: 28rpx;
-  color: var(--color-text-secondary);
 }
 
 .total-price {
-  color: var(--color-price);
   font-size: 36rpx;
-  font-weight: 600;
-  margin-left: 10rpx;
+  font-weight: 800;
+  color: var(--color-accent);
+  margin-left: 8rpx;
 }
 
-/* Checkout Button - Primary Navy */
 .checkout-btn {
-  background-color: var(--color-primary);
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
   color: #fff;
-  height: 70rpx;
-  line-height: 70rpx;
-  border-radius: 35rpx;
-  padding: 0 50rpx;
-  font-size: 28rpx;
-  font-weight: 500;
+  font-size: 30rpx;
+  font-weight: 600;
+  padding: 20rpx 50rpx;
+  border-radius: 40rpx;
+  box-shadow: 0 4rpx 20rpx rgba(255, 107, 107, 0.4);
+  border: none;
+  transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+}
+
+.checkout-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 2rpx 10rpx rgba(255, 107, 107, 0.3);
 }
 
 .checkout-btn[disabled] {
-  background-color: var(--color-text-muted);
+  background: #ccc;
+  box-shadow: none;
 }
