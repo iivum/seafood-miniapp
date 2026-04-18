@@ -53,8 +53,10 @@ public class OrderListView extends VerticalLayout {
         setSizeFull();
         setPadding(false);
         setSpacing(false);
-        getStyle().set("padding", "28px 32px");
-        
+        getStyle()
+            .set("padding", "28px 32px")
+            .set("background", "#F7F8FC");
+
         add(createViewHeader(), createFilterBar(), grid);
         configureGrid();
         updateList();
@@ -136,7 +138,11 @@ public class OrderListView extends VerticalLayout {
         // Action column
         grid.addComponentColumn(order -> {
             Button shipButton = new Button("发货");
-            shipButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+            shipButton.getStyle()
+                .set("background", "linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%)")
+                .set("border-radius", "8px")
+                .set("color", "#ffffff")
+                .set("box-shadow", "0 2px 8px rgba(255, 107, 107, 0.3)");
             shipButton.setEnabled("PAID".equals(order.getDisplayStatus()));
             shipButton.addClickListener(click -> {
                 try {
