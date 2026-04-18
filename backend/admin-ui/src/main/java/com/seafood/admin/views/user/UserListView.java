@@ -36,7 +36,9 @@ public class UserListView extends VerticalLayout {
         setSizeFull();
         setPadding(false);
         setSpacing(false);
-        getStyle().set("padding", "28px 32px");
+        getStyle()
+            .set("padding", "28px 32px")
+            .set("background", "#F7F8FC");
         
         add(createViewHeader(), createFilterBar(), grid);
         configureGrid();
@@ -124,7 +126,11 @@ public class UserListView extends VerticalLayout {
             
             // Set as admin button
             Button adminButton = new Button("设为管理员");
-            adminButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+            adminButton.getStyle()
+                .set("background", "linear-gradient(135deg, #4ECDC4 0%, #6FE3DB 100%)")
+                .set("border-radius", "8px")
+                .set("color", "#ffffff")
+                .set("box-shadow", "0 2px 8px rgba(78, 205, 196, 0.3)");
             adminButton.setEnabled(!"ADMIN".equals(user.getRole()));
             adminButton.addClickListener(click -> {
                 try {
