@@ -1,0 +1,9 @@
+spring:
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://host.docker.internal:27017/seafood}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://host.docker.internal:8761/eureka/}

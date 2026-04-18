@@ -4,6 +4,7 @@ import com.seafood.admin.views.dashboard.DashboardView;
 import com.seafood.admin.views.order.OrderListView;
 import com.seafood.admin.views.product.ProductListView;
 import com.seafood.admin.views.user.UserListView;
+import com.seafood.admin.views.config.ConfigListView;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.button.Button;
@@ -83,8 +84,10 @@ public class MainLayout extends AppLayout {
             new Icon(VaadinIcon.CART), "订单管理", OrderListView.class);
         RouterLink users = createNavLink(
             new Icon(VaadinIcon.USERS), "用户管理", UserListView.class);
+        RouterLink config = createNavLink(
+            new Icon(VaadinIcon.COG), "配置中心", ConfigListView.class);
 
-        VerticalLayout nav = new VerticalLayout(dashboard, products, orders, users);
+        VerticalLayout nav = new VerticalLayout(dashboard, products, orders, users, config);
         nav.setPadding(false);
         nav.setSpacing(true);
         nav.setPadding(true);
