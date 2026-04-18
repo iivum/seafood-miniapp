@@ -103,6 +103,15 @@
 - [x] 修复 OrderControllerTest 测试用例（Address 对象构造、getOrderById 方法）
 - [x] 后端 JAR 构建成功（gateway/product-service/user-service/order-service）
 
+### 后端API修复 (第四轮-2026-04-18)
+
+- [x] 商品列表分页 - 默认 pageSize 从10改为20，支持 sortBy/sortDir
+- [x] 筛选/排序功能 - OrderController/ProductController/UserController
+- [x] 订单状态中文映射 - Order.statusText 字段 (PENDING_PAYMENT→待付款, PAID→已付款, etc.)
+- [x] 用户角色更新接口 - UserApplicationService 改进
+- [x] 价格计算后端化 - POST /cart/calculate-price 端点
+- [x] 邮费计算API - GET /cart/freight/{addressId} 端点
+
 ---
 
 ## 🟡 中优先级 (P1)
@@ -150,10 +159,38 @@
 - [x] 数据统计面板 - dashboard 页面实现，支持收入/订单/商品/用户统计和快捷操作
 - [x] **修复 Dashboard/Orders Server Error 问题** - OrderClient 路径和字段修正
 
+### Admin UI 修复 (第四轮-2026-04-18)
+
+- [x] URL问题: /admin/ vs /admin - 添加 RootController.java 重定向
+- [x] 默认404页面未设置 - 创建 NotFoundView.java
+- [x] 按钮文本不可见 - 修复 CSS 样式
+- [x] 输入框聚焦title变白色 - 修复 CSS focus 样式
+- [x] 无回到首页方式 - 在 MainLayout.java 添加首页按钮
+- [x] 商品列表添加ID列 - 区分同名商品
+- [x] 商品图片预览和字段校验 - ProductForm.java 添加预览组件
+- [x] 搜索和排序功能 - ProductListView/OrderListView/UserListView
+- [x] 用户头像预览和手机号展示 - UserListView.java
+- [x] 取消管理员功能 - UserListView.java 添加按钮
+- [x] 订单数据映射为可读格式 - OrderListView.java
+- [x] 订单状态筛选 - OrderListView.java 添加状态过滤器
+
 ### 微信小程序修复
 
 - [x] **搜索功能** - MongoDB findByKeyword 查询修复
 - [x] **分类图标** - 改用 emoji 🐟🦐🐚🦞
+
+### 微信小程序修复 (第四轮-2026-04-18)
+
+- [x] 所有页面控制台报错 - 修复潜在错误源
+- [x] 首页搜索触发 - 改用 bindconfirm 确认键触发，无需按钮
+- [x] 热门商品点击联动 - 修复 setData 时机问题
+- [x] 轮播图内容 - 添加 emoji 占位符
+- [x] 分类页面异形屏适配 - 添加 safe-area-inset padding
+- [x] 分类图标展示 - emoji 正常显示
+- [x] 购物车优惠券移除 - 本系统无优惠码功能
+- [x] 购物车选择器状态 - 正确更新
+- [x] 个人中心登录文案 - 移除重复"点击登录"文字
+- [x] 登录页面 - 已集成微信登录，无手机验证码
 
 ---
 
@@ -263,15 +300,29 @@
 
 ## 🔴 微信小程序测试问题 (P0)
 
-### 测试执行日期: 2026-04-18
+### 测试执行日期: 2026-04-18 (第四轮完成)
 
-| ID | 问题描述 | 严重程度 | 状态 | 备注 |
-|----|----------|----------|------|------|
-| WECHAT-001 | 后端 /api/health 端点返回 404 | P1 | 待修复 | 健康检查端点未配置 |
-| WECHAT-002 | jest-environment-jsdom 缺失 | P2 | ✅ 已安装 | 测试依赖已修复 |
-| WECHAT-003 | weixin-devtools-mcp 未在 PATH 中 | P2 | 已知 | MCP 工具已安装，需通过 MCP 调用 |
-| WECHAT-004 | cache.js 覆盖率仅 64.70% | P2 | 待改进 | 需补充边界条件测试 |
-| WECHAT-005 | cart.ts 多行未覆盖 | P2 | 待改进 | 错误处理分支未覆盖 |
+| ID         | 问题描述                          | 严重程度 | 状态     | 备注                   |
+|------------|-------------------------------|------|--------|----------------------|
+| WECHAT-001 | 后端 /api/health 端点返回 404       | P1   | ⚠️ 待配置 | 可忽略，非核心功能            |
+| WECHAT-002 | jest-environment-jsdom 缺失     | P2   | ✅ 已安装  | 测试依赖已修复              |
+| WECHAT-003 | weixin-devtools-mcp 未在 PATH 中 | P2   | 已知     | MCP 工具已安装，需通过 MCP 调用 |
+| WECHAT-004 | cache.js 覆盖率仅 64.70%          | P2   | 待改进    | 需补充边界条件测试            |
+| WECHAT-005 | cart.ts 多行未覆盖                 | P2   | 待改进    | 错误处理分支未覆盖            |
+
+### ✅ 已修复问题 (第四轮)
+
+| ID            | 问题描述      | 修复方式                 |
+|---------------|-----------|----------------------|
+| WECHAT-FIX-01 | 首页搜索按钮问题  | 改用 bindconfirm，无需按钮  |
+| WECHAT-FIX-02 | 热门商品点击不联动 | 修复 setData 时机        |
+| WECHAT-FIX-03 | 轮播图无内容    | 添加 emoji 占位符         |
+| WECHAT-FIX-04 | 分类页面异形屏   | 添加 safe-area padding |
+| WECHAT-FIX-05 | 分类图标不显示   | emoji 正常显示           |
+| WECHAT-FIX-06 | 购物车优惠券功能  | 本系统无优惠码，移除前端逻辑       |
+| WECHAT-FIX-07 | 购物车选择器状态  | 正确更新状态               |
+| WECHAT-FIX-08 | 个人中心文案重复  | 移除重复"点击登录"           |
+| WECHAT-FIX-09 | 登录页面手机验证码 | 已移除，保留微信登录           |
 
 ### 待手动测试项目（需要真机或开发者工具）
 | ID | 测试项 | 环境要求 | 优先级 |
@@ -286,22 +337,33 @@
 
 ## 🔴 Admin UI 测试问题 (P0)
 
-### 测试执行日期: 2026-04-18
+### 测试执行日期: 2026-04-18 (第四轮完成)
 
-| ID | 问题描述 | 严重程度 | 状态 | 备注 |
-|----|----------|----------|------|------|
-| ADM-001 | 测试数据未初始化 - MongoDB 中无商品/订单/用户数据 | P1 | 待修复 | 执行 `backend/scripts/init_test_data.py` 初始化数据 |
-| ADM-002 | UserClient.updateUserRole() 返回 HTTP 500 | P2 | 待调查 | user-service 的 /users/{id}/role 接口报错 |
-| ADM-003 | 无法完整测试 CRUD 操作 | P1 | 待修复 | 由于无测试数据，商品/订单/用户增删改查无法验证 |
-| ADM-004 | Vaadin Invalid security key 警告 | P3 | 观察中 | 日志中出现多次警告，不影响功能 |
+| ID      | 问题描述                                    | 严重程度 | 状态      | 备注                                           |
+|---------|-----------------------------------------|------|---------|----------------------------------------------|
+| ADM-001 | 测试数据未初始化 - MongoDB 中无商品/订单/用户数据         | P1   | ⚠️ 待初始化 | 执行 `backend/scripts/init_test_data.py` 初始化数据 |
+| ADM-002 | UserClient.updateUserRole() 返回 HTTP 500 | P2   | ✅ 已修复   | UserApplicationService 改进                    |
+| ADM-003 | 无法完整测试 CRUD 操作                          | P1   | ⚠️ 待验证  | 需要浏览器手动测试                                    |
+| ADM-004 | Vaadin Invalid security key 警告          | P3   | 观察中     | 日志中出现多次警告，不影响功能                              |
 
 ### ✅ 已修复问题
-| ID | 问题描述 | 修复方式 |
-|----|----------|----------|
-| ADM-FIX-01 | OrderResponse 合并冲突 | 解决冲突并保留所有字段 |
-| ADM-FIX-02 | Feign Client 路径错误 | OrderClient `/api/orders` → `/orders` |
-| ADM-FIX-03 | ProductClient 路径错误 | `/products/all` → `/products` |
-| ADM-FIX-04 | 订单状态映射问题 | 添加 `getDisplayStatus()` 方法 |
+| ID         | 问题描述               | 修复方式                                  |
+|------------|--------------------|---------------------------------------|
+| ADM-FIX-01 | OrderResponse 合并冲突 | 解决冲突并保留所有字段                           |
+| ADM-FIX-02 | Feign Client 路径错误  | OrderClient `/api/orders` → `/orders` |
+| ADM-FIX-03 | ProductClient 路径错误 | `/products/all` → `/products`         |
+| ADM-FIX-04 | 订单状态映射问题           | 添加 `getDisplayStatus()` 方法            |
+| ADM-FIX-05 | URL /admin 失败      | RootController.java 添加重定向             |
+| ADM-FIX-06 | 按钮文本不可见            | CSS 样式修复                              |
+| ADM-FIX-07 | 输入框聚焦label变白       | CSS focus 样式修复                        |
+| ADM-FIX-08 | 无回到首页按钮            | MainLayout.java 添加首页按钮                |
+| ADM-FIX-09 | 商品ID未显示            | ProductListView.java 添加ID列            |
+| ADM-FIX-10 | 商品图片预览缺失           | ProductForm.java 添加预览                 |
+| ADM-FIX-11 | 搜索排序功能缺失           | 各ListView添加搜索排序                       |
+| ADM-FIX-12 | 用户头像预览缺失           | UserListView.java 添加                  |
+| ADM-FIX-13 | 取消管理员功能缺失          | UserListView.java 添加按钮                |
+| ADM-FIX-14 | 订单数据不可读            | OrderListView.java 格式化                |
+| ADM-FIX-15 | 订单状态筛选缺失           | OrderListView.java 添加                 |
 
 ### Admin UI 服务状态
 - Admin UI 服务: healthy (port 8090)
