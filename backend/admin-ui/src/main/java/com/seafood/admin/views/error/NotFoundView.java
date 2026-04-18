@@ -18,15 +18,16 @@ public class NotFoundView extends VerticalLayout implements HasErrorParameter<No
         setAlignItems(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.CENTER);
         getStyle()
-            .set("background", "linear-gradient(135deg, #0c1929 0%, #023e6a 50%, #0096c7 100%)")
+            .set("background", "linear-gradient(135deg, #1A1A2E 0%, #2D3452 50%, #4ECDC4 100%)")
             .set("min-height", "100vh");
 
         Div container = new Div();
         container.getStyle()
             .set("text-align", "center")
             .set("padding", "40px")
-            .set("background", "rgba(255,255,255,0.1)")
+            .set("background", "rgba(255,255,255,0.12)")
             .set("border-radius", "16px")
+            .set("border", "1px solid rgba(255,255,255,0.15)")
             .set("backdrop-filter", "blur(10px)")
             .set("box-shadow", "0 8px 32px rgba(0,0,0,0.2)");
 
