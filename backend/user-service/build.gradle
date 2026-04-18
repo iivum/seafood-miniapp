@@ -36,6 +36,9 @@ dependencies {
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
     implementation 'io.github.resilience4j:resilience4j-ratelimiter:2.2.0'
 
+    // WxJava 微信小程序 SDK
+    implementation 'com.github.binarywang:weixin-java-miniapp:4.4.0'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
