@@ -1,4 +1,4 @@
-<view class="category-container safe-area-top">
+<view class="category-container">
   <!-- Category list view (when no category selected) -->
   <view class="category-grid" wx:if="{{!selectedCategory}}">
     <view class="category-grid-inner">
@@ -21,7 +21,7 @@
   <!-- Products list view (when category selected) -->
   <view class="products-view" wx:else>
     <!-- Category header -->
-    <view class="category-header safe-area-top">
+    <view class="category-header">
       <view class="category-header-left" bindtap="onBackToCategories">
         <text class="back-arrow">←</text>
         <text>全部分类</text>

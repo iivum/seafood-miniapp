@@ -19,10 +19,10 @@ const HOT_SEARCH_KEYWORDS = [
 Page({
   data: {
     categories: [
-        {name: '鱼类', icon: '🐟'},
-        {name: '虾蟹', icon: '🦐'},
-        {name: '贝类', icon: '🐚'},
-        {name: '活鲜', icon: '🦞'}
+        {id: 'fish', name: '鱼类', icon: '🐟'},
+        {id: 'shrimp', name: '虾蟹', icon: '🦐'},
+        {id: 'shell', name: '贝类', icon: '🐚'},
+        {id: 'live', name: '活鲜', icon: '🦞'}
     ],
     products: [],
     // Loading states
@@ -37,6 +37,7 @@ Page({
     hasMore: true,
     // Search
     searchKeyword: '',
+    searchFocused: false,
     // Hot search
     hotSearchKeywords: HOT_SEARCH_KEYWORDS,
     showHotSearch: true,
@@ -277,7 +278,10 @@ Page({
       searchKeyword: keyword,
       showHotSearch: false
     });
-    this.onSearch();
+    // Use setTimeout to ensure setData completes before onSearch reads searchKeyword
+    setTimeout(() => {
+      this.onSearch();
+    }, 0);
   },
 
   /**
