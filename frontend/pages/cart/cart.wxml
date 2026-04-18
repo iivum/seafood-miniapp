@@ -2,12 +2,12 @@
   <view class="cart-empty" wx:if="{{cartItems.length === 0}}">
     <icon type="info" size="64"></icon>
     <text>您的购物车还是空的哦</text>
-    <navigator open-type="switchTab" url="/pages/index/index" class="btn">去逛逛</navigator>
+    <navigator class="btn" open-type="switchTab" url="/pages/index/index">去逛逛</navigator>
   </view>
 
   <view class="cart-content" wx:else>
     <!-- 收货地址 -->
-    <navigator class="address-section card" open-type="navigate" url="/pages-sub/user/address/address-list?selectMode=true">
+    <navigator class="address-section card" open-type="navigate" bindtap="selectAddress">
       <view class="address-info" wx:if="{{selectedAddress}}">
         <view class="address-header">
           <text class="name">{{selectedAddress.name}}</text>
@@ -26,27 +26,35 @@
 
     <!-- 全选栏 -->
     <view class="select-all-bar">
-      <checkbox bindchange="onSelectAll" checked="{{selectedItems.length === cartItems.length && cartItems.length > 0}}" class="select-all-checkbox"/>
-      <text>全选</text>
+      <checkbox-group bindchange="onToggleSelectAll">
+        <label class="select-all">
+          <checkbox value="all" checked="{{selectedItems.length === cartItems.length && cartItems.length > 0}}" />
+          <text>全选</text>
+        </label>
+      </checkbox-group>
       <view class="selected-info">
         <text>已选 {{selectedItems.length}} 件</text>
       </view>
     </view>
 
     <!-- 商品列表 -->
-    <checkbox-group bindchange="onCheckboxChange">
+    <checkbox-group bindchange="onCheckboxGroupChange">
       <view class="cart-list">
         <view class="cart-item card" wx:for="{{cartItems}}" wx:key="id">
-          <checkbox value="{{item.id}}" class="item-checkbox" checked="{{selectedItems.includes(item.id)}}"/>
+          <label class="item-checkbox">
+            <checkbox value="{{item.id}}" />
+          </label>
           <image class="item-img" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
           <view class="item-info">
             <text class="item-name">{{item.name}}</text>
             <text class="item-price">￥{{item.price}}</text>
             <view class="quantity-control">
-              <input type="number" value="{{item.quantity}}" bindchange="onQuantityChange" data-id="{{item.id}}" class="quantity-input"/>
+              <button class="minus" size="mini" catchtap="onMinus" data-id="{{item.id}}">-</button>
+              <input type="number" class="num" value="{{item.quantity}}" data-id="{{item.id}}" bindchange="onQuantityChange" />
+              <button class="plus" size="mini" catchtap="onPlus" data-id="{{item.id}}">+</button>
             </view>
           </view>
-          <button size="mini" class="remove-btn" catchtap="onRemove" data-id="{{item.id}}">删除</button>
+          <button class="remove-btn" size="mini" catchtap="onRemove" data-id="{{item.id}}">×</button>
         </view>
       </view>
     </checkbox-group>
