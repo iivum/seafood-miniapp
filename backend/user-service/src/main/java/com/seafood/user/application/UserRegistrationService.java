@@ -215,8 +215,9 @@ public class UserRegistrationService {
         // 发送短信（实际实现）
         // smsService.sendVerifyCode(phone, code);
 
-        // 简化实现：打印到控制台
-        System.out.println("[" + type + "] Verification code for " + phone + ": " + code);
+        // 简化实现：打印到控制台（仅用于开发调试，生产环境应删除）
+        // TODO: 生产环境删除此行，避免验证码泄露到日志
+        System.out.println("[DEV] Verification code sent to " + phone);
 
         return true;
     }
