@@ -77,57 +77,35 @@ Page({
     });
   },
 
-  // Toggle item selection
-  onToggleSelect: function(e) {
-    const id = e.currentTarget.dataset.id;
-    const selectedItems = [...this.data.selectedItems];
-
-    const index = selectedItems.indexOf(id);
-    if (index > -1) {
-      selectedItems.splice(index, 1);
-    } else {
-      selectedItems.push(id);
-    }
-
+  // Handle checkbox-group change (selected items from checkbox)
+  onCheckboxChange: function(e) {
+    const selectedItems = e.detail.value;
     this.setData({ selectedItems: selectedItems });
     this.refreshCart();
   },
 
-  // Toggle select all
-  onToggleSelectAll: function() {
-    if (this.data.selectedItems.length === this.data.cartItems.length) {
-      this.setData({ selectedItems: [] });
-    } else {
+  // Handle select-all checkbox change
+  onSelectAll: function(e) {
+    if (e.detail.checked) {
       const allIds = this.data.cartItems.map(item => item.id);
       this.setData({ selectedItems: allIds });
+    } else {
+      this.setData({ selectedItems: [] });
     }
     this.refreshCart();
   },
 
-  onPlus: function(e) {
+  // Handle quantity input change (input type="number")
+  onQuantityChange: function(e) {
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
     const id = e.currentTarget.dataset.id;
-    const item = this.data.cartItems.find(i => i.id === id);
-    cartUtil.updateQuantity(id, item.quantity + 1);
+    const quantity = Math.max(1, parseInt(e.detail.value) || 1);
+    cartUtil.updateQuantity(id, quantity);
     this.refreshCart();
-  },
-
-  onMinus: function(e) {
-    const app = getApp();
-    if (!app.globalData.userInfo) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
-    const id = e.currentTarget.dataset.id;
-    const item = this.data.cartItems.find(i => i.id === id);
-    if (item.quantity > 1) {
-      cartUtil.updateQuantity(id, item.quantity - 1);
-      this.refreshCart();
-    }
   },
 
   onRemove: function(e) {
@@ -175,7 +153,4 @@ Page({
     });
   },
 
-  goToIndex: function() {
-    wx.switchTab({ url: '/pages/index/index' });
-  }
 })
