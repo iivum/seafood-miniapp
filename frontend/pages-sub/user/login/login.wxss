@@ -96,6 +96,11 @@
   transition: all 0.3s;
 }
 
+/* 按钮点击反馈 */
+.button-hover {
+  opacity: 0.8;
+}
+
 .wechat-login-btn:active {
   transform: scale(0.98);
 }

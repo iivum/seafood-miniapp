@@ -9,7 +9,7 @@
   <!-- 微信登录表单 -->
   <view class="login-form">
     <view class="form-content">
-      <button class="wechat-login-btn" bindtap="wechatLogin" loading="{{isLoading}}">
+      <button class="wechat-login-btn" hover-class="button-hover" bindtap="wechatLogin" loading="{{isLoading}}">
         <icon type="wechat" size="24" color="#fff"></icon>
         <text>微信一键登录</text>
       </button>
