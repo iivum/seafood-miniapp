@@ -55,21 +55,6 @@
       </view>
     </view>
 
-    <!-- 优惠券 -->
-    <view class="coupon-section card">
-      <view class="coupon-input-row">
-        <input class="coupon-input" placeholder="请输入优惠码" value="{{couponCode}}" bindinput="onCouponInput" />
-        <button class="coupon-btn" bindtap="onApplyCoupon">应用</button>
-      </view>
-      <view class="coupon-hint" wx:if="{{!couponApplied}}">
-        <text>提示: 可输入 DISCOUNT10, SAVE5 等测试优惠码</text>
-      </view>
-      <view class="coupon-applied" wx:if="{{couponApplied}}">
-        <text class="coupon-desc">{{couponApplied.description}}</text>
-        <text class="coupon-remove" bindtap="onRemoveCoupon">取消</text>
-      </view>
-    </view>
-
     <!-- 订单信息 -->
     <view class="order-info card">
       <view class="info-item">
@@ -83,16 +68,12 @@
           <text wx:else>￥{{shippingFee}}</text>
         </text>
       </view>
-      <view class="info-item">
-        <text class="label">优惠</text>
-        <text class="value discount">-￥{{couponDiscount}}</text>
-      </view>
     </view>
 
     <view class="footer">
       <view class="total-info">
         <text>合计：</text>
-        <text class="total-price">￥{{selectedPrice + shippingFee - couponDiscount}}</text>
+        <text class="total-price">￥{{totalPrice}}</text>
       </view>
       <button class="checkout-btn" bindtap="onCheckout" disabled="{{selectedItems.length === 0}}">去结算</button>
     </view>

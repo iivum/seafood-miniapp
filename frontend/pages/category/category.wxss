@@ -1,11 +1,13 @@
 .category-container {
   min-height: 100vh;
   background-color: var(--color-bg-subtle);
+  padding-top: env(safe-area-inset-top);
 }
 
 /* Category grid view */
 .category-grid {
   padding: 20rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
 }
 
 .category-grid-inner {
@@ -59,11 +61,13 @@
 /* Products view */
 .products-view {
   padding: 0;
+  padding-top: env(safe-area-inset-top);
 }
 
 .category-header {
   background-color: var(--color-surface);
   padding: 20rpx 30rpx;
+  padding-top: calc(20rpx + env(safe-area-inset-top));
   display: flex;
   align-items: center;
   border-bottom: 1rpx solid var(--color-border);
