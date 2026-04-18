@@ -1,0 +1,9 @@
+spring:
+  cloud:
+    config:
+      uri: http://config-service:8888
+      fail-fast: true
+      retry:
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.5

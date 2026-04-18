@@ -1,0 +1,10 @@
+spring:
+  cloud:
+    config:
+      # Connect to config-service for centralized configuration
+      uri: http://config-service:8888
+      fail-fast: true
+      retry:
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.5

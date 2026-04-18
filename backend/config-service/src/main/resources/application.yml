@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: config-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/seafood}
+      database: seafood
+  cloud:
+    config:
+      server:
+        # MongoDB作为配置存储，默认label为main
+        default-label: main
+        # 启用健康检查
+        health:
+          enabled: true
+
+server:
+  port: 8888
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 5000
+  graceful:
+    shutdown:
+      wait-time: 30s
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+  instance:
+    lease-renewal-interval-in-seconds: 10
+    health-check-url-path: /actuator/health
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,refresh
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    refresh:
+      enabled: true
+  health:
+    eureka:
+      client:
+        enabled: true
+
+# AES加密配置
+encryption:
+  aes:
+    # Base64编码的AES密钥（256位），通过环境变量注入
+    key: ${ENCRYPTION_KEY:default-key-for-dev-only-replace-in-prod}
+    # 密钥ID，用于密钥轮换
+    key-id: ${ENCRYPTION_KEY_ID:default-key-id}

@@ -90,6 +90,43 @@ services:
         max-size: "100m"
         max-file: "5"
 
+  config-service:
+    image: eclipse-temurin:17-jre
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./backend/config-service/build/libs/config-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+    networks:
+      - seafood-network
+    command: ["java", "-jar", "/app/app.jar"]
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:dGVzdC1rZXktZm9yLWVuY3J5cHRpb24tb25seS1kZXYtbm90LWZvci1wcm9k}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
   gateway:
     image: eclipse-temurin:17-jre
     ports:
@@ -101,6 +138,8 @@ services:
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
       discovery-service:
+        condition: service_healthy
+      config-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
@@ -138,6 +177,8 @@ services:
         condition: service_healthy
       discovery-service:
         condition: service_healthy
+      config-service:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 15s
@@ -174,6 +215,8 @@ services:
       mongodb:
         condition: service_healthy
       discovery-service:
+        condition: service_healthy
+      config-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
@@ -214,6 +257,8 @@ services:
         condition: service_healthy
       discovery-service:
         condition: service_healthy
+      config-service:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 15s
@@ -249,6 +294,8 @@ services:
     command: ["java", "-jar", "/app/app.jar"]
     depends_on:
       discovery-service:
+        condition: service_healthy
+      config-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
