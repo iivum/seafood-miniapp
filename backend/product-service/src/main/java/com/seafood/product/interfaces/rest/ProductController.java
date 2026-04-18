@@ -2,6 +2,8 @@ package com.seafood.product.interfaces.rest;
 
 import com.seafood.product.application.ProductApplicationService;
 import com.seafood.product.domain.model.Product;
+import com.seafood.product.interfaces.rest.dto.ProductResponse;
+import com.seafood.product.interfaces.rest.mapper.ProductMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,6 +34,7 @@ import java.util.Map;
 @Tag(name = "Product Management", description = "APIs for managing seafood products")
 public class ProductController {
     private final ProductApplicationService productApplicationService;
+    private final ProductMapper productMapper;
 
     @PostMapping
     @Operation(
@@ -47,9 +50,9 @@ public class ProductController {
             @ApiResponse(responseCode = "400", description = "Invalid input data")
         }
     )
-    public ResponseEntity<Product> createProduct(@RequestBody CreateProductRequest request) {
+    public ResponseEntity<ProductResponse> createProduct(@RequestBody CreateProductRequest request) {
         Product product = productApplicationService.createProduct(request.getName(), request.getDescription(), request.getPrice(), request.getStock(), request.getCategory(), request.getImageUrl());
-        return ResponseEntity.ok(product);
+        return ResponseEntity.ok(productMapper.toResponse(product));
     }
 
     /**
@@ -102,7 +105,7 @@ public class ProductController {
 
         // 构建响应
         Map<String, Object> response = new HashMap<>();
-        response.put("products", productPage.getContent());
+        response.put("products", productPage.getContent().stream().map(productMapper::toResponse).toList());
         response.put("page", productPage.getNumber());
         response.put("pageSize", productPage.getSize());
         response.put("totalPages", productPage.getTotalPages());
@@ -122,8 +125,8 @@ public class ProductController {
             @ApiResponse(responseCode = "204", description = "No products found")
         }
     )
-    public ResponseEntity<List<Product>> listAllProducts() {
-        return ResponseEntity.ok(productApplicationService.listAllProducts());
+    public ResponseEntity<List<ProductResponse>> listAllProducts() {
+        return ResponseEntity.ok(productApplicationService.listAllProducts().stream().map(productMapper::toResponse).toList());
     }
 
     @GetMapping("/{id}")
@@ -136,8 +139,9 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Product not found")
         }
     )
-    public ResponseEntity<Product> getProductById(@PathVariable String id) {
+    public ResponseEntity<ProductResponse> getProductById(@PathVariable String id) {
         return productApplicationService.getProductById(id)
+                .map(productMapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -152,8 +156,8 @@ public class ProductController {
             @ApiResponse(responseCode = "204", description = "No products found in this category")
         }
     )
-    public ResponseEntity<List<Product>> findByCategory(@PathVariable String category) {
-        return ResponseEntity.ok(productApplicationService.findByCategory(category));
+    public ResponseEntity<List<ProductResponse>> findByCategory(@PathVariable String category) {
+        return ResponseEntity.ok(productApplicationService.findByCategory(category).stream().map(productMapper::toResponse).toList());
     }
 
     @DeleteMapping("/{id}")
@@ -181,14 +185,14 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Product not found")
         }
     )
-    public ResponseEntity<Product> updateProduct(
+    public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable String id,
             @RequestBody CreateProductRequest request) {
         Product product = productApplicationService.updateProduct(
             id, request.getName(), request.getDescription(),
             request.getPrice(), request.getStock(),
             request.getCategory(), request.getImageUrl());
-        return ResponseEntity.ok(product);
+        return ResponseEntity.ok(productMapper.toResponse(product));
     }
 
     @PatchMapping("/{id}")
@@ -201,14 +205,14 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Product not found")
         }
     )
-    public ResponseEntity<Product> patchProduct(
+    public ResponseEntity<ProductResponse> patchProduct(
             @PathVariable String id,
             @RequestBody CreateProductRequest request) {
         Product product = productApplicationService.updateProduct(
             id, request.getName(), request.getDescription(),
             request.getPrice(), request.getStock(),
             request.getCategory(), request.getImageUrl());
-        return ResponseEntity.ok(product);
+        return ResponseEntity.ok(productMapper.toResponse(product));
     }
 
     /**

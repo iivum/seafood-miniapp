@@ -3,6 +3,8 @@ package com.seafood.user.interfaces.rest;
 import com.seafood.user.application.UserApplicationService;
 import com.seafood.user.domain.model.User;
 import com.seafood.user.domain.model.UserRole;
+import com.seafood.user.interfaces.rest.dto.UserResponse;
+import com.seafood.user.interfaces.rest.mapper.UserMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -27,6 +29,7 @@ import java.util.List;
 @Tag(name = "User Management", description = "APIs for managing users")
 public class UserController {
     private final UserApplicationService userApplicationService;
+    private final UserMapper userMapper;
 
     @PostMapping
     @Operation(
@@ -42,7 +45,7 @@ public class UserController {
             @ApiResponse(responseCode = "400", description = "Invalid input data")
         }
     )
-    public ResponseEntity<User> createUser(@Valid @RequestBody CreateUserRequest request) {
+    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         User user = new User();
         user.setNickname(request.getUsername());
         user.setEmail(request.getEmail());
@@ -50,7 +53,7 @@ public class UserController {
         user.setPassword(request.getPassword());
         user.setRole(UserRole.USER);
         User created = userApplicationService.createUser(user);
-        return ResponseEntity.ok(created);
+        return ResponseEntity.ok(userMapper.toResponse(created));
     }
 
     @GetMapping
@@ -62,7 +65,7 @@ public class UserController {
             @ApiResponse(responseCode = "204", description = "No users found")
         }
     )
-    public ResponseEntity<List<User>> listAllUsers(
+    public ResponseEntity<List<UserResponse>> listAllUsers(
             @Parameter(description = "Filter by role (USER, ADMIN, MERCHANT)") @RequestParam(required = false) String role,
             @Parameter(description = "Sort field (createdAt, nickname, email)") @RequestParam(defaultValue = "createdAt") String sortBy,
             @Parameter(description = "Sort direction (asc, desc)") @RequestParam(defaultValue = "desc") String sortDir) {
@@ -72,7 +75,7 @@ public class UserController {
         } else {
             users = userApplicationService.getAllUsers(sortBy, sortDir);
         }
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(users.stream().map(userMapper::toResponse).toList());
     }
 
     @GetMapping("/{id}")
@@ -85,8 +88,9 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "User not found")
         }
     )
-    public ResponseEntity<User> getUserById(@PathVariable String id) {
+    public ResponseEntity<UserResponse> getUserById(@PathVariable String id) {
         return userApplicationService.getUserById(id)
+                .map(userMapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -101,8 +105,9 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "User not found")
         }
     )
-    public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
+    public ResponseEntity<UserResponse> getUserByEmail(@PathVariable String email) {
         return userApplicationService.getUserByEmail(email)
+                .map(userMapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -122,8 +127,8 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "User not found")
         }
     )
-    public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody UpdateUserRequest request) {
-        return ResponseEntity.ok(userApplicationService.updateUser(id, request.getEmail(), request.getPhone(), request.getAddress()));
+    public ResponseEntity<UserResponse> updateUser(@PathVariable String id, @RequestBody UpdateUserRequest request) {
+        return ResponseEntity.ok(userMapper.toResponse(userApplicationService.updateUser(id, request.getEmail(), request.getPhone(), request.getAddress())));
     }
 
     @DeleteMapping("/{id}")
@@ -152,7 +157,7 @@ public class UserController {
             @ApiResponse(responseCode = "400", description = "Invalid role value")
         }
     )
-    public ResponseEntity<User> updateUserRole(@PathVariable String id, @RequestParam("role") String role) {
-        return ResponseEntity.ok(userApplicationService.updateUserRole(id, role));
+    public ResponseEntity<UserResponse> updateUserRole(@PathVariable String id, @RequestParam("role") String role) {
+        return ResponseEntity.ok(userMapper.toResponse(userApplicationService.updateUserRole(id, role)));
     }
 }

@@ -3,6 +3,8 @@ package com.seafood.order.interfaces.rest;
 import com.seafood.order.application.OrderApplicationService;
 import com.seafood.order.domain.model.Order;
 import com.seafood.order.domain.model.OrderStatus;
+import com.seafood.order.interfaces.rest.dto.OrderResponse;
+import com.seafood.order.interfaces.rest.mapper.OrderMapper;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +23,11 @@ import java.util.List;
 public class OrderController {
 
     private final OrderApplicationService orderApplicationService;
+    private final OrderMapper orderMapper;
 
-    public OrderController(OrderApplicationService orderApplicationService) {
+    public OrderController(OrderApplicationService orderApplicationService, OrderMapper orderMapper) {
         this.orderApplicationService = orderApplicationService;
+        this.orderMapper = orderMapper;
     }
 
     /**
@@ -33,9 +37,9 @@ public class OrderController {
      * @return the created order
      */
     @PostMapping
-    public ResponseEntity<Order> createOrderFromCart(@Valid @RequestBody CreateOrderRequest request) {
+    public ResponseEntity<OrderResponse> createOrderFromCart(@Valid @RequestBody CreateOrderRequest request) {
         Order createdOrder = orderApplicationService.createOrderFromCart(request.getUserId(), request.getCartId());
-        return new ResponseEntity<>(createdOrder, HttpStatus.CREATED);
+        return new ResponseEntity<>(orderMapper.toResponse(createdOrder), HttpStatus.CREATED);
     }
 
     /**
@@ -45,9 +49,9 @@ public class OrderController {
      * @return the order details
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getOrderById(@PathVariable("id") String orderId) {
+    public ResponseEntity<OrderResponse> getOrderById(@PathVariable("id") String orderId) {
         Order order = orderApplicationService.getOrderById(orderId);
-        return ResponseEntity.ok(order);
+        return ResponseEntity.ok(orderMapper.toResponse(order));
     }
 
     /**
@@ -60,7 +64,7 @@ public class OrderController {
      * @return list of orders
      */
     @GetMapping
-    public ResponseEntity<List<Order>> getOrdersByUserAndStatus(
+    public ResponseEntity<List<OrderResponse>> getOrdersByUserAndStatus(
             @RequestParam(value = "userId", required = false) String userId,
             @RequestParam(value = "status", required = false) OrderStatus status,
             @RequestParam(value = "sortBy", defaultValue = "createdAt") String sortBy,
@@ -75,7 +79,7 @@ public class OrderController {
         } else {
             orders = orderApplicationService.getAllOrders(sortBy, sortDir);
         }
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(orders.stream().map(orderMapper::toResponse).toList());
     }
 
     /**
@@ -86,10 +90,10 @@ public class OrderController {
      * @return list of all orders
      */
     @GetMapping("/all")
-    public ResponseEntity<List<Order>> getAllOrders(
+    public ResponseEntity<List<OrderResponse>> getAllOrders(
             @RequestParam(value = "sortBy", defaultValue = "createdAt") String sortBy,
             @RequestParam(value = "sortDir", defaultValue = "desc") String sortDir) {
-        return ResponseEntity.ok(orderApplicationService.getAllOrders(sortBy, sortDir));
+        return ResponseEntity.ok(orderApplicationService.getAllOrders(sortBy, sortDir).stream().map(orderMapper::toResponse).toList());
     }
 
     /**
@@ -100,11 +104,11 @@ public class OrderController {
      * @return the updated order
      */
     @PostMapping("/{id}/payment")
-    public ResponseEntity<Order> processPayment(
+    public ResponseEntity<OrderResponse> processPayment(
             @PathVariable("id") String orderId,
             @Valid @RequestBody PaymentRequest paymentRequest) {
         Order updatedOrder = orderApplicationService.processPayment(orderId, paymentRequest);
-        return ResponseEntity.ok(updatedOrder);
+        return ResponseEntity.ok(orderMapper.toResponse(updatedOrder));
     }
 
     /**
@@ -115,11 +119,11 @@ public class OrderController {
      * @return the updated order
      */
     @PutMapping("/{id}/ship")
-    public ResponseEntity<Order> shipOrder(
+    public ResponseEntity<OrderResponse> shipOrder(
             @PathVariable("id") String orderId,
             @RequestParam("trackingNumber") String trackingNumber) {
         Order updatedOrder = orderApplicationService.shipOrder(orderId, trackingNumber);
-        return ResponseEntity.ok(updatedOrder);
+        return ResponseEntity.ok(orderMapper.toResponse(updatedOrder));
     }
 
     /**
@@ -129,9 +133,9 @@ public class OrderController {
      * @return the updated order
      */
     @PutMapping("/{id}/complete")
-    public ResponseEntity<Order> completeOrder(@PathVariable("id") String orderId) {
+    public ResponseEntity<OrderResponse> completeOrder(@PathVariable("id") String orderId) {
         Order updatedOrder = orderApplicationService.completeOrder(orderId);
-        return ResponseEntity.ok(updatedOrder);
+        return ResponseEntity.ok(orderMapper.toResponse(updatedOrder));
     }
 
     /**
@@ -142,11 +146,11 @@ public class OrderController {
      * @return the updated order
      */
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<Order> cancelOrder(
+    public ResponseEntity<OrderResponse> cancelOrder(
             @PathVariable("id") String orderId,
             @RequestParam("reason") String reason) {
         Order updatedOrder = orderApplicationService.cancelOrder(orderId, reason);
-        return ResponseEntity.ok(updatedOrder);
+        return ResponseEntity.ok(orderMapper.toResponse(updatedOrder));
     }
 
     /**
@@ -157,11 +161,11 @@ public class OrderController {
      * @return the updated order
      */
     @PostMapping("/{id}/refund")
-    public ResponseEntity<Order> processRefund(
+    public ResponseEntity<OrderResponse> processRefund(
             @PathVariable("id") String orderId,
             @Valid @RequestBody RefundRequest refundRequest) {
         Order updatedOrder = orderApplicationService.processRefund(orderId, refundRequest);
-        return ResponseEntity.ok(updatedOrder);
+        return ResponseEntity.ok(orderMapper.toResponse(updatedOrder));
     }
 
     /**
