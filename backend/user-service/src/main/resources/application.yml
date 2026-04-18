@@ -45,3 +45,8 @@ management:
     eureka:
       client:
         enabled: true
+
+# 微信小程序配置
+wx:
+  appid: ${WX_APPID:wx1234567890abcdef}
+  secret: ${WX_SECRET:abcdef1234567890abcdef}

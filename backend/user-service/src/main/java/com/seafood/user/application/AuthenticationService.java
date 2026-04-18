@@ -4,17 +4,17 @@ import com.seafood.common.security.JwtUtil;
 import com.seafood.user.domain.model.TokenRepository;
 import com.seafood.user.domain.model.User;
 import com.seafood.user.domain.model.UserRepository;
+import com.seafood.user.domain.model.WeChatLoginException;
+import com.seafood.user.infrastructure.wechat.WxJavaService;
 import com.seafood.user.interfaces.rest.LoginResponse;
+import lombok.RequiredArgsConstructor;
+import me.chanjar.weixin.common.error.WxErrorException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
 
 /**
  * 认证服务
@@ -22,24 +22,14 @@ import java.util.Optional;
  */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class AuthenticationService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final TokenRepository tokenRepository;
     private final JwtUtil jwtUtil;
     private final CustomPasswordEncoder passwordEncoder;
-
-    public AuthenticationService(
-            UserRepository userRepository,
-            TokenRepository tokenRepository,
-            JwtUtil jwtUtil,
-            CustomPasswordEncoder passwordEncoder
-    ) {
-        this.userRepository = userRepository;
-        this.tokenRepository = tokenRepository;
-        this.jwtUtil = jwtUtil;
-        this.passwordEncoder = passwordEncoder;
-    }
+    private final WxJavaService wxJavaService;
 
     /**
      * 微信登录或注册
@@ -66,6 +56,39 @@ public class AuthenticationService implements UserDetailsService {
         user = userRepository.save(user);
 
         return generateLoginResponse(user);
+    }
+
+    /**
+     * 微信手机号授权登录
+     * @param code 微信登录code
+     * @param encryptedData 加密手机号
+     * @param iv 解密向量
+     * @return 登录响应
+     */
+    public LoginResponse weChatPhoneLogin(String code, String encryptedData, String iv) {
+        try {
+            // 1. 获取 session_key
+            String sessionKey = wxJavaService.getSessionKey(code);
+
+            // 2. 解密手机号
+            String phone = wxJavaService.decryptPhoneNumber(sessionKey, encryptedData, iv);
+
+            // 3. 根据手机号查找用户，不存在则创建
+            User user = userRepository.findByPhone(phone)
+                    .orElseGet(() -> {
+                        User newUser = new User();
+                        newUser.setPhone(phone);
+                        newUser.setNickname("微信用户");
+                        newUser.setRole(com.seafood.user.domain.model.UserRole.USER);
+                        return userRepository.save(newUser);
+                    });
+
+            // 4. 生成 JWT
+            return generateLoginResponse(user);
+
+        } catch (WxErrorException e) {
+            throw new WeChatLoginException("微信登录失败，请稍后重试", e);
+        }
     }
 
     /**

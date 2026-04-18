@@ -223,20 +223,27 @@ App({
 
   logout: function() {
     const request = require('./utils/request.js');
-    const token = this.globalData.token;
-    
-    return request({
-        url: '/auth/logout',
+    const app = this;
+
+    request({
+      url: '/auth/logout',
       method: 'POST',
-      header: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
-    .then(() => {
-      // 清除本地存储
+      needAuth: true
+    }).finally(() => {
+      app.globalData.token = null;
+      app.globalData.userInfo = null;
       wx.removeStorageSync('token');
-      this.globalData.userInfo = null;
-      this.globalData.token = null;
+
+      wx.showToast({
+        title: '已退出登录',
+        icon: 'success'
+      });
+
+      setTimeout(() => {
+        wx.reLaunch({
+          url: '/pages/index/index'
+        });
+      }, 1500);
     });
   },
 

@@ -117,6 +117,27 @@ public class RateLimitedAuthController {
         });
     }
 
+    @PostMapping("/wx-phone-login")
+    @Operation(
+            summary = "微信手机号登录（限流保护）",
+            description = "Login using WeChat phone number authorization with rate limiting protection",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "登录成功"),
+                    @ApiResponse(responseCode = "400", description = "无效的输入数据"),
+                    @ApiResponse(responseCode = "429", description = "请求过于频繁，请稍后再试")
+            }
+    )
+    public ResponseEntity<LoginResponse> weChatPhoneLogin(@RequestBody WeChatPhoneLoginRequest request) {
+        return executeWithRateLimit(weChatLoginRateLimiter, () -> {
+            LoginResponse response = authenticationService.weChatPhoneLogin(
+                    request.getCode(),
+                    request.getEncryptedData(),
+                    request.getIv()
+            );
+            return ResponseEntity.ok(response);
+        });
+    }
+
     @PostMapping("/verify-code")
     @Operation(
             summary = "获取验证码（限流保护）",
