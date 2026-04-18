@@ -8,7 +8,16 @@ import me.chanjar.weixin.common.error.WxErrorException;
 import org.springframework.stereotype.Service;
 
 /**
- * 微信 API 调用服务
+ * Service for interacting with WeChat Mini Program APIs.
+ * Encapsulates the WxJava SDK functionality for user authentication
+ * and data decryption operations.
+ *
+ * <p>This service handles the communication with WeChat servers for
+ * session key exchange and sensitive data decryption. All operations
+ * may throw WxErrorException for handling in the calling layer.</p>
+ *
+ * @see WxMaService
+ * @see <a href="https://github.com/Wechat-Group/WxJava">WxJava SDK</a>
  */
 @Service
 @RequiredArgsConstructor
@@ -17,11 +26,16 @@ public class WxJavaService {
     private final WxMaService wxMaService;
 
     /**
-     * 通过 code 换取 session_key
+     * Exchanges a login code for a session key.
+     * The session key is required for decrypting WeChat user data
+     * such as phone numbers.
      *
-     * @param code 微信登录 code
-     * @return session_key
-     * @throws WxErrorException 微信 API 错误
+     * <p>The code is obtained from the WeChat mini program
+     * via wx.login() and can only be used once.</p>
+     *
+     * @param code the login code from WeChat mini program
+     * @return the session key for subsequent decryption operations
+     * @throws WxErrorException if the code is invalid or expired
      */
     public String getSessionKey(String code) throws WxErrorException {
         WxMaJscode2SessionResult result = wxMaService.getUserService()
@@ -30,13 +44,18 @@ public class WxJavaService {
     }
 
     /**
-     * 解密微信手机号
+     * Decrypts the user's phone number from WeChat's encrypted data.
+     * The phone number is obtained through WeChat's getPhoneNumber button
+     * which returns encrypted data that must be decrypted using the session key.
      *
-     * @param sessionKey    会话密钥
-     * @param encryptedData 加密数据
-     * @param iv           解密向量
-     * @return 解密后的手机号
-     * @throws WxErrorException 微信 API 错误
+     * <p>This method validates that the session key matches the user
+     * who originally obtained it to prevent phone number theft.</p>
+     *
+     * @param sessionKey    the session key obtained from getSessionKey
+     * @param encryptedData encrypted phone number data from WeChat
+     * @param iv            the initialization vector from WeChat
+     * @return the user's phone number as a string
+     * @throws WxErrorException if decryption fails due to invalid data or expired session
      */
     public String decryptPhoneNumber(String sessionKey, String encryptedData, String iv) throws WxErrorException {
         WxMaPhoneNumberInfo phoneInfo = wxMaService.getUserService()

@@ -4,6 +4,7 @@ import com.seafood.common.security.JwtUtil;
 import com.seafood.user.domain.model.TokenRepository;
 import com.seafood.user.domain.model.User;
 import com.seafood.user.domain.model.UserRepository;
+import com.seafood.user.domain.model.WeChatLoginException;
 import com.seafood.user.infrastructure.wechat.WxJavaService;
 import com.seafood.user.interfaces.rest.LoginResponse;
 import lombok.RequiredArgsConstructor;
@@ -86,7 +87,7 @@ public class AuthenticationService implements UserDetailsService {
             return generateLoginResponse(user);
 
         } catch (WxErrorException e) {
-            throw new RuntimeException("微信登录失败: " + e.getMessage());
+            throw new WeChatLoginException("微信登录失败，请稍后重试", e);
         }
     }
 
