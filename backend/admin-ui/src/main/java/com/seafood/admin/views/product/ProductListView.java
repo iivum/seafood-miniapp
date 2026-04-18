@@ -6,7 +6,6 @@ import com.seafood.admin.client.ProductResponse;
 import com.seafood.admin.views.main.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
@@ -108,13 +107,19 @@ public class ProductListView extends VerticalLayout {
 
     private HorizontalLayout getToolbar() {
         Button addProductButton = new Button("添加商品");
-        addProductButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addProductButton.getStyle()
+            .set("background", "linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%)")
+            .set("border-radius", "8px")
+            .set("box-shadow", "0 2px 8px rgba(255, 107, 107, 0.3)");
         addProductButton.addClickListener(click -> addProduct());
 
         // Search field
         searchField.setPlaceholder("搜索商品...");
         searchField.setClearButtonVisible(true);
         searchField.setValueChangeMode(ValueChangeMode.LAZY);
+        searchField.getStyle()
+            .set("border-radius", "8px")
+            .set("--lumo-border-radius", "8px");
         searchField.addValueChangeListener(e -> updateList());
 
         HorizontalLayout toolbar = new HorizontalLayout(addProductButton, searchField);
