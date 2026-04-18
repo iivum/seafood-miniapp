@@ -63,6 +63,17 @@ public class MongoOrderRepository implements OrderRepository {
     }
 
     @Override
+    public List<Order> findByUserId(String userId, String sortBy, String sortDir) {
+        org.springframework.data.domain.Sort.Direction direction = "asc".equalsIgnoreCase(sortDir)
+                ? org.springframework.data.domain.Sort.Direction.ASC
+                : org.springframework.data.domain.Sort.Direction.DESC;
+        String validSortField = getValidSortField(sortBy);
+        Query query = Query.query(Criteria.where(USER_ID_FIELD).is(userId))
+                .with(org.springframework.data.domain.Sort.by(direction, validSortField));
+        return mongoTemplate.find(query, Order.class, COLLECTION_NAME);
+    }
+
+    @Override
     public Optional<Order> findByOrderNumber(String orderNumber) {
         Query query = Query.query(Criteria.where(ORDER_NUMBER_FIELD).is(orderNumber));
         Order order = mongoTemplate.findOne(query, Order.class, COLLECTION_NAME);
@@ -77,10 +88,33 @@ public class MongoOrderRepository implements OrderRepository {
     }
 
     @Override
+    public List<Order> findByStatus(OrderStatus status, String sortBy, String sortDir) {
+        org.springframework.data.domain.Sort.Direction direction = "asc".equalsIgnoreCase(sortDir)
+                ? org.springframework.data.domain.Sort.Direction.ASC
+                : org.springframework.data.domain.Sort.Direction.DESC;
+        String validSortField = getValidSortField(sortBy);
+        Query query = Query.query(Criteria.where(STATUS_FIELD).is(status))
+                .with(org.springframework.data.domain.Sort.by(direction, validSortField));
+        return mongoTemplate.find(query, Order.class, COLLECTION_NAME);
+    }
+
+    @Override
     public List<Order> findByUserIdAndStatus(String userId, OrderStatus status) {
         Query query = Query.query(Criteria.where(USER_ID_FIELD).is(userId)
                 .and(STATUS_FIELD).is(status))
                 .with(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, CREATED_AT_FIELD));
+        return mongoTemplate.find(query, Order.class, COLLECTION_NAME);
+    }
+
+    @Override
+    public List<Order> findByUserIdAndStatus(String userId, OrderStatus status, String sortBy, String sortDir) {
+        org.springframework.data.domain.Sort.Direction direction = "asc".equalsIgnoreCase(sortDir)
+                ? org.springframework.data.domain.Sort.Direction.ASC
+                : org.springframework.data.domain.Sort.Direction.DESC;
+        String validSortField = getValidSortField(sortBy);
+        Query query = Query.query(Criteria.where(USER_ID_FIELD).is(userId)
+                .and(STATUS_FIELD).is(status))
+                .with(org.springframework.data.domain.Sort.by(direction, validSortField));
         return mongoTemplate.find(query, Order.class, COLLECTION_NAME);
     }
 
@@ -131,6 +165,16 @@ public class MongoOrderRepository implements OrderRepository {
     }
 
     @Override
+    public List<Order> findAll(String sortBy, String sortDir) {
+        org.springframework.data.domain.Sort.Direction direction = "asc".equalsIgnoreCase(sortDir)
+                ? org.springframework.data.domain.Sort.Direction.ASC
+                : org.springframework.data.domain.Sort.Direction.DESC;
+        String validSortField = getValidSortField(sortBy);
+        Query query = new Query().with(org.springframework.data.domain.Sort.by(direction, validSortField));
+        return mongoTemplate.find(query, Order.class, COLLECTION_NAME);
+    }
+
+    @Override
     public void deleteAll() {
         mongoTemplate.dropCollection(COLLECTION_NAME);
     }
@@ -161,5 +205,32 @@ public class MongoOrderRepository implements OrderRepository {
                 new org.springframework.data.mongodb.core.index.Index()
                         .on(TOTAL_PRICE_FIELD, org.springframework.data.domain.Sort.Direction.DESC)
         );
+    }
+
+    /**
+     * Get valid sort field name, default to createdAt if invalid
+     */
+    private String getValidSortField(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return CREATED_AT_FIELD;
+        }
+        // Map common field names to actual field names
+        switch (sortBy.toLowerCase()) {
+            case "createdat":
+            case "created_at":
+            case "createdtime":
+                return CREATED_AT_FIELD;
+            case "totalprice":
+            case "total_price":
+            case "price":
+                return TOTAL_PRICE_FIELD;
+            case "status":
+                return STATUS_FIELD;
+            case "ordernumber":
+            case "order_number":
+                return ORDER_NUMBER_FIELD;
+            default:
+                return CREATED_AT_FIELD;
+        }
     }
 }

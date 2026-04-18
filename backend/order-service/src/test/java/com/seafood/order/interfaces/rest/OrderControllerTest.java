@@ -109,7 +109,7 @@ class OrderControllerTest {
     @Test
     void shouldGetOrdersByUserAndStatusSuccessfully() throws Exception {
         List<Order> orders = Arrays.asList(testOrder);
-        when(orderApplicationService.getOrdersByUserIdAndStatus(anyString(), any()))
+        when(orderApplicationService.getOrdersByUserIdAndStatus(any(), any(), any(), any()))
                 .thenReturn(orders);
 
         mockMvc.perform(get("/api/orders")

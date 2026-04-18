@@ -226,20 +226,49 @@ public class OrderApplicationService {
      *
      * @param userId the user ID
      * @param status the order status
+     * @param sortBy sort field
+     * @param sortDir sort direction
      * @return list of orders
      */
-    public List<Order> getOrdersByUserIdAndStatus(String userId, OrderStatus status) {
+    public List<Order> getOrdersByUserIdAndStatus(String userId, OrderStatus status, String sortBy, String sortDir) {
         validateUserId(userId);
-        return orderRepository.findByUserIdAndStatus(userId, status);
+        return orderRepository.findByUserIdAndStatus(userId, status, sortBy, sortDir);
+    }
+
+    /**
+     * Get orders by user ID
+     *
+     * @param userId the user ID
+     * @param sortBy sort field
+     * @param sortDir sort direction
+     * @return list of orders
+     */
+    public List<Order> getOrdersByUserId(String userId, String sortBy, String sortDir) {
+        validateUserId(userId);
+        return orderRepository.findByUserId(userId, sortBy, sortDir);
+    }
+
+    /**
+     * Get orders by status
+     *
+     * @param status the order status
+     * @param sortBy sort field
+     * @param sortDir sort direction
+     * @return list of orders
+     */
+    public List<Order> getOrdersByStatus(OrderStatus status, String sortBy, String sortDir) {
+        return orderRepository.findByStatus(status, sortBy, sortDir);
     }
 
     /**
      * Get all orders (for admin)
      *
+     * @param sortBy sort field
+     * @param sortDir sort direction
      * @return list of all orders
      */
-    public List<Order> getAllOrders() {
-        return orderRepository.findAll();
+    public List<Order> getAllOrders(String sortBy, String sortDir) {
+        return orderRepository.findAll(sortBy, sortDir);
     }
 
     /**

@@ -6,6 +6,7 @@ import com.seafood.user.domain.model.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -71,8 +72,48 @@ public class UserApplicationService {
     public User updateUserRole(String id, String role) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
-        UserRole userRole = UserRole.valueOf(role.toUpperCase());
+
+        if (role == null || role.trim().isEmpty()) {
+            throw new IllegalArgumentException("Role cannot be null or empty");
+        }
+
+        UserRole userRole;
+        try {
+            userRole = UserRole.valueOf(role.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid role value: " + role + ". Valid values are: USER, ADMIN, MERCHANT");
+        }
+
         user.setRole(userRole);
         return userRepository.save(user);
+    }
+
+    /**
+     * Get all users with sorting
+     *
+     * @param sortBy sort field
+     * @param sortDir sort direction
+     * @return list of all users sorted
+     */
+    public List<User> getAllUsers(String sortBy, String sortDir) {
+        return userRepository.findAll(sortBy, sortDir);
+    }
+
+    /**
+     * Get users by role with sorting
+     *
+     * @param role the user role
+     * @param sortBy sort field
+     * @param sortDir sort direction
+     * @return list of users with the specified role
+     */
+    public List<User> getUsersByRole(String role, String sortBy, String sortDir) {
+        UserRole userRole;
+        try {
+            userRole = UserRole.valueOf(role.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid role value: " + role + ". Valid values are: USER, ADMIN, MERCHANT");
+        }
+        return userRepository.findByRole(userRole, sortBy, sortDir);
     }
 }

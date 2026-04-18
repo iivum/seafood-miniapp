@@ -35,6 +35,16 @@ public interface OrderRepository {
     List<Order> findByUserId(String userId);
 
     /**
+     * Find orders by user ID with sorting
+     *
+     * @param userId the user ID
+     * @param sortBy sort field
+     * @param sortDir sort direction
+     * @return list of orders for the user
+     */
+    List<Order> findByUserId(String userId, String sortBy, String sortDir);
+
+    /**
      * Find order by order number
      *
      * @param orderNumber the order number
@@ -51,6 +61,16 @@ public interface OrderRepository {
     List<Order> findByStatus(OrderStatus status);
 
     /**
+     * Find orders by status with sorting
+     *
+     * @param status the order status
+     * @param sortBy sort field
+     * @param sortDir sort direction
+     * @return list of orders with the status
+     */
+    List<Order> findByStatus(OrderStatus status, String sortBy, String sortDir);
+
+    /**
      * Find orders by user ID and status
      *
      * @param userId the user ID
@@ -58,6 +78,17 @@ public interface OrderRepository {
      * @return list of orders for the user with the status
      */
     List<Order> findByUserIdAndStatus(String userId, OrderStatus status);
+
+    /**
+     * Find orders by user ID and status with sorting
+     *
+     * @param userId the user ID
+     * @param status the order status
+     * @param sortBy sort field
+     * @param sortDir sort direction
+     * @return list of orders for the user with the status
+     */
+    List<Order> findByUserIdAndStatus(String userId, OrderStatus status, String sortBy, String sortDir);
 
     /**
      * Delete an order
@@ -112,6 +143,15 @@ public interface OrderRepository {
      * @return list of all orders
      */
     List<Order> findAll();
+
+    /**
+     * Find all orders with sorting
+     *
+     * @param sortBy sort field
+     * @param sortDir sort direction
+     * @return list of all orders
+     */
+    List<Order> findAll(String sortBy, String sortDir);
 
     /**
      * Delete all orders

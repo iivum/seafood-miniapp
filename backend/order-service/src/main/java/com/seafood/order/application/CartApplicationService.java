@@ -6,6 +6,7 @@ import com.seafood.order.domain.model.CartRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -205,6 +206,59 @@ public class CartApplicationService {
     public Cart getCart(String userId) {
         validateUserId(userId);
         return getCartOrThrow(userId);
+    }
+
+    /**
+     * Calculate price for selected items in cart
+     *
+     * @param userId the user ID
+     * @param selectedItemIds list of selected item IDs (product IDs)
+     * @return the calculated price breakdown
+     * @throws IllegalArgumentException if userId is null or empty or cart not found
+     */
+    public CartPriceResult calculateSelectedItemsPrice(String userId, List<String> selectedItemIds) {
+        validateUserId(userId);
+
+        Cart cart = getCartOrThrow(userId);
+
+        double subtotal = 0.0;
+        int totalItems = 0;
+
+        for (CartItem item : cart.getItems()) {
+            if (selectedItemIds == null || selectedItemIds.isEmpty() || selectedItemIds.contains(item.getProductId())) {
+                subtotal += item.getTotalPrice();
+                totalItems += item.getQuantity();
+            }
+        }
+
+        // Calculate shipping fee: free for orders >= 100, otherwise 10
+        double shippingFee = subtotal >= 100 ? 0 : 10;
+
+        // Calculate total
+        double total = subtotal + shippingFee;
+
+        return new CartPriceResult(subtotal, shippingFee, total, totalItems);
+    }
+
+    /**
+     * Calculate shipping fee for given address and cart total
+     *
+     * @param userId the user ID
+     * @param addressId the address ID
+     * @return the calculated shipping fee
+     * @throws IllegalArgumentException if userId is null or empty or cart/address not found
+     */
+    public double calculateShippingFee(String userId, String addressId) {
+        validateUserId(userId);
+
+        Cart cart = getCartOrThrow(userId);
+
+        // Simple shipping fee calculation based on total price
+        // In a real system, this would consider the address to determine zone-based shipping
+        double totalPrice = cart.getTotalPrice();
+
+        // Free shipping for orders over 100, otherwise 10
+        return totalPrice >= 100 ? 0 : 10;
     }
 
     private Cart getCartOrThrow(String userId) {

@@ -55,15 +55,24 @@ public class UserController {
 
     @GetMapping
     @Operation(
-        summary = "List all users",
-        description = "Returns a list of all registered users",
+        summary = "List all users with optional filtering and sorting",
+        description = "Returns a list of all registered users with optional role filter and sorting",
         responses = {
             @ApiResponse(responseCode = "200", description = "Successful operation"),
             @ApiResponse(responseCode = "204", description = "No users found")
         }
     )
-    public ResponseEntity<List<User>> listAllUsers() {
-        return ResponseEntity.ok(userApplicationService.getAllUsers());
+    public ResponseEntity<List<User>> listAllUsers(
+            @Parameter(description = "Filter by role (USER, ADMIN, MERCHANT)") @RequestParam(required = false) String role,
+            @Parameter(description = "Sort field (createdAt, nickname, email)") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "Sort direction (asc, desc)") @RequestParam(defaultValue = "desc") String sortDir) {
+        List<User> users;
+        if (role != null && !role.isBlank()) {
+            users = userApplicationService.getUsersByRole(role, sortBy, sortDir);
+        } else {
+            users = userApplicationService.getAllUsers(sortBy, sortDir);
+        }
+        return ResponseEntity.ok(users);
     }
 
     @GetMapping("/{id}")

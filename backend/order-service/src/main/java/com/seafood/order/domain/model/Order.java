@@ -27,6 +27,7 @@ public class Order {
     private double discountAmount;
     private double shippingFee;
     private OrderStatus status;
+    private String statusText; // Chinese display for status
     private Address shippingAddress;
     private String transactionId;
     private String trackingNumber;
@@ -51,6 +52,7 @@ public class Order {
         this.userId = userId;
         this.shippingAddress = shippingAddress;
         this.status = OrderStatus.PENDING_PAYMENT;
+        this.statusText = getStatusTextForOrderStatus(OrderStatus.PENDING_PAYMENT);
         this.items = new ArrayList<>();
         this.orderHistory = new ArrayList<>();
         this.totalPrice = 0.0;
@@ -77,6 +79,7 @@ public class Order {
             throw new IllegalStateException("Order cannot be paid in current status: " + this.status);
         }
         this.status = OrderStatus.PAID;
+        this.statusText = getStatusTextForOrderStatus(OrderStatus.PAID);
         this.transactionId = transactionId;
         this.paidAt = new Date();
         this.finalPrice = this.totalPrice + this.shippingFee - this.discountAmount;
@@ -88,6 +91,7 @@ public class Order {
             throw new IllegalStateException("Order must be paid before shipping");
         }
         this.status = OrderStatus.SHIPPED;
+        this.statusText = getStatusTextForOrderStatus(OrderStatus.SHIPPED);
         this.trackingNumber = trackingNumber;
         this.shippedAt = new Date();
         addToHistory("Order shipped", OrderStatus.SHIPPED);
@@ -98,6 +102,7 @@ public class Order {
             throw new IllegalStateException("Order must be shipped before completion");
         }
         this.status = OrderStatus.DELIVERED;
+        this.statusText = getStatusTextForOrderStatus(OrderStatus.DELIVERED);
         this.deliveredAt = new Date();
         addToHistory("Order delivered", OrderStatus.DELIVERED);
     }
@@ -107,6 +112,7 @@ public class Order {
             throw new IllegalStateException("Order cannot be cancelled in current status: " + this.status);
         }
         this.status = OrderStatus.CANCELLED;
+        this.statusText = getStatusTextForOrderStatus(OrderStatus.CANCELLED);
         this.cancellationReason = reason;
         this.cancelledAt = new Date();
         addToHistory("Order cancelled: " + reason, OrderStatus.CANCELLED);
@@ -117,6 +123,7 @@ public class Order {
             throw new IllegalStateException("Order must be delivered before refund");
         }
         this.status = OrderStatus.REFUNDED;
+        this.statusText = getStatusTextForOrderStatus(OrderStatus.REFUNDED);
         this.refundTransactionId = refundTransactionId;
         this.refundReason = reason;
         this.refundedAt = new Date();
@@ -170,6 +177,12 @@ public class Order {
     public double getDiscountAmount() { return discountAmount; }
     public double getShippingFee() { return shippingFee; }
     public OrderStatus getStatus() { return status; }
+    public String getStatusText() {
+        if (statusText != null) {
+            return statusText;
+        }
+        return getStatusTextForOrderStatus(status);
+    }
     public Address getShippingAddress() { return shippingAddress; }
     public String getTransactionId() { return transactionId; }
     public String getTrackingNumber() { return trackingNumber; }
@@ -184,4 +197,29 @@ public class Order {
     public Date getCancelledAt() { return cancelledAt; }
     public Date getRefundedAt() { return refundedAt; }
     public List<OrderHistory> getOrderHistory() { return new ArrayList<>(orderHistory); }
+
+    /**
+     * Map OrderStatus to Chinese display text
+     */
+    private String getStatusTextForOrderStatus(OrderStatus status) {
+        if (status == null) {
+            return "未知状态";
+        }
+        switch (status) {
+            case PENDING_PAYMENT:
+                return "待付款";
+            case PAID:
+                return "已付款";
+            case SHIPPED:
+                return "已发货";
+            case DELIVERED:
+                return "已完成";
+            case CANCELLED:
+                return "已取消";
+            case REFUNDED:
+                return "已退款";
+            default:
+                return status.name();
+        }
+    }
 }
