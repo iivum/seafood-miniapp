@@ -62,7 +62,7 @@ public class MainLayout extends AppLayout {
         header.setWidthFull();
         header.addClassNames("px-m");
         header.getStyle()
-            .set("background", "linear-gradient(135deg, #0c1929 0%, #023e6a 100%)")
+            .set("background", "linear-gradient(135deg, #1A1A2E 0%, #2D3452 100%)")
             .set("min-height", "56px");
 
         addToNavbar(header);
@@ -111,11 +111,12 @@ public class MainLayout extends AppLayout {
             .set("align-items", "center")
             .set("padding", "10px 20px")
             .set("border-radius", "8px")
-            .set("color", "#1e3a4c")
+            .set("color", "#2D3436")
             .set("text-decoration", "none")
             .set("font-weight", "500")
             .set("font-size", "0.9rem")
-            .set("transition", "all 0.15s ease");
+            .set("transition", "all 0.2s ease")
+            .set("margin", "2px 8px");
         return link;
     }
 }
