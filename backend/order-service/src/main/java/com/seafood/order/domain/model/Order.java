@@ -11,6 +11,26 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Order aggregate root representing a customer order in the seafood e-commerce system.
+ *
+ * <p>This entity encapsulates the complete order lifecycle from creation through
+ * payment, fulfillment, and potential refund. It maintains a history of all
+ * status transitions for audit purposes.</p>
+ *
+ * <p>The order follows a strict state machine:
+ * PENDING_PAYMENT -> PAID -> SHIPPED -> DELIVERED
+ *                     |          |
+ *                     +-> CANCELLED      +-> REFUNDED (after delivery)</p>
+ *
+ * <p>Order pricing includes base item total, applicable discounts, and shipping fees.
+ * The final price is recalculated at payment time to capture any changes.</p>
+ *
+ * @see OrderStatus
+ * @see OrderItem
+ * @see Address
+ * @see OrderHistory
+ */
 @Document(collection = "orders")
 @Getter
 @Setter

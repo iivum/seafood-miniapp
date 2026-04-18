@@ -5,6 +5,19 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Address entity representing a shipping address for order delivery.
+ *
+ * <p>This entity encapsulates recipient information including contact details
+ * and location hierarchy (province, city, district) needed for logistics
+ * fulfillment and package routing.</p>
+ *
+ * <p>An address can be marked as default, indicating the user's preferred
+ * shipping location for faster checkout. The system ensures only one
+ * default address per user at any given time.</p>
+ *
+ * @see Order
+ */
 @Data
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -13,12 +26,19 @@ public class Address {
 
     private String id;
     private String userId;
-    private String name; // 收件人姓名
-    private String phone; // 手机号
-    private String detailAddress; // 详细地址
-    private String city; // 市
-    private String province; // 省
-    private String district; // 区/县
+    /** Recipient name for delivery contact */
+    private String name;
+    /** Contact phone number for delivery notifications */
+    private String phone;
+    /** Detailed street address for final routing */
+    private String detailAddress;
+    /** City name for logistics routing */
+    private String city;
+    /** Province/State name for regional classification */
+    private String province;
+    /** District/County name for precise location */
+    private String district;
+    /** Whether this is the user's default shipping address */
     private boolean isDefault;
 
     public Address(String name, String phone, String detailAddress, String city, String province, String district) {

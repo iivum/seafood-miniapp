@@ -15,8 +15,13 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Order REST controller
- * Provides API endpoints for order management
+ * Order REST controller providing endpoints for order lifecycle management.
+ *
+ * <p>Handles order creation, status transitions, payment processing,
+ * shipping, and refunds. All endpoints return standardized JSON responses.</p>
+ *
+ * @see OrderApplicationService
+ * @see OrderResponse
  */
 @RestController
 @RequestMapping("/orders")
@@ -31,10 +36,13 @@ public class OrderController {
     }
 
     /**
-     * Create order from shopping cart
+     * Create a new order from the user's shopping cart.
      *
-     * @param request the create order request
-     * @return the created order
+     * <p>Items are copied from cart to order with price snapshots.
+     * Cart is cleared after successful order creation.</p>
+     *
+     * @param request contains userId, cartId, addressId, and optional selectedItemIds
+     * @return created order with PENDING_PAYMENT status
      */
     @PostMapping
     public ResponseEntity<OrderResponse> createOrderFromCart(@Valid @RequestBody CreateOrderRequest request) {
@@ -43,10 +51,10 @@ public class OrderController {
     }
 
     /**
-     * Get order by ID
+     * Retrieve a specific order by its ID.
      *
-     * @param orderId the order ID
-     * @return the order details
+     * @param orderId the unique order identifier
+     * @return order details if found
      */
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponse> getOrderById(@PathVariable("id") String orderId) {
@@ -55,13 +63,16 @@ public class OrderController {
     }
 
     /**
-     * Get orders by user ID and status (both parameters optional for admin)
+     * List orders with optional filtering by user and/or status.
      *
-     * @param userId the user ID (optional)
-     * @param status the order status (optional)
-     * @param sortBy sort field (optional, default: createdAt)
-     * @param sortDir sort direction (optional, default: desc)
-     * @return list of orders
+     * <p>When called by admin without parameters, returns all orders.
+     * Parameters can be combined for filtered queries.</p>
+     *
+     * @param userId filter by user (optional)
+     * @param status filter by order status (optional)
+     * @param sortBy field to sort by, default: createdAt
+     * @param sortDir sort direction, default: desc
+     * @return list of matching orders
      */
     @GetMapping
     public ResponseEntity<List<OrderResponse>> getOrdersByUserAndStatus(

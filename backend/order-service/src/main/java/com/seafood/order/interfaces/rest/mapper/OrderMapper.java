@@ -16,9 +16,20 @@ import org.mapstruct.factory.Mappers;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
-import java.util.stream.Collectors;
 
+/**
+ * MapStruct mapper for converting between Order domain models and DTOs.
+ *
+ * <p>This mapper handles the translation between the internal domain layer
+ * (Order, OrderItem, etc.) and the external interface layer (DTOs).
+ * It includes custom converters for type transformations like Date to String
+ * and double to BigDecimal for API compatibility.</p>
+ *
+ * @see Order
+ * @see OrderResponse
+ * @see OrderItem
+ * @see OrderItemResponse
+ */
 @Mapper(componentModel = "spring")
 public interface OrderMapper {
 

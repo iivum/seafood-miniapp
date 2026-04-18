@@ -6,13 +6,24 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.Date;
 
 /**
- * Order history record
- * Tracks order status changes and important events
+ * OrderHistory represents a single event record in the order's audit trail.
+ *
+ * <p>Every significant state transition and business event is recorded
+ * with a timestamp. This provides the complete story of order lifecycle
+ * for customer service inquiries and dispute resolution.</p>
+ *
+ * <p>Examples of recorded events: order created, payment received, order shipped,
+ * delivery confirmed, refund initiated, address updated.</p>
+ *
+ * @see Order
  */
 public class OrderHistory {
 
+    /** Human-readable description of the event */
     private String description;
+    /** Order status at the time of this event */
     private OrderStatus status;
+    /** When the event occurred */
     private Date timestamp;
 
     public OrderHistory() {

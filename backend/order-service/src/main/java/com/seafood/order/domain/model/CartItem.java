@@ -4,16 +4,30 @@ import java.math.BigDecimal;
 import java.util.Objects;
 
 /**
- * CartItem represents an item in the shopping cart
- * Part of the Cart aggregate
+ * CartItem represents a product added to the shopping cart.
+ *
+ * <p>Part of the Cart aggregate root, CartItem tracks the product reference,
+ * quantity, and price snapshot for items pending purchase. Unlike OrderItem,
+ * CartItem maintains current prices which may change before checkout.</p>
+ *
+ * <p>CartItem uses productId as its natural identity for equality comparison.
+ * Two CartItems with the same productId are considered equal.</p>
+ *
+ * @see Cart
+ * @see OrderItem
  */
 public class CartItem {
 
     private String id;
+    /** Reference to product catalog entry */
     private String productId;
+    /** Current product name */
     private String name;
+    /** Current unit price (may differ from order time) */
     private double price;
+    /** Number of units in cart */
     private int quantity;
+    /** Product image URL for display */
     private String imageUrl;
 
     public CartItem(String productId, String name, double price, int quantity, String imageUrl) {
