@@ -4,7 +4,7 @@
     <image class="avatar" src="{{userInfo ? userInfo.avatarUrl : '/images/default-avatar.png'}}"></image>
     <view class="user-info">
       <text class="nickname">{{userInfo ? userInfo.nickname : '点击登录'}}</text>
-      <view class="role_tag" wx:if="{{userInfo && userInfo.role === 'MERCHANT'}}">商家</view>
+      <view class="role-tag" wx:if="{{userInfo && userInfo.role === 'MERCHANT'}}">商家</view>
     </view>
   </button>
 
@@ -44,7 +44,7 @@
   </view>
 
   <!-- 商家后台入口 -->
-  <view class="card" wx:if="{{userInfo.role === 'MERCHANT'}}">
+  <view class="card" wx:if="{{userInfo && userInfo.role === 'MERCHANT'}}">
     <view class="section-title">商家管理</view>
     <view class="merchant-nav">
       <navigator class="btn" url="/pages/merchant/index" hover-class="navigator-hover">进入商家管理后台</navigator>
