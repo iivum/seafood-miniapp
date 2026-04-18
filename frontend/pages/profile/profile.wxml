@@ -1,53 +1,53 @@
 <view class="profile-container">
   <!-- 用户信息 -->
-  <view class="user-header" bindtap="onLogin">
+  <button class="user-header" open-type="getUserInfo" bindgetuserinfo="onLogin">
     <image class="avatar" src="{{userInfo ? userInfo.avatarUrl : '/images/default-avatar.png'}}"></image>
     <view class="user-info">
       <text class="nickname">{{userInfo ? userInfo.nickname : '点击登录'}}</text>
       <view class="role_tag" wx:if="{{userInfo && userInfo.role === 'MERCHANT'}}">商家</view>
     </view>
-  </view>
+  </button>
 
   <!-- 订单中心 -->
   <view class="card">
     <view class="section-title">我的订单</view>
     <view class="order-nav">
-      <view class="nav-item">
+      <navigator class="nav-item" url="/pages/order/list?type=waiting" hover-class="navigator-hover">
         <icon type="waiting" size="24"></icon>
         <text>待付款</text>
-      </view>
-      <view class="nav-item">
+      </navigator>
+      <navigator class="nav-item" url="/pages/order/list?type=paid" hover-class="navigator-hover">
         <icon type="success" size="24"></icon>
         <text>待发货</text>
-      </view>
-      <view class="nav-item">
+      </navigator>
+      <navigator class="nav-item" url="/pages/order/list?type=shipped" hover-class="navigator-hover">
         <icon type="download" size="24"></icon>
         <text>待收货</text>
-      </view>
+      </navigator>
     </view>
   </view>
 
   <!-- 常用功能 -->
   <view class="card menu-list">
-    <view class="menu-item" bindtap="goToOrderList">
+    <navigator class="menu-item" url="/pages/order/list" hover-class="navigator-hover">
       <text>全部订单</text>
       <text class="arrow">></text>
-    </view>
-    <view class="menu-item">
+    </navigator>
+    <navigator class="menu-item" url="/pages/address/list" hover-class="navigator-hover">
       <text>收货地址</text>
       <text class="arrow">></text>
-    </view>
-    <view class="menu-item">
+    </navigator>
+    <navigator class="menu-item" url="/pages/service/chat" hover-class="navigator-hover">
       <text>联系客服</text>
       <text class="arrow">></text>
-    </view>
+    </navigator>
   </view>
 
   <!-- 商家后台入口 -->
   <view class="card" wx:if="{{userInfo.role === 'MERCHANT'}}">
     <view class="section-title">商家管理</view>
     <view class="merchant-nav">
-      <view class="btn" bindtap="goToMerchant">进入商家管理后台</view>
+      <navigator class="btn" url="/pages/merchant/index" hover-class="navigator-hover">进入商家管理后台</navigator>
     </view>
   </view>
 </view>
