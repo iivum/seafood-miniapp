@@ -108,6 +108,36 @@ Page({
     this.refreshCart();
   },
 
+  // Handle minus button tap
+  onMinus: function(e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    const id = e.currentTarget.dataset.id;
+    const item = this.data.cartItems.find(i => i.id === id);
+    if (item && item.quantity > 1) {
+      cartUtil.updateQuantity(id, item.quantity - 1);
+      this.refreshCart();
+    }
+  },
+
+  // Handle plus button tap
+  onPlus: function(e) {
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    const id = e.currentTarget.dataset.id;
+    const item = this.data.cartItems.find(i => i.id === id);
+    if (item) {
+      cartUtil.updateQuantity(id, item.quantity + 1);
+      this.refreshCart();
+    }
+  },
+
   onRemove: function(e) {
     const app = getApp();
     if (!app.globalData.userInfo) {

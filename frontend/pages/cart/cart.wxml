@@ -26,7 +26,7 @@
 
     <!-- 全选栏 -->
     <view class="select-all-bar">
-      <checkbox-group bindchange="onToggleSelectAll">
+      <checkbox-group bindchange="onSelectAll">
         <label class="select-all">
           <checkbox value="all" checked="{{selectedItems.length === cartItems.length && cartItems.length > 0}}" />
           <text>全选</text>
@@ -38,7 +38,7 @@
     </view>
 
     <!-- 商品列表 -->
-    <checkbox-group bindchange="onCheckboxGroupChange">
+    <checkbox-group bindchange="onCheckboxChange">
       <view class="cart-list">
         <view class="cart-item card" wx:for="{{cartItems}}" wx:key="id">
           <label class="item-checkbox">
