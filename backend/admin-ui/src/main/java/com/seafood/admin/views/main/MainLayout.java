@@ -6,6 +6,7 @@ import com.seafood.admin.views.product.ProductListView;
 import com.seafood.admin.views.user.UserListView;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -22,6 +23,21 @@ public class MainLayout extends AppLayout {
     }
 
     private void createHeader() {
+        // Home button to return to dashboard
+        Button homeButton = new Button(new Icon(VaadinIcon.HOME));
+        homeButton.addClassNames("home-button");
+        homeButton.getStyle()
+            .set("background", "transparent")
+            .set("border", "none")
+            .set("color", "#ffffff")
+            .set("cursor", "pointer")
+            .set("padding", "8px")
+            .set("border-radius", "4px")
+            .set("margin-right", "12px");
+        homeButton.addClickListener(e -> {
+            getUI().ifPresent(ui -> ui.navigate(DashboardView.class));
+        });
+
         H1 logo = new H1("🐠 大海的味道");
         logo.getStyle()
             .set("font-size", "1.15rem")
@@ -38,7 +54,7 @@ public class MainLayout extends AppLayout {
             .set("margin", "0 0 0 8px")
             .set("color", "#ffffff");
 
-        HorizontalLayout brand = new HorizontalLayout(logo, subtitle);
+        HorizontalLayout brand = new HorizontalLayout(homeButton, logo, subtitle);
         brand.setAlignItems(FlexComponent.Alignment.CENTER);
 
         HorizontalLayout header = new HorizontalLayout(new DrawerToggle(), brand);

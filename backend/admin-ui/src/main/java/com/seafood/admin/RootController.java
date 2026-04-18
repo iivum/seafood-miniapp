@@ -11,4 +11,9 @@ public class RootController {
     public String redirectToAdmin(RedirectAttributes attributes) {
         return "redirect:/admin/";
     }
+
+    @GetMapping("/admin")
+    public String redirectAdminWithoutSlash() {
+        return "redirect:/admin/";
+    }
 }

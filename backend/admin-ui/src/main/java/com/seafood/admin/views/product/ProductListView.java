@@ -13,6 +13,8 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,7 @@ public class ProductListView extends VerticalLayout {
     private final ProductClient productClient;
     private final Grid<ProductResponse> grid = new Grid<>(ProductResponse.class);
     private final ProductForm form;
+    private TextField searchField = new TextField();
 
     @Autowired
     public ProductListView(ProductClient productClient) {
@@ -86,8 +89,19 @@ public class ProductListView extends VerticalLayout {
 
     private void configureGrid() {
         grid.setSizeFull();
-        grid.setColumns("name", "category", "price", "stock", "onSale");
+        
+        // Add ID column first for distinguishing same-name products
+        grid.addColumn(ProductResponse::getId).setHeader("商品ID").setAutoWidth(true).setSortable(true);
+        grid.addColumn("name").setHeader("商品名称").setAutoWidth(true).setSortable(true);
+        grid.addColumn("category").setHeader("分类").setAutoWidth(true).setSortable(true);
+        grid.addColumn("price").setHeader("价格").setAutoWidth(true).setSortable(true);
+        grid.addColumn("stock").setHeader("库存").setAutoWidth(true).setSortable(true);
+        grid.addColumn("onSale").setHeader("上架").setAutoWidth(true);
+
         grid.getColumns().forEach(col -> col.setAutoWidth(true));
+
+        // Enable sorting
+        grid.setSortableColumns("id", "name", "category", "price", "stock");
 
         grid.asSingleSelect().addValueChangeListener(event -> editProduct(event.getValue()));
     }
@@ -97,7 +111,13 @@ public class ProductListView extends VerticalLayout {
         addProductButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addProductButton.addClickListener(click -> addProduct());
 
-        HorizontalLayout toolbar = new HorizontalLayout(addProductButton);
+        // Search field
+        searchField.setPlaceholder("搜索商品...");
+        searchField.setClearButtonVisible(true);
+        searchField.setValueChangeMode(ValueChangeMode.LAZY);
+        searchField.addValueChangeListener(e -> updateList());
+
+        HorizontalLayout toolbar = new HorizontalLayout(addProductButton, searchField);
         toolbar.addClassName("toolbar");
         toolbar.setWidthFull();
         toolbar.setAlignItems(FlexComponent.Alignment.START);
@@ -126,6 +146,20 @@ public class ProductListView extends VerticalLayout {
     }
 
     private void updateList() {
-        grid.setItems(productClient.getAllProducts());
+        var products = productClient.getAllProducts();
+        
+        // Filter by search term
+        String searchTerm = searchField.getValue();
+        if (searchTerm != null && !searchTerm.isBlank()) {
+            String lowerSearch = searchTerm.toLowerCase();
+            products = products.stream()
+                .filter(p -> 
+                    (p.getName() != null && p.getName().toLowerCase().contains(lowerSearch)) ||
+                    (p.getCategory() != null && p.getCategory().toLowerCase().contains(lowerSearch)) ||
+                    (p.getId() != null && p.getId().toLowerCase().contains(lowerSearch)))
+                .collect(java.util.stream.Collectors.toList());
+        }
+        
+        grid.setItems(products);
     }
 }
