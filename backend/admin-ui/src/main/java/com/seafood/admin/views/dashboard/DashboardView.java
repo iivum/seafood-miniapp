@@ -33,7 +33,7 @@ public class DashboardView extends VerticalLayout {
         setPadding(false);
         setSpacing(false);
         getStyle()
-            .set("background", "#f0f7fa")
+            .set("background", "#F7F8FC")
             .set("min-height", "100vh")
             .set("padding", "28px 32px");
 
@@ -125,7 +125,7 @@ public class DashboardView extends VerticalLayout {
         card.setSpacing(false);
         card.addClassName("stat-card");
         card.getStyle()
-            .set("border-top", "4px solid " + accentColor);
+            .set("border-top", "4px solid #FF6B6B");
 
         Paragraph icon = new Paragraph(emoji);
         icon.getStyle()
@@ -214,8 +214,8 @@ public class DashboardView extends VerticalLayout {
         badge.setPadding(false);
         badge.setAlignItems(FlexComponent.Alignment.CENTER);
         badge.getStyle()
-            .set("background", color + "15")
-            .set("border", "1px solid " + color + "40")
+            .set("background", color + "20")
+            .set("border", "1px solid " + color + "50")
             .set("border-radius", "10px")
             .set("padding", "14px 18px")
             .set("min-width", "100px")
