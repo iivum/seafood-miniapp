@@ -1,0 +1,262 @@
+// Element Plus Theme Overrides for Seafood Admin
+
+// Color System
+$--colors: (
+  "primary": (
+    "base": #3D66A8
+  ),
+  "success": (
+    "base": #10B981
+  ),
+  "warning": (
+    "base": #F59E0B
+  ),
+  "danger": (
+    "base": #EF4444
+  ),
+  "info": (
+    "base": #3B82F6
+  )
+);
+
+// Sidebar and layout colors
+$--sidebar-bg: #1A1A2E;
+$--sidebar-text: #E8EDF5;
+$--sidebar-hover: #252542;
+$--sidebar-active: #2A4D8C;
+$--content-bg: #F7F8FC;
+$--surface-bg: #FFFFFF;
+$--accent-coral: #FF6B6B;
+$--accent-teal: #4ECDC4;
+
+// Typography
+$--font-family: 'Outfit', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+$--font-size-base: 14px;
+
+// Border radius
+$--border-radius-base: 8px;
+$--border-radius-small: 6px;
+$--border-radius-large: 12px;
+
+// Shadows - subtle, not heavy
+$--box-shadow-base: 0 4px 6px -1px rgba(26, 26, 46, 0.07), 0 2px 4px -1px rgba(26, 26, 46, 0.04);
+$--box-shadow-light: 0 1px 2px 0 rgba(26, 26, 46, 0.05);
+$--box-shadow-lighter: 0 1px 3px 0 rgba(26, 26, 46, 0.05);
+
+// CSS Variables for runtime theming
+:root {
+  // Sidebar
+  --sidebar-bg: #{$sidebar-bg};
+  --sidebar-text: #{$sidebar-text};
+  --sidebar-text-muted: #8B8FA3;
+  --sidebar-hover: #{$sidebar-hover};
+  --sidebar-active: #{$sidebar-active};
+  
+  // Content
+  --content-bg: #{$content-bg};
+  --surface-bg: #{$surface-bg};
+  --text-primary: #1A1A2E;
+  --text-muted: #6B7280;
+  --border-color: #E5E7EB;
+  --divider-color: #F0F0F4;
+  
+  // Accent colors
+  --accent-coral: #{$accent-coral};
+  --accent-teal: #{$accent-teal};
+  
+  // Spacing
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  // Radius
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  
+  // Transitions
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  
+  // Accent color variable (used by Element components)
+  --el-color-primary: #3D66A8;
+}
+
+// Button overrides
+.el-button {
+  border-radius: $--border-radius-base;
+  font-weight: 500;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  
+  &:hover {
+    transform: scale(1.02);
+  }
+  
+  &--primary {
+    background-color: #3D66A8;
+    border-color: #3D66A8;
+  }
+}
+
+// Input overrides
+.el-input {
+  --el-input-border-radius: 6px;
+  
+  .el-input__wrapper {
+    border-radius: 6px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    
+    &:focus-within {
+      box-shadow: 0 0 0 2px rgba(61, 102, 168, 0.15);
+      border-color: #3D66A8;
+    }
+  }
+}
+
+// Card overrides
+.el-card {
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  box-shadow: $--box-shadow-light;
+  
+  &:hover {
+    box-shadow: $--box-shadow-base;
+  }
+}
+
+// Table overrides
+.el-table {
+  --el-table-border-color: #E5E7EB;
+  --el-table-header-bg-color: #F7F8FC;
+  --el-table-row-hover-bg-color: #F7F8FC;
+  
+  th.el-table__cell {
+    font-weight: 600;
+    color: #1A1A2E;
+  }
+  
+  tr.el-table__row {
+    transition: background-color var(--transition-fast);
+    
+    &:hover {
+      background-color: #F7F8FC;
+    }
+    
+    &:nth-child(even) {
+      background-color: #FAFAFA;
+      
+      &:hover {
+        background-color: #F7F8FC;
+      }
+    }
+  }
+}
+
+// Menu overrides (for sidebar)
+.el-menu {
+  --el-menu-bg-color: #{$sidebar-bg};
+  --el-menu-text-color: #{$sidebar-text};
+  --el-menu-hover-bg-color: #{$sidebar-hover};
+  --el-menu-active-color: #4ECDC4;
+  --el-menu-item-height: 48px;
+  
+  .el-menu-item {
+    border-radius: 8px;
+    margin: 4px 8px;
+    
+    &.is-active {
+      background-color: rgba(78, 205, 196, 0.1);
+      color: #4ECDC4;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 24px;
+        background-color: #4ECDC4;
+        border-radius: 0 2px 2px 0;
+      }
+    }
+    
+    &:hover {
+      background-color: #252542;
+    }
+  }
+}
+
+// Dialog overrides
+.el-dialog {
+  --el-dialog-border-radius: 12px;
+  
+  .el-dialog__header {
+    border-bottom: 1px solid #F0F0F4;
+    padding: 20px 24px;
+  }
+  
+  .el-dialog__body {
+    padding: 24px;
+  }
+}
+
+// Dropdown overrides
+.el-dropdown-menu {
+  border-radius: 8px;
+  box-shadow: $--box-shadow-base;
+  border: 1px solid #E5E7EB;
+  
+  .el-dropdown-menu__item {
+    border-radius: 4px;
+    margin: 4px 8px;
+    padding: 8px 12px;
+    
+    &:hover {
+      background-color: #F7F8FC;
+      color: #3D66A8;
+    }
+  }
+}
+
+// Tag overrides
+.el-tag {
+  border-radius: 6px;
+  font-weight: 500;
+  
+  &--coral {
+    background-color: rgba(255, 107, 107, 0.1);
+    color: #FF6B6B;
+    border-color: rgba(255, 107, 107, 0.2);
+  }
+  
+  &--teal {
+    background-color: rgba(78, 205, 196, 0.1);
+    color: #4ECDC4;
+    border-color: rgba(78, 205, 196, 0.2);
+  }
+}
+
+// Pagination overrides
+.el-pagination {
+  --el-pagination-button-bg-color: #FFFFFF;
+  --el-pagination-hover-color: #3D66A8;
+  
+  .el-pager li {
+    border-radius: 6px;
+    margin: 0 2px;
+    
+    &.is-active {
+      background-color: #3D66A8;
+    }
+  }
+}
+
+// Message overrides
+.el-message {
+  border-radius: 8px;
+  box-shadow: $--box-shadow-base;
+}
