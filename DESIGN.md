@@ -351,6 +351,81 @@ display: flex;
 
 ---
 
+## 管理后台设计系统 (Admin UI)
+
+### 概述
+
+Admin UI 使用 Vue 3 + Element Plus，设计系统位于 `frontend/admin-design/` 目录。
+
+### 设计令牌
+
+颜色系统定义在 `frontend/admin-design/tokens.json`：
+
+| 令牌 | 用途 | 色值 |
+|-----|------|------|
+| `sidebar.bg` | 侧边栏背景 | `#1A1A2E` |
+| `sidebar.active` | 激活状态 | `#2A4D8C` |
+| `accent.teal` | 强调色-青色 | `#4ECDC4` |
+| `accent.coral` | 强调色-珊瑚 | `#FF6B6B` |
+| `content.bg` | 内容区背景 | `#F7F8FC` |
+| `content.surface` | 卡片表面 | `#FFFFFF` |
+
+### Element Plus 主题覆盖
+
+主题变量定义在 `frontend/admin-design/element-theme.scss`：
+
+```scss
+// 主色调
+--el-color-primary: #3D66A8;
+
+// 成功/警告/危险色
+--el-color-success: #10B981;
+--el-color-warning: #F59E0B;
+--el-color-danger: #EF4444;
+```
+
+### 布局规范
+
+- **侧边栏宽度**: 240px (深色 `#1A1A2E`)
+- **内容区内边距**: 32px
+- **卡片圆角**: 12px
+- **卡片阴影**: `0 4px 6px -1px rgba(26, 26, 46, 0.07)`
+
+### 组件样式
+
+#### 按钮
+```css
+.el-button {
+  border-radius: 8px;
+  transition: transform 150ms ease;
+}
+.el-button:hover {
+  transform: scale(1.02);
+}
+```
+
+#### 表格
+```css
+.el-table {
+  border-radius: 12px;
+  overflow: hidden;
+}
+.el-table__row:hover {
+  background-color: #FAFAFA !important;
+}
+```
+
+### Admin UI 组件开发检查清单
+
+- [ ] 使用 Element Plus 组件而非原生 HTML
+- [ ] 颜色使用 CSS 变量 (`--sidebar-bg`, `--accent-teal` 等)
+- [ ] 圆角使用 `8px` (按钮) / `12px` (卡片)
+- [ ] 阴影使用 `0 4px 6px -1px rgba(26, 26, 46, 0.07)`
+- [ ] 表格使用斑马纹 `#FAFAFA`
+- [ ] 弹窗使用 `el-dialog` 组件
+
+---
+
 ## 工具模块
 
 ### safe-area.js
