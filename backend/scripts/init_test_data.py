@@ -751,7 +751,7 @@ def main():
 
     if args.generate_docs:
         # 生成文档
-        docs_dir = "/Users/iivum/.openclaw/workspace/seafood-miniapp/docs"
+        docs_dir = "/Users/linbinghui/.openclaw/workspace/seafood-miniapp/docs"
         import os
         os.makedirs(docs_dir, exist_ok=True)
 
