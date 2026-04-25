@@ -56,6 +56,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/gradle-build-action@v2
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: backend
+
       - name: Build JAR for ${{ matrix.service }}
         run: ./gradlew :${{ matrix.service }}:bootJar
         working-directory: backend
@@ -127,13 +131,17 @@ jobs:
           components: 'native-image'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: backend
+
       - name: Build JAR for ${{ matrix.service }}
-        run: ./gradlew :backend:${{ matrix.service }}:bootJar
+        run: ./gradlew :${{ matrix.service }}:bootJar
         working-directory: backend
 
       - name: Build native image
         run: |
-          timeout 60 ./gradlew :backend:${{ matrix.service }}:nativeRun || true
+          timeout 60 ./gradlew :${{ matrix.service }}:nativeRun || true
         working-directory: backend
         continue-on-error: true
 
