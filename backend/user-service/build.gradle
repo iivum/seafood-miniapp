@@ -1,38 +1,38 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.2.4'
-    id 'io.spring.dependency-management' version '1.1.4'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'io.spring.dependency-management' version '1.1.7'
     id 'jacoco'
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 dependencyManagement {
     imports {
-        mavenBom "org.springframework.cloud:spring-cloud-dependencies:2023.0.0"
-        mavenBom "org.springframework.boot:spring-boot-dependencies:3.2.4"
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:2024.0.0"
+        mavenBom "org.springframework.boot:spring-boot-dependencies:4.0.6"
     }
 }
 
 dependencies {
     implementation project(':common')
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0' // Swagger UI 升级
 
     // 安全依赖
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.security:spring-security-oauth2-resource-server'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'org.springframework.boot:spring-boot-starter-aop'
 
-    // Resilience4j rate limiting
+    // Resilience4j rate limiting - 使用 spring-boot3 版本
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
     implementation 'io.github.resilience4j:resilience4j-ratelimiter:2.2.0'
 
@@ -45,6 +45,8 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
     implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
 
     // 测试依赖
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -74,61 +76,6 @@ bootJar {
     archiveFileName = "${project.name}-${version}.jar"
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-
-// Task to fix the bootJar by extracting common classes and removing nested common-*.jar
-tasks.register('fixCommonInBootJar') {
-    group = 'build'
-    description = 'Extracts common module classes from nested jar and removes the nested jar'
-
-    dependsOn bootJar
-
-    doLast {
-        def bootJarFile = bootJar.archiveFile.get().asFile
-        def tempDir = new File(buildDir, "temp-fix-${System.currentTimeMillis()}")
-
-        println "Processing: ${bootJarFile.name}"
-
-        delete tempDir
-        mkdir tempDir
-
-        ant.unzip(src: bootJarFile, dest: tempDir)
-
-        // Find and extract common JARs
-        def commonJars = []
-        fileTree("${tempDir}/BOOT-INF/lib").include('common-*.jar').each { jar ->
-            println "  Extracting: ${jar.name}"
-            ant.unzip(src: jar, dest: "${tempDir}/BOOT-INF/classes")
-            commonJars << jar.name
-            delete jar
-        }
-
-        // Fix classpath.idx to remove references to extracted common JARs
-        def classpathIdxFile = new File(tempDir, 'BOOT-INF/classpath.idx')
-        if (classpathIdxFile.exists()) {
-            def content = classpathIdxFile.text
-            commonJars.each { jarName ->
-                def removed = content.replace("\"BOOT-INF/lib/${jarName}\"\n", "")
-                if (removed != content) {
-                    println "  Removed from classpath.idx: ${jarName}"
-                    content = removed
-                }
-            }
-            classpathIdxFile.text = content
-        }
-
-        delete bootJarFile
-        ant.zip(destfile: bootJarFile) {
-            fileset(dir: tempDir) {
-                include(name: '**/*')
-            }
-        }
-
-        delete tempDir
-        println "  Done: ${bootJarFile.name}"
-    }
-}
-
-bootJar.dependsOn tasks.named('compileJava')
 
 springBoot {
     buildInfo()

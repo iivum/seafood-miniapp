@@ -29,13 +29,9 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
-            if (!exchange.getRequest().getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
-                return onError(exchange, "Missing authorization header", HttpStatus.UNAUTHORIZED);
-            }
-
-            String authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
+            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return onError(exchange, "Invalid authorization header", HttpStatus.UNAUTHORIZED);
+                return onError(exchange, "Missing or invalid authorization header", HttpStatus.UNAUTHORIZED);
             }
 
             String token = authHeader.substring(7);

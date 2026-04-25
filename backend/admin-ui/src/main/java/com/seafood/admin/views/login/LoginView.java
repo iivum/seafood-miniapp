@@ -53,8 +53,7 @@ public class LoginView extends VerticalLayout {
             throw new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found: " + username);
         };
 
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(inMemoryUserDetailsService);
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(inMemoryUserDetailsService);
         this.authenticationManager = new ProviderManager(authProvider);
 
         setSizeFull();

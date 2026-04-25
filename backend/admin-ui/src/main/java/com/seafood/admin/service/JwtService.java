@@ -31,11 +31,11 @@ public class JwtService {
         Date expiration = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .setSubject(username)
+                .subject(username)
                 .claim("role", role)
-                .setIssuedAt(now)
-                .setExpiration(expiration)
-                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .issuedAt(now)
+                .expiration(expiration)
+                .signWith(secretKey)
                 .compact();
     }
 
@@ -63,8 +63,9 @@ public class JwtService {
 
     private Claims parseClaims(String token) {
         return Jwts.parser()
-                .setSigningKey(secretKey)
-                .parseClaimsJws(token)
-                .getBody();
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }
