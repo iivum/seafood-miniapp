@@ -9,7 +9,8 @@
 **海鲜商城小程序** - 微信小程序 + Spring Cloud 微服务电商平台
 
 - **前端**：微信小程序 (TypeScript 5.x, Jest 29.x, ESLint 8.x)
-- **后端**：Java 17+, Spring Boot 3.2.4, Spring Cloud 2023.0.0, Gradle 9.x
+- **管理后台**：Vue 3.5.x + Element Plus + Pinia + Vite
+- **后端**：Java 17+, Spring Boot 4.0.6, Spring Cloud 2024.0.0, Gradle 9.x
 - **数据库**：MongoDB 6.x
 - **服务发现**：Eureka
 - **测试覆盖率**：前端 ≥88%, 后端 ≥80%
@@ -45,18 +46,51 @@ seafood-miniapp/
 │   │   └── utils/                    # 工具函数
 │   └── pages/                        # 页面目录
 │
-└── backend/                           # Spring Cloud微服务
-    ├── gateway/                      # API网关 - 8080
-    ├── product-service/              # 商品服务 - 8081
-    ├── order-service/                # 订单服务 - 8082
-    ├── user-service/                 # 用户服务 - 8083
-    └── common/                       # 公共模块
+├── backend/                           # Spring Cloud微服务
+│   ├── gateway/                       # API网关 + BFF聚合层 - 8080
+│   │   └── src/.../aggregation/     # BFF聚合端点
+│   ├── product-service/              # 商品服务 - 8081
+│   ├── order-service/                # 订单服务 - 8082
+│   ├── user-service/                 # 用户服务 - 8083
+│   ├── admin-ui/                     # 管理后台 (Vue 3)
+│   │   └── vue/                     # Vue 3 前端项目
+│   └── common/                       # 公共模块
+│
+└── admin-design/                      # 设计系统 (Element Plus 主题)
 
 服务依赖关系：
 gateway (8080) → product-service (8081), order-service (8082), user-service (8083)
                          ↓
                    MongoDB (27017)
+
+管理后台架构：
+Vue 3 SPA → Gateway BFF (/api/admin/**) → 微服务聚合
 ```
+
+### 管理后台 (Admin UI)
+
+**技术栈**: Vue 3.5.x + Element Plus + Pinia + Vue Router 4.x + Axios
+
+**目录结构**:
+```
+backend/admin-ui/vue/
+├── src/
+│   ├── api/           # Axios API 调用
+│   ├── components/    # 表单组件 (ProductForm, OrderDetailDialog 等)
+│   ├── composables/   # 可复用逻辑 (useFormatters, useStatusHelper)
+│   ├── layouts/       # MainLayout 主布局
+│   ├── router/       # Vue Router 配置
+│   ├── stores/       # Pinia 状态管理 (auth, product, order, user, config)
+│   ├── styles/       # 全局样式
+│   ├── types/        # TypeScript 类型定义
+│   └── views/        # 页面视图 (Login, Dashboard, ProductList 等)
+└── vite.config.ts    # Vite 构建配置
+```
+
+**BFF 聚合端点**:
+- `GET /api/admin/orders/{id}/detail` - 订单详情(含用户、商品)
+- `GET /api/admin/products/stats` - 商品统计
+- `GET /api/admin/dashboard` - 仪表盘汇总数据
 
 ---
 
@@ -79,12 +113,12 @@ gateway (8080) → product-service (8081), order-service (8082), user-service (8
 ### 安全要求
 - 禁止硬编码密钥，使用环境变量
 - 所有用户输入验证和过滤
-- XSS 防护，JWT Token 认证（待实现）
+- XSS 防护，JWT Token 认证
+- Admin UI 使用 httpOnly Cookie 存储 JWT
 
 ### 设计准则
-- **颜色变量**：所有颜色使用 `app.wxss` 中的 CSS 变量（`--color-*`）
-- **安全区域**：固定底部栏必须添加 `padding-bottom: var(--safe-area-bottom)`
-- **禁用 gap**：`gap` 属性在微信小程序不支持，使用 Flex + margin 替代
+- **微信小程序**：颜色变量在 `app.wxss`，安全区域 `padding-bottom: var(--safe-area-bottom)`
+- **Admin UI**：使用 `frontend/admin-design/` 中的设计令牌和 Element Plus 主题
 - 详细规范见 [`DESIGN.md`](./DESIGN.md)
 
 ---
@@ -180,6 +214,7 @@ docker-compose down               # 停止服务
 - `SPEC.md` - 功能规格说明
 - `TODO.md` - 开发任务列表
 - `DESIGN.md` - **微信小程序设计准则**（颜色、安全区域、布局规范）
+- `frontend/admin-design/` - **Admin UI 设计系统**（tokens.json, Element Plus 主题）
 - `docs/` - 其他文档
 
 ---
