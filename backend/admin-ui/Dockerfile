@@ -1,9 +1,50 @@
-FROM eclipse-temurin:17-jre
+# ===========================================
+# Admin UI Dockerfile - 统一 AOT 缓存构建
+# Spring Boot 4.0.6 + JDK 25 + Vaadin
+# ===========================================
 
-ARG JAR_FILE=build/libs/admin-ui-1.0.0-SNAPSHOT.jar
+# ---- 阶段 1: AOT 缓存构建 ----
+FROM eclipse-temurin:25-jdk AS aot-builder
 
-COPY ${JAR_FILE} /app/app.jar
+WORKDIR /build
+
+# 复制依赖定义
+COPY gradle.properties build.gradle settings.gradle ./
+COPY gradle gradle
+
+# 下载并缓存 Gradle 依赖
+RUN ./gradlew dependencies --no-daemon || true
+
+# 复制源码
+COPY src src
+COPY ../common/src ../common/src 2>/dev/null || true
+
+# 构建 AOT 优化产物
+RUN ./gradlew :admin-ui:bootJar --no-daemon
+
+# ---- 阶段 2: 运行镜像 ----
+FROM eclipse-temurin:25-jre-alpine
+
+WORKDIR /app
+
+# 安全更新
+RUN apk upgrade --no-cache
+
+# 创建非 root 用户
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+# 复制 JAR 文件
+COPY --from=aot-builder /build/admin-ui/build/libs/*-boot.jar /app/app.jar
+
+# 设置权限
+RUN chown -R appuser:appgroup /app
+
+USER appuser
 
 EXPOSE 8084
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+    CMD wget -q -O- http://localhost:8084/actuator/health || exit 1
+
+ENTRYPOINT ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx512m", "-Xms256m", "-jar", "/app/app.jar"]

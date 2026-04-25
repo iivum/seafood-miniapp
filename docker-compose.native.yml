@@ -1,29 +1,58 @@
 # ===========================================
-# Docker Compose Native Profile 配置
+# Docker Compose Native Profile 配置 v2.0
+# Spring Boot 4.0.6 + JDK 25 + AOT 缓存构建
 # ===========================================
-# 此文件覆盖默认的 JVM 配置,使用 GraalVM 原生镜像
-# 
 # 使用方式:
-#   1. 构建原生镜像: ./gradlew :service-name:nativeRun (本地测试)
-#                   或 ./gradlew :service-name:bootBuildImage (构建 Docker 镜像)
+#   1. 构建镜像: docker-compose build
 #   2. 启动服务: docker-compose -f docker-compose.yml -f docker-compose.native.yml up -d
 # ===========================================
 
+networks:
+  seafood-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:
+
 services:
   # ===========================================
-  # 微服务 (Native 模式 - GraalVM 原生镜像)
+  # 基础设施服务
   # ===========================================
-  discovery-service:
-    image: docker.io/library/discovery-service:1.0.0-SNAPSHOT
-    build:
-      context: ./backend/discovery-service
-      dockerfile: Dockerfile.native
+  mongodb:
+    image: mongo:7
     ports:
-      - "8761:8761"
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
     networks:
       - seafood-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - seafood-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -32,19 +61,78 @@ services:
       resources:
         limits:
           memory: 256M
+          cpus: "0.25"
         reservations:
           memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
+          cpus: "0.125"
+
+  # ===========================================
+  # 微服务 (AOT 缓存构建)
+  # ===========================================
+  discovery-service:
+    build:
+      context: ./backend/discovery-service
+      dockerfile: Dockerfile
+    image: docker.io/library/discovery-service:2.0.0-SNAPSHOT
+    ports:
+      - "8761:8761"
+    networks:
+      - seafood-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8761/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
+
+  config-service:
+    build:
+      context: ./backend/config-service
+      dockerfile: Dockerfile
+    image: docker.io/library/config-service:2.0.0-SNAPSHOT
+    ports:
+      - "8888:8888"
+    networks:
+      - seafood-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8888/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka/
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:dGVzdC1rZXktZm9yLWVuY3J5cHRpb24tb25seS1kZXYtbm90LWZvci1wcm9k}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
 
   gateway:
-    image: docker.io/library/gateway:1.0.0-SNAPSHOT
     build:
       context: ./backend/gateway
-      dockerfile: Dockerfile.native
+      dockerfile: Dockerfile
+    image: docker.io/library/gateway:2.0.0-SNAPSHOT
     ports:
       - "8080:8080"
     networks:
@@ -52,6 +140,14 @@ services:
     depends_on:
       discovery-service:
         condition: service_healthy
+      config-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -60,19 +156,16 @@ services:
       resources:
         limits:
           memory: 384M
+          cpus: "0.5"
         reservations:
           memory: 192M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
+          cpus: "0.25"
 
   product-service:
-    image: docker.io/library/product-service:1.0.0-SNAPSHOT
     build:
       context: ./backend/product-service
-      dockerfile: Dockerfile.native
+      dockerfile: Dockerfile
+    image: docker.io/library/product-service:2.0.0-SNAPSHOT
     ports:
       - "8081:8081"
     networks:
@@ -82,6 +175,14 @@ services:
         condition: service_healthy
       discovery-service:
         condition: service_healthy
+      config-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8081/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -91,19 +192,16 @@ services:
       resources:
         limits:
           memory: 384M
+          cpus: "0.5"
         reservations:
           memory: 192M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
+          cpus: "0.25"
 
   order-service:
-    image: docker.io/library/order-service:1.0.0-SNAPSHOT
     build:
       context: ./backend/order-service
-      dockerfile: Dockerfile.native
+      dockerfile: Dockerfile
+    image: docker.io/library/order-service:2.0.0-SNAPSHOT
     ports:
       - "8082:8082"
     networks:
@@ -113,6 +211,14 @@ services:
         condition: service_healthy
       discovery-service:
         condition: service_healthy
+      config-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8082/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -122,19 +228,16 @@ services:
       resources:
         limits:
           memory: 384M
+          cpus: "0.5"
         reservations:
           memory: 192M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
+          cpus: "0.25"
 
   user-service:
-    image: docker.io/library/user-service:1.0.0-SNAPSHOT
     build:
       context: ./backend/user-service
-      dockerfile: Dockerfile.native
+      dockerfile: Dockerfile
+    image: docker.io/library/user-service:2.0.0-SNAPSHOT
     ports:
       - "8083:8083"
     networks:
@@ -146,6 +249,14 @@ services:
         condition: service_healthy
       discovery-service:
         condition: service_healthy
+      config-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8083/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -155,31 +266,32 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 384M
+          cpus: "0.5"
         reservations:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
+          memory: 192M
+          cpus: "0.25"
 
   admin-ui:
-    image: docker.io/library/admin-ui:1.0.0-SNAPSHOT
     build:
       context: ./backend/admin-ui
-      dockerfile: Dockerfile.native
+      dockerfile: Dockerfile
+    image: docker.io/library/admin-ui:2.0.0-SNAPSHOT
     ports:
-      - "8090:8090"
+      - "8090:8084"
     networks:
       - seafood-network
     depends_on:
       discovery-service:
         condition: service_healthy
-      product-service:
-        condition: service_started
-      order-service:
-        condition: service_started
+      config-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8084/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_URI=http://discovery-service:8761/eureka/
@@ -187,11 +299,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
+          cpus: "0.5"
         reservations:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
+          memory: 256M
+          cpus: "0.25"

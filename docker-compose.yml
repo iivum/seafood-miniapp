@@ -1,5 +1,6 @@
 # ===========================================
-# 海鲜商城微服务 - Docker Compose 配置
+# 海鲜商城微服务 - Docker Compose 配置 v2.0
+# Spring Boot 4.0.6 + JDK 25
 # ===========================================
 # 支持两种部署模式:
 #   1. JVM 模式 (默认): ./gradlew build
@@ -33,6 +34,14 @@ services:
       retries: 3
       start_period: 30s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
@@ -53,6 +62,14 @@ services:
       timeout: 5s
       retries: 3
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 128M
+          cpus: "0.125"
     logging:
       driver: "json-file"
       options:
@@ -60,19 +77,19 @@ services:
         max-file: "3"
 
   # ===========================================
-  # 微服务 (JVM 模式 - 默认)
+  # 微服务 (JVM 模式 - JDK 25)
   # ===========================================
   discovery-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:25-jre-alpine
     ports:
       - "8761:8761"
     volumes:
-      - ./backend/discovery-service/build/libs/discovery-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+      - ./backend/discovery-service/build/libs/discovery-service-2.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
       - seafood-network
-    command: ["java", "-jar", "/app/app.jar"]
+    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx256m", "-Xms128m", "-jar", "/app/app.jar"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8761/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -81,9 +98,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
-        reservations:
           memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
@@ -91,21 +110,21 @@ services:
         max-file: "5"
 
   config-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:25-jre-alpine
     ports:
       - "8888:8888"
     volumes:
-      - ./backend/config-service/build/libs/config-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+      - ./backend/config-service/build/libs/config-service-2.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
       - seafood-network
-    command: ["java", "-jar", "/app/app.jar"]
+    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx256m", "-Xms128m", "-jar", "/app/app.jar"]
     depends_on:
       mongodb:
         condition: service_healthy
       discovery-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8888/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -118,9 +137,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
-        reservations:
           memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
@@ -128,21 +149,21 @@ services:
         max-file: "5"
 
   gateway:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:25-jre-alpine
     ports:
       - "8080:8080"
     volumes:
-      - ./backend/gateway/build/libs/gateway-1.0.0-SNAPSHOT.jar:/app/app.jar
+      - ./backend/gateway/build/libs/gateway-2.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
       - seafood-network
-    command: ["java", "-jar", "/app/app.jar"]
+    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx384m", "-Xms192m", "-jar", "/app/app.jar"]
     depends_on:
       discovery-service:
         condition: service_healthy
       config-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -154,9 +175,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
-        reservations:
           memory: 384M
+          cpus: "0.5"
+        reservations:
+          memory: 192M
+          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
@@ -164,14 +187,14 @@ services:
         max-file: "5"
 
   product-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:25-jre-alpine
     ports:
       - "8081:8081"
     volumes:
-      - ./backend/product-service/build/libs/product-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+      - ./backend/product-service/build/libs/product-service-2.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
       - seafood-network
-    command: ["java", "-jar", "/app/app.jar"]
+    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx384m", "-Xms192m", "-jar", "/app/app.jar"]
     depends_on:
       mongodb:
         condition: service_healthy
@@ -180,7 +203,7 @@ services:
       config-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8081/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -193,9 +216,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
-        reservations:
           memory: 384M
+          cpus: "0.5"
+        reservations:
+          memory: 192M
+          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
@@ -203,14 +228,14 @@ services:
         max-file: "5"
 
   order-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:25-jre-alpine
     ports:
       - "8082:8082"
     volumes:
-      - ./backend/order-service/build/libs/order-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+      - ./backend/order-service/build/libs/order-service-2.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
       - seafood-network
-    command: ["java", "-jar", "/app/app.jar"]
+    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx384m", "-Xms192m", "-jar", "/app/app.jar"]
     depends_on:
       mongodb:
         condition: service_healthy
@@ -219,7 +244,7 @@ services:
       config-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8082/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -232,9 +257,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
-        reservations:
           memory: 384M
+          cpus: "0.5"
+        reservations:
+          memory: 192M
+          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
@@ -242,14 +269,14 @@ services:
         max-file: "5"
 
   user-service:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:25-jre-alpine
     ports:
       - "8083:8083"
     volumes:
-      - ./backend/user-service/build/libs/user-service-1.0.0-SNAPSHOT.jar:/app/app.jar
+      - ./backend/user-service/build/libs/user-service-2.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
       - seafood-network
-    command: ["java", "-jar", "/app/app.jar"]
+    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx384m", "-Xms192m", "-jar", "/app/app.jar"]
     depends_on:
       mongodb:
         condition: service_healthy
@@ -260,7 +287,7 @@ services:
       config-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8083/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -274,9 +301,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 384M
+          cpus: "0.5"
         reservations:
-          memory: 256M
+          memory: 192M
+          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
@@ -284,21 +313,21 @@ services:
         max-file: "5"
 
   admin-ui:
-    image: eclipse-temurin:17-jre
+    image: eclipse-temurin:25-jre-alpine
     ports:
       - "8090:8084"
     volumes:
-      - ./backend/admin-ui/build/libs/admin-ui-1.0.0-SNAPSHOT.jar:/app/app.jar
+      - ./backend/admin-ui/build/libs/admin-ui-2.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
       - seafood-network
-    command: ["java", "-jar", "/app/app.jar"]
+    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx512m", "-Xms256m", "-jar", "/app/app.jar"]
     depends_on:
       discovery-service:
         condition: service_healthy
       config-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8084/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -311,8 +340,10 @@ services:
       resources:
         limits:
           memory: 512M
+          cpus: "0.5"
         reservations:
           memory: 256M
+          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
