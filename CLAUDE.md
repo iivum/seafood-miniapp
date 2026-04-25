@@ -119,7 +119,7 @@ backend/admin-ui/vue/
 ### 设计准则
 - **微信小程序**：颜色变量在 `app.wxss`，安全区域 `padding-bottom: var(--safe-area-bottom)`
 - **Admin UI**：使用 `frontend/admin-design/` 中的设计令牌和 Element Plus 主题
-- 详细规范见 [`DESIGN.md`](./DESIGN.md)
+- 详细规范见 [`DESIGN.md`](./docs/DESIGN.md)
 
 ---
 
@@ -213,7 +213,7 @@ docker-compose down               # 停止服务
 - `ARCHITECTURE.md` - 系统架构详细文档
 - `SPEC.md` - 功能规格说明
 - `TODO.md` - 开发任务列表
-- `DESIGN.md` - **微信小程序设计准则**（颜色、安全区域、布局规范）
+- `docs/DESIGN.md` - **设计系统规范**（微信小程序 + Admin UI）
 - `frontend/admin-design/` - **Admin UI 设计系统**（tokens.json, Element Plus 主题）
 - `docs/` - 其他文档
 
