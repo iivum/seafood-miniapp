@@ -1,0 +1,58 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'io.spring.dependency-management' version '1.1.7'
+    // GraalVM native plugin kept for future use; nativeCompile task disabled due to
+    // Spring Boot 4 + Spring Security 6 + MongoDB + Log4j-SLF4J bridge reflection issues.
+    // See NATIVE_STATUS.md for the full chain of UnsupportedFeatureException fixes.
+    id 'org.graalvm.buildtools.native' version '0.11.5' apply false
+}
+
+group = 'com.seafood'
+version = '2.0.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    maven { url 'https://maven.aliyun.com/repository/spring' }
+    mavenCentral()
+}
+
+ext {
+    set('jjwtVersion', '0.12.6')
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // JWT
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // BCrypt password (transitively from spring-security, declared for clarity)
+    implementation 'org.springframework.security:spring-security-crypto'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
+    testImplementation 'org.testcontainers:mongodb:1.19.7'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// GraalVM native plugin kept for future use; nativeCompile task disabled due to
+// Spring Boot 4 + Spring Security 6 + MongoDB + Log4j-SLF4J bridge reflection issues.
+// See NATIVE_STATUS.md for the full chain of UnsupportedFeatureException fixes.
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

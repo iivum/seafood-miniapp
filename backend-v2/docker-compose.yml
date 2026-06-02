@@ -1,0 +1,30 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: seafood-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    image: seafood-backend:dev
+    container_name: seafood-backend
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/seafood
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-change-me-32bytes}
+    ports:
+      - "8080:8080"
+    profiles: ["with-backend"]
+
+volumes:
+  mongo-data:
