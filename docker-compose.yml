@@ -1,10 +1,7 @@
 # ===========================================
-# 海鲜商城微服务 - Docker Compose 配置 v2.0
-# Spring Boot 4.0.6 + JDK 25
-# ===========================================
-# 支持两种部署模式:
-#   1. JVM 模式 (默认): ./gradlew build
-#   2. Native 模式: ./gradlew build -Pnative
+# 海鲜商城 v2.0 — Docker Compose 单机部署
+# 2 服务:backend (GraalVM Native binary) + mongodb
+# 7 模块微服务已收敛为单仓(参见 refactor-rust-rebuild-frontend)
 # ===========================================
 
 networks:
@@ -13,14 +10,14 @@ networks:
 
 volumes:
   mongodb_data:
-  redis_data:
 
 services:
   # ===========================================
-  # 基础设施服务
+  # MongoDB — 唯一外部依赖
   # ===========================================
   mongodb:
     image: mongo:7
+    container_name: seafood-mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -39,319 +36,53 @@ services:
         limits:
           memory: 512M
           cpus: "0.5"
-        reservations:
-          memory: 256M
-          cpus: "0.25"
     logging:
       driver: "json-file"
       options:
         max-size: "100m"
         max-file: "3"
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - seafood-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
-        reservations:
-          memory: 128M
-          cpus: "0.125"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-
   # ===========================================
-  # 微服务 (JVM 模式 - JDK 25)
+  # Backend — GraalVM Native binary
+  # 同时托管 admin-ui 静态资源(/admin/**) + 业务 API
+  # 设计验收(参见 refactor-rust-rebuild-frontend/proposal.md §"GraalVM Native Image 启用"):
+  #   - 启动 < 2s
+  #   - 内存峰值 < 200MB
   # ===========================================
-  discovery-service:
-    image: eclipse-temurin:25-jre-alpine
-    ports:
-      - "8761:8761"
-    volumes:
-      - ./backend/discovery-service/build/libs/discovery-service-2.0.0-SNAPSHOT.jar:/app/app.jar
-    networks:
-      - seafood-network
-    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx256m", "-Xms128m", "-jar", "/app/app.jar"]
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8761/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
-        reservations:
-          memory: 128M
-          cpus: "0.25"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
-
-  config-service:
-    image: eclipse-temurin:25-jre-alpine
-    ports:
-      - "8888:8888"
-    volumes:
-      - ./backend/config-service/build/libs/config-service-2.0.0-SNAPSHOT.jar:/app/app.jar
-    networks:
-      - seafood-network
-    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx256m", "-Xms128m", "-jar", "/app/app.jar"]
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      discovery-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8888/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://discovery-service:8761/eureka/
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:dGVzdC1rZXktZm9yLWVuY3J5cHRpb24tb25seS1kZXYtbm90LWZvci1wcm9k}
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
-        reservations:
-          memory: 128M
-          cpus: "0.25"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
-
-  gateway:
-    image: eclipse-temurin:25-jre-alpine
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: seafood-backend:2.0.0-SNAPSHOT
+    container_name: seafood-backend
     ports:
       - "8080:8080"
-    volumes:
-      - ./backend/gateway/build/libs/gateway-2.0.0-SNAPSHOT.jar:/app/app.jar
     networks:
       - seafood-network
-    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx384m", "-Xms192m", "-jar", "/app/app.jar"]
-    depends_on:
-      discovery-service:
-        condition: service_healthy
-      config-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://discovery-service:8761/eureka/
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 384M
-          cpus: "0.5"
-        reservations:
-          memory: 192M
-          cpus: "0.25"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
-
-  product-service:
-    image: eclipse-temurin:25-jre-alpine
-    ports:
-      - "8081:8081"
-    volumes:
-      - ./backend/product-service/build/libs/product-service-2.0.0-SNAPSHOT.jar:/app/app.jar
-    networks:
-      - seafood-network
-    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx384m", "-Xms192m", "-jar", "/app/app.jar"]
     depends_on:
       mongodb:
         condition: service_healthy
-      discovery-service:
-        condition: service_healthy
-      config-service:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8081/actuator/health"]
+      # distroless 镜像无 wget/curl — 用 native binary 自带能力或 tcp probe
+      test: ["CMD-SHELL", "cat </dev/tcp/localhost/8080 || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 90s
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://discovery-service:8761/eureka/
-      - MONGODB_URI=mongodb://mongodb:27017/seafood_product
+      retries: 3
+      start_period: 10s   # Native 启动 < 2s
     restart: unless-stopped
+    environment:
+      # JWT 必填(参见 design §4.1)— fail-fast
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set, 32+ bytes}
+      JWT_ADMIN_SECRET: ${JWT_ADMIN_SECRET:?JWT_ADMIN_SECRET must be set, 32+ bytes}
+      MONGODB_URI: mongodb://mongodb:27017/seafood
+      SPRING_PROFILES_ACTIVE: docker
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: "0.5"
-        reservations:
-          memory: 192M
-          cpus: "0.25"
+          memory: 256M       # 上限留 buffer;典型 < 200MB
+          cpus: "1.0"
     logging:
       driver: "json-file"
       options:
         max-size: "100m"
         max-file: "5"
-
-  order-service:
-    image: eclipse-temurin:25-jre-alpine
-    ports:
-      - "8082:8082"
-    volumes:
-      - ./backend/order-service/build/libs/order-service-2.0.0-SNAPSHOT.jar:/app/app.jar
-    networks:
-      - seafood-network
-    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx384m", "-Xms192m", "-jar", "/app/app.jar"]
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      discovery-service:
-        condition: service_healthy
-      config-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8082/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://discovery-service:8761/eureka/
-      - MONGODB_URI=mongodb://mongodb:27017/seafood_order
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 384M
-          cpus: "0.5"
-        reservations:
-          memory: 192M
-          cpus: "0.25"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
-
-  user-service:
-    image: eclipse-temurin:25-jre-alpine
-    ports:
-      - "8083:8083"
-    volumes:
-      - ./backend/user-service/build/libs/user-service-2.0.0-SNAPSHOT.jar:/app/app.jar
-    networks:
-      - seafood-network
-    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx384m", "-Xms192m", "-jar", "/app/app.jar"]
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      discovery-service:
-        condition: service_healthy
-      config-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8083/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://discovery-service:8761/eureka/
-      - MONGODB_URI=mongodb://mongodb:27017/seafood_user
-      - REDIS_URI=redis://redis:6379
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 384M
-          cpus: "0.5"
-        reservations:
-          memory: 192M
-          cpus: "0.25"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
-
-  admin-ui:
-    image: eclipse-temurin:25-jre-alpine
-    ports:
-      - "8090:8084"
-    volumes:
-      - ./backend/admin-ui/build/libs/admin-ui-2.0.0-SNAPSHOT.jar:/app/app.jar
-    networks:
-      - seafood-network
-    command: ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx512m", "-Xms256m", "-jar", "/app/app.jar"]
-    depends_on:
-      discovery-service:
-        condition: service_healthy
-      config-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8084/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_URI=http://discovery-service:8761/eureka/
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
-        reservations:
-          memory: 256M
-          cpus: "0.25"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "5"
-
-# ===========================================
-# Native Profile 覆盖配置
-# 使用方式: docker-compose -f docker-compose.yml -f docker-compose.native.yml up -d
-# 构建命令: ./gradlew build -Pnative
-# ===========================================
