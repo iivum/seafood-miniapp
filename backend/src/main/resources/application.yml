@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: seafood-backend
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/seafood}
+      auto-index-creation: false  # 索引由 MongoIndexInitializer 启动时显式创建
+  threads:
+    virtual:
+      enabled: true  # Java 25 虚拟线程(参见 design.md §Java 25 现代化)
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  compression:
+    enabled: true
+  shutdown: graceful
+
+# JWT 鉴权(参见 design.md §4)
+security:
+  jwt:
+    secret: ${JWT_SECRET:}                # 启动时校验,缺失即 fail-fast
+    access-token-ttl: 15m
+    refresh-token-ttl: 7d
+    admin-secret: ${JWT_ADMIN_SECRET:}    # admin-ui 独立密钥
+
+# 业务端点
+api:
+  base-path: /api
+  admin:
+    base-path: /api/admin
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.seafood: DEBUG
+    org.springframework.data.mongodb.core.MongoTemplate: INFO

@@ -53,6 +53,10 @@ mongodb_data/
 *.bak
 .worktrees/
 
+# Local archive of archived code (see archive/backend-multi-module-2026-06/)
+# Not for commit — git history already preserves the old sources.
+archive/
+
 # Vaadin Admin UI (generated files)
 backend/admin-ui/frontend/generated/
 backend/admin-ui/node_modules/
