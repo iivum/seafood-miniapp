@@ -6,31 +6,36 @@
 
 ## 项目概述
 
-**海鲜商城小程序** - 微信小程序 + Spring Cloud 微服务电商平台
+**海鲜商城小程序** - 微信小程序 + Spring Boot 单仓电商平台(由原 7 模块 Spring Cloud 收敛而来)
 
 - **前端**：微信小程序 (TypeScript 5.x, Jest 29.x, ESLint 8.x)
-- **管理后台**：Vue 3.5.x + Element Plus + Pinia + Vite
-- **后端**：Java 17+, Spring Boot 4.0.6, Spring Cloud 2024.0.0, Gradle 9.x
-- **数据库**：MongoDB 6.x
-- **服务发现**：Eureka
+- **管理后台**：规划 React 18 + shadcn/ui + Vite(§9 任务,Vue admin-ui 已废弃)
+- **后端**：Java 25, Spring Boot 4.0.6, GraalVM Native, Gradle 9.x
+- **数据库**：MongoDB 7.x(单库,不分微服务)
+- **服务发现/配置**：已砍(单进程不需要)
+- **部署**：2 服务 docker-compose(backend Native binary + mongodb)
 - **测试覆盖率**：前端 ≥88%, 后端 ≥80%
+- **当前分支**:`main`(生产中 7 模块已归档) ↔ `feature/refactor`(单仓,推送待 PR)
 
 ---
 
 ## 运行测试
 
 ```bash
-# 前端测试
+# 前端测试(小程序)
 cd frontend
 npm test                                    # 运行所有测试
-npm test -- src/api/product.test.ts         # 单文件测试
 npm test -- --coverage                      # 带覆盖率
 
-# 后端测试
+# 后端测试(单 Spring Boot 模块,77 例)
 cd backend
-./gradlew test                              # 运行所有测试
-./gradlew :product-service:test            # 单模块测试
+./gradlew test                              # 全部 + 报告 build/test-results/
+./gradlew check                             # 含 checkNoRefreshScope 静态扫描
+./gradlew compileJava                       # 仅编译,快速语法校验
+./gradlew :test --tests "*ProductTest"      # 单类测试
 ```
+
+> **JDK 25 toolchain**:`gradle.properties` 已配 `org.gradle.java.installations.paths` 指向 GraalVM Homebrew。本机无 JDK 25 时,`./gradlew test` 直接失败 — 装 GraalVM CE 25+。
 
 ---
 
@@ -40,31 +45,51 @@ cd backend
 seafood-miniapp/
 ├── frontend/                           # 微信小程序
 │   ├── src/
-│   │   ├── api/                      # API调用层
-│   │   ├── modules/                  # 业务模块 (TDD测试优先)
-│   │   ├── types/                    # TypeScript类型定义
-│   │   └── utils/                    # 工具函数
-│   └── pages/                        # 页面目录
+│   │   ├── shared/                   # 跨 feature(api/components/hooks/tokens)
+│   │   ├── features/{product,cart,order,user,admin}/
+│   │   └── pages/                    # WXML/WXSS/.ts 路由入口
+│   └── pages/                        # 原生 app.json 路由
 │
-├── backend/                           # Spring Cloud微服务
-│   ├── gateway/                       # API网关 + BFF聚合层 - 8080
-│   │   └── src/.../aggregation/     # BFF聚合端点
-│   ├── product-service/              # 商品服务 - 8081
-│   ├── order-service/                # 订单服务 - 8082
-│   ├── user-service/                 # 用户服务 - 8083
-│   ├── admin-ui/                     # 管理后台 (Vue 3)
-│   │   └── vue/                     # Vue 3 前端项目
-│   └── common/                       # 公共模块
+├── backend/                           # 单 Spring Boot 模块(端口 8080)
+│   ├── build.gradle / settings.gradle
+│   ├── Dockerfile                     # 多阶段 GraalVM → distroless
+│   ├── src/main/java/com/seafood/
+│   │   ├── SeafoodApplication.java
+│   │   ├── shared/                   # config/security/error/dto/infra
+│   │   ├── product/{api,application,domain,infra}/
+│   │   ├── order/{api,application,domain,infra}/
+│   │   ├── user/{api,application,domain,infra}/
+│   │   └── bff/admin/                # /api/admin/** 3 端点
+│   ├── src/main/resources/
+│   │   ├── application.yml           # JWT fail-fast、虚拟线程
+│   │   └── META-INF/native-image/    # 反射/资源/代理 JSON 占位
+│   ├── seed/                         # 50 商品 / 5 分类 / 2 用户 fixtures
+│   └── scripts/check-no-refresh-scope.sh
 │
-└── admin-design/                      # 设计系统 (Element Plus 主题)
+├── openspec/changes/<name>/           # OpenSpec proposal/design/specs/tasks
+└── archive/backend-multi-module-2026-06/  # .gitignore'd;旧 7 模块源备份
+```
 
-服务依赖关系：
-gateway (8080) → product-service (8081), order-service (8082), user-service (8083)
-                         ↓
-                   MongoDB (27017)
+**包内分层**(每个 bounded context):
+```
+api         →  Controller + Request/Response DTO (record)
+application →  Service + UseCase + 跨模块入口
+domain      →  Aggregate Root + Entity + Value Object + Domain Event
+infra       →  Repository 实现 + MongoDB Document
+```
 
-管理后台架构：
-Vue 3 SPA → Gateway BFF (/api/admin/**) → 微服务聚合
+**跨模块约束**(design §1.3):模块间只通过 ApplicationService 调用,绝不跨过 Repository。
+
+服务依赖关系(单进程):
+```
+HTTP → [ JwtAuthenticationFilter → @PreAuthorize → Controller
+       → ApplicationService(跨模块只调 ApplicationService,不是 Repository)
+       → MongoDB ]
+```
+
+**管理后台架构**(目标态):
+```
+React 18 SPA (admin-ui/) → backend BFF (/api/admin/**) → 同进程内 ApplicationService 编排
 ```
 
 ### 管理后台 (Admin UI)
@@ -128,25 +153,40 @@ backend/admin-ui/vue/
 ### API 响应格式
 
 ```typescript
-// 成功响应
-{ success: true, data: T, error: null, meta: { page, per_page, total } }
-
-// 错误响应
-{ success: false, data: null, error: "错误描述", code: "ERROR_CODE" }
+// 成功:直接返 record(不是 {success, data})
+// 失败:统一 ErrorResponse 形态(参见 shared/error/ErrorResponse.java)
+{
+  code: "NOT_FOUND" | "VALIDATION" | "DOMAIN" | "TOKEN_EXPIRED" | "TOKEN_INVALID" | "TOKEN_REUSED",
+  message: "人类可读描述",
+  fieldErrors: { fieldName: "msg" }  // 仅 VALIDATION 时填充
+}
 ```
 
-### 数据模型
+HTTP 状态映射:`NOT_FOUND → 404` / `VALIDATION → 400` / `DOMAIN → 409` / `TOKEN_* → 401`
+
+### 数据模型(摘要,详见后端 domain)
 
 ```typescript
+// 后端 Java record,前端用相同 shape
 interface Product {
   id: string; name: string; description: string;
-  price: number; stock: number; category: string;
-  imageUrl: string; onSale: boolean;
+  price: number; stock: number;
+  category: "鱼类" | "虾蟹" | "贝类" | "软体" | "海藻";   // sealed interface
+  imageUrl: string;
+  status: "ACTIVE" | "OUT_OF_STOCK" | "DISCONTINUED";
+  createdAt: string; updatedAt: string;
 }
 
 interface CartItem {
-  id: string; productId: string; name: string;
-  price: number; quantity: number; imageUrl: string;
+  productId: string; quantity: number; selected: boolean; addedAt: string;
+}
+
+interface Order {
+  id: string; userId: string;
+  items: Array<{ productId: string; productName: string; unitPrice: number; quantity: number }>;
+  totalAmount: number;
+  status: "PENDING" | "PAID" | "SHIPPED" | "COMPLETED" | "CANCELLED";
+  cancelReason?: string; createdAt: string; updatedAt: string;
 }
 ```
 
@@ -168,13 +208,18 @@ interface CartItem {
 
 ## 开发说明
 
-### 环境变量
+### 环境变量(必填,启动时 fail-fast)
+
 ```bash
 # 后端
-SPRING_DATA_MONGODB_URI=mongodb://localhost:27017/seafood
-EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://localhost:8761/eureka/
+JWT_SECRET=<≥32 字节随机串>           # 缺失即 fail-fast
+JWT_ADMIN_SECRET=<≥32 字节随机串>      # admin-ui 独立签名密钥
+MONGODB_URI=mongodb://localhost:27017/seafood
+WECHAT_ENABLED=false                    # dev 期可保持 false,wechat.login code 必须以 dev- 开头
+WECHAT_APPID=...                        # 生产才需要
+WECHAT_SECRET=...
 
-# 前端
+# 前端(微信小程序)
 API_BASE_URL=http://localhost:8080
 ```
 
@@ -186,9 +231,10 @@ docker-compose down               # 停止服务
 ```
 
 ### Git 工作流
-- **提交格式**：`feat:` `fix:` `refactor:` `docs:` `test:`
-- **分支策略**：`main` → `develop` → `feat/*` 或 `fix/*`
-- **PR 要求**：代码审查 + 测试通过 + ESLint 通过
+- **提交格式**:`feat(<scope>):` `fix:` `refactor:` `docs:` `test:` `chore:`
+- **分支策略**:`main`(生产 7 模块已归档) → `feature/refactor`(单仓改造,5 commits 待 PR) → `feat/*` / `fix/*`
+- **PR 要求**:代码审查 + 测试通过 + ESLint 通过 + @RefreshScope 静态扫描通过
+- **本地归档**:`archive/backend-multi-module-2026-06/`(已 .gitignore'd,git history 仍保留)
 
 ---
 
@@ -202,20 +248,36 @@ docker-compose down               # 停止服务
 
 ## 重要提示
 
-1. **TDD 优先**：所有新功能必须先写测试
-2. **类型安全**：严禁 `any`（测试文件除外）
-3. **安全审查**：所有代码需通过安全检查
+1. **TDD 优先**:所有新功能必须先写测试
+2. **类型安全**:严禁 `any`(测试文件除外)
+3. **安全审查**:所有代码需通过安全检查
+4. **`@RefreshScope` 禁**:GraalVM Native 不兼容,`./gradlew check` 任务拦截;引入 Spring Cloud Config 时尤其注意
+5. **跨模块只走 ApplicationService**:绝不跨过 Service 直接调 Repository(design §1.3,便于将来回拆)
+6. **JWT_SECRET 必须 ≥32 字节**:HS256 强需求;开发可用 `openssl rand -base64 48`
+7. **BFF 当前不缓存**:P99 > 500ms 时再加 Caffeine(design §5.2)
+
+---
+
+## 单仓常见坑(从本次重构沉淀)
+
+| 坑 | 触发 | 解 |
+|---|---|---|
+| `MongoIndexInitializer` 启动失败 | `auto-index-creation: false` 但 docs 无显式建索引 | 显式用 `MongoPersistentEntityIndexResolver` 启动时建 |
+| `assertThatThrownBy(...).hasMessageContaining(...)` 在 record + List.of() 上误判 | 异常 msg 含子串但 assertj 比对方式不同 | 改用 `catch + assertThat(getMessage()).isEqualTo(...)` |
+| `findAll(any())` 编译歧义 | `MongoRepository.findAll()` 与 `findAll(Pageable)` 重载 | 用 `any(Pageable.class)` 显式 |
+| `bson 5.6 + GraalVM Native` 反射 | `--no-fallback` 下 bson codec 注册失败 | CI 跑 `nativeTest` agent 捕获生成 META-INF/native-image/,别手编 |
+| `Order.byCreatedAt` 单分页查全表 | top10 销量聚合 | 暂时 `findTop500ByOrderByCreatedAtDesc`,生产换 Mongo aggregation pipeline |
+| `@WebMvcTest` + `@MockBean` 在 Spring Boot 4 不可用 | 包路径变更 | 改用 plain JUnit + Mockito 直接测 Service |
 
 ---
 
 ## 相关文档
 
-- `ARCHITECTURE.md` - 系统架构详细文档
-- `SPEC.md` - 功能规格说明
-- `TODO.md` - 开发任务列表
-- `docs/DESIGN.md` - **设计系统规范**（微信小程序 + Admin UI）
-- `frontend/admin-design/` - **Admin UI 设计系统**（tokens.json, Element Plus 主题）
-- `docs/` - 其他文档
+- `openspec/changes/refactor-rust-rebuild-frontend/` - **本次重构的 OpenSpec change**(proposal/design/4 specs/63 tasks)
+- `docs/DESIGN.md` - 设计系统规范(待按新单仓重写)
+- `frontend/admin-design/` - 小程序设计令牌(shared with admin-ui,§8/§9 重构)
+- `backend/seed/seed.sh` - MongoDB 种子数据(50 商品 / 5 分类 / 2 用户)
+- `backend/scripts/check-no-refresh-scope.sh` - GraalVM Native 兼容性扫描
 
 ---
 
