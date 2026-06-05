@@ -57,6 +57,9 @@ mongodb_data/
 # Not for commit — git history already preserves the old sources.
 archive/
 
+# Superseded vertical-slice experiment (frozen at c44b39b, replaced by backend/)
+backend-v2/
+
 # Admin UI (new React 18 + shadcn/ui stack)
 admin-ui/node_modules/
 admin-ui/dist/
