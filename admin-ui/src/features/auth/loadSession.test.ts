@@ -68,6 +68,20 @@ describe('auth store: refresh and loadSession', () => {
 
   it('loadSession() returns user info when already authenticated', async () => {
     useAuthStore.setState({ username: 'admin', role: 'ADMIN', hydrated: true });
+    // loadSession now ALWAYS validates against /admin/auth/refresh
+    // (the persisted role/username is a hint, not authoritative —
+    // see auth store security comment). The HttpOnly refresh cookie
+    // is attached by the browser; the server returns a fresh token
+    // pair that proves the session is real.
+    mockedApi.post.mockResolvedValueOnce({
+      data: {
+        accessToken: 'fresh-at',
+        refreshToken: 'fresh-rt',
+        accessTokenExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+        refreshTokenExpiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+        role: 'ADMIN',
+      },
+    });
     mockedApi.get.mockResolvedValueOnce({ data: { id: 'u-1' } });
     let res: { username: string; role: string } | null | undefined;
     await act(async () => {
