@@ -29,7 +29,22 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const login = useLogin();
 
-  const from = (searchParams.get('from') ?? (location.state as { from?: string } | null)?.from ?? '/admin/dashboard').replace(/^([^/])/, '/$1');
+  /**
+   * Validate the `from` redirect target against an allowlist of safe
+   * internal paths. Prevents open-redirect via a crafted ?from= URL
+   * (e.g. `//evil.com`, `\\evil.com`, empty string, protocol-relative
+   * URLs). Anything that doesn't match the pattern falls back to
+   * /admin/dashboard.
+   */
+  const rawFrom =
+    searchParams.get('from') ??
+    (location.state as { from?: string } | null)?.from ??
+    '/admin/dashboard';
+  const FROM_PATTERN = /^\/[a-zA-Z0-9_\-/?.&=#%]*$/;
+  const from =
+    FROM_PATTERN.test(rawFrom) && !rawFrom.startsWith('//') && rawFrom.length > 1
+      ? rawFrom
+      : '/admin/dashboard';
 
   useEffect(() => {
     if (hydrated && isAuthenticated) {

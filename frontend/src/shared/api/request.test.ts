@@ -123,6 +123,42 @@ describe('shared/api/request', () => {
     }
   });
 
+  it('sanitizes ApiError.data — never stashes raw response body (review #8)', async () => {
+    // A hostile backend that echoes the request's Authorization header
+    // in the error body. The ApiError must NOT carry the raw body so
+    // it doesn't leak into console.error in feature stores.
+    const hostileBody = {
+      code: 'DOMAIN',
+      message: 'no',
+      echoedAuth: 'Bearer attacker-supplied-token',
+    };
+    setNextWxResponse(makeWxSuccess(hostileBody, 409));
+    try {
+      await post('/items', {});
+    } catch (err) {
+      const e = err as ApiError & { data: Record<string, unknown> };
+      // The data field is sanitized to the allowlist. The raw `echoedAuth`
+      // field MUST NOT appear in data.
+      expect(e.data).toBeDefined();
+      if (e.data && typeof e.data === 'object') {
+        expect('echoedAuth' in e.data).toBe(false);
+        expect('code' in e.data).toBe(true);
+        expect('message' in e.data).toBe(true);
+      }
+    }
+  });
+
+  it('caps ApiError.message to 200 chars (sanitization)', async () => {
+    const longMessage = 'a'.repeat(5000);
+    setNextWxResponse(makeWxSuccess({ code: 'DOMAIN', message: longMessage }, 500));
+    try {
+      await post('/items', {});
+    } catch (err) {
+      const e = err as ApiError;
+      expect(e.message.length).toBeLessThanOrEqual(200);
+    }
+  });
+
   describe('auto refresh on 401', () => {
     it('refreshes once, retries the original request, returns the retry result', async () => {
       tokenStorage.setTokens('expired', 'refresh-1');
@@ -188,7 +224,7 @@ describe('shared/api/request', () => {
       );
       expect(tokenStorage.getAccessToken()).toBeNull();
       expect(tokenStorage.getRefreshToken()).toBeNull();
-      expect(handler).toHaveBeenCalledWith('REFRESH_FAILED');
+      expect(handler).toHaveBeenCalledWith(expect.objectContaining({ reason: 'REFRESH_FAILED' }));
     });
 
     it('on retry-after-refresh still 401: gives up and fires onAuthFailure', async () => {
@@ -219,7 +255,43 @@ describe('shared/api/request', () => {
       await expect(request({ url: '/x', method: 'GET', needAuth: true })).rejects.toBeInstanceOf(
         ApiError,
       );
-      expect(handler).toHaveBeenCalledWith('REFRESH_FAILED');
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: 'REFRESH_FAILED', code: 'TOKEN_REUSED' }),
+      );
+    });
+
+    it('on retry-after-refresh returns 403 (role revoked): also gives up (review #2)', async () => {
+      // Broader guard: any >=400 after refresh = terminal. Covers
+      // 403 (role revoked) AND any other 4xx the retry surfaces.
+      tokenStorage.setTokens('expired', 'refresh-1');
+      const calls = new Map<string, number>();
+      (wx.request as jest.Mock).mockImplementation((opts: {
+        url: string;
+        success: (res: unknown) => void;
+        fail: (err: unknown) => void;
+      }) => {
+        const n = (calls.get(opts.url) ?? 0) + 1;
+        calls.set(opts.url, n);
+        if (opts.url === 'http://test.local/api/auth/refresh') {
+          opts.success({ statusCode: 200, data: { accessToken: 'new', refreshToken: 'new' } });
+          return;
+        }
+        if (opts.url === 'http://test.local/api/x') {
+          if (n === 1) opts.success({ statusCode: 401, data: { code: 'TOKEN_EXPIRED' } });
+          else opts.success({ statusCode: 403, data: { code: 'DOMAIN', message: 'forbidden' } });
+          return;
+        }
+        opts.fail({ errMsg: 'unexpected ' + opts.url });
+      });
+      const handler = jest.fn();
+      setOnAuthFailure(handler);
+
+      await expect(request({ url: '/x', method: 'GET', needAuth: true })).rejects.toBeInstanceOf(
+        ApiError,
+      );
+      expect(handler).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: 'REFRESH_FAILED' }),
+      );
     });
 
     it('does NOT trigger refresh when skipRefresh is true', async () => {

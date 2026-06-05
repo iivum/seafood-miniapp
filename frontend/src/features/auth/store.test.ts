@@ -1,6 +1,11 @@
 import { authStore, AuthStore } from './store';
 import { tokenStorage } from '../../shared/api/storage';
-import { setBaseUrl, setOnAuthFailure, type WechatLoginResponse } from '../../shared/api/request';
+import {
+  setBaseUrl,
+  setOnAuthFailure,
+  request,
+  type WechatLoginResponse,
+} from '../../shared/api/request';
 
 function setWxLoginCode(code: string | null) {
   (wx.login as jest.Mock).mockImplementation((opts: {
@@ -120,5 +125,37 @@ describe('features/auth/store', () => {
   it('AuthStore is constructible independently', () => {
     const store = new AuthStore();
     expect(store.getState().isAuthenticated).toBe(false);
+  });
+
+  describe('security: silentRelogin gating (review #5)', () => {
+    it('does NOT call wx.login when onAuthFailure is fired with TOKEN_REUSED', async () => {
+      // Manually fire the registered onAuthFailure callback with a
+      // non-EXPIRED code. silentRelogin must NOT trigger a login
+      // round-trip; the store should hard-lock.
+      const store = new AuthStore();
+      const spy = jest.spyOn(store as unknown as { login: () => Promise<unknown> }, 'login');
+      // Pull the registered handler out of the request module.
+      // Easier: drive it through `request()` with a TOKEN_REUSED 401.
+      tokenStorage.setTokens('old', 'old-refresh');
+      (wx.request as jest.Mock).mockImplementation((opts: {
+        success: (res: unknown) => void;
+      }) => {
+        if (opts.url === '/api/auth/wechat-login' || opts.url.endsWith('/api/auth/wechat-login')) {
+          opts.success({ statusCode: 200, data: sampleLoginRes });
+        } else if (opts.url.endsWith('/api/auth/refresh')) {
+          opts.success({ statusCode: 200, data: { accessToken: 'new-a', refreshToken: 'new-r' } });
+        } else {
+          // original request 401 TOKEN_REUSED
+          opts.success({ statusCode: 401, data: { code: 'TOKEN_REUSED' } });
+        }
+      });
+      await expect(
+        request({ url: '/orders', method: 'GET', needAuth: true }),
+      ).rejects.toBeInstanceOf(Error);
+      // No wx.login fired — the security signal short-circuits recovery.
+      const wxLoginCalls = (wx.login as jest.Mock).mock.calls.length;
+      expect(wxLoginCalls).toBe(0);
+      spy.mockRestore();
+    });
   });
 });

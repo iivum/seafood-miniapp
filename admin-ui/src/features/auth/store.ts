@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { api, readCookie, writeCookie } from '@/lib/api';
+import { api } from '@/lib/api';
 import type { AdminLoginRequest, TokenResponse, UserResponse } from '@/types/api';
 
 interface AuthState {
+  /** In-memory only. HttpOnly cookie carries the real authority. */
   accessToken: string | null;
   username: string | null;
   role: string | null;
@@ -22,9 +23,19 @@ interface AuthState {
 
 /**
  * Auth state lives in Zustand (per design §7.2 stores/).
- * Tokens are kept in httpOnly cookies on the server side; the client keeps a
- * non-sensitive shadow `admin_refresh_token` cookie to drive the refresh
- * interceptor. The session "logged in" signal is just role+username.
+ *
+ * Security model:
+ *  - Refresh token: stored ONLY as an HttpOnly+Secure cookie set by
+ *    the backend. JS never sees it (XSS cannot exfiltrate).
+ *  - Access token: short-lived (15 min), kept in memory only; the
+ *    request interceptor attaches it as `Authorization: Bearer ...`.
+ *  - Username + role: persisted to localStorage as a non-sensitive
+ *    "session hint" so the router can render before the server
+ *    confirms. `loadSession()` always validates against the server
+ *    (via /admin/auth/refresh) before granting real access.
+ *  - On logout: backend revokes the cookie, then we clear local
+ *    state. Subsequent page loads see no session hint and
+ *    RequireAuth redirects to /admin/login.
  */
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -37,11 +48,6 @@ export const useAuthStore = create<AuthState>()(
       setHydrated: () => set({ isHydrated: true, hydrated: true }),
 
       setSession: (tokens, username) => {
-        const expiresIn = Math.max(
-          1,
-          Math.floor((new Date(tokens.refreshTokenExpiresAt).getTime() - Date.now()) / 1000),
-        );
-        writeCookie('admin_refresh_token', tokens.refreshToken, expiresIn);
         set({
           accessToken: tokens.accessToken,
           username: username ?? get().username,
@@ -50,7 +56,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       clear: () => {
-        writeCookie('admin_refresh_token', '', 0);
         set({ accessToken: null, username: null, role: null });
       },
 
@@ -68,12 +73,8 @@ export const useAuthStore = create<AuthState>()(
 
       refresh: async () => {
         try {
-          const shadow = readCookie('admin_refresh_token');
-          if (!shadow) {
-            get().clear();
-            return false;
-          }
-          const res = await api.post<TokenResponse>('/admin/auth/refresh', { refreshToken: shadow });
+          // Backend reads HttpOnly refresh cookie. No body.
+          const res = await api.post<TokenResponse>('/admin/auth/refresh', {});
           get().setSession(res.data);
           return true;
         } catch {
@@ -83,21 +84,29 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        // Server revokes the HttpOnly cookie. We then clear local
+        // state. If the network call fails, we still clear locally —
+        // the next protected request will 401 and the router will
+        // redirect to /admin/login.
         try {
-          await api.post('/admin/auth/logout', {}).catch(() => undefined);
+          await api.post('/admin/auth/logout', {});
+        } catch {
+          /* best-effort */
         } finally {
           get().clear();
         }
       },
 
       loadSession: async () => {
-        const { isAuthenticated } = get();
-        if (!isAuthenticated()) {
-          // Try to refresh on first load
-          const ok = await get().refresh();
-          if (!ok) {
-            return null;
-          }
+        // Server-side confirmation. The persisted role/username is a
+        // hint only; we never grant access until /admin/auth/refresh
+        // succeeds (the HttpOnly cookie is the source of truth).
+        const ok = await get().refresh();
+        if (!ok) {
+          // Refresh failed → no valid session. Clear the persisted
+          // hint so the next load doesn't briefly render as authed.
+          get().clear();
+          return null;
         }
         const s = get();
         if (!s.username || !s.role) {
@@ -115,6 +124,10 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'seafood-admin-auth',
       storage: createJSONStorage(() => localStorage),
+      // Persist only the non-sensitive session hint. The access token
+      // and the refresh credential are NOT persisted — refresh lives
+      // in an HttpOnly cookie; access lives in memory and is
+      // re-issued by /admin/auth/refresh on the next session load.
       partialize: (state) => ({ username: state.username, role: state.role }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
