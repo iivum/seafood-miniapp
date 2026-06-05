@@ -35,7 +35,18 @@ cd backend
 ./gradlew :test --tests "*ProductTest"      # 单类测试
 ./gradlew test -PexcludeTags=docker         # 跳过 Testcontainers IT(无 Docker 环境)
 ./gradlew :test --tests "*ArchitectureTest" # 仅 DDD 分层规则,毫秒级
+./gradlew nativeTest                        # @Tag("native") 切片,带 GraalVM agent 收集 metadata
+./gradlew nativeCompile                     # 用 agent 产出的 metadata 编译 native binary
 ```
+
+> **nativeTest 切片(Sprint 2 C5 §5.2)**:以下 IT 已打 `@Tag("native")` — 它们是
+> `nativeTest` 阶段让 GraalVM tracing agent 收集反射/资源/代理 metadata 的最小
+> 代表集:1 个 controller IT (`AdminRateLimitIT`)、1 个 repository IT
+> (`ProductDocumentRepositoryIT`)、1 个 security filter IT (`SecurityHeadersIT`)。
+> 加新代码路径时,在对应测试上加 `@Tag("native")` 或扩展这 3 个用例之一,再跑
+> `./gradlew nativeTest` 让 agent 把新 metadata 写入
+> `build/native/agent-output/test/`,然后 commit
+> `src/main/resources/META-INF/native-image/` 的更新。
 
 > **JDK 25 toolchain**:`gradle.properties` 已配 `org.gradle.java.installations.paths` 指向 GraalVM Homebrew。本机无 JDK 25 时,`./gradlew test` 直接失败 — 装 GraalVM CE 25+。
 
@@ -213,24 +224,57 @@ interface Order {
 ### 环境变量(必填,启动时 fail-fast)
 
 ```bash
-# 后端
-JWT_SECRET=<≥32 字节随机串>           # 缺失即 fail-fast
-JWT_ADMIN_SECRET=<≥32 字节随机串>      # admin-ui 独立签名密钥
-MONGODB_URI=mongodb://localhost:27017/seafood
+# 后端 — Sprint 2 起 @Validated 在 binding 阶段 fail-fast(早于 @PostConstruct)
+JWT_SECRET=<≥32 字节随机串>           # 缺失/<32B 即 fail-fast。生成:openssl rand -base64 48
+JWT_ADMIN_SECRET=<≥32 字节随机串>      # admin-ui 独立签名密钥;MUST 与 JWT_SECRET 不同(@AssertTrue 校验)
+MONGODB_URI=mongodb://localhost:27017/seafood   # 必须以 mongodb:// 或 mongodb+srv:// 开头
 WECHAT_ENABLED=false                    # dev 期可保持 false,wechat.login code 必须以 dev- 开头
-WECHAT_APPID=...                        # 生产才需要
-WECHAT_SECRET=...
+WECHAT_APPID=...                        # WECHAT_ENABLED=true 时必填(@AssertTrue 跨字段校验)
+WECHAT_SECRET=...                       # WECHAT_ENABLED=true 时必填
 
 # 前端(微信小程序)
 API_BASE_URL=http://localhost:8080
 ```
 
+> **Sprint 2 BREAKING**:`JWT_ADMIN_SECRET` 现在强制要求 ≥32 字节且不同于 `JWT_SECRET`;
+> 此前共用同一密钥的部署会被拒绝启动。两个密钥独立生成:
+> ```bash
+> openssl rand -base64 48      # → JWT_SECRET
+> openssl rand -base64 48      # → JWT_ADMIN_SECRET(再跑一次取不同值)
+> ```
+
 ### Docker 部署
+
+> **Sprint 2 C5 §5.9**:2 服务 — `backend`(GraalVM Native binary, image
+> `seafood-backend:native`,基于 `gcr.io/distroless/base-debian12:nonroot`,**无 JRE**)
+> + `mongodb:7`。`mongodb` 与 `backend` 都带 healthcheck,backend 通过
+> `depends_on: mongodb: { condition: service_healthy }` 串行启动。
+
 ```bash
-docker-compose up -d              # 启动所有服务
+docker-compose up -d              # 启动所有服务(backend 需先 docker build)
 docker-compose logs -f            # 查看日志
 docker-compose down               # 停止服务
+docker-compose down -v            # 停止 + 清 mongodb_data volume
 ```
+
+> 启动后 backend RSS 验收 < 200 MB(design §3.1);`/actuator/health` 应在 30 s 内 200;
+> `curl http://localhost:8080/api/products?page=0&size=10` 应返回 200 且
+> `totalElements > 0`(需先跑 `backend/seed/seed.sh`)。完整冒烟见
+> `backend/scripts/native-smoke.sh`。
+
+### CI/CD
+> **Sprint 2 C5 §5.4 新增**:`.github/workflows/native.yml` — GraalVM native 端到端
+> pipeline(只在改 `backend/**` / `Dockerfile` / `docker-compose.yml` 时跑):
+>
+> 1. `nativeTest`(`@Tag("native")` 切片)→ agent 收集 metadata
+> 2. `normalize-native-metadata.sh` 排序去重 + git diff gate
+> 3. `nativeCompile` → `seafood-backend` binary
+> 4. `docker build` → `seafood-backend:native`
+> 5. Trivy 镜像扫描(HIGH/CRITICAL fail),SARIF 上传 GitHub Code Scanning
+> 6. `native-smoke.sh` 端到端冒烟(health 200 / totalElements>0 / RSS<200MB)
+>
+> 与 C4 计划的 3-job 拆分(design §Decision 2)一致 — `jvm-check`(`ci.yml`)
+> 跑得频;`native` 和 `security` 由路径过滤在 PR 改动相应文件时才跑。
 
 ### Git 工作流
 - **提交格式**:`feat(<scope>):` `fix:` `refactor:` `docs:` `test:` `chore:`
@@ -284,3 +328,17 @@ docker-compose down               # 停止服务
 ---
 
 *本文件为 AI 开发辅助文档，具体实现请参考代码注释和测试用例。*
+
+---
+
+## CI/CD
+
+Sprint 2 起拆为 3 个独立 workflow,按需并行触发:
+
+| Workflow | 触发 | 职责 |
+|---|---|---|
+| `.github/workflows/ci.yml` (jvm-check) | PR + push to main/develop | `./gradlew check`(含 ArchUnit、`checkNoRefreshScope`、JVM 测试);frontend `npm test`;best-effort `nativeCompile` |
+| `.github/workflows/native.yml` (native) | PR 改 `backend/**` / `Dockerfile` / `docker-compose.yml`;push to main | GraalVM `nativeTest` → `nativeCompile` → docker build → Trivy 扫 `seafood-backend:native` |
+| `.github/workflows/security.yml` (security) | PR + push to main / `feat/**` / `fix/**` | OWASP Dep-Check(SCA)+ TruffleHog(secret scan PR diff) |
+
+**SARIF 报告**:Trivy 和 OWASP Dep-Check 都通过 `github/codeql-action/upload-sarif@v3` 上传,在 GitHub 仓库 **Security → Code scanning** 标签页查看历史告警与去重结果。Dependabot 每周一凌晨扫一次,安全更新即时触发(不受周计划约束),分组 PR(`spring-boot` / `testcontainers`)降低噪声。

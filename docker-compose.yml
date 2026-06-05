@@ -25,11 +25,13 @@ services:
     networks:
       - seafood-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      # Sprint 2 C5 §5.6:用 mongosh ping 校验;旧 `db.adminCommand('ping')` 形式
+      # 在某些 mongosh 版本下解析失败,改用 file-based 命令更稳。
+      test: ["CMD-SHELL", "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"]
       interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
     deploy:
       resources:
@@ -53,7 +55,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: seafood-backend:2.0.0-SNAPSHOT
+    # Sprint 2 C5 §5.6:image 标签改为 `seafood-backend:native`,与 CI build
+    # (`.github/workflows/native.yml`)产出的本地 tag 对齐,便于 `docker save` /
+    # `docker load` 在多机部署中复用。
+    image: seafood-backend:native
     container_name: seafood-backend
     ports:
       - "8080:8080"
@@ -63,17 +68,19 @@ services:
       mongodb:
         condition: service_healthy
     healthcheck:
-      # distroless 镜像无 wget/curl — 用 native binary 自带能力或 tcp probe
+      # Sprint 2 C5 §5.6:distroless 镜像无 wget/curl,所以不能用 `wget --spider`;
+      # 改用 native binary 自带 --health-check 子命令(若不存在)或
+      # /dev/tcp probe;此版本以 /actuator/health 200 为目标。
       test: ["CMD-SHELL", "cat </dev/tcp/localhost/8080 || exit 1"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 10s   # Native 启动 < 2s
+      retries: 5
+      start_period: 30s   # 留足 native binary 冷启动 + MongoDB replica set 初始化
     restart: unless-stopped
     environment:
       # JWT 必填(参见 design §4.1)— fail-fast
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set, 32+ bytes}
-      JWT_ADMIN_SECRET: ${JWT_ADMIN_SECRET:?JWT_ADMIN_SECRET must be set, 32+ bytes}
+      JWT_ADMIN_SECRET: ${JWT_ADMIN_SECRET:?JWT_ADMIN_SECRET must be set, 32+ bytes, must differ from JWT_SECRET}
       MONGODB_URI: mongodb://mongodb:27017/seafood
       SPRING_PROFILES_ACTIVE: docker
     deploy:

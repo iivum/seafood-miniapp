@@ -1,0 +1,190 @@
+<<<<<<< HEAD
+# =====================================================
+# Native build + image scan workflow (Sprint 2 §4.4 + §5.4)
+#   C4: 仅交付 Trivy 步骤(stub)
+#   C5: 填充 nativeTest → nativeCompile → docker build → smoke test
+# =====================================================
+name: Native
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - ".github/workflows/native.yml"
+  push:
+    branches: [main]
+
+# 所有 run: 块均硬编码,无 ${{ github.event.* }} 插值
+jobs:
+  trivy-image:
+    name: Trivy scan (seafood-backend:native)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+=======
+name: Native (GraalVM + Distroless)
+
+# Sprint 2 C5 §5.4
+# 触发:PR 改 backend/**/Dockerfile/docker-compose.yml 时跑;push 到 main 也跑
+# (用以 gate 部署)。matrix:ubuntu-latest(不需要 mac/win — Native 工具链只 Linux)。
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.github/workflows/native.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 默认 env:JWT 密钥满足 @Size(min=32),ci 文件不依赖 secret
+env:
+  JWT_SECRET: ci-native-test-secret-must-be-at-least-32-bytes-AAAA
+  JWT_ADMIN_SECRET: ci-native-test-admin-secret-must-be-at-least-32-bytes-BBBB
+  MONGODB_URI: mongodb://localhost:27017/seafood_native
+
+jobs:
+  # =============================================================
+  # native-build — agent 收集 metadata + nativeCompile + docker build
+  # =============================================================
+  native-build:
+    name: GraalVM native build (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+>>>>>>> feat/sprint2-c5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+<<<<<<< HEAD
+      # ---- C5 填充区:开始 ----
+      # C5 任务 5.4 将在此位置插入:
+      #   1. Setup GraalVM CE 25
+      #   2. Cache ~/.gradle
+      #   3. ./gradlew nativeTest         (生成 agent metadata)
+      #   4. bash scripts/normalize-native-metadata.sh
+      #   5. ./gradlew nativeCompile
+      #   6. docker build -t seafood-backend:nimalive .
+      # 详见 openspec/changes/sprint2-native-security/tasks.md §5
+      # ---- C5 填充区:结束 ----
+
+      - name: Build placeholder image for scan
+        # 临时占位 — 若上游 nativeCompile 步骤未跑,Trivy 至少能跑通流水线
+        # C5 实装后此步骤删除
+        run: |
+          echo "FROM scratch" > /tmp/Dockerfile.placeholder
+          docker build -t seafood-backend:native -f /tmp/Dockerfile.placeholder /tmp
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: seafood-backend:native
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+=======
+      - name: Set up GraalVM JDK 25
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'graalvm-community'
+          java-version: '25'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Set up Temurin JDK 25 (Gradle daemon)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-native-${{ hashFiles('backend/gradle.properties', 'backend/build.gradle', 'backend/settings.gradle') }}
+          restore-keys: |
+            ${{ runner.os }}-native-
+            ${{ runner.os }}-
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-${{ hashFiles('backend/Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-
+
+      - name: docker login (ghcr, optional push)
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: nativeTest (agent collects metadata)
+        working-directory: backend
+        run: ./gradlew --no-daemon nativeTest
+
+      - name: Normalize + diff META-INF/native-image
+        working-directory: backend
+        run: bash scripts/normalize-native-metadata.sh
+
+      - name: nativeCompile
+        working-directory: backend
+        run: ./gradlew --no-daemon nativeCompile
+
+      - name: Verify binary
+        working-directory: backend
+        run: |
+          ls -lh build/native/nativeCompile/seafood-backend
+          file build/native/nativeCompile/seafood-backend
+
+      - name: docker build (multi-stage → distroless)
+        working-directory: backend
+        run: docker build -t seafood-backend:native -f Dockerfile .
+
+      - name: Trivy image scan (C4 step preserved)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'seafood-backend:native'
+          format: 'sarif'
+          output: 'trivy-native.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-native.sarif
+
+      - name: Smoke test (docker compose + curl + RSS)
+        working-directory: backend
+        run: bash scripts/native-smoke.sh
+        env:
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+          JWT_ADMIN_SECRET: ${{ env.JWT_ADMIN_SECRET }}
+
+      - name: Upload native binary
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seafood-backend-native
+          path: backend/build/native/nativeCompile/seafood-backend
+          retention-days: 7
+>>>>>>> feat/sprint2-c5

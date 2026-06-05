@@ -4,6 +4,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.seafood.testsupport.MongoIntegrationTest;
 import org.bson.Document;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,7 +15,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Drives the raw MongoDB driver to avoid depending on Spring Data slice
  * annotations that Boot 4.0.6's test starter does not bundle.
+ *
+ * <p>Sprint 2 C5 §5.2:tagged {@code native} — repository-IT 切片样本,让
+ * nativeTest agent 捕获 mongodb-driver-sync 5.x 在 GraalVM Native 下的
+ * codec / 反射条目(参见 CLAUDE.md 「单仓常见坑」 bson 5.6 行)。
  */
+@Tag("native")
 class ProductDocumentRepositoryIT extends MongoIntegrationTest {
 
     @Test
