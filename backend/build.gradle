@@ -7,6 +7,20 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.springframework.boot' version '4.0.6'
     id 'org.graalvm.buildtools.native' version '0.11.5'
+    // Sprint 2 §4.1 — OWASP Dependency-Check(CI-only;本地跳过避免 10min NVD 下载)
+    id 'org.owasp.dependencycheck' version '10.0.4'
+}
+
+// Sprint 2 §4.1 — OWASP Dep-Check 配置
+// CVSS >= 7.0 = High/Critical → fail build;NVD datafeed 走官方默认,CI 注 NVD_API_KEY 提速
+dependencyCheck {
+    failBuildOnCVSS = 7.0
+    suppressionFiles = files('dependency-check-suppressions.xml')
+}
+
+// Sprint 2 §4.1 — 仅 CI 跑 Dep-Check,本地不拉 10min NVD 增量
+if (System.getenv('CI') != null) {
+    tasks.named('check').configure { dependsOn 'dependencyCheckAnalyze' }
 }
 
 group = 'com.seafood'
@@ -43,6 +57,9 @@ dependencies {
     implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
     runtimeOnly    "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
     runtimeOnly    "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // Sprint 2 §2 — Caffeine token bucket for admin rate limit (no version: BOM-managed by Spring Boot 4)
+    implementation 'com.github.ben-manes.caffeine:caffeine'
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -84,25 +101,43 @@ tasks.named('check') { dependsOn 'checkNoRefreshScope' }
 
 // §7.2 GraalVM Native 构建配置(design §3.1 + §3.3 已知陷阱)
 //
-// 状态(2026-06-03):buildArgs 是最小安全集;反射/资源/proxy 配置靠 Spring Boot AOT
-// (`processAot` 任务) + `nativeTest` 阶段 agent 捕获。直接 `nativeCompile` 在本机
-// 仍会因 bson 5.6 codec、logback、Spring Security CGLIB 反射链路不全而失败。
+// 状态(2026-06-06 — Sprint 2 C5 闭包):buildArgs 已收紧为最小安全集 + 3 个新增项;
+// 反射/资源/proxy 配置靠 Spring Boot AOT (`processAot` 任务) + `nativeTest` 阶段
+// agent 捕获。`nativeTest` 任务在 metadataRepository + agent 模式下运行,生成的
+// JSON 由 `scripts/normalize-native-metadata.sh` 归一化后落到
+// `src/main/resources/META-INF/native-image/`(已占位)。
 //
 // 解法(design §3.2 + §10 风险 #1 缓解):
-//   1. CI 跑 `./gradlew nativeTest` — agent 跑所有测试,生成 reflect/resource/proxy JSON
-//   2. 把生成的 JSON 提交到 META-INF/native-image/(已占位)
+//   1. CI 跑 `./gradlew nativeTest` — agent 跑 @Tag("native") 切片,生成 reflect/resource/proxy JSON
+//   2. normalize-native-metadata.sh 排序去重并提交到 META-INF/native-image/
 //   3. 再跑 nativeCompile;若仍缺,迭代 1-2
 //   4. Phase 2 末若 native binary 仍不能 E2E,回退 JVM 部署(design §10 风险 #1)
 graalvmNative {
+    // metadataRepository 启用后,plugin 会把收集到的 metadata 写入
+    // `build/native/agent-output/test/` 供 normalize 脚本消费。
+    // (Sprint 2 C5 §5.1 — 0.11.5 DSL:metadataRepository / agent 都挂在顶层,
+    //  binary 内只有 deprecated agent { enabled / options } 形式)
+    metadataRepository {
+        enabled = true
+    }
+    // agent 在 nativeTest 阶段以 standard 模式运行:拦截所有反射 / 资源 / 代理
+    // 访问并把缺失的 JSON 合并到 metadataRepository 输出目录
+    agent {
+        defaultMode = "standard"
+        enabled = true
+    }
     binaries {
         main {
             imageName = 'seafood-backend'
             mainClass = 'com.seafood.SeafoodApplication'
             buildArgs.addAll(
                 '--no-fallback',                                       // 禁用 JVM fallback,失败即 fail
-                '-H:+ReportExceptionStackTraces',                     // 异常时打印栈
+                '-H:+ReportExceptionStackTraces',                     // 异常时打印栈,方便定位 agent 漏抓
                 '--initialize-at-build-time=java.util.TimeZone',      // design §3.3 时区坑
-                '-H:+AddAllCharsets'                                  // SnakeYAML/网络 IO
+                '-H:+AddAllCharsets',                                 // SnakeYAML / 网络 IO 需要的字符集
+                '--enable-url-protocols=https,http',                  // HTTP 客户端 + MongoDB driver 反射 URL 协议
+                '-H:+InstallExitHandlers',                            // 进程内正确处理 SIGTERM(Supervised / docker stop)
+                '--strict-image-heap'                                 // 启动时校验 image heap 越界,失败即停(Sprint 2 hardening)
             )
         }
     }

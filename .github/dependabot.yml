@@ -1,0 +1,68 @@
+# =====================================================
+# Dependabot 配置(Sprint 2 §4.6)
+#   - gradle(weekly @ /backend)
+#   - docker(weekly @ / + /backend)
+#   - github-actions(weekly @ /)
+#   - 安全更新立即
+#   - 2 个 group: spring-boot / testcontainers
+# =====================================================
+version: 2
+
+# 立即发安全更新,无论周计划
+security-updates:
+  open-pull-requests-limit: 5
+  labels:
+    - "security"
+    - "dependencies"
+
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "java"
+    groups:
+      spring-boot:
+        patterns:
+          - "org.springframework.boot:*"
+      testcontainers:
+        patterns:
+          - "org.testcontainers:*"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"
