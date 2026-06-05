@@ -23,6 +23,23 @@ security:
     access-token-ttl: 15m
     refresh-token-ttl: 7d
     admin-secret: ${JWT_ADMIN_SECRET:}    # admin-ui 独立密钥
+  # Sprint 2 §2.1 — HTTP 安全响应头基线,值可按 env 收紧
+  headers:
+    strict-transport-security: "max-age=31536000; includeSubDomains"
+    x-content-type-options: "nosniff"
+    x-frame-options: "DENY"
+    referrer-policy: "strict-origin-when-cross-origin"
+    permissions-policy: "geolocation=(), microphone=(), camera=()"
+    content-security-policy: "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+  # Sprint 2 §2.4 — /api/admin/** 限流(60 rpm per (IP, account))
+  rate-limit:
+    requests-per-minute: 60
+    bucket-ttl-seconds: 120
+  # Sprint 2 §3.8 — 登录失败锁定(5 次失败 / 15 分钟窗口 / 锁 15 分钟,user+admin 共用)
+  login-lock:
+    max-failures: 5
+    window-minutes: 15
+    lock-minutes: 15
 
 # 业务端点
 api:
