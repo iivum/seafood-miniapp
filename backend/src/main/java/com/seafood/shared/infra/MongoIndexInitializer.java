@@ -59,6 +59,14 @@ public class MongoIndexInitializer {
                         .unique()
                         .named("uk_openId"));
 
+        // Sprint 2 §3.3 — revoked_tokens TTL index:文档到期后 MongoDB 后台线程
+        // 自动删除(每 60s 扫一次),无需应用层清理。expireAfterSeconds=0 表示
+        // "expiresAt 字段本身的取值即为到期时间"。design.md §3 decision 3。
+        ensureExtra("revoked_tokens",
+                new Index().on("expiresAt", org.springframework.data.domain.Sort.Direction.ASC)
+                        .expire(0L)
+                        .named("ttl_expiresAt"));
+
         log.info("[mongo] all indexes ensured");
     }
 

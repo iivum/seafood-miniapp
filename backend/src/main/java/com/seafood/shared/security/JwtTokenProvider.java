@@ -36,7 +36,7 @@ public class JwtTokenProvider {
     }
 
     @PostConstruct
-    void init() {
+    public void init() {
         this.userKey = buildKey("JWT_SECRET", props.getSecret());
         this.adminKey = buildKey("JWT_ADMIN_SECRET", props.getAdminSecret());
     }
