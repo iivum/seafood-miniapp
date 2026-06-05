@@ -57,31 +57,20 @@ mongodb_data/
 # Not for commit — git history already preserves the old sources.
 archive/
 
-# Vaadin Admin UI (generated files)
-backend/admin-ui/frontend/generated/
-backend/admin-ui/node_modules/
-backend/admin-ui/tsconfig.json
-backend/admin-ui/vite.config.ts
-backend/admin-ui/vite.generated.ts
-backend/admin-ui/types.d.ts
-backend/admin-ui/package-lock.json
-
-# Root-level build scaffolding (not part of the project)
-backend/package.json
-backend/package-lock.json
-backend/tsconfig.json
-backend/types.d.ts
-backend/vite.config.ts
-backend/vite.generated.ts
-backend/target/
-backend/test-results/
-backend/frontend/
+# Admin UI (new React 18 + shadcn/ui stack)
+admin-ui/node_modules/
+admin-ui/dist/
+admin-ui/coverage/
+admin-ui/.vite/
+admin-ui/components.json
+admin-ui/tsconfig.tsbuildinfo
+# Built artifacts of admin-ui live under backend/src/main/resources/static/admin/.
+# They are produced by `npm run build` (task 9.2/10.1) and should be regenerated,
+# not committed, to keep the diff focused on source.
+backend/src/main/resources/static/admin/
 
 # Playwright browser automation
 .playwright-mcp/
-
-# Admin UI test scaffolding
-backend/admin-ui/tests/
 
 
 # Gradle Wrapper
