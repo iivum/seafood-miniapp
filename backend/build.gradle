@@ -67,8 +67,9 @@ tasks.named('test') {
     useJUnitPlatform {
         // Sprint 1: skip Testcontainers-backed tests when -PexcludeTags=docker is passed
         // (useful for environments without Docker, e.g. local dev on a laptop without Docker Desktop)
-        if (project.hasProperty('excludeTags')) {
-            excludeTags project.findProperty('excludeTags').split(',')
+        def exclude = project.findProperty('excludeTags')
+        if (exclude != null) {
+            excludeTags exclude.split(',')
         }
     }
 }

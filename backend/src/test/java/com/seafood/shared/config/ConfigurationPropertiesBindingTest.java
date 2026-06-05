@@ -2,9 +2,13 @@ package com.seafood.shared.config;
 
 import com.seafood.shared.security.JwtProperties;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,18 +32,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 class ConfigurationPropertiesBindingTest {
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private JwtProperties jwt;
 
     @Test
     void securityJwtPrefixBinds() {
         assertThat(jwt.getSecret()).isEqualTo("test-secret-at-least-32-bytes-long-xx");
         assertThat(jwt.getAdminSecret()).isEqualTo("admin-secret-at-least-32-bytes-xx");
-        assertThat(jwt.getAccessTokenTtl()).isEqualTo(java.time.Duration.ofMinutes(10));
-        assertThat(jwt.getRefreshTokenTtl()).isEqualTo(java.time.Duration.ofDays(1));
+        assertThat(jwt.getAccessTokenTtl()).isEqualTo(Duration.ofMinutes(10));
+        assertThat(jwt.getRefreshTokenTtl()).isEqualTo(Duration.ofDays(1));
     }
 
-    @org.springframework.boot.SpringBootConfiguration
+    @SpringBootConfiguration
     @EnableConfigurationProperties(JwtProperties.class)
     static class TestApp {
     }

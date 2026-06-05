@@ -21,7 +21,9 @@ class ProductDocumentRepositoryIT extends MongoIntegrationTest {
     void roundTrip_preservesFields() {
         MongoCollection<Document> products = database("seafood_test")
                 .getCollection("products");
-        products.drop();
+        // clear fixture without dropping the collection — safe under parallel test execution
+        // against the same DB name, since it does not invalidate other tests' collections.
+        products.deleteMany(new Document());
 
         products.insertOne(new Document()
                 .append("name", "三文鱼")
