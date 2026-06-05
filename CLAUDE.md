@@ -30,9 +30,11 @@ npm test -- --coverage                      # 带覆盖率
 # 后端测试(单 Spring Boot 模块,77 例)
 cd backend
 ./gradlew test                              # 全部 + 报告 build/test-results/
-./gradlew check                             # 含 checkNoRefreshScope 静态扫描
+./gradlew check                             # 含 checkNoRefreshScope 静态扫描 + ArchUnit
 ./gradlew compileJava                       # 仅编译,快速语法校验
 ./gradlew :test --tests "*ProductTest"      # 单类测试
+./gradlew test -PexcludeTags=docker         # 跳过 Testcontainers IT(无 Docker 环境)
+./gradlew :test --tests "*ArchitectureTest" # 仅 DDD 分层规则,毫秒级
 ```
 
 > **JDK 25 toolchain**:`gradle.properties` 已配 `org.gradle.java.installations.paths` 指向 GraalVM Homebrew。本机无 JDK 25 时,`./gradlew test` 直接失败 — 装 GraalVM CE 25+。

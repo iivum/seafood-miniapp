@@ -48,8 +48,10 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.assertj:assertj-core'
+    // Sprint 1: Testcontainers + ArchUnit (DDD layer guardrails)
     testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
     testImplementation 'org.testcontainers:mongodb:1.20.4'
+    testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.1'
     testRuntimeOnly   'org.junit.platform:junit-platform-launcher'
 }
 
@@ -62,7 +64,13 @@ dependencyManagement {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        // Sprint 1: skip Testcontainers-backed tests when -PexcludeTags=docker is passed
+        // (useful for environments without Docker, e.g. local dev on a laptop without Docker Desktop)
+        if (project.hasProperty('excludeTags')) {
+            excludeTags project.findProperty('excludeTags').split(',')
+        }
+    }
 }
 
 // 静态扫描:禁止 @RefreshScope(GraalVM Native 不兼容)
