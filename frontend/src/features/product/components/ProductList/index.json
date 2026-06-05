@@ -1,0 +1,8 @@
+{
+  "component": true,
+  "usingComponents": {
+    "product-card": "/src/features/product/components/ProductCard/index",
+    "shared-empty": "/src/shared/components/Empty/index",
+    "shared-loading": "/src/shared/components/Loading/index"
+  }
+}

@@ -1,0 +1,14 @@
+<view class="product-card" bindtap="onTap">
+  <image
+    class="product-card__image"
+    src="{{product.imageUrl}}"
+    mode="aspectFill"
+    lazy-load="true"
+  />
+  <view class="product-card__body">
+    <view class="product-card__name">{{product.name}}</view>
+    <view class="product-card__price">¥ {{product.price}}</view>
+    <view class="product-card__stock">库存: {{product.stock}}</view>
+    <button class="product-card__add" size="mini" catchtap="onAdd">加入购物车</button>
+  </view>
+</view>

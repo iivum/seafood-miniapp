@@ -2,6 +2,16 @@ App({
   onLaunch: function () {
     this.initPlatformInfo();
     this.checkLoginStatus();
+    // Wire the central request layer's base URL to the legacy
+    // globalData baseUrl so the new feature stores (which use the
+    // central request helper) hit the same backend.
+    try {
+      const { setBaseUrl } = require('./src/shared/api/request.js');
+      setBaseUrl(this.globalData.baseUrl);
+    } catch (e) {
+      // The new request layer isn't required at runtime; fall back
+      // to the legacy utils/request.js path.
+    }
   },
 
   /**

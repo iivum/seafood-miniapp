@@ -1,0 +1,10 @@
+<!-- shared/components/Empty/index.wxml -->
+<view class="empty">
+  <view class="empty__icon">📭</view>
+  <view class="empty__message">{{message}}</view>
+  <button
+    wx:if="{{retryable}}"
+    class="empty__retry btn"
+    bindtap="onRetry"
+  >重试</button>
+</view>

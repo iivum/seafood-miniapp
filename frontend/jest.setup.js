@@ -3,17 +3,46 @@
  * Provides mocks for wx API and other mini-program globals
  */
 
-// Mock the wx global object for mini-program testing
+// In-memory backing store for the wx storage mocks so setStorageSync
+// followed by getStorageSync returns what was set.
+const wxStorage = new Map();
+
 global.wx = {
   request: jest.fn(),
   showToast: jest.fn(),
-  removeStorageSync: jest.fn(),
+  showLoading: jest.fn(),
+  hideLoading: jest.fn(),
+  showModal: jest.fn(),
+  login: jest.fn(),
+  getUserInfo: jest.fn(),
+  setStorageSync: jest.fn((key, value) => {
+    wxStorage.set(key, value);
+  }),
+  getStorageSync: jest.fn((key) => wxStorage.get(key) ?? ''),
+  removeStorageSync: jest.fn((key) => {
+    wxStorage.delete(key);
+  }),
   reLaunch: jest.fn(),
+  navigateTo: jest.fn(),
+  navigateBack: jest.fn(),
+  redirectTo: jest.fn(),
+  switchTab: jest.fn(),
+  pageScrollTo: jest.fn(),
+  stopPullDownRefresh: jest.fn(),
+  onWindowResize: jest.fn(),
+  onKeyUp: jest.fn(),
+  onKeyDown: jest.fn(),
   getSystemInfoSync: jest.fn(() => ({
     SDKVersion: '3.0.0',
     version: '8.0.0',
     brand: 'devtools',
     model: 'iPhone 14',
+    platform: 'ios',
+    windowWidth: 375,
+    windowHeight: 667,
+    pixelRatio: 2,
+    statusBarHeight: 20,
+    safeArea: { top: 44, bottom: 778, left: 0, right: 375, width: 375, height: 734 },
   })),
 };
 

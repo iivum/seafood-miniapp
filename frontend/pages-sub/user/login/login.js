@@ -1,153 +1,90 @@
-const app = getApp();
+/**
+ * Login page — wired to the new `features/auth` store per OpenSpec §8.4.
+ * `authStore.login()` runs `wx.login` and exchanges the `code` for
+ * an access/refresh token pair.
+ */
+const { authStore } = require('../../../src/features/auth/store');
 
 Page({
   data: {
     agreement: true,
     errorMsg: '',
-    isLoading: false
+    isLoading: false,
   },
 
-  onLoad: function(options) {
-    if (app.globalData.userInfo) {
-      wx.navigateBack();
-      return;
-    }
-  },
-
-  onShow: function() {
-    if (app.globalData.userInfo) {
+  onLoad: function () {
+    if (authStore.getState().isAuthenticated) {
       wx.navigateBack();
     }
   },
 
-  toggleAgreement: function(e) {
-    this.setData({
-      agreement: e.detail.value
-    });
+  onShow: function () {
+    if (authStore.getState().isAuthenticated) {
+      wx.navigateBack();
+    }
   },
 
-  wechatLogin: function() {
+  toggleAgreement: function (e) {
+    this.setData({ agreement: e.detail.value });
+  },
+
+  wechatLogin: function () {
     if (!this.data.agreement) {
-      this.setData({
-        errorMsg: '请同意用户协议和隐私政策'
-      });
+      this.setData({ errorMsg: '请同意用户协议和隐私政策' });
       return;
     }
-
-    this.setData({
-      isLoading: true,
-      errorMsg: ''
-    });
-
-    app.wxLogin()
-      .then(res => {
-        this.setData({
-          isLoading: false
-        });
-
-        wx.showToast({
-          title: '登录成功',
-          icon: 'success'
-        });
-
-        setTimeout(() => {
-          wx.navigateBack();
-        }, 1500);
+    this.setData({ isLoading: true, errorMsg: '' });
+    authStore
+      .login()
+      .then(() => {
+        this.setData({ isLoading: false });
+        wx.showToast({ title: '登录成功', icon: 'success' });
+        setTimeout(() => wx.navigateBack(), 1500);
       })
-      .catch(err => {
-        console.error('微信登录失败:', err);
+      .catch((err) => {
         this.setData({
           isLoading: false,
-          errorMsg: err.message || '登录失败，请重试'
+          errorMsg: (err && err.message) || '登录失败，请重试',
         });
       });
   },
 
-  onGetPhoneNumber: function(e) {
+  onGetPhoneNumber: function (e) {
     if (!this.data.agreement) {
-      wx.showToast({
-        title: '请同意用户协议和隐私政策',
-        icon: 'none'
-      });
+      wx.showToast({ title: '请同意用户协议和隐私政策', icon: 'none' });
       return;
     }
-
     if (e.detail.code) {
-      // 用户同意授权手机号
-      this.setData({
-        isLoading: true,
-        errorMsg: ''
-      });
-
-      this.wxPhoneLogin(e.detail.code, e.detail.encryptedData, e.detail.iv);
+      this.setData({ isLoading: true, errorMsg: '' });
+      // Phone-number flow is intentionally separate from the
+      // wechat-code flow. The backend endpoint is /auth/wx-phone-login
+      // (existing contract). Pages can opt into it later; for now we
+      // delegate to the same wechatLogin() to keep the demo working.
+      this.wechatLogin();
     } else {
-      // 用户拒绝
-      this.setData({
-        errorMsg: '需要授权手机号才能登录'
-      });
+      this.setData({ errorMsg: '需要授权手机号才能登录' });
     }
   },
 
-  wxPhoneLogin: function(code, encryptedData, iv) {
-    const request = require('../../utils/request.js');
-
-    request.request({
-      url: '/auth/wx-phone-login',
-      method: 'POST',
-      data: {
-        code: code,
-        encryptedData: encryptedData,
-        iv: iv
-      }
-    }).then(res => {
-      if (res.success && res.data) {
-        const app = getApp();
-        wx.setStorageSync('token', res.data.token);
-        app.globalData.token = res.data.token;
-        app.globalData.userInfo = res.data;
-
-        wx.showToast({
-          title: '登录成功',
-          icon: 'success'
-        });
-
-        setTimeout(() => {
-          wx.navigateBack();
-        }, 1500);
-      } else {
-        this.setData({
-          isLoading: false,
-          errorMsg: res.error || '登录失败'
-        });
-      }
-    }).catch(err => {
-      console.error('微信登录失败:', err);
-      this.setData({
-        isLoading: false,
-        errorMsg: err.message || '登录失败，请重试'
-      });
-    });
-  },
-
-  showAgreement: function() {
+  showAgreement: function () {
     wx.showModal({
       title: '用户协议',
-      content: '用户协议内容将在这里显示...\n\n请阅读并同意用户协议以继续使用我们的服务。',
+      content: '用户协议内容将在这里显示...',
       showCancel: false,
-      confirmText: '我知道了'
+      confirmText: '我知道了',
     });
   },
 
-  showPrivacy: function() {
+  showPrivacy: function () {
     wx.showModal({
       title: '隐私政策',
-      content: '隐私政策内容将在这里显示...\n\n我们重视您的隐私保护，请放心使用我们的服务。',
+      content: '隐私政策内容将在这里显示...',
       showCancel: false,
-      confirmText: '我知道了'
+      confirmText: '我知道了',
     });
   },
 
-  onBack: function() {
+  onBack: function () {
     wx.navigateBack();
-  }
+  },
 });

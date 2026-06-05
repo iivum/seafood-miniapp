@@ -1,0 +1,77 @@
+.order-item-row {
+  background: var(--color-surface, #fff);
+  border-radius: var(--radius-lg, 8px);
+  margin: var(--space-12, 12px);
+  padding: var(--space-12, 12px);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+.order-item-row__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--space-8, 8px);
+  border-bottom: 1rpx solid var(--color-divider, #F0F1F5);
+}
+
+.order-item-row__id {
+  font-size: 24rpx;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.order-item-row__status {
+  font-size: 26rpx;
+  font-weight: 500;
+}
+
+.status--PENDING { color: var(--color-warning, #F59E0B); }
+.status--PAID    { color: var(--color-info, #3B82F6); }
+.status--SHIPPED { color: var(--color-secondary, #4ECDC4); }
+.status--COMPLETED { color: var(--color-success, #10B981); }
+.status--CANCELLED { color: var(--color-text-muted, #B4B8BC); }
+
+.order-item-row__line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-8, 8px) 0;
+  font-size: 26rpx;
+  color: var(--color-text, #2D3436);
+}
+
+.order-item-row__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: var(--space-8, 8px);
+}
+
+.order-item-row__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-8, 8px);
+  border-top: 1rpx solid var(--color-divider, #F0F1F5);
+  margin-top: var(--space-8, 8px);
+}
+
+.order-item-row__total {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--color-price, #FF6B6B);
+}
+
+.order-item-row__cancel {
+  background: transparent;
+  color: var(--color-text-secondary, #6b7280);
+  border: 1rpx solid var(--color-border, #E5E7EB);
+  border-radius: var(--radius-md, 6px);
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  line-height: 1.4;
+}
+
+.order-item-row__cancel::after {
+  border: none;
+}
