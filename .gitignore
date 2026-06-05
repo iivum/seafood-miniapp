@@ -60,6 +60,9 @@ archive/
 # Superseded vertical-slice experiment (frozen at c44b39b, replaced by backend/)
 backend-v2/
 
+# Spike experiments (build residue, never committed)
+spike/
+
 # Admin UI (new React 18 + shadcn/ui stack)
 admin-ui/node_modules/
 admin-ui/dist/
