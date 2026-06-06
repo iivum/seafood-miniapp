@@ -114,7 +114,10 @@ jobs:
 
       - name: docker build (multi-stage → distroless)
         working-directory: backend
-        run: docker build -t seafood-backend:native -f Dockerfile .
+        # CI 修复:`--no-cache` 绕过 BuildKit 状态错乱(同一份源码多次报
+        # '/gradle.properties: not found',cache key 污染)。改无缓存后单次
+        # 拉镜像层,多耗 30s 但稳。
+        run: docker build --no-cache -t seafood-backend:native -f Dockerfile .
 
       - name: Trivy image scan (covers C4 §4.4)
         uses: aquasecurity/trivy-action@master
