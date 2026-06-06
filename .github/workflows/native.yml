@@ -28,7 +28,11 @@ permissions:
 env:
   JWT_SECRET: ci-native-test-secret-must-be-at-least-32-bytes-AAAA
   JWT_ADMIN_SECRET: ci-native-test-admin-secret-must-be-at-least-32-bytes-BBBB
-  MONGODB_URI: mongodb://localhost:27017/seafood_native
+  # CI 修复 v2 (2026-06-07):Mongo URI 加 serverSelectionTimeoutMS=3000,
+  # 让 native binary 启动时 MongoIndexInitializer 3s 后放弃 server selection
+  # (默认 30s 跟 smoke 60s 总预算不兼容),products endpoint 也能 3s 内
+  # 返 5xx 而不是 hang 30s,smoke 能在合理时间内判 fail。
+  MONGODB_URI: mongodb://localhost:27017/seafood_native?serverSelectionTimeoutMS=3000&connectTimeoutMS=3000
   # PR review #8:admin.bootstrap.password 改为必填,CI 显式注入(原 :admin123 兜底已删)
   ADMIN_BOOTSTRAP_PASSWORD: ci-native-test-admin-bootstrap-pw-MUST-NOT-be-default
 
