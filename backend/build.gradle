@@ -140,7 +140,13 @@ graalvmNative {
                 '-H:+AddAllCharsets',                                 // SnakeYAML / 网络 IO 需要的字符集
                 '--enable-url-protocols=https,http',                  // HTTP 客户端 + MongoDB driver 反射 URL 协议
                 '-H:+InstallExitHandlers',                            // 进程内正确处理 SIGTERM(Supervised / docker stop)
-                '--strict-image-heap'                                 // 启动时校验 image heap 越界,失败即停(Sprint 2 hardening)
+                '--strict-image-heap',                                // 启动时校验 image heap 越界,失败即停(Sprint 2 hardening)
+                // CI 修复:把 zlib + glibc 静态链进 native binary,避免 runtime
+                // 缺 libz.so.1(原镜像 base-debian12 + cc-debian12 都把 libz 放在
+                // /usr/lib/x86_64-linux-gnu/,native binary 的 ELF DT_NEEDED
+                // 解析不走这个路径)。代价:image ~+5MB(MongoDB driver / Spring Core
+                // 静态链 zlib)。
+                '-H:+StaticExecutableWithDynamicLibC'
             )
         }
     }
