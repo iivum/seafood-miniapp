@@ -60,13 +60,17 @@ jobs:
           fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
 
       - name: TruffleHog filesystem scan
-        # CI 修复 v4:filesystem 子命令不接受 --since-commit(只有 git 接受);
-        # filesystem 跑全 repo。MongoDB / PostgreSQL detector 对 URL 模式过匹配,
-        # 测试 fixture(`postgres://TEST_USER_FAKE:...@db.example.com/seafood` 之类)
-        # 会被误报 —— 但本项目不存 DB 凭据在源码,排除这些 detector。
+        # CI 修复 v5:
+        #   - filesystem 子命令不接受 --since-commit(只有 git 接受),跑全 repo;
+        #   - 排除 MongoDB/Postgres detector —— 这俩对 URL 模式过匹配,测试 fixture
+        #     (`postgres://TEST_USER_FAKE:...@db.example.com/seafood` 之类)误报;
+        #   - 排除 .git/ —— filesystem 把整个 /repo 挂进来,.git/config line 12 是
+        #     CI 临时写入的 ghs_... 凭据(GitHub Actions 推送时设的),
+        #     误报为 Github token detector 命中。本项目不存真凭据在 .git/。
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo" \
             trufflesecurity/trufflehog:latest \
             filesystem --directory=/repo --fail --no-verification \
-            --exclude-detectors MongoDB,Postgres
+            --exclude-detectors MongoDB,Postgres \
+            --exclude-paths .git
