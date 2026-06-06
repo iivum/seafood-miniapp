@@ -97,6 +97,28 @@ tasks.named('test') {
     jvmArgs '--add-opens', 'java.base/java.time=ALL-UNNAMED'
 }
 
+// P0 #1 失败回滚(2026-06-07):尝试用三种方式限制 nativeTest 只跑 @Tag("native")
+// 切片,均未生效:
+//   1. tasks.named('nativeTest').runtimeArgs.add('-Djunit.jupiter.tags.include=native')
+//      — runtimeArgs 是 native binary 启动 argv,不是 JVM system property
+//   2. graalvmNative.binaries.named('test').buildArgs.add('-Djunit.jupiter.tags...')
+//      — buildArgs 是 native-image build tool 自己的参数(如 --no-fallback),
+//        不会传成 runtime system property
+//   3. src/test/resources/junit-platform.properties with
+//      junit.jupiter.tags.include=native — JUnit Jupiter 6.0.3 不识别这个
+//        property name(JupiterConfiguration constants 列表里没有 INCLUDE_TAGS),
+//        静默 ignore
+//
+// JUnit Jupiter 6.x 当前的 tag filtering 入口在 build tool(Gradle test task 的
+// useJUnitPlatform.includeTags DSL),nativeTest 是 NativeRunTask,没有这个 DSL。
+// 完整 patch 需要打 patch 到 junit-platform-native 0.11.5 或绕过 NativeImageJUnitLauncher
+// 直接 fork LauncherFactory 调用 — ROI 太低,回滚到原状。
+//
+// 原状 nativeTest 9m17s(已知) → 8m36s(实测,见 commit 5b05bee 实际历史)。
+// 节省来自 docker build 4m47s → ~1m (P0 #2 修复,Dockerfile 改单阶段 COPY
+// pre-built binary),仍保留。
+// (设计意图见 design §3.2 + CLAUDE.md "nativeTest 切片" 段)
+
 // 静态扫描:禁止 @RefreshScope(GraalVM Native 不兼容)
 // 失败 = build 失败。参见 design.md §3.3 + §10 风险 #7。
 tasks.register('checkNoRefreshScope', Exec) {
