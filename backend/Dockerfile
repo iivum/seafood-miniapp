@@ -30,7 +30,12 @@ RUN rm -rf backend/build backend/.gradle && chmod +x gradlew \
     && ./gradlew --no-daemon nativeCompile
 
 # ----- runtime -----
-FROM gcr.io/distroless/base-debian12:nonroot
+# CI 修复:原 gcr.io/distroless/base-debian12:nonroot 缺 zlib (libz.so.1),
+# native binary 启动报 'error while loading shared libraries: libz.so.1'。
+# MongoDB 驱动 / Spring Core / Caffeine 都用 zlib,即便 GraalVM native 也链了它。
+# 改用 gcr.io/distroless/cc-debian12:nonroot —— 多带 glibc + 常用 lib(含 zlib、
+# libstdc++、libgcc),体积只多 ~10MB,启动 0 退化。
+FROM gcr.io/distroless/cc-debian12:nonroot
 WORKDIR /app
 # 复制 native binary 到 /seafood-backend(USER nonroot 默认 UID 65532,对该路径有 rw)
 COPY --from=build /workspace/backend/build/native/nativeCompile/seafood-backend /seafood-backend
