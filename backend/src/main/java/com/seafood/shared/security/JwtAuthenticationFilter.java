@@ -99,7 +99,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private static boolean isAdminPath(String uri) {
-        return uri != null && (uri.startsWith("/api/admin/") || uri.equals("/api/admin"));
+        // PR review I6:集中到 {@link AdminPathMatcher},两 filter 共享。
+        return AdminPathMatcher.isAdminPath(uri);
     }
 
     /** 撤销 token 的 401 响应;与 {@link AdminRateLimitFilter} 同样的"filter 内直写"模式。 */

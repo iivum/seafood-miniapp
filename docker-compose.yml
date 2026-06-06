@@ -68,10 +68,18 @@ services:
       mongodb:
         condition: service_healthy
     healthcheck:
-      # Sprint 2 C5 §5.6:distroless 镜像无 wget/curl,所以不能用 `wget --spider`;
-      # 改用 native binary 自带 --health-check 子命令(若不存在)或
-      # /dev/tcp probe;此版本以 /actuator/health 200 为目标。
-      test: ["CMD-SHELL", "cat </dev/tcp/localhost/8080 || exit 1"]
+      # PR review C1:distroless (`gcr.io/distroless/base-debian12:nonroot`)
+      # 无 shell、无 curl/wget/nc,任何依赖外部命令的 probe 都会因 ENOENT 失败。
+      # 原 `CMD-SHELL + cat </dev/tcp/...` 永远 unhealthy。`native binary` 本身
+      # 没有 `--health-check` 子命令,且加一个会膨胀 binary 与 GraalVM 反射面。
+      # 决策:删 docker healthcheck,把"健康"判定交给容器外探针。
+      # 部署侧应配 k8s readinessProbe:
+      #   httpGet: { path: /actuator/health, port: 8080 }
+      # 这样 readiness 由 Spring Actuator 自身决定(包括 MongoIndexHealthIndicator
+      # 等 critical 依赖),行为比端口 probe 更准确。
+      #
+      # 注意:`depends_on: mongodb: { condition: service_healthy }` 仍然有效
+      # —— mongodb 是普通镜像,自带 mongosh,healthcheck 正常跑。
       interval: 10s
       timeout: 5s
       retries: 5

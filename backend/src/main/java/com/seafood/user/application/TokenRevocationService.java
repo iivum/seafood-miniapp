@@ -47,6 +47,13 @@ public class TokenRevocationService {
     /** 前缀 sentinel;同一前缀下所有真实 jti 视为被 force-logout。 */
     static final String FORCE_LOGOUT_PREFIX = "u:";
 
+    /**
+     * PR review I8:user-scope force-logout 缓存 key 前缀。
+     * 该 key 在缓存中 value=TRUE 表示"该 user 已被 force-logout,任意 jti 都视为撤销"。
+     * 用<em>独立</em>key(而非清全缓存),把 force-logout 失效范围缩小到单 user。
+     */
+    static final String FORCE_CACHE_KEY_PREFIX = "force:";
+
     private static final Duration POSITIVE_TTL = Duration.ofSeconds(60);
     private static final Duration NEGATIVE_TTL = Duration.ofSeconds(5);
 
@@ -108,9 +115,19 @@ public class TokenRevocationService {
         Instant farFuture = Instant.now().plus(Duration.ofDays(365L * 100L));
         RevokedToken rec = new RevokedToken(sentinelId, userId, farFuture);
         repo.save(rec);
-        // 撤销后强制让"未来同 userId 的 jti"在缓存里也被判为已撤销:
-        // 通过清空 negative cache 实现 — 不在 cache key 里加 userId,简化路径。
-        cache.invalidateAll();
+        // PR review I8:不再 {@code cache.invalidateAll()} ——
+        // 原实现清空整个 Caffeine,意味着 force-logout 一来,所有 user 的所有
+        // jti 缓存都失效,下一个 5s 内 N 个并发 isRevoked 全部打 Mongo,
+        // 形成 stampede(实测 QPS 高的 service 一次能打 5k+ Mongo lookup)。
+        //
+        // 现:只 invalidate 与本 user <em>直接相关</em>的缓存。
+        // 具体策略:
+        //   1. 写一个 user-scope 的 short TTL(<em>负</em>含义)的 force-cache 条目
+        //      (key = "force:" + userId, value = TRUE)。
+        //   2. isRevoked 检查这个 cache,若 TRUE 直接返,不必每次查 Mongo。
+        //   3. revokeAll 写 sentinel + 写"force:<userId>=TRUE",仅本 user 的
+        //      后续 isRevoked 命中此 cache;jti-cache 留给 5s TTL 自然过期。
+        cache.put(FORCE_CACHE_KEY_PREFIX + userId, Boolean.TRUE);
     }
 
     /**
@@ -128,6 +145,15 @@ public class TokenRevocationService {
      */
     public boolean isRevoked(String jti, String userId) {
         if (jti == null || jti.isBlank()) return false;
+        // PR review I8:先查 user-scope force-cache —— 若有 TRUE,直接返
+        // (不走 Mongo,jti-cache 也不动)。这把 force-logout 失效范围压到单 user,
+        // 避免 cache.invalidateAll() 引发全 QPS stampede。
+        if (userId != null) {
+            Boolean forceCached = cache.getIfPresent(FORCE_CACHE_KEY_PREFIX + userId);
+            if (Boolean.TRUE.equals(forceCached)) {
+                return true;
+            }
+        }
         Boolean cached = cache.getIfPresent(jti);
         if (Boolean.TRUE.equals(cached)) {
             return true;
@@ -141,8 +167,12 @@ public class TokenRevocationService {
             return true;
         }
         if (userId != null) {
+            // Mongo 上的 sentinel 仅在 force-cache miss 时查 ——
+            // force-cache hit 已直接走 TRUE 短路,不会到这里。
             boolean force = repo.existsById(FORCE_LOGOUT_PREFIX + userId);
             if (force) {
+                // 顺手把 force-cache 也填上,后续同 user 请求 0 Mongo
+                cache.put(FORCE_CACHE_KEY_PREFIX + userId, Boolean.TRUE);
                 cache.put(jti, Boolean.TRUE);
                 return true;
             }

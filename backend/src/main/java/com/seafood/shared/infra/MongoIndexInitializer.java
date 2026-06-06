@@ -75,21 +75,43 @@ public class MongoIndexInitializer {
                         .named("text_name_description"));
 
         // unique constraint on openId:security-critical — 缺失会让同一 openId 建多个账号
-        ensureCritical("users",
-                new Index().on("openId", org.springframework.data.domain.Sort.Direction.ASC)
-                        .unique()
-                        .named("uk_openId"),
-                "unique openId — prevents duplicate accounts for the same WeChat user");
+        // PR review I7:两个 critical 索引<em>都</em>跑,失败聚合,而不是第一个失败就 halt
+        // 后续。这样部署期能一次性看到所有坏掉的索引,不用重启 pod 才能发现下一个。
+        java.util.List<IndexInitializationException> criticalFailures = new java.util.ArrayList<>();
+        try {
+            ensureCritical("users",
+                    new Index().on("openId", org.springframework.data.domain.Sort.Direction.ASC)
+                            .unique()
+                            .named("uk_openId"),
+                    "unique openId — prevents duplicate accounts for the same WeChat user");
+        } catch (IndexInitializationException e) {
+            criticalFailures.add(e);
+        }
 
         // Sprint 2 §3.3 — revoked_tokens TTL index:文档到期后 MongoDB 后台线程
         // 自动删除(每 60s 扫一次),无需应用层清理。expireAfterSeconds=0 表示
         // "expiresAt 字段本身的取值即为到期时间"。design.md §3 decision 3。
         // 关键:缺失会让 revoked token 永远留在 DB,O(n) 退化为 auth check 瓶颈。
-        ensureCritical("revoked_tokens",
-                new Index().on("expiresAt", org.springframework.data.domain.Sort.Direction.ASC)
-                        .expire(0L)
-                        .named("ttl_expiresAt"),
-                "TTL on revoked_tokens.expiresAt — bounds revoked-token collection size");
+        try {
+            ensureCritical("revoked_tokens",
+                    new Index().on("expiresAt", org.springframework.data.domain.Sort.Direction.ASC)
+                            .expire(0L)
+                            .named("ttl_expiresAt"),
+                    "TTL on revoked_tokens.expiresAt — bounds revoked-token collection size");
+        } catch (IndexInitializationException e) {
+            criticalFailures.add(e);
+        }
+
+        if (!criticalFailures.isEmpty()) {
+            // 聚合所有 critical 失败 — 运维一次看到全貌,而不是重启 pod 才发现下一个
+            StringBuilder msg = new StringBuilder("Critical index creation failed: ");
+            for (int i = 0; i < criticalFailures.size(); i++) {
+                if (i > 0) msg.append("; ");
+                msg.append('[').append(i + 1).append("] ").append(criticalFailures.get(i).getMessage());
+            }
+            throw new IndexInitializationException(msg.toString(),
+                    criticalFailures.get(0));  // cause 取首个;full detail 在 message
+        }
 
         log.info("[mongo] all indexes ensured");
         // PR review #2:通知 health indicator,让 /actuator/health/mongoIndexes 切到 UP。

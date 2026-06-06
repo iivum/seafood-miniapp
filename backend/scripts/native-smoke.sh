@@ -66,14 +66,20 @@ fi
 # ---- 4. RSS < 200 MB ----
 log "measuring backend container RSS"
 CONTAINER_NAME="seafood-backend"
-RSS_RAW=$(docker stats --no-stream --format '{{.MemRSS}}' "$CONTAINER_NAME" 2>/dev/null \
-          || docker stats --no-stream --format '{{.MemRSS}}' "seafood-mongodb" 2>/dev/null \
-          || true)
+# PR review C2:移除原"|| docker stats seafood-mongodb || true"的 silent 兜底 ———
+# 当 backend 容器缺失或已死(我们最想发现的场景)时,该兜底会用 mongodb 的 RSS
+# 充数,mongo 通常 < 200MB 直接"通过"验收,让 backend 死亡被静默忽略。
+# 修:必须显式确认 backend 容器存在 + stats 可读,失败即 fail。
+if ! docker ps -qf "name=$CONTAINER_NAME" | grep -q .; then
+  fail "backend container '$CONTAINER_NAME' not running — refusing to fall back to mongodb RSS"
+fi
+RSS_RAW=$(docker stats --no-stream --format '{{.MemRSS}}' "$CONTAINER_NAME" 2>/dev/null || true)
 if [ -z "$RSS_RAW" ]; then
-  # fallback: find backend container id and use docker exec ps
+  # docker stats 拿不到时(docker daemon 旧 / cgroup v2 差异)回退到 docker inspect。
+  # 这里<em>只</em>回退到 inspect 路径,不再静默切到 mongodb。
   CID=$(docker ps -qf "name=$CONTAINER_NAME" || true)
   if [ -n "$CID" ]; then
-    # distroless 镜像没有 ps;用 docker inspect 读 cgroup RSS(MiB)
+    # distroless 没有 ps;用 docker inspect 读 cgroup memory usage(bytes → MiB)
     RSS_RAW=$(docker inspect -f '{{.MemoryStats.usage}}' "$CID" 2>/dev/null || echo 0)
   fi
 fi

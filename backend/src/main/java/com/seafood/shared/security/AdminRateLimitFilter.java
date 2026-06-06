@@ -55,13 +55,9 @@ public class AdminRateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest req) {
-        String uri = req.getRequestURI();
-        if (uri == null) {
-            return true;
-        }
-        // 与 JwtAuthenticationFilter.isAdminPath 完全一致:精确匹配 /api/admin,
-        // 或前缀匹配 /api/admin/。这样 /api/adminalice 不会被误判。
-        return !(uri.equals("/api/admin") || uri.startsWith("/api/admin/"));
+        // PR review I6:路径判定集中到 AdminPathMatcher,与 JwtAuthenticationFilter
+        // 共用 — 避免两处独立实现不同步导致 bypass。
+        return !AdminPathMatcher.isAdminPath(req.getRequestURI());
     }
 
     @Override

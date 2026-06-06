@@ -15,6 +15,8 @@ import io.jsonwebtoken.JwtException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -113,13 +115,17 @@ public class AuthService {
         });
         if (!Role.CUSTOMER.name().equals(doc.getRole())) {
             // 微信 code 命中管理员账号 → 拒绝(管理员必须走 admin 登录);用 openId 计数,
-            // 攻击者反复换 code 不会绕过(只要目标 openId 锁定,就持续拒绝)
+            // 攻击者反复换 code 不会绕过(只要目标 openId 锁定,就持续拒绝)。
+            //
+            // PR review I4:错误信息改为通用"登录失败",不再告诉调用方"该 openId 绑定管理员"
+            // —— 这是 information disclosure,攻击者可用来定向 admin 账号。
+            // 锁定仍触发(有 IP + openId 两个维度),所以防护不变,只是不在响应里揭底。
             int lockRetry = loginAttempts.recordFailure(openIdAccount);
             loginAttempts.recordSuccess(ipAccount); // IP 这边成功了
             if (lockRetry > 0) {
                 throw new AccountLockedException(lockRetry);
             }
-            throw new DomainException("该 openId 已绑定管理员账号,请使用管理员入口");
+            throw new DomainException("登录失败");
         }
         // 成功:两个计数器都清零(IP 这次没失败,openId 走通了)
         loginAttempts.recordSuccess(ipAccount);
@@ -154,7 +160,14 @@ public class AuthService {
         String ipAccount = "admin-ip:" + (clientIp == null || clientIp.isBlank() ? "unknown" : clientIp);
         ensureNotLocked(ipAccount);
 
-        boolean credsOk = adminUsername.equals(req.username()) && adminPassword.equals(req.password());
+        // PR review I5:用 constant-time 比较,避免 String.equals 短路计时泄露首个不匹配字符
+        // 位置。lockout-after-5-fails 缓解了大部分可利用性,但在边界场景仍有意义。
+        // 注意:username 仍用 String.equals —— 用户名短且本就是公开/低熵的,枚举 + lockout
+        // 已足够;真正要防的是密码(高熵、有 timing oracle 风险)。
+        boolean credsOk = adminUsername.equals(req.username())
+                && MessageDigest.isEqual(
+                        adminPassword.getBytes(StandardCharsets.UTF_8),
+                        (req.password() == null ? new byte[0] : req.password().getBytes(StandardCharsets.UTF_8)));
         if (!credsOk) {
             int lockRetry = loginAttempts.recordFailure(account);
             loginAttempts.recordFailure(ipAccount);
@@ -207,7 +220,21 @@ public class AuthService {
         rec.setConsumed(true);
         refreshStore.save(rec);
 
-        Role role = Role.valueOf(claims.get("role", String.class));
+        // PR review C3:部署前签的 refresh token 没有 role claim(本 PR 才补上),
+        // 它们仍然在客户端手里,部署后调 refresh 会走到这里。
+        // 旧路径:Role.valueOf(null) → NullPointerException → 500。
+        // 新路径:把 null/无效 role 当作 TOKEN_INVALID,401 给客户端,触发强制重登。
+        String roleStr = claims.get("role", String.class);
+        if (roleStr == null) {
+            throw new DomainException("TOKEN_INVALID");
+        }
+        Role role;
+        try {
+            role = Role.valueOf(roleStr);
+        } catch (IllegalArgumentException e) {
+            // role 字段存在但不在 Role 枚举里(被改过、伪造)→ 401 而不是 500
+            throw new DomainException("TOKEN_INVALID");
+        }
         return issuePair(userId, role, audience, rec.getFamilyId());
     }
 

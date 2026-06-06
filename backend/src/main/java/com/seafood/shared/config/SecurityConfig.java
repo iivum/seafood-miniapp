@@ -44,9 +44,10 @@ public class SecurityConfig {
                                             JwtAuthenticationFilter jwtFilter,
                                             SecurityHeadersFilter headersFilter,
                                             AdminRateLimitFilter rateLimitFilter) throws Exception {
-        // SecurityHeadersFilter 自身用 @Order(Ordered.HIGHEST_PRECEDENCE + 100) 标注;
-        // 这里再显式加一次确保 order 在所有自定义 filter 中最早,即便后续 Spring Security
-        // 改默认 order 也不影响(specs/runtime-security 行为)。
+        // 三个自定义 filter 的链内位置由下面三个 addFilterBefore/After 显式控制。
+        // PR review I1:删除原"SecurityHeadersFilter 用 @Order(HIGHEST_PRECEDENCE+100)"
+        // 的注释 — SecurityHeadersFilter 已无 @Order 注解(Push-sweep #25),此处再说就矛盾。
+        // 唯一权威定义就是 addFilterBefore/After 这一段。
         http
             .csrf(AbstractHttpConfigurer::disable)
             .formLogin(AbstractHttpConfigurer::disable)

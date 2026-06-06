@@ -161,5 +161,46 @@ class AuthServiceRefreshTest {
         // 原 refresh token 必须被标记为 consumed
         verify(refreshStore).save(argThat(r -> r.getJti().equals(refreshToken.jti()) && r.isConsumed()));
     }
+
+    /**
+     * PR review C3 回归保护:旧 refresh token(本 PR 之前签发)没有 role claim,
+     * 部署后客户端调 refresh 应当拿到 401 + TOKEN_INVALID,而不是 NPE → 500。
+     *
+     * <p>无法直接用 JwtTokenProvider 签"无 role" token(其方法签名强制 role);
+     * 改为 mock Claims:返回 jti/sub/type 三个 claim,但 role 返回 null。
+     */
+    @Test
+    void refresh_legacyTokenWithoutRoleClaim_throwsTokenInvalidNotNpe() {
+        String familyId = "fam-" + UUID.randomUUID();
+        String userId = "user-1";
+        JwtTokenProvider.IssuedToken refreshToken = tokens.issueRefreshToken(userId, Role.CUSTOMER);
+
+        RefreshTokenRecord rec = new RefreshTokenRecord();
+        rec.setJti(refreshToken.jti());
+        rec.setUserId(userId);
+        rec.setFamilyId(familyId);
+        rec.setAudience(AuthService.Audience.USER.name());
+        rec.setConsumed(false);
+        rec.setExpiresAt(refreshToken.expiresAt());
+        when(refreshStore.findByJti(refreshToken.jti())).thenReturn(Optional.of(rec));
+
+        // 用 spy 替换 JwtTokenProvider.parseUser,返回没有 role claim 的 Claims
+        // (模拟"本 PR 之前签的" refresh token)。
+        JwtTokenProvider legacyTokens = org.mockito.Mockito.mock(JwtTokenProvider.class);
+        AuthService authWithLegacy = new AuthService(legacyTokens, refreshStore, users, wechat, attempts);
+        io.jsonwebtoken.Jws<io.jsonwebtoken.Claims> jws = org.mockito.Mockito.mock(io.jsonwebtoken.Jws.class);
+        io.jsonwebtoken.Claims legacyClaims = io.jsonwebtoken.Jwts.claims()
+                .id(refreshToken.jti())
+                .subject(userId)
+                .add("type", "refresh")
+                .build();   // 注意:无 role claim
+        when(jws.getPayload()).thenReturn(legacyClaims);
+        when(legacyTokens.parseUser(refreshToken.token())).thenReturn(legacyClaims);
+
+        // 关键:应当抛 DomainException(TOKEN_INVALID),不是 NPE
+        assertThatThrownBy(() -> authWithLegacy.refresh(refreshToken.token(), AuthService.Audience.USER))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("TOKEN_INVALID");
+    }
 }
 

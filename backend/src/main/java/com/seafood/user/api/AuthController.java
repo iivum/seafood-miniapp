@@ -6,11 +6,11 @@ import com.seafood.user.api.dto.WechatLoginRequest;
 import com.seafood.user.application.AuthService;
 import com.seafood.user.application.TokenRevocationService;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -73,9 +73,15 @@ public class AuthController {
      *
      * <p>从 Authorization header 解 jti + exp(签名/exp 校验仍走 JwtTokenProvider
      * 保证 token 没被伪造),写入 revoked_tokens,返 204。
+     *
+     * <p>PR review I3:删 {@code @PreAuthorize("isAuthenticated()")} ——
+     * 过期 token 在 {@link JwtAuthenticationFilter} 不会写 SecurityContext,
+     * 走到 controller 时 {@code me == null},{@code @PreAuthorize} 失败走
+     * Spring 默认 {@code AccessDeniedHandler} 返 403,与本方法注释承诺的 401 不符。
+     * 现:自己判 header 缺失/格式错 → 401;expired token → 仍 204(idempotent);
+     * 签名错 / 解析失败 → 401(无法信任 jti)。
      */
     @PostMapping("/logout")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> logout(HttpServletRequest req,
                                        @AuthenticationPrincipal UserPrincipal me) {
         String header = req.getHeader("Authorization");
@@ -92,8 +98,11 @@ public class AuthController {
             Instant exp = claims.getExpiration() == null ? null : claims.getExpiration().toInstant();
             String userId = me == null ? claims.getSubject() : me.getId();
             revocations.revoke(jti, userId, exp);
+        } catch (ExpiredJwtException e) {
+            // 已过期:仍 204 — logout 幂等,不应当作错误(force-revoke 一个已死的 jti 没意义)
         } catch (JwtException e) {
-            // token 已过期/无效:仍返 204 — logout 是幂等的
+            // 签名错 / 格式错:401(无法信任 jti,不能调 revoke)
+            return ResponseEntity.status(401).build();
         }
         return ResponseEntity.noContent().build();
     }

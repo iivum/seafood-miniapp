@@ -9,6 +9,11 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -148,7 +153,7 @@ class TokenRevocationServiceTest {
     }
 
     /**
-     * PR review #22 回归保护:isRevoked 与 revoke 并发时,TRUE 永远赢。
+     * PR review #22 + I10 回归保护:isRevoked 与 revoke 并发时,TRUE 永远赢。
      *
      * <p>原 bug 场景:
      * <pre>
@@ -159,27 +164,64 @@ class TokenRevocationServiceTest {
      * </pre>
      *
      * <p>fix:isRevoked 用 {@code putIfAbsent} 写 FALSE,并发的 TRUE 不会被覆盖。
+     *
+     * <p>PR review I10:真正并发(原版用 sequential mock,不能真触发 race)。
+     * N 个线程同时调 isRevoked("X", "u") + 1 个线程调 revoke("X", ...) —
+     * 任何"看到 FALSE"的结果都说明 fix 失效。
      */
     @Test
-    void concurrentRevokeAfterIsRevokedDbReadDoesNotGetOverwrittenByFalse() {
-        // 模拟 race:T1 已读到 DB = false,正要把 FALSE 写缓存;
-        // 期间 T2 revoke 完成,先 put TRUE。
-        // 这里用 Mockito 控制:existsById 第一次返 false(模拟 T1 DB 读),
-        // 然后 svc.revoke 写入 TRUE;再调 isRevoked 应返 true。
+    void concurrentRevokeAfterIsRevokedDbReadDoesNotGetOverwrittenByFalse() throws Exception {
+        // 所有 isRevoked 调用都先返 false(模拟 DB 没记录)
         when(repo.existsById("X")).thenReturn(false);
 
-        // 模拟 T1:第一次 isRevoked 走 DB 读,准备写 FALSE
-        assertThat(svc.isRevoked("X", "u")).isFalse();
+        int threadCount = 50;
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threadCount + 1);
+        ConcurrentLinkedQueue<Boolean> results = new ConcurrentLinkedQueue<>();
+        ExecutorService pool = Executors.newFixedThreadPool(threadCount + 1);
+        try {
+            // N 个并发 isRevoked
+            for (int i = 0; i < threadCount; i++) {
+                pool.submit(() -> {
+                    try {
+                        start.await();
+                        results.add(svc.isRevoked("X", "u"));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+            // 1 个并发 revoke
+            pool.submit(() -> {
+                try {
+                    start.await();
+                    when(repo.existsById("X")).thenReturn(true);
+                    svc.revoke("X", "u", Instant.now().plusSeconds(60));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    done.countDown();
+                }
+            });
+            start.countDown();
+            assertThat(done.await(10, TimeUnit.SECONDS))
+                    .as("all %d workers should complete within 10s", threadCount + 1)
+                    .isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
 
-        // 模拟 T2:中间有人 revoke 了 X(在 T1 写 FALSE 之前)
-        when(repo.existsById("X")).thenReturn(true);
-        svc.revoke("X", "u", Instant.now().plusSeconds(60));
-
-        // 关键:再次 isRevoked 仍应为 true(因为 cache 里是 TRUE,不是被覆盖的 FALSE)
-        // 原实现会因前一次 isRevoked 写入 FALSE 而被覆盖
+        // 关键:并发运行后,再次 isRevoked 必须是 TRUE(revoke 已经写入)
         assertThat(svc.isRevoked("X", "u"))
-                .as("after concurrent revoke, isRevoked must return TRUE")
+                .as("post-concurrent-revoke isRevoked must return TRUE")
                 .isTrue();
+        // 至少有部分线程看到 TRUE(写入的瞬间);没有全部是 FALSE(那说明 FALSE 覆盖了 TRUE)
+        long trueCount = results.stream().filter(Boolean.TRUE::equals).count();
+        assertThat(trueCount)
+                .as("at least some concurrent callers should observe TRUE after revoke completes")
+                .isGreaterThan(0);
     }
 
     /**

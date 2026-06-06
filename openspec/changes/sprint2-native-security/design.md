@@ -61,9 +61,9 @@ Stakeholders: backend engineering (own everything below), DevOps (owns docker-co
 - **Alternative considered**: Spring Cloud Gateway rate-limit filter. Rejected — pulls in Spring Cloud, conflicts with GraalVM Native goals.
 - **GraalVM caveat**: `caffeine` is supported by the GraalVM Reachability Metadata Repository for Boot 4. No new META-INF entries expected; `nativeTest` confirms.
 
-### 5. Security headers — single `OncePerRequestFilter` registered with high precedence
+### 5. Security headers — single `OncePerRequestFilter` registered at chain head
 
-- **Decision**: `SecurityHeadersFilter extends OncePerRequestFilter`, registered with `@Order(Ordered.HIGHEST_PRECEDENCE + 100)` so it runs before any other filter that might short-circuit (e.g. `JwtAuthenticationFilter`). Header values are read from `@ConfigurationProperties("security.headers")` so per-env tightening (e.g. CSP `report-uri` in prod) does not require code change.
+- **Decision**: `SecurityHeadersFilter extends OncePerRequestFilter`, registered via `http.addFilterBefore(headersFilter, SecurityContextHolderFilter.class)` in `SecurityConfig` so it runs before any other filter that might short-circuit (e.g. `JwtAuthenticationFilter`). PR review I1: originally described as `@Order(Ordered.HIGHEST_PRECEDENCE + 100)` — `@Order` is misleading on `OncePerRequestFilter` (Spring Security chain position is set by `addFilterBefore/After`, not bean order); the annotation was removed in push-sweep #25 and the docs now match. Header values are read from `@ConfigurationProperties("security.headers")` so per-env tightening (e.g. CSP `report-uri` in prod) does not require code change.
 - **Rationale**: One source of truth, easy to audit. ArchUnit rule will fail any other class that sets the listed headers.
 - **CSP value**: Static admin UI is built into the same backend; `script-src 'self'` works because Vite builds hash-named JS into `/admin/assets/`. `style-src 'self' 'unsafe-inline'` accommodates Element Plus runtime styles; tightening this to nonce-based requires admin-ui changes — deferred to §9.
 

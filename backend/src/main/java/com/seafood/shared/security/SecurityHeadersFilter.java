@@ -52,14 +52,22 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
-        // setIfAbsent 让 filter 链下游某些特殊端点(WebSocket upgrade 等)能选择退出。
-        // 默认下游不会主动设置这些头,所以 setIfAbsent 在 99% 路径上等价于 setHeader。
-        res.setHeader(HSTS, props.getStrictTransportSecurity());
-        res.setHeader(X_CONTENT_TYPE_OPTIONS, props.getXContentTypeOptions());
-        res.setHeader(X_FRAME_OPTIONS, props.getXFrameOptions());
-        res.setHeader(REFERRER_POLICY, props.getReferrerPolicy());
-        res.setHeader(PERMISSIONS_POLICY, props.getPermissionsPolicy());
-        res.setHeader(CSP, props.getContentSecurityPolicy());
+        // PR review I2:用 containsHeader 守卫 + setHeader 实现"下游能 opt-out"的契约 ——
+        // 之前注释说"setIfAbsent 让下游 opt-out",代码却用 setHeader 强覆盖,撒谎。
+        // 现:头不存在才 setHeader;存在则保留下游值(WebSocket upgrade、文件下载
+        // 等特殊端点想要覆盖 CSP/HSTS 时合法有效)。
+        writeIfAbsent(res, HSTS, props.getStrictTransportSecurity());
+        writeIfAbsent(res, X_CONTENT_TYPE_OPTIONS, props.getXContentTypeOptions());
+        writeIfAbsent(res, X_FRAME_OPTIONS, props.getXFrameOptions());
+        writeIfAbsent(res, REFERRER_POLICY, props.getReferrerPolicy());
+        writeIfAbsent(res, PERMISSIONS_POLICY, props.getPermissionsPolicy());
+        writeIfAbsent(res, CSP, props.getContentSecurityPolicy());
         chain.doFilter(req, res);
+    }
+
+    private static void writeIfAbsent(HttpServletResponse res, String name, String value) {
+        if (!res.containsHeader(name)) {
+            res.setHeader(name, value);
+        }
     }
 }
