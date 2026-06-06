@@ -3,6 +3,7 @@ package com.seafood.shared.security;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Ticker;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -30,6 +31,15 @@ public class AdminRateLimiter {
     private final Cache<String, AtomicReference<Window>> buckets;
     private final Ticker ticker;
 
+    /**
+     * CI fix (PR review / nativeCompile 失败排查):本类有两个 constructor
+     * (1-arg public + 2-arg package-private 测试用),Spring 6 的 AOT 处理无法
+     * 自动选定 —— {@code processAot} 阶段抛 "No constructor or factory method
+     * candidate found",导致 {@code ./gradlew nativeCompile} 失败。
+     * 修法:{@code @Autowired} 显式标记 1-arg 为首选(等价于"DI 容器只调这个"),
+     * AOT / 反射都能直接锁定。package-private 2-arg 仅供单测用 Mockito 注入 Ticker。
+     */
+    @Autowired
     public AdminRateLimiter(AdminRateLimitProperties props) {
         this(props, Ticker.systemTicker());
     }
