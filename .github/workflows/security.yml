@@ -60,16 +60,14 @@ jobs:
           fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
 
       - name: TruffleHog filesystem scan
-        # CI 修复 v6:
-        #   - filesystem 模式跑全 repo(--directory 已被 deprecated,改 positional)
-        #   - 排除 MongoDB/Postgres detector —— URL 模式过匹配,测试 fixture 误报
-        #   - 排除 .git/ —— filesystem 把整个 /repo 挂进容器,CI 临时把
-        #     `Authorization: Bearer ghs_...` 写到 .git/config(http.extraheader),
-        #     误报为 Github token detector 命中。用绝对路径 /repo/.git。
+        # CI 修复 v7:filesystem 模式仍会扫 .git/config(CI 临时写 ghs_... extraheader)。
+        # 之前试 --exclude-paths /repo/.git 没用(TruffleHog 把它当 glob,匹配不到
+        # 容器内 mount 后的绝对路径)。最稳的解:用 tmpfs 覆盖 .git 目录,
+        # 这样容器内 /repo/.git 是空目录(挂 0 字节 tmpfs),filesystem 扫到空目录就过。
         run: |
           docker run --rm \
-            -v "${{ github.workspace }}:/repo" \
+            -v "${{ github.workspace }}:/repo:ro" \
+            --mount type=tmpfs,destination=/repo/.git \
             trufflesecurity/trufflehog:latest \
             filesystem /repo --fail --no-verification \
-            --exclude-detectors MongoDB,Postgres \
-            --exclude-paths /repo/.git
+            --exclude-detectors MongoDB,Postgres
