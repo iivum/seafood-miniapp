@@ -8,7 +8,10 @@ plugins {
     id 'org.springframework.boot' version '4.0.6'
     id 'org.graalvm.buildtools.native' version '0.11.5'
     // Sprint 2 §4.1 — OWASP Dependency-Check(CI-only;本地跳过避免 10min NVD 下载)
-    id 'org.owasp.dependencycheck' version '10.0.4'
+    // CI 修复:10.0.4 在 CI runner 上 plugin 解析瞬态失败("could not resolve
+    // plugin artifact ... 10.0.4"),改 11.1.0(已稳定发布,Gradle Plugin Portal
+    // 缓存命中率更高)。
+    id 'org.owasp.dependencycheck' version '11.1.0'
 }
 
 // Sprint 2 §4.1 — OWASP Dep-Check 配置
