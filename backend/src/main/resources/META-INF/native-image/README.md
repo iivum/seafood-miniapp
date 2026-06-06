@@ -4,7 +4,7 @@
 
 ## 维护策略:自动生成,不要手编
 
-这 3 个 JSON 由 `nativeTest` 阶段自动产出覆盖:
+这 4 个 JSON 由 `nativeTest` 阶段自动产出覆盖:
 
 ```bash
 ./gradlew nativeTest        # 运行带 native agent 的测试,生成配置
