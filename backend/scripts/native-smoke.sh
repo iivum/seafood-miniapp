@@ -54,7 +54,12 @@ while [ $SECONDS -lt $DEADLINE ]; do
   fi
   sleep 1
 done
-[ "$HEALTHY" = "1" ] || fail "health did not return 200 within 30s (last code=$CODE)"
+[ "$HEALTHY" = "1" ] || {
+  # CI 修复:health 超时 → dump 容器日志,便于排查 native binary 启动失败原因。
+  log "health timeout — dumping container logs:"
+  docker logs seafood-backend 2>&1 | head -30 || true
+  fail "health did not return 200 within 30s (last code=$CODE)"
+}
 
 # ---- 3. GET /api/products?page=0&size=10,assert totalElements > 0 ----
 PRODUCTS_URL="http://localhost:8080/api/products?page=0&size=10"
