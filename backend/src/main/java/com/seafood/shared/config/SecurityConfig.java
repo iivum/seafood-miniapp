@@ -60,7 +60,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/wechat-login").permitAll()
                 .requestMatchers("/api/admin/auth/login", "/api/admin/auth/refresh").permitAll()
                 // 静态资源(管理后台 SPA)
-                .requestMatchers("/admin/**", "/actuator/health", "/actuator/info").permitAll()
+                // 注意:/actuator/health/** 用 ** 后缀,允许 Spring Boot 4 的子组
+                // probes(/actuator/health/liveness, /actuator/health/readiness)
+                // 也 permitAll,k8s 探针和 CI smoke 不用走 JWT。
+                .requestMatchers("/admin/**", "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                 // 写商品 = ADMIN
                 .requestMatchers(HttpMethod.POST, "/api/products", "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
