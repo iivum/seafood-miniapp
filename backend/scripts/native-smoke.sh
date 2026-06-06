@@ -156,25 +156,37 @@ CONTAINER_NAME="seafood-backend"
 if ! docker ps -qf "name=$CONTAINER_NAME" | grep -q .; then
   fail "backend container '$CONTAINER_NAME' not running — refusing to fall back to mongodb RSS"
 fi
-RSS_RAW=$(docker stats --no-stream --format '{{.MemRSS}}' "$CONTAINER_NAME" 2>/dev/null || true)
-if [ -z "$RSS_RAW" ]; then
-  # docker stats 拿不到时(docker daemon 旧 / cgroup v2 差异)回退到 docker inspect。
+# CI 修复 v5 (2026-06-07):原版 `{{.MemRSS}}` <em>不是</em> docker stats 的合法 format
+# 字段(docker 只暴露 .MemUsage / .MemPerc),docker 静默输出 header 空行,RSS_RAW
+# 变成 "\n" / "\n0" 带换行的字符串,后续 `[ -z ]` 判 false → 跳过 inspect fallback,
+# 直接 fall through 到 awk → `printf '%.0f' "0\n0"` 报 invalid number。
+# 修法:
+#   1) 用合法字段 `.MemUsage`("150MiB / 64MiB" 形式),awk -F' / ' 取 used 段
+#   2) head -n1 | tr -d 立即压成单行,让下游 `[ -z ]` / `= "0"` 判定可靠
+#   3) "0B" / "0" 显式早退到 inspect fallback(cgroup v2 上 docker stats 返 0B)
+RSS_RAW=$(docker stats --no-stream --format '{{.MemUsage}}' "$CONTAINER_NAME" 2>/dev/null \
+  | head -n1 | awk -F' / ' '{print $1}' | tr -d '[:space:]' || true)
+if [ -z "$RSS_RAW" ] || [ "$RSS_RAW" = "0B" ] || [ "$RSS_RAW" = "0" ]; then
+  # docker stats 拿不到时(docker daemon 旧 / cgroup v2 GHA runner 返 0B)回退到 inspect。
   # 这里<em>只</em>回退到 inspect 路径,不再静默切到 mongodb。
   CID=$(docker ps -qf "name=$CONTAINER_NAME" || true)
   if [ -n "$CID" ]; then
     # CI 修复 v2 (2026-06-07):GitHub Actions runner 是 cgroup v2,
     # .MemoryStats.usage 在 cgroup v1 返 "working_set" 但 cgroup v2 返 0。
-    # 用 cgroup v2 兼容路径:.MemoryStats.Stats["anon"] + ["file"] + ["kernel_stack"]。
     # 如果 cgroup v2 stats 也没值,直接放弃 RSS 校验,仅记 warning。
     # (RSS 测量只是设计 §3.1 验收 — 真实 RSS 严格值由 native-smoke 之外的
     #  实测/k8s metrics 拿,不在 CI smoke 强制要求。cgroup v2 runner 不
     #  提供 RSS 时,binary-up signal 已由 liveness 200 证明,真 fail 不会被掩盖。)
-    RSS_RAW=$(docker inspect -f '{{.MemoryStats.usage}}' "$CID" 2>/dev/null || echo 0)
-    if [ "$RSS_RAW" = "0" ] || [ -z "$RSS_RAW" ]; then
-      log "raw RSS empty (cgroup v2 limitation on GitHub Actions runner); skipping RSS budget check"
+    RSS_RAW=$(docker inspect -f '{{.MemoryStats.usage}}' "$CID" 2>/dev/null | tr -d '[:space:]' || echo 0)
+    if [ -z "$RSS_RAW" ] || [ "$RSS_RAW" = "0" ]; then
+      log "raw RSS unavailable (cgroup v2 limitation on GitHub Actions runner); skipping RSS budget check"
       log "all smoke checks passed (RSS measurement skipped)"
       exit 0
     fi
+  else
+    log "raw RSS unavailable (no container id) — skipping RSS budget check"
+    log "all smoke checks passed (RSS measurement skipped)"
+    exit 0
   fi
 fi
 log "raw RSS: $RSS_RAW"

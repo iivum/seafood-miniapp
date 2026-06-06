@@ -11,6 +11,12 @@ on:
   push:
     branches: [main, "feat/**", "fix/**"]
 
+# Sprint 2 CI 加速 (2026-06-07):新 push 立刻取消同 PR 的旧 run,避免占 runner。
+# main / feat/* / fix/* 上不取消(group key 含 ref,各分支独立)。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # PR review C3:显式声明 GITHUB_TOKEN 权限。默认 token 不含 security-events: write,
 # 静默导致 github/codeql-action/upload-sarif@v3 报 403,SARIF 永远到不了 Code Scanning。
 permissions:
@@ -37,12 +43,26 @@ jobs:
           distribution: temurin
           java-version: "25"
 
+      - name: Compute ISO week for cache key
+        id: iso-week
+        run: echo "week=$(date -u +'%G-%V')" >> "$GITHUB_OUTPUT"
+
       - name: Cache OWASP NVD datafeed
+        # Sprint 2 CI 加速 (2026-06-07):cache key 改为 weekly bucket,
+        # 不再 hash build.gradle —— 改 backend/build.gradle(加 dep / 改 plugin
+        # 版本)不应让 NVD datafeed cache 失效(NVD 数据库内容跟 build.gradle 完全
+        # 解耦)。weekly bucket 保证最多 7 天拿一次全量 + 每次跑只下增量。
+        # restore-keys 兜底:本周 miss 时复用上周 cache 也比从 0 拉强。
+        # GITHUB_RUN_ID 加在 key 末尾确保<em>每次</em>都 save(同 week 内多次跑能滚动
+        # 更新缓存),restore 时按周匹配。
         uses: actions/cache@v4
         with:
           path: ~/.gradle/dependency-check-data
-          key: owasp-nvd-${{ hashFiles('backend/build.gradle', 'backend/dependency-check-suppressions.xml') }}
-          restore-keys: owasp-nvd-
+          key: owasp-nvd-${{ runner.os }}-week-${{ steps.iso-week.outputs.week }}-${{ github.run_id }}
+          restore-keys: |
+            owasp-nvd-${{ runner.os }}-week-${{ steps.iso-week.outputs.week }}-
+            owasp-nvd-${{ runner.os }}-week-
+            owasp-nvd-${{ runner.os }}-
 
       - name: Run Dependency-Check Analyze
         working-directory: backend
@@ -71,22 +91,25 @@ jobs:
           fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
 
       - name: TruffleHog git diff scan
-        # PR review v8(C4 + C5 + I8):从 filesystem + tmpfs hack (a80518b / 7fdb7b3 /
-        # 043a693) 切到 `git` 模式。理由:
-        # 1) `git` 模式原生支持 --since-commit=HEAD~1(a80518b 之前的设计意图),
-        #    配合上面 fetch-depth: 2,HEAD~1 在 runner checkout 里一定存在。
-        # 2) tmpfs 覆盖 .git 的方案(7fdb7b3 / 043a693)在 runner 上从未被日志验证,
-        #    且为屏蔽 .git/config(CI 临时写 ghs_... extraheader)而隐藏整个 .git,
-        #    范围过宽。
-        # 3) `git` 模式扫的是 commit 历史而非 working tree,正好需要 .git 存在 ——
-        #    所以 tmpfs hack 反而跟需求方向相反。
-        # 4) 去掉 --exclude-detectors MongoDB,Postgres(C5):mongodb://user:pass@host/db
-        #    是项目最常见的 secret 形态;该排除项是 alice:hunter2 FP 时代遗留,
-        #    2e8e5b6 改名为 TEST_USER_FAKE:TEST_PASSWORD_FAKE 后已无 FP 风险。
-        # 5) 镜像 pin 3.88.0(I8):f475004 曾经 pin 过,043a693 切到 :latest 时丢了。
+        # PR review v9(2026-06-07):重新加回测试目录 exclude,但用 --exclude-globs
+        # 而不是 --exclude-detectors。原因:v8 注释假设"改名 TEST_USER_FAKE 后无 FP"
+        # 是错的 —— TruffleHog 的 MongoDB/Postgres detector <em>不验证 username</em>,
+        # 只识别 URL scheme (`mongodb://...@host/db`),所以测试 fixture 仍然命中
+        # 7 个 unverified secret,触发 exit 183。
+        #
+        # 当前策略:
+        # 1) `git` 模式 + --since-commit=HEAD~1 不变(v8 的设计意图)。
+        # 2) --exclude-globs 排除测试目录和 workflow 自身的 docstring URL:
+        #    - backend/src/test/**:所有 fixture 和 IT(MongoUriValidatorTest /
+        #      ConfigPropsMaskingIT 等)用 db.example.com 占位符,detector 仍会命中。
+        #    - .github/**:本 workflow 注释里举例的 URI 也被扫到。
+        #    生产代码里的 mongodb://user:pass@... 仍然会被扫(detector 不被禁,
+        #    只是路径范围收窄),这是 v8 想保留的检测能力。
+        # 3) 镜像 pin 3.88.0 不变(I8)。
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo:ro" \
             trufflesecurity/trufflehog:3.88.0 \
             git file:///repo --fail --no-verification \
-            --since-commit=HEAD~1
+            --since-commit=HEAD~1 \
+            --exclude-globs='backend/src/test/**,.github/**'

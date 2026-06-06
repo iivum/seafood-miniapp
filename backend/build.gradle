@@ -19,9 +19,19 @@ plugins {
 
 // Sprint 2 §4.1 — OWASP Dep-Check 配置
 // CVSS >= 7.0 = High/Critical → fail build;NVD datafeed 走官方默认,CI 注 NVD_API_KEY 提速
+// CI 修复 v3 (2026-06-07):**真正接通** NVD_API_KEY ——
+// 之前 workflow 里注了 secrets.NVD_API_KEY 但 plugin 没读它,plugin 用匿名限流
+// (5 req/30s),NVD 全量同步 30min(实测 Run Dependency-Check Analyze: 1809s)。
+// 接上 nvd { apiKey } 后限流升到 50 req/30s(10×),预期 30min → 3-5min。
+// API key 申请:https://nvd.nist.gov/developers/request-an-api-key(免费,邮箱秒到)
+// 注意:plugin v8+ 起 apiKey 嵌套在 nvd { } 块里(早期 nvdApiKey 直挂 dependencyCheck
+// 已不存在)。env var 缺失时 apiKey = null,plugin 退化为匿名(本地开发不阻断)。
 dependencyCheck {
     failBuildOnCVSS = 7.0
     suppressionFiles = files('dependency-check-suppressions.xml')
+    nvd {
+        apiKey = System.getenv('NVD_API_KEY')
+    }
 }
 
 // Sprint 2 §4.1 — 仅 CI 跑 Dep-Check,本地不拉 10min NVD 增量

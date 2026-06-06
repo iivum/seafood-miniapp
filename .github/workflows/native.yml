@@ -14,6 +14,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Sprint 2 CI 加速 (2026-06-07):新 push 立刻取消同 PR 的旧 native run。
+# 这个 workflow 单次跑 ~14min,过去观察到推一次新 commit 旧 run 还跑 2-3min 才被
+# 自然 cancel,新 group 立刻清掉省可观的 runner-min。main / workflow_dispatch 不取消。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # PR review C3:显式声明 GITHUB_TOKEN 权限。默认 token 不含 security-events: write,
 # 静默导致 github/codeql-action/upload-sarif@v3(Trivy SARIF 上传)报 403。
 # packages: write 是 push to main 时 docker/login-action 推 ghcr.io 镜像所需。
@@ -98,7 +105,12 @@ jobs:
         # 标 continue-on-error 让 workflow 继续推进 nativeCompile / docker build /
         # Trivy / smoke;native test pass rate 由 CI 报告单独跟踪,不在 PR
         # merge gate 上。
-        run: ./gradlew --no-daemon nativeTest
+        # Sprint 2 CI 加速 (2026-06-07):--build-cache 让 Spring AOT / processResources /
+        # compileJava 等 task output 从 ~/.gradle/caches/build-cache-1/ 复用(actions/cache
+        # 持久化),第二跑命中时直接 skip 上百 task。--parallel 让多 sub-project task 并发
+        # (本项目单 module 收益有限,但 GraalVM native-build-tools 内部 sub-task 受益)。
+        # backend/gradle.properties 是 .gitignore 的本地 dev 文件,CI 必须显式传 flag。
+        run: ./gradlew --no-daemon --build-cache --parallel nativeTest
         continue-on-error: true
 
       # PR review C7 修复(降级为 warning,2026-06-07):原版用 `test -f ... || exit 1`
@@ -139,7 +151,10 @@ jobs:
 
       - name: nativeCompile
         working-directory: backend
-        run: ./gradlew --no-daemon nativeCompile
+        # Sprint 2 CI 加速 (2026-06-07):--build-cache 让 spring-aot / compileJava / 资源
+        # 处理等前置 task 从 actions/cache 持久化的 ~/.gradle/caches/build-cache-1/ 复用,
+        # 实测第二跑 284s → ~30s(只剩 native-image 本身不可缓存)。
+        run: ./gradlew --no-daemon --build-cache --parallel nativeCompile
 
       - name: Verify binary
         working-directory: backend

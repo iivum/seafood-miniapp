@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Sprint 2 CI 加速 (2026-06-07):新 push 立刻取消同 PR 的旧 run。
+# main/develop push 不取消(group key 含 ref)。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # 单 job 串行跑:快速反馈,共享缓存
 # 安全:所有 run: 块均硬编码,无 ${{ github.event.* }} 插值
 jobs:
@@ -44,16 +50,17 @@ jobs:
 
       - name: Compile
         working-directory: backend
-        run: ./gradlew --no-daemon compileJava
+        # Sprint 2 CI 加速 (2026-06-07):--build-cache 复用 actions/cache 持久化的 task output
+        run: ./gradlew --no-daemon --build-cache --parallel compileJava
 
       - name: Test + check (含 @RefreshScope 扫描)
         working-directory: backend
-        run: ./gradlew --no-daemon check
+        run: ./gradlew --no-daemon --build-cache --parallel check
 
       - name: Native compile (best-effort,design §10 风险 #1)
         working-directory: backend
         continue-on-error: true
-        run: ./gradlew --no-daemon nativeCompile
+        run: ./gradlew --no-daemon --build-cache --parallel nativeCompile
 
   frontend:
     name: Mini-Program (Jest)
