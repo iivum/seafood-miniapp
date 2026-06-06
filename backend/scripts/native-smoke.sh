@@ -105,9 +105,12 @@ done
 #   4xx → fail(配置/路由错)
 # 拿 code + body 一次性写入 mktemp 文件,再 -w '%{http_code}' 拆出 code。
 PRODUCTS_URL="http://localhost:8080/api/products?page=0&size=10"
-log "GET $PRODUCTS_URL"
+log "GET $PRODUCTS_URL (max-time 30s to allow MongoIndexInitializer 30s server-selection timeout)"
 PRODUCTS_BODY=$(mktemp)
-PRODUCTS_CODE=$(curl -s -o "$PRODUCTS_BODY" -w '%{http_code}' "$PRODUCTS_URL" --max-time 5 2>/dev/null || echo "000")
+# max-time 30s:products endpoint 走 Mongo,MongoIndexInitializer 在 native binary
+# 启动时会等 server-selection(默认 30s)。等 MongoIndexInitializer 完成后 /
+# api/products 才会返 200 + totalElements=0。max-time 太短会误判 000。
+PRODUCTS_CODE=$(curl -s -o "$PRODUCTS_BODY" -w '%{http_code}' "$PRODUCTS_URL" --max-time 30 2>/dev/null || echo "000")
 if [ "${PRODUCTS_CODE:0:1}" = "5" ]; then
   rm -f "$PRODUCTS_BODY"
   fail "products endpoint returned 5xx ($PRODUCTS_CODE) — backend regression"
