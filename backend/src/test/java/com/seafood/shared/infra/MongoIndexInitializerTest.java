@@ -64,7 +64,7 @@ class MongoIndexInitializerTest {
         when(mongo.indexOps(any(String.class))).thenReturn(collectionOps);
         when(collectionOps.ensureIndex(any(IndexDefinition.class))).thenReturn("manual-index");
 
-        initializer = new MongoIndexInitializer(mongo, mappingContext);
+        initializer = new MongoIndexInitializer(mongo, mappingContext, new MongoIndexHealthIndicator(mongo));
     }
 
     @Test

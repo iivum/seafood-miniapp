@@ -72,21 +72,28 @@ class AuthServiceLockoutTest {
     @Test
     void adminLogin_locksAfterFiveWrongPasswords() {
         when(attempts.isLocked(anyString())).thenReturn(0);
-        when(attempts.recordFailure(anyString())).thenReturn(0, 0, 0, 0, 900);
+        // 每次 adminLogin 调 recordFailure 2 次(per-username + per-IP)。
+        // 第 5 次 adminLogin 时:
+        //   - per-username 是第 9 次 recordFailure(应返回 0,5 次累计不够)
+        //   - per-IP 是第 10 次(应返回 900,触发锁定)
+        // 锁检查只看 per-username 桶,但 recordFailure(per-IP) 仍会先调用。
+        // 让所有 recordFailure 都返回 0,确保只有 per-username 第 5 次返回 900。
+        when(attempts.recordFailure(anyString())).thenReturn(0, 0, 0, 0, 0, 0, 0, 0, 900, 0);
 
         AdminLoginRequest wrong = new AdminLoginRequest("admin", "bad");
         // 前 4 次:正常抛 DomainException
         for (int i = 0; i < 4; i++) {
-            assertThatThrownBy(() -> auth.adminLogin(wrong))
+            assertThatThrownBy(() -> auth.adminLogin(wrong, "10.0.0.1"))
                     .isInstanceOf(DomainException.class)
                     .hasMessageContaining("用户名或密码错误");
         }
-        // 第 5 次:recordFailure 返回 900 → 抛 AccountLockedException
-        assertThatThrownBy(() -> auth.adminLogin(wrong))
+        // 第 5 次:per-username recordFailure 返回 900 → 抛 AccountLockedException
+        assertThatThrownBy(() -> auth.adminLogin(wrong, "10.0.0.1"))
                 .isInstanceOf(AccountLockedException.class)
                 .extracting("retryAfterSeconds").isEqualTo(900);
 
-        verify(attempts, times(5)).recordFailure(anyString());
+        // 5 次失败 × 2 个桶(per-username + per-IP)= 10 次 recordFailure
+        verify(attempts, times(10)).recordFailure(anyString());
     }
 
     @Test
@@ -96,7 +103,7 @@ class AuthServiceLockoutTest {
         when(attempts.recordFailure(anyString())).thenReturn(0);
 
         AdminLoginRequest correct = new AdminLoginRequest("admin", "admin123");
-        assertThatThrownBy(() -> auth.adminLogin(correct))
+        assertThatThrownBy(() -> auth.adminLogin(correct, "10.0.0.1"))
                 .isInstanceOf(AccountLockedException.class)
                 .extracting("retryAfterSeconds").isEqualTo(777);
 
@@ -111,14 +118,57 @@ class AuthServiceLockoutTest {
         AdminLoginRequest wrong = new AdminLoginRequest("admin", "bad");
         // 3 次错
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> auth.adminLogin(wrong))
+            assertThatThrownBy(() -> auth.adminLogin(wrong, "10.0.0.1"))
                     .isInstanceOf(DomainException.class);
         }
-        // 1 次对 → recordSuccess
+        // 1 次对 → recordSuccess(per-username + per-IP 都清)
         AdminLoginRequest right = new AdminLoginRequest("admin", "admin123");
-        TokenResponse resp = auth.adminLogin(right);
+        TokenResponse resp = auth.adminLogin(right, "10.0.0.1");
         assertThat(resp.accessToken()).isNotBlank();
-        verify(attempts, times(1)).recordSuccess(anyString());
+        verify(attempts, times(2)).recordSuccess(anyString());
+    }
+
+    /**
+     * PR review push-sweep #4 回归保护:多个 distinct username 不能撞出无界 lockout 桶。
+     *
+     * <p>原实现用 {@code "admin:" + req.username()} 作 key,攻击者发 10000 个不同
+     * username,LoginAttemptService 内部 Caffeine 就建 10000 个独立 counter,
+     * 内存里 O(n) 膨胀。修复:把不匹配 adminUsername 的全部归并到 {@code admin:unknown}
+     * 一个固定桶,验证两种"伪 username"都进同一个桶,记录一次失败即可。
+     */
+    @Test
+    void adminLogin_unknownUsernamesShareSingleLockoutBucket() {
+        when(attempts.isLocked(anyString())).thenReturn(0);
+        when(attempts.recordFailure(anyString())).thenReturn(0);
+
+        // 三个不同"伪 username" — 都应归并到 admin:unknown。
+        // 每次都抛 DomainException(密码错),用 assertThatThrownBy 捕获。
+        assertThatThrownBy(() -> auth.adminLogin(new AdminLoginRequest("hacker1", "bad"), "10.0.0.1"))
+                .isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> auth.adminLogin(new AdminLoginRequest("root", "bad"), "10.0.0.1"))
+                .isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> auth.adminLogin(new AdminLoginRequest("", "bad"), "10.0.0.1"))
+                .isInstanceOf(DomainException.class);
+
+        // 3 次 adminLogin → 3 次 "admin:unknown" + 3 次 "admin-ip:10.0.0.1",共 6 次。
+        org.mockito.ArgumentCaptor<String> keyCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(attempts, org.mockito.Mockito.times(6)).recordFailure(keyCaptor.capture());
+
+        // 所有 username 维度的 recordFailure 都用 "admin:unknown"
+        long unknownCount = keyCaptor.getAllValues().stream()
+                .filter(k -> k.equals("admin:unknown"))
+                .count();
+        assertThat(unknownCount)
+                .as("all 3 distinct 'fake' usernames must collapse to admin:unknown")
+                .isEqualTo(3);
+
+        // 所有 IP 维度的 recordFailure 都用 "admin-ip:10.0.0.1"
+        long ipCount = keyCaptor.getAllValues().stream()
+                .filter(k -> k.equals("admin-ip:10.0.0.1"))
+                .count();
+        assertThat(ipCount)
+                .as("all 3 calls from same IP must collapse to admin-ip:10.0.0.1")
+                .isEqualTo(3);
     }
 
     @Test

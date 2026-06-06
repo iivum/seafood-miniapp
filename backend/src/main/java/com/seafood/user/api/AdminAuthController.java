@@ -4,6 +4,7 @@ import com.seafood.user.api.dto.AdminLoginRequest;
 import com.seafood.user.api.dto.RefreshRequest;
 import com.seafood.user.api.dto.TokenResponse;
 import com.seafood.user.application.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,8 +24,11 @@ public class AdminAuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@Valid @RequestBody AdminLoginRequest req) {
-        TokenResponse body = auth.adminLogin(req);
+    public ResponseEntity<TokenResponse> login(@Valid @RequestBody AdminLoginRequest req,
+                                               HttpServletRequest httpReq) {
+        // PR review push-sweep #4:lockout 需 IP 维度的桶,防止 username 撞出无界桶。
+        // 与 {@code AuthController.wechatLogin} 同款决策:用 TCP 端 IP,绝不读 XFF。
+        TokenResponse body = auth.adminLogin(req, httpReq.getRemoteAddr());
         // 前端可走 cookie(由后续阶段配置 SameSite=httpOnly);此处 JSON 返 token 也可工作
         return ResponseEntity.ok().body(body);
     }

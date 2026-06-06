@@ -11,7 +11,14 @@ spring:
 
 server:
   port: ${PORT:8080}
-  forward-headers-strategy: framework
+  # PR review push-sweep #3:显式 {@code none} —— 我们<em>不</em>信任 XFF(参见
+  # {@code AdminRateLimitFilter.clientIp} 与 {@code AuthService.wechatLogin} 的注释)。
+  # 原 {@code framework} 策略会注册 {@code ForwardedHeaderFilter} 处理 XFF for
+  # Spring web(redirect URL / host / proto),但<em>不</em>动 {@code getRemoteAddr()},
+  # 与我们"用 TCP 端 IP,绝不读 XFF"的立场是 gate/action mismatch ——
+  # 配置文件给的是"会处理 XFF"的能力,代码却反过来完全忽略它,会让维护者误以为
+  # 后续 PR 可以依赖 framework 的语义加 XFF 支持。{@code none} 让两边一致。
+  forward-headers-strategy: none
   compression:
     enabled: true
   shutdown: graceful
@@ -46,13 +53,16 @@ api:
   base-path: /api
   admin:
     base-path: /api/admin
-    # PR review #8:admin 启动期密码<em>必须</em>由 env 注入,缺即 fail-fast;
-    # 这里给 dev profile 一个本地默认方便调试,生产用 env 覆盖。username 仍可走默认。
-    # PR review #8 / CLAUDE.md "禁硬编码密钥"。BootstrapCredential 校验见
-    # {@code AdminBootstrapProperties.isPasswordPresent()}。
+    # PR review #8 + push review #1(FAIL-OPEN STATE DRIFT):admin 启动期密码
+    # <em>必须</em>由 env 注入,缺即 fail-fast。YAML <em>不给</em>空串默认 ——
+    # `${ADMIN_BOOTSTRAP_PASSWORD:}` 看似无害,实则 Spring 成功解析为空串,
+    # 配合 {@code @Value} 无 default 会注入空串而非抛错,导致应用带空密码进入生产。
+    # 现:无默认,env 缺失时 Spring 在 binding 阶段直接抛
+    # {@code UnresolvedPlaceholderException} / {@code ConfigurationPropertiesBindException}
+    # 阻断 ready。Bootstrap 校验仍由 {@code AuthService.adminLogin} 兜底(空密码 → IllegalStateException)。
     bootstrap:
       username: ${ADMIN_BOOTSTRAP_USERNAME:admin}
-      password: ${ADMIN_BOOTSTRAP_PASSWORD:}
+      password: ${ADMIN_BOOTSTRAP_PASSWORD}
 
 management:
   endpoints:

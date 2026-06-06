@@ -46,10 +46,19 @@ public class MongoIndexInitializer {
 
     private final MongoTemplate mongo;
     private final MongoMappingContext mappingContext;
+    /**
+     * PR review push-sweep #2:critical 索引完成时通知 health indicator,
+     * 把 criticalIndexesEnsured 翻为 true。这样 {@code /actuator/health/mongoIndexes}
+     * 从 UNKNOWN(启动中)切到 UP,或 critical 失败时停在 UNKNOWN/触发后续 ready 探针失败。
+     */
+    private final MongoIndexHealthIndicator healthIndicator;
 
-    public MongoIndexInitializer(MongoTemplate mongo, MongoMappingContext mappingContext) {
+    public MongoIndexInitializer(MongoTemplate mongo,
+                                 MongoMappingContext mappingContext,
+                                 MongoIndexHealthIndicator healthIndicator) {
         this.mongo = mongo;
         this.mappingContext = mappingContext;
+        this.healthIndicator = healthIndicator;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -83,6 +92,10 @@ public class MongoIndexInitializer {
                 "TTL on revoked_tokens.expiresAt — bounds revoked-token collection size");
 
         log.info("[mongo] all indexes ensured");
+        // PR review #2:通知 health indicator,让 /actuator/health/mongoIndexes 切到 UP。
+        // 若 ensureCritical 抛 IndexInitializationException,本行不会执行,
+        // health probe 继续返 UNKNOWN → readiness 探针失败,k8s 不会路由流量。
+        healthIndicator.onCriticalIndexesEnsured();
     }
 
     private void ensureAnnotationDerived(Class<?> docClass) {

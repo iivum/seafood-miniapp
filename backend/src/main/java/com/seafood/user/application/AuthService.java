@@ -129,7 +129,12 @@ public class AuthService {
 
     // ----- Admin UI /api/admin/auth/login -----
 
-    public TokenResponse adminLogin(AdminLoginRequest req) {
+    /**
+     * @param clientIp 调用方 IP(来自 {@code HttpServletRequest.getRemoteAddr()});
+     *                 用于 IP 维度的 lockout,防止攻击者以海量不同 username 撞出无界桶
+     *                 撑爆 Caffeine(PR review push-sweep #4)。
+     */
+    public TokenResponse adminLogin(AdminLoginRequest req, String clientIp) {
         // PR review #8:空密码直接拒绝(覆盖 env 设为空串的场景)。
         // @Value 兜底"无默认"只保证"未设置"时 fail-fast;空串虽然能注入但实际不可用。
         if (adminPassword == null || adminPassword.isBlank()) {
@@ -138,19 +143,31 @@ public class AuthService {
                     "admin.bootstrap.password is not configured (set ADMIN_BOOTSTRAP_PASSWORD env). "
                             + "Application is not safe to start.");
         }
-        String account = "admin:" + (req.username() == null ? "" : req.username());
+        // 阶段 1:用<em>规范化</em>的 username 锁 —— 只对配置里的 adminUsername 计数,
+        // 其余全部归并到 {@code admin:unknown} 一个固定桶,避免 username 撞出无界桶。
+        String normalizedUsername = adminUsername.equals(req.username()) ? adminUsername : "unknown";
+        String account = "admin:" + normalizedUsername;
         ensureNotLocked(account);
 
-        if (!adminUsername.equals(req.username()) || !adminPassword.equals(req.password())) {
+        // 阶段 2:用 IP 锁 —— 同一 IP 多次失败触发锁定,与 username 正交。
+        // 没有这一步的话,攻击者从多 IP 各猜 5 次,绕过 per-username 锁。
+        String ipAccount = "admin-ip:" + (clientIp == null || clientIp.isBlank() ? "unknown" : clientIp);
+        ensureNotLocked(ipAccount);
+
+        boolean credsOk = adminUsername.equals(req.username()) && adminPassword.equals(req.password());
+        if (!credsOk) {
             int lockRetry = loginAttempts.recordFailure(account);
+            loginAttempts.recordFailure(ipAccount);
             if (lockRetry > 0) {
                 // 这次失败触发了锁定 → 返 423 而不是 409
                 throw new AccountLockedException(lockRetry);
             }
             throw new DomainException("用户名或密码错误");
         }
-        // 简单起见:admin 凭据来自配置,不查库。生产应改为 UserRepository.findByUsernameAndPasswordHash
+        // 凭据正确:两个计数器都清零
         loginAttempts.recordSuccess(account);
+        loginAttempts.recordSuccess(ipAccount);
+        // 简单起见:admin 凭据来自配置,不查库。生产应改为 UserRepository.findByUsernameAndPasswordHash
         return issuePair("admin-bootstrap", Role.ADMIN, Audience.ADMIN);
     }
 
