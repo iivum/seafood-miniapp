@@ -60,14 +60,10 @@ jobs:
           fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
 
       - name: TruffleHog filesystem scan
-        # CI 修复 v2:之前 3.84.4 也不存在 —— trufflehog/trufflehog 这个 repo
-        # 不是 TruffleHog 官方。官方是 trufflesecurity/trufflehog,GitHub Action
-        # 路径是 trufflesecurity/trufflehog-action(且版本号独立)。
-        # 改用 Docker 镜像跑(最稳,不依赖 action 仓库版本):
-        #   docker run trufflesecurity/trufflehog:latest filesystem ...
+        # CI 修复 v3:filesystem 子命令不接受 --since-commit(只有 git 接受)。
+        # filesystem 跑整个目录即可,不会慢太多(代码量 < 1MB)。
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo" \
-            -e GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
             trufflesecurity/trufflehog:latest \
-            filesystem --directory=/repo --since-commit=HEAD~1 --fail --no-verification
+            filesystem --directory=/repo --fail --no-verification
