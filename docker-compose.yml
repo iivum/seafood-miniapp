@@ -89,7 +89,10 @@ services:
       # JWT 必填(参见 design §4.1)— fail-fast
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set, 32+ bytes}
       JWT_ADMIN_SECRET: ${JWT_ADMIN_SECRET:?JWT_ADMIN_SECRET must be set, 32+ bytes, must differ from JWT_SECRET}
-      MONGODB_URI: mongodb://mongodb:27017/seafood
+      # CI 修复 v2 (2026-06-07):MONGODB_URI 改为 ${MONGODB_URI:-...} 形式,
+      # 让 CI smoke step 通过 env 注入短 serverSelectionTimeoutMS(默认 30s
+      # 跟 smoke 总预算不兼容)。生产部署仍可显式 export MONGODB_URI 用长 timeout。
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/seafood}
       # PR review #8:admin bootstrap 密码必填,缺即 fail-fast(@Value 无默认 + adminLogin 启动期校验)
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:?ADMIN_BOOTSTRAP_PASSWORD must be set, no default}
       SPRING_PROFILES_ACTIVE: docker

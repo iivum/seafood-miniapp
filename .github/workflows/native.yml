@@ -25,14 +25,11 @@ permissions:
 
 # 默认 env:JWT 密钥满足 @Size(min=32);本 workflow 不引用 secrets.JWT_*,
 # 只用 secrets.GITHUB_TOKEN(GraalVM setup + ghcr.io 登录)。
+# MONGODB_URI 不在全局设 —— nativeCompile 跑 JVM 测试时不需要连 Mongo。
+# smoke step 自己声明 MONGODB_URI 并用 docker compose 的 `mongodb` service name。
 env:
   JWT_SECRET: ci-native-test-secret-must-be-at-least-32-bytes-AAAA
   JWT_ADMIN_SECRET: ci-native-test-admin-secret-must-be-at-least-32-bytes-BBBB
-  # CI 修复 v2 (2026-06-07):Mongo URI 加 serverSelectionTimeoutMS=3000,
-  # 让 native binary 启动时 MongoIndexInitializer 3s 后放弃 server selection
-  # (默认 30s 跟 smoke 60s 总预算不兼容),products endpoint 也能 3s 内
-  # 返 5xx 而不是 hang 30s,smoke 能在合理时间内判 fail。
-  MONGODB_URI: mongodb://localhost:27017/seafood_native?serverSelectionTimeoutMS=3000&connectTimeoutMS=3000
   # PR review #8:admin.bootstrap.password 改为必填,CI 显式注入(原 :admin123 兜底已删)
   ADMIN_BOOTSTRAP_PASSWORD: ci-native-test-admin-bootstrap-pw-MUST-NOT-be-default
 
@@ -179,6 +176,13 @@ jobs:
         env:
           JWT_SECRET: ${{ env.JWT_SECRET }}
           JWT_ADMIN_SECRET: ${{ env.JWT_ADMIN_SECRET }}
+          # MONGODB_URI 必须显式注入 smoke step,这样 docker compose up 把这个
+          # env 传给 backend container(通过 docker-compose.yml 的
+          # ${MONGODB_URI:-...} 形式),让 native binary 用短 serverSelectionTimeoutMS
+          # 启动(否则 30s 默认 timeout 让 MongoIndexInitializer 永远 hang)。
+          MONGODB_URI: mongodb://mongodb:27017/seafood_native?serverSelectionTimeoutMS=3000&connectTimeoutMS=3000
+          # ADMIN_BOOTSTRAP_PASSWORD 也要注入,backend 的 @Value 必填
+          ADMIN_BOOTSTRAP_PASSWORD: ${{ env.ADMIN_BOOTSTRAP_PASSWORD }}
 
       - name: Upload native binary
         if: success()
