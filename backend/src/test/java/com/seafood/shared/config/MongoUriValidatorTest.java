@@ -70,8 +70,9 @@ class MongoUriValidatorTest {
 
     /**
      * PR review #9 — 启动期错误消息<em>绝不</em>回显 URI 的子串,否则会泄漏
-     * 内嵌凭据的 username。`mongodb://alice:hunter2@db.example.com/...` 前 16
-     * 字符是 {@code mongodb://alic},包含用户名。原实现就是这么写。
+     * 内嵌凭据的 username。`mongodb://TEST_USER_FAKE:TEST_PASSWORD_FAKE@db.example.com/...`
+     * 前 16 字符是 {@code mongodb://TEST_},包含用户名。原实现用 alice:hunter2,
+     * 改成 _FAKE 占位后既保持原意图又防 TruffleHog 假阳性。
      *
      * <p>用 {@code postgres://...} 而非 {@code mongodb://...} 触发校验失败 ——
      * mongo URI 本身能通过校验,无法触发错误消息路径。
@@ -79,7 +80,9 @@ class MongoUriValidatorTest {
     @Test
     void invalidUriErrorDoesNotLeakEmbeddedCredentials() {
         // 错的协议 + 内嵌凭据;目标是触发 schema 校验失败同时验证错误消息不泄漏。
-        String sensitiveUri = "postgres://alice:hunter2@db.example.com:5432/seafood";
+        // CI fix:用户名/密码改成 "TEST_USER_FAKE" / "TEST_PASSWORD_FAKE" —— 任何
+        // 真凭据检测器(TruffleHog 等)会拿这俩字符串当 fake 占位,不会触发泄漏告警。
+        String sensitiveUri = "postgres://TEST_USER_FAKE:TEST_PASSWORD_FAKE@db.example.com:5432/seafood";
         MongoUriValidator validator = new MongoUriValidator(sensitiveUri);
 
         assertThatThrownBy(validator::validate)
@@ -89,8 +92,8 @@ class MongoUriValidatorTest {
                     String msg = thrown.getMessage();
                     org.assertj.core.api.Assertions.assertThat(msg)
                             .as("error message must not echo ANY substring of the URI")
-                            .doesNotContain("alice")
-                            .doesNotContain("hunter2")
+                            .doesNotContain("TEST_USER_FAKE")
+                            .doesNotContain("TEST_PASSWORD_FAKE")
                             .doesNotContain("db.example.com")
                             .doesNotContain("postgres")
                             .doesNotContain(sensitiveUri);

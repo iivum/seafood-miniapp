@@ -102,7 +102,9 @@ class ConfigPropsMaskingIT {
                     "wechat.appid=" + WECHAT_APPID,
                     "wechat.secret=" + WECHAT_SECRET,
                     // fixture: 'mongoUri' is in OUR regex (contains "uri") but NOT in actuator default
-                    "fixture.mongo-uri=mongodb://user:hunter2@db.example.com:27017/seafood?ssl=true",
+                    // CI fix:用户名/密码换成显眼的 _FAKE 占位 —— TruffleHog filesystem
+                    // 扫描会拿 hunter2 等当 secret,触发假阳性。
+                    "fixture.mongo-uri=mongodb://TEST_USER_FAKE:TEST_PASSWORD_FAKE@db.example.com:27017/seafood?ssl=true",
                     "fixture.plain-label=this-is-not-sensitive");
 
     @Test
@@ -183,14 +185,14 @@ class ConfigPropsMaskingIT {
 
             String json = mapper.writeValueAsString(fixture);
 
-            // mongoUri is in our regex; raw value contains the password "hunter2" and the host.
+            // mongoUri is in our regex; raw value contains the placeholder password "TEST_PASSWORD_FAKE" and the host.
             String raw = fixture.getMongoUri();
             String expectedMask = raw.substring(0, 4) + "***";
             assertThat(json)
                     .as("mongoUri must be masked on primary ObjectMapper (our module, not actuator)")
                     .contains("\"mongoUri\":\"" + expectedMask + "\"")
                     .doesNotContain(raw)                       // whole URI gone
-                    .doesNotContain("hunter2")                 // password gone
+                    .doesNotContain("TEST_PASSWORD_FAKE")    // password gone
                     .doesNotContain("db.example.com");         // host gone
 
             // plainLabel is NOT in our regex → must be left as-is.
