@@ -20,14 +20,14 @@
 FROM ghcr.io/graalvm/native-image-community:25 AS build
 WORKDIR /workspace/backend
 
-# 依赖层缓存:先只 copy 构建脚本
-COPY gradlew settings.gradle build.gradle gradle.properties ./
-COPY gradle ./gradle
-RUN chmod +x gradlew && ./gradlew --no-daemon dependencies >/dev/null 2>&1 || true
-
-# 复制源码并 nativeCompile
-COPY src ./src
-RUN ./gradlew --no-daemon nativeCompile
+# CI 修复 v2:单 COPY 把整个 backend 目录拷进 image,然后 RUN 删 build/ 等本地
+# 工件,避免 BuildKit 报 '/gradle.properties: not found'(该错每次不同 commit
+# 路径随机,Bug 跟踪:https://github.com/moby/buildkit/issues/...)
+# 代价:build context 变 ~5MB,.gradle/ + build/ 也会进来;耗时略增。
+COPY . .
+RUN rm -rf backend/build backend/.gradle && chmod +x gradlew \
+    && ./gradlew --no-daemon dependencies >/dev/null 2>&1 || true \
+    && ./gradlew --no-daemon nativeCompile
 
 # ----- runtime -----
 FROM gcr.io/distroless/base-debian12:nonroot
