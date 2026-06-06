@@ -60,7 +60,10 @@ jobs:
           fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
 
       - name: TruffleHog filesystem scan
-        uses: trufflehog/trufflehog@main
+        # CI 修复:pin 到具体 tag —— @main 解析失败(branch ref 不稳定,
+        # 经常被改名/删)。v3.84.x 系列是 stable 3.0 action 的最后一个,后续 v4
+        # 是重写。仍以 3.x action 镜像对齐 README 文档。
+        uses: trufflehog/trufflehog@3.84.4
         with:
           scan: filesystem
           scan-flags: --since-commit=HEAD~1 --fail

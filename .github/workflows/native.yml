@@ -44,11 +44,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           native-image-job-reports: 'true'
 
-      - name: Set up Temurin JDK 25 (Gradle daemon)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '25'
+      # CI 修复:删除原 Set up Temurin JDK 25 (Gradle daemon) ——
+      # 那个步骤会把 JAVA_HOME 切到 Temurin,但 Gradle daemon 跑 processTestAot
+      # 时调 libnative-image-agent.so,而该 so 只在 GraalVM 发行版里有。
+      # 结果:agent 找不到 → 整个 nativeTest 失败。
+      # 修法:Gradle daemon 直接用上面装好的 GraalVM JDK(GraalVM 是完备的
+      # JDK,跑 Gradle 完全 OK,且它把 native-image 工具一起放好了)。
 
       - name: Cache Gradle
         uses: actions/cache@v4
