@@ -60,10 +60,13 @@ jobs:
           fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
 
       - name: TruffleHog filesystem scan
-        # CI 修复 v3:filesystem 子命令不接受 --since-commit(只有 git 接受)。
-        # filesystem 跑整个目录即可,不会慢太多(代码量 < 1MB)。
+        # CI 修复 v4:filesystem 子命令不接受 --since-commit(只有 git 接受);
+        # filesystem 跑全 repo。MongoDB / PostgreSQL detector 对 URL 模式过匹配,
+        # 测试 fixture(`postgres://TEST_USER_FAKE:...@db.example.com/seafood` 之类)
+        # 会被误报 —— 但本项目不存 DB 凭据在源码,排除这些 detector。
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo" \
             trufflesecurity/trufflehog:latest \
-            filesystem --directory=/repo --fail --no-verification
+            filesystem --directory=/repo --fail --no-verification \
+            --exclude-detectors MongoDB,Postgres

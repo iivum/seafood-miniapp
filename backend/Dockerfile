@@ -1,4 +1,8 @@
-# syntax=docker/dockerfile:1.7
+# CI 修复:删除原 # syntax=docker/dockerfile:1.7 ———
+# 该 directive 触发 BuildKit 从 docker.io 拉 docker/dockerfile:1.7 镜像(fronted
+# parser),CI runner 偶发遇到 Docker Hub 网络超时("dial tcp ... i/o timeout")。
+# 本 Dockerfile 未使用 1.7 特有特性(BuildKit 默认即支持),去掉该 directive 即可。
+#
 # =============================================================
 # GraalVM Native 多阶段构建 — Sprint 2 C5 §5.5
 # -------------------------------------------------------------
