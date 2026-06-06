@@ -32,7 +32,7 @@ Headers SHALL be injected by a single `SecurityHeadersFilter` registered in the 
 
 ### Requirement: Admin endpoints enforce a rate limit
 
-The system SHALL apply a token-bucket rate limit of 60 requests per minute per `(client IP, account)` tuple to every endpoint under `/api/admin/**`. Excess requests SHALL receive HTTP 429 with `Retry-After` and a `code=RATE_LIMITED` `ErrorResponse` body. The limiter SHALL keep counters in a Caffeine in-memory cache (no external store).
+The system SHALL apply a **fixed-window** rate limit of 60 requests per minute per `(client IP, account)` tuple to every endpoint under `/api/admin/**`. Excess requests SHALL receive HTTP 429 with `Retry-After` and a `code=RATE_LIMITED` `ErrorResponse` body. The limiter SHALL keep counters in a Caffeine in-memory cache (no external store). PR review #27: prior wording "token-bucket" was inaccurate — the implementation is a 60-second sliding window with per-tuple counter, not a token bucket.
 
 #### Scenario: Within budget
 

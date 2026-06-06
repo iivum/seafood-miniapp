@@ -89,6 +89,9 @@ tasks.named('test') {
             excludeTags exclude.split(',')
         }
     }
+    // JDK 25 强模块封装 — Spring Data Mongo 4.5 的 PreferredConstructor 在解析
+    // java.time.Instant 时用反射 setAccessible(true),需 opens 才能工作。
+    jvmArgs '--add-opens', 'java.base/java.time=ALL-UNNAMED'
 }
 
 // 静态扫描:禁止 @RefreshScope(GraalVM Native 不兼容)

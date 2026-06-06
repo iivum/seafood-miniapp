@@ -128,4 +128,52 @@ class JwtAuthenticationFilterRevocationTest {
         verify(chain).doFilter(any(), any());
         verify(revocations, never()).isRevoked(any(), any());
     }
+
+    /**
+     * PR review #29 — admin 路径撤销检查。
+     *
+     * <p>{@link JwtAuthenticationFilter#isAdminPath(String)} 决定用 user 还是 admin 密钥解析;
+     * 撤销检查应当对两条路径都生效(否则 admin token 一旦泄露,logout 后还能继续用)。
+     * 此前测试只覆盖 {@code /api/users/me} —— admin 路径分支永远没被验过。
+     */
+    @Test
+    void revokedAdminJtiOnAdminPathTriggers401() throws Exception {
+        JwtTokenProvider.IssuedToken issued = tokens.issueAdminAccessToken("admin-1", Role.ADMIN);
+        when(revocations.isRevoked(issued.jti(), "admin-1")).thenReturn(true);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/admin/products");
+        req.addHeader("Authorization", "Bearer " + issued.token());
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        assertThat(res.getStatus())
+                .as("admin path with revoked jti must also return 401")
+                .isEqualTo(401);
+        assertThat(res.getContentAsString()).contains("\"code\":\"TOKEN_REVOKED\"");
+        verify(chain, never()).doFilter(any(), any());
+    }
+
+    /**
+     * PR review #29 — admin 路径未撤销:通过、SecurityContext 拿到 ADMIN principal。
+     */
+    @Test
+    void unRevokedAdminJtiOnAdminPathSetsAdminPrincipal() throws Exception {
+        when(revocations.isRevoked(any(), any())).thenReturn(false);
+        JwtTokenProvider.IssuedToken issued = tokens.issueAdminAccessToken("admin-1", Role.ADMIN);
+
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/admin/dashboard");
+        req.addHeader("Authorization", "Bearer " + issued.token());
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain).doFilter(any(), any());
+        UserPrincipal p = (UserPrincipal) SecurityContextHolder.getContext()
+                .getAuthentication().getPrincipal();
+        assertThat(p.getId()).isEqualTo("admin-1");
+        assertThat(p.getRole()).isEqualTo(Role.ADMIN);
+    }
 }

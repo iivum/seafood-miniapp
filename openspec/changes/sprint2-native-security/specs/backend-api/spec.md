@@ -21,7 +21,7 @@ Every HTTP response served by the backend — JSON API, BFF, static admin assets
 
 ### Requirement: Admin BFF endpoints enforce a request rate limit
 
-Every endpoint under `/api/admin/**` (including BFF aggregation, admin product CRUD, and admin auth) SHALL enforce the 60 rpm token-bucket limit defined in capability `runtime-security`. Excess requests SHALL receive HTTP 429 with an `ErrorResponse` whose `code` is `RATE_LIMITED`. The non-admin endpoints under `/api/**` SHALL NOT be rate-limited by this rule.
+Every endpoint under `/api/admin/**` (including BFF aggregation, admin product CRUD, and admin auth) SHALL enforce the 60 rpm **fixed-window** limit defined in capability `runtime-security`. Excess requests SHALL receive HTTP 429 with an `ErrorResponse` whose `code` is `RATE_LIMITED`. The non-admin endpoints under `/api/**` SHALL NOT be rate-limited by this rule. PR review #27: prior wording "token-bucket" was inaccurate.
 
 #### Scenario: BFF dashboard rate-limited
 

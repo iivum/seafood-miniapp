@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -125,7 +126,7 @@ class AuthServiceLockoutTest {
         when(attempts.isLocked(anyString())).thenReturn(60);
 
         WechatLoginRequest req = new WechatLoginRequest("code-x", "nick", "avatar");
-        assertThatThrownBy(() -> auth.wechatLogin(req))
+        assertThatThrownBy(() -> auth.wechatLogin(req, "10.0.0.1"))
                 .isInstanceOf(AccountLockedException.class)
                 .extracting("retryAfterSeconds").isEqualTo(60);
 
@@ -139,9 +140,38 @@ class AuthServiceLockoutTest {
         when(wechat.exchange(anyString())).thenThrow(new RuntimeException("wechat down"));
 
         WechatLoginRequest req = new WechatLoginRequest("bad-code", null, null);
-        assertThatThrownBy(() -> auth.wechatLogin(req))
+        assertThatThrownBy(() -> auth.wechatLogin(req, "10.0.0.1"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("wechat down");
         verify(attempts, times(1)).recordFailure(anyString());
+    }
+
+    /**
+     * PR review #7 回归保护:不同 code(用同一 IP)都必须累计到<em>同一</em> lockout key,
+     * 否则攻击者用新 code 永远碰不到 maxFailures 阈值。原 bug 是用 {@code code.hashCode()}
+     * 作 key,新 code 重新计数。
+     */
+    @Test
+    void wechatLogin_differentCodesFromSameIpShareLockoutCounter() {
+        // 仅在第一次 isLocked 调用时返 60(模拟 IP 锁)
+        when(attempts.isLocked("wechat-ip:10.0.0.1")).thenReturn(60);
+        when(attempts.isLocked(startsWith("wechat:"))).thenReturn(0);
+        when(wechat.exchange(anyString())).thenThrow(new RuntimeException("wechat down"));
+
+        // 第一个 code:被 IP 锁直接拒
+        WechatLoginRequest req1 = new WechatLoginRequest("code-A", null, null);
+        assertThatThrownBy(() -> auth.wechatLogin(req1, "10.0.0.1"))
+                .isInstanceOf(AccountLockedException.class);
+
+        // 关键断言:关键路径用的是 IP key("wechat-ip:10.0.0.1"),
+        // 不是 code hash。原实现用 code.hashCode() 时,新 code 命中不同 key,绕过锁。
+        org.mockito.ArgumentCaptor<String> keyCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(attempts, org.mockito.Mockito.atLeastOnce()).isLocked(keyCaptor.capture());
+        assertThat(keyCaptor.getAllValues())
+                .as("pre-exchange lockout key MUST be IP-based, not code-based")
+                .anyMatch(k -> k != null && k.equals("wechat-ip:10.0.0.1"));
+        // 反向断言:不应传 code-hash 形式的 key 给 isLocked
+        assertThat(keyCaptor.getAllValues())
+                .noneMatch(k -> k != null && k.startsWith("wechat:") && !k.startsWith("wechat-ip:"));
     }
 }

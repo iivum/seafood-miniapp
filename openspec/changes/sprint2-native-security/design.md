@@ -51,9 +51,12 @@ Stakeholders: backend engineering (own everything below), DevOps (owns docker-co
 - **Alternative considered**: Stateless JWT denylist via short-lived access tokens + refresh rotation only. Rejected — refresh rotation already exists; admin-driven "kick this user out NOW" is a hard requirement that statelessness cannot meet.
 - **Cross-module impact**: New `shared/security/TokenRevocationService` is called by `JwtAuthenticationFilter` (read) and by `user.application.UserApplicationService.forceLogout(userId)` (write). Cross-module call is via ApplicationService, per design §1.3.
 
-### 4. Rate limit — Caffeine in-memory token bucket, scoped to `/api/admin/**`
+### 4. Rate limit — Caffeine in-memory **fixed window**, scoped to `/api/admin/**` (PR review #27)
 
-- **Decision**: 60 rpm per `(clientIp, account)` tuple using `caffeine` with token-bucket semantics (`Bucket4j` rejected — adds a dependency for a single use site we control).
+- **Decision**: 60 rpm per `(clientIp, account)` tuple using `caffeine` with **fixed-window** semantics
+  (NOT a token bucket — the wording in prior revisions was inaccurate). `Bucket4j` rejected —
+  adds a dependency for a single use site we control. The window is aligned to wall-clock minutes
+  (`(nowMs / 60000) * 60000`);each new window resets the count.
 - **Rationale**: Admin endpoints are low-volume (≤10 admin users × ≤1 rps under normal use). 60 rpm headroom is generous; the limit is a brute-force / scraping defense, not a throughput governor. Customer-facing `/api/products` traffic is much higher and would need a different strategy (CDN, Redis); explicit non-goal.
 - **Alternative considered**: Spring Cloud Gateway rate-limit filter. Rejected — pulls in Spring Cloud, conflicts with GraalVM Native goals.
 - **GraalVM caveat**: `caffeine` is supported by the GraalVM Reachability Metadata Repository for Boot 4. No new META-INF entries expected; `nativeTest` confirms.

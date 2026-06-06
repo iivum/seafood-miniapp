@@ -46,6 +46,13 @@ api:
   base-path: /api
   admin:
     base-path: /api/admin
+    # PR review #8:admin 启动期密码<em>必须</em>由 env 注入,缺即 fail-fast;
+    # 这里给 dev profile 一个本地默认方便调试,生产用 env 覆盖。username 仍可走默认。
+    # PR review #8 / CLAUDE.md "禁硬编码密钥"。BootstrapCredential 校验见
+    # {@code AdminBootstrapProperties.isPasswordPresent()}。
+    bootstrap:
+      username: ${ADMIN_BOOTSTRAP_USERNAME:admin}
+      password: ${ADMIN_BOOTSTRAP_PASSWORD:}
 
 management:
   endpoints:

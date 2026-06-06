@@ -147,6 +147,60 @@ class TokenRevocationServiceTest {
         verify(repo, times(2)).existsById("z");
     }
 
+    /**
+     * PR review #22 回归保护:isRevoked 与 revoke 并发时,TRUE 永远赢。
+     *
+     * <p>原 bug 场景:
+     * <pre>
+     *   T1 isRevoked("X") → cache miss → existsById("X") = false
+     *   T2 revoke("X", ...) → save + cache.put("X", TRUE)
+     *   T1                  → cache.put("X", FALSE) ← 覆盖 TRUE!
+     *   后续 5s 内 isRevoked("X") 都返 false (错)
+     * </pre>
+     *
+     * <p>fix:isRevoked 用 {@code putIfAbsent} 写 FALSE,并发的 TRUE 不会被覆盖。
+     */
+    @Test
+    void concurrentRevokeAfterIsRevokedDbReadDoesNotGetOverwrittenByFalse() {
+        // 模拟 race:T1 已读到 DB = false,正要把 FALSE 写缓存;
+        // 期间 T2 revoke 完成,先 put TRUE。
+        // 这里用 Mockito 控制:existsById 第一次返 false(模拟 T1 DB 读),
+        // 然后 svc.revoke 写入 TRUE;再调 isRevoked 应返 true。
+        when(repo.existsById("X")).thenReturn(false);
+
+        // 模拟 T1:第一次 isRevoked 走 DB 读,准备写 FALSE
+        assertThat(svc.isRevoked("X", "u")).isFalse();
+
+        // 模拟 T2:中间有人 revoke 了 X(在 T1 写 FALSE 之前)
+        when(repo.existsById("X")).thenReturn(true);
+        svc.revoke("X", "u", Instant.now().plusSeconds(60));
+
+        // 关键:再次 isRevoked 仍应为 true(因为 cache 里是 TRUE,不是被覆盖的 FALSE)
+        // 原实现会因前一次 isRevoked 写入 FALSE 而被覆盖
+        assertThat(svc.isRevoked("X", "u"))
+                .as("after concurrent revoke, isRevoked must return TRUE")
+                .isTrue();
+    }
+
+    /**
+     * PR review #22 强化:即使中间发生多次并发写入,TRUE 仍是 dominant state。
+     */
+    @Test
+    void putIfAbsentKeepsTrueAcrossMultipleConcurrentWriters() {
+        // 第一次 isRevoked:写负缓存
+        assertThat(svc.isRevoked("Y", "u")).isFalse();
+        // 此时 cache 里有 FALSE
+
+        // 撤销发生:写入 TRUE(应该无条件覆盖)
+        when(repo.existsById("Y")).thenReturn(true);
+        svc.revoke("Y", "u", Instant.now().plusSeconds(60));
+
+        // 后续 isRevoked:命中正缓存,直接 true
+        assertThat(svc.isRevoked("Y", "u")).isTrue();
+        // repo.existsById 仍只被调 1 次(在第一次 isRevoked 时)
+        verify(repo, times(1)).existsById("Y");
+    }
+
     /** 手动时间推进器;{@link Ticker#read()} 始终返回 0 + 偏移(纳秒)。 */
     private static final class FakeTicker implements Ticker {
         private final AtomicReference<Long> elapsedNanos = new AtomicReference<>(0L);

@@ -4,8 +4,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -19,11 +17,18 @@ import java.io.IOException;
  * 静态 admin 资源、JSON API、错误响应、404 一视同仁。
  * 配合 ArchUnit 规则(2.3)防止其他类再写这 6 个头导致分散。
  *
- * <p>Order=HIGHEST_PRECEDENCE+100,先于 {@link JwtAuthenticationFilter} 跑 ——
- * 这样即便鉴权失败抛 401,响应头也已经写好。
+ * <p><b>顺序由 {@code SecurityConfig} 显式声明</b>(PR review #25):
+ * <pre>
+ *   http.addFilterBefore(headersFilter, SecurityContextHolderFilter.class)
+ * </pre>
+ * <em>不</em>用 {@code @Order} — 一旦 filter 被 {@code addFilterBefore/After} 装入 Spring
+ * Security 链,链内位置完全由插入点决定,@Order 对 OncePerRequestFilter 在 chain 内的实际
+ * 顺序<em>不生效</em>。原 {@code @Order(HIGHEST_PRECEDENCE + 100)} 是误导性注释 —
+ * 既与 SecurityConfig 冲突,又在 refactor 时容易让维护者误以为"改 @Order 就能改顺序"。
+ *
+ * <p>这样即便鉴权失败抛 401,响应头也已经写好。
  */
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 100)
 public class SecurityHeadersFilter extends OncePerRequestFilter {
 
     public static final String HSTS = "Strict-Transport-Security";

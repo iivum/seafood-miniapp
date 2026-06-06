@@ -82,6 +82,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set, 32+ bytes}
       JWT_ADMIN_SECRET: ${JWT_ADMIN_SECRET:?JWT_ADMIN_SECRET must be set, 32+ bytes, must differ from JWT_SECRET}
       MONGODB_URI: mongodb://mongodb:27017/seafood
+      # PR review #8:admin bootstrap 密码必填,缺即 fail-fast(@Value 无默认 + adminLogin 启动期校验)
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:?ADMIN_BOOTSTRAP_PASSWORD must be set, no default}
       SPRING_PROFILES_ACTIVE: docker
     deploy:
       resources:

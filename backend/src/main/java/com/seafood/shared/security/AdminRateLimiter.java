@@ -47,28 +47,36 @@ public class AdminRateLimiter {
     public Decision tryAcquire(String key) {
         AtomicReference<Window> ref = buckets.get(key,
                 k -> new AtomicReference<>(new Window(currentWindowStartMs(), 0)));
-        Window w = ref.get();
-        long nowMs = currentTimeMs();
-        long windowStart = currentWindowStartMs();
-        if (w.startMs != windowStart) {
-            // 切到新窗口
-            Window fresh = new Window(windowStart, 0);
-            if (!ref.compareAndSet(w, fresh)) {
-                w = ref.get();
-            } else {
-                w = fresh;
+        // PR review #3 fix:CAS loop with re-check on lost CAS.
+        // 原实现在 CAS 失败时 `bumped = ref.get()` 重读但**不重检** limit,然后无条件
+        // `Decision.grant()` — 两个并发请求都看到 count=59 时,都过 limit 检查,
+        // 都尝试 CAS to 60,一个胜出(count=60),另一个失败但重读到 60 仍然 grant,
+        // 桶变成 61,rate limit 被绕过。现:CAS 失败即 loop,重新拿 w + 重检 limit。
+        // 模式来自 LoginAttemptService.recordFailure,经过 stress 测试验证。
+        for (;;) {
+            Window w = ref.get();
+            long nowMs = currentTimeMs();
+            long windowStart = currentWindowStartMs();
+            if (w.startMs != windowStart) {
+                // 切到新窗口;若 CAS 失败则下一轮 loop 重新感知到。
+                Window fresh = new Window(windowStart, 0);
+                if (ref.compareAndSet(w, fresh)) {
+                    w = fresh;
+                } else {
+                    continue;
+                }
             }
+            if (w.count >= props.getRequestsPerMinute()) {
+                long retryMs = (w.startMs + WINDOW_MS) - nowMs;
+                int retrySec = (int) Math.max(1L, (retryMs + 999) / 1000); // 上取整,至少 1
+                return Decision.deny(retrySec);
+            }
+            Window bumped = new Window(w.startMs, w.count + 1);
+            if (ref.compareAndSet(w, bumped)) {
+                return Decision.grant();
+            }
+            // CAS 失败 → loop 重检;不再无条件 grant。
         }
-        if (w.count >= props.getRequestsPerMinute()) {
-            long retryMs = (w.startMs + WINDOW_MS) - nowMs;
-            int retrySec = (int) Math.max(1L, (retryMs + 999) / 1000); // 上取整,至少 1
-            return Decision.deny(retrySec);
-        }
-        Window bumped = new Window(w.startMs, w.count + 1);
-        if (!ref.compareAndSet(w, bumped)) {
-            bumped = ref.get();
-        }
-        return Decision.grant();
     }
 
     /** 当前时间(毫秒);把 Ticker 的 nanos 读数转换成毫秒。 */

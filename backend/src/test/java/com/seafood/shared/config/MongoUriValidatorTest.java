@@ -67,4 +67,36 @@ class MongoUriValidatorTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("mongodb://");
     }
+
+    /**
+     * PR review #9 — 启动期错误消息<em>绝不</em>回显 URI 的子串,否则会泄漏
+     * 内嵌凭据的 username。`mongodb://alice:hunter2@db.example.com/...` 前 16
+     * 字符是 {@code mongodb://alic},包含用户名。原实现就是这么写。
+     *
+     * <p>用 {@code postgres://...} 而非 {@code mongodb://...} 触发校验失败 ——
+     * mongo URI 本身能通过校验,无法触发错误消息路径。
+     */
+    @Test
+    void invalidUriErrorDoesNotLeakEmbeddedCredentials() {
+        // 错的协议 + 内嵌凭据;目标是触发 schema 校验失败同时验证错误消息不泄漏。
+        String sensitiveUri = "postgres://alice:hunter2@db.example.com:5432/seafood";
+        MongoUriValidator validator = new MongoUriValidator(sensitiveUri);
+
+        assertThatThrownBy(validator::validate)
+                .isInstanceOf(IllegalStateException.class)
+                // 关键:不出现任何 URI 子串
+                .satisfies(thrown -> {
+                    String msg = thrown.getMessage();
+                    org.assertj.core.api.Assertions.assertThat(msg)
+                            .as("error message must not echo ANY substring of the URI")
+                            .doesNotContain("alice")
+                            .doesNotContain("hunter2")
+                            .doesNotContain("db.example.com")
+                            .doesNotContain("postgres")
+                            .doesNotContain(sensitiveUri);
+                })
+                // 但要告诉运维去哪里看
+                .hasMessageContaining("MONGODB_URI")
+                .hasMessageContaining("mongodb://");
+    }
 }

@@ -97,18 +97,16 @@ class AuthControllerLogoutTest {
 
     @Test
     void logout_withExpiredToken_stillReturns204() {
-        // 故意签一个过期 token(用自定义 provider)
+        // PR review #28:签一个<em>出生即过期</em>的 token(TTL 用负 duration,让 exp 字段落在过去),
+        // 而不是用 Thread.sleep 等自然过期 — 后者在慢 CI / 高负载下会 flake(50ms 不够)。
         JwtProperties p = new JwtProperties();
         p.setSecret("user-secret-at-least-32-bytes-long-123");
         p.setAdminSecret("admin-secret-at-least-32-bytes-4567");
-        p.setAccessTokenTtl(java.time.Duration.ofMillis(1));
+        p.setAccessTokenTtl(java.time.Duration.ofSeconds(-1));
         p.setRefreshTokenTtl(java.time.Duration.ofDays(1));
-        JwtTokenProvider shortLived = new JwtTokenProvider(p);
-        shortLived.init();
-        JwtTokenProvider.IssuedToken issued = shortLived.issueAccessToken("user-1", Role.CUSTOMER);
-
-        // 等 50ms 让 token 过期
-        try { Thread.sleep(50); } catch (InterruptedException e) { /* ignore */ }
+        JwtTokenProvider expiredOnIssue = new JwtTokenProvider(p);
+        expiredOnIssue.init();
+        JwtTokenProvider.IssuedToken issued = expiredOnIssue.issueAccessToken("user-1", Role.CUSTOMER);
 
         MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/auth/logout");
         req.addHeader("Authorization", "Bearer " + issued.token());

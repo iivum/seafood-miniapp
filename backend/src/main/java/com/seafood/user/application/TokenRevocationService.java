@@ -22,7 +22,7 @@ import java.util.List;
  *   <li>{@link #revokeAllForUser(String)} — 把整个 user 的所有 jti 标记为已撤销
  *       (对应 admin force-logout;由于 active jti 不可枚举 — 找不到地方存"我发过
  *       的所有 jti",用通配符 sentinel 文档,见下)</li>
- *   <li>{@link #isRevoked(String, List)} — 高频读路径;先 Caffeine 再 MongoDB</li>
+ *   <li>{@link #isRevoked(String, String)} — 高频读路径;先 Caffeine 再 MongoDB</li>
  * </ul>
  *
  * <p><b>缓存策略</b>(design §3 decision 3):双 TTL Caffeine:
@@ -33,11 +33,11 @@ import java.util.List;
  *       (例如前端轮询)</li>
  * </ul>
  *
- * <p><b>force-logout 实现</b>:在 {@code revoked_tokens} 集合里写一条
- * {@code _id = "*:<userId>"} 的 sentinel 文档;{@link #isRevoked} 检测到这一前缀
- * 时,即使 jti 不在显式列表也返回 true。这种设计的代价是 1 个 Mongo 文档永远
- * 存活(TTL 不会过期它);但 {@code revoke} 时设很远的 {@code expiresAt},
- * 配合定期清理 job(本次不实现)即可。{@code _id} 形如 {@code "u:USER_ID"}。
+ * <p><b>force-logout 实现</b>(PR review #26):在 {@code revoked_tokens} 集合里写一条
+ * {@code _id = "u:<userId>"} 的 sentinel 文档(实际常量 {@link #FORCE_LOGOUT_PREFIX} = {@code "u:"});
+ * {@link #isRevoked(String, String)} 检测到这一前缀时,即使 jti 不在显式列表也返回 true。
+ * 这种设计的代价是 1 个 Mongo 文档永远存活(TTL 不会过期它);但 {@code revoke} 时设很远的
+ * {@code expiresAt},配合定期清理 job(本次不实现)即可。
  */
 @Service
 public class TokenRevocationService {
@@ -147,7 +147,18 @@ public class TokenRevocationService {
                 return true;
             }
         }
-        cache.put(jti, Boolean.FALSE);
+        // PR review #22 — 关键:用 putIfAbsent 写 FALSE。如果并发 {@link #revoke} 在
+        // 我们 DB 读与缓存写之间抢先 put 了 TRUE,我们的 FALSE 不会覆盖它。
+        // 原实现用 {@code cache.put(jti, FALSE)} 是 last-write-wins,存在窗口:
+        //   T1 isRevoked → cache miss → DB 读 false
+        //   T2 revoke     → DB save + cache.put(TRUE)
+        //   T1            → cache.put(FALSE) 覆盖 TRUE → 后续 5s 内 isRevoked 都返 false(错)
+        // putIfAbsent 让 TRUE 永远赢。
+        Boolean prev = cache.asMap().putIfAbsent(jti, Boolean.FALSE);
+        if (Boolean.TRUE.equals(prev)) {
+            // 并发 revoke 在我们读 DB 期间抢先 put 了 TRUE;以 TRUE 为准
+            return true;
+        }
         return false;
     }
 

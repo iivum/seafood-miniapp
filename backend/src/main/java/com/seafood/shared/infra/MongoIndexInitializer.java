@@ -1,6 +1,5 @@
 package com.seafood.shared.infra;
 
-import com.mongodb.client.model.IndexOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -29,6 +28,16 @@ import com.seafood.user.infra.UserDocument;
  *
  * <p>{@code @EventListener(ApplicationReadyEvent.class)}:确保只在容器启动成功后建;
  * 用 {@code createIndex} 幂等(同名同 keySpecs 重复调用 OK)。
+ *
+ * <p><b>关键 vs 非关键索引(PR review #6):</b>
+ * <ul>
+ *   <li>关键(unique 约束、TTL 索引)— 创建失败必须 fail-fast:unique 不存在会让
+ *       {@code users.openId} 重复入库(同 openId 多次创建账号);TTL 缺失会让 revoked
+ *       tokens 永远留在 DB(每条都进 auth check,O(n) 退化为 DoS 入口)。两者都是
+ *       安全/合规红线,失败时抛 {@link IndexInitializationException} 阻断应用进入 ready 状态。</li>
+ *   <li>非关键(annotation-derived、text 索引)— 失败时仅 {@code warn}:query 性能降级
+ *       而非安全/正确性问题,不应让应用起不来。</li>
+ * </ul>
  */
 @Component
 public class MongoIndexInitializer {
@@ -45,27 +54,33 @@ public class MongoIndexInitializer {
 
     @EventListener(ApplicationReadyEvent.class)
     public void init() {
+        // annotation-derived:performance-only,失败仅 warn
         ensureAnnotationDerived(ProductDocument.class);
         ensureAnnotationDerived(OrderDocument.class);
         ensureAnnotationDerived(UserDocument.class);
 
-        ensureExtra("products",
+        // text index:performance-only,失败仅 warn
+        ensureOptional("products",
                 new Index().on("name", org.springframework.data.domain.Sort.Direction.ASC)
                         .on("description", org.springframework.data.domain.Sort.Direction.ASC)
                         .named("text_name_description"));
 
-        ensureExtra("users",
+        // unique constraint on openId:security-critical — 缺失会让同一 openId 建多个账号
+        ensureCritical("users",
                 new Index().on("openId", org.springframework.data.domain.Sort.Direction.ASC)
                         .unique()
-                        .named("uk_openId"));
+                        .named("uk_openId"),
+                "unique openId — prevents duplicate accounts for the same WeChat user");
 
         // Sprint 2 §3.3 — revoked_tokens TTL index:文档到期后 MongoDB 后台线程
         // 自动删除(每 60s 扫一次),无需应用层清理。expireAfterSeconds=0 表示
         // "expiresAt 字段本身的取值即为到期时间"。design.md §3 decision 3。
-        ensureExtra("revoked_tokens",
+        // 关键:缺失会让 revoked token 永远留在 DB,O(n) 退化为 auth check 瓶颈。
+        ensureCritical("revoked_tokens",
                 new Index().on("expiresAt", org.springframework.data.domain.Sort.Direction.ASC)
                         .expire(0L)
-                        .named("ttl_expiresAt"));
+                        .named("ttl_expiresAt"),
+                "TTL on revoked_tokens.expiresAt — bounds revoked-token collection size");
 
         log.info("[mongo] all indexes ensured");
     }
@@ -82,11 +97,33 @@ public class MongoIndexInitializer {
         });
     }
 
-    private void ensureExtra(String collection, Index index) {
+    /** Performance-only extra index — 失败仅 warn。 */
+    private void ensureOptional(String collection, Index index) {
         try {
             mongo.indexOps(collection).ensureIndex(index);
         } catch (Exception e) {
             log.warn("[mongo] ensureIndex {} on {} failed: {}", index, collection, e.getMessage());
+        }
+    }
+
+    /**
+     * Security/compliance-critical index — 失败必须 fail-fast,否则应用带着缺失索引进入
+     * {@code /actuator/health = UP} 状态,把安全/正确性风险埋进生产。
+     *
+     * <p>注意:抛在 {@code ApplicationReadyEvent} 监听器里 <em>不会</em>中断已发出的 ready
+     * 事件;但会进 ERROR 日志并阻止后续索引创建。运维在启动期会看到,等价的"阻止 ready" 效果
+     * 应当配合 readinessProbe / 健康检查单独实现(参见 design §5.3)。
+     */
+    private void ensureCritical(String collection, Index index, String why) {
+        try {
+            mongo.indexOps(collection).ensureIndex(index);
+        } catch (Exception e) {
+            log.error("[mongo] CRITICAL ensureIndex {} on {} FAILED: {} — {}",
+                    index, collection, e.getMessage(), why);
+            throw new IndexInitializationException(
+                    "Failed to ensure critical index on '" + collection
+                            + "': " + e.getMessage() + ". Application cannot start safely. Cause: " + why,
+                    e);
         }
     }
 }

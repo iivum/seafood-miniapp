@@ -20,8 +20,9 @@ import java.io.IOException;
  * Admin 路径限流 filter(Sprint 2 §2.6,specs/runtime-security §Admin endpoints enforce
  * a rate limit)。
  *
- * <p>作用域:仅匹配 {@code /api/admin/**} 的请求;其它路径短路直接放行(spec 场景
- * "Non-admin path not rate-limited")。
+ * <p>作用域:仅匹配 {@code /api/admin} 与 {@code /api/admin/**} 的请求(spec §"Non-admin
+ * path not rate-limited")。与 {@link JwtAuthenticationFilter#isAdminPath(String)} 的
+ * 判定保持一致 —— 不接受 {@code /api/adminalice} 这类近似前缀绕过。
  *
  * <p>桶 key: {@code clientIp + ":" + account}。未鉴权请求用 anonymous 占位,
  * 这样未鉴权 brute-force 仍然受同一桶限制(只是单 IP 维度的 60 rpm)。
@@ -30,11 +31,18 @@ import java.io.IOException;
  * 异常不会经过 {@code @RestControllerAdvice},标准做法是 filter 自己负责序列化
  * {@link ErrorResponse} body。{@code GlobalExceptionHandler} 仍保留
  * {@code RateLimitedException} handler,用于将来 controller 直接抛该异常的场景。
+ *
+ * <p><b>关于 clientIp:</b>只使用 {@link HttpServletRequest#getRemoteAddr()} —— 即 TCP
+ * 层的对端 IP,完全不解析 {@code X-Forwarded-For}。理由:由 nginx/ALB 这类受信反向代理
+ * 终止连接时,真实客户端 IP 已经在 TCP socket 层(代理会把 XFF 改写成连接 IP);
+ * 在应用层手解 XFF 等于无差别信任请求头,攻击者只要带上
+ * {@code X-Forwarded-For: 1.2.3.4} 就能绕过限流(PR review #4)。{@code application.yml}
+ * 中的 {@code server.forward-headers-strategy: framework} 仍保留,用于
+ * X-Forwarded-Proto / X-Forwarded-Host 这类非 IP 字段。
  */
 @Component
 public class AdminRateLimitFilter extends OncePerRequestFilter {
 
-    private static final String ADMIN_PATH_PREFIX = "/api/admin/";
     private static final String ANONYMOUS = "anonymous";
 
     private final AdminRateLimiter limiter;
@@ -48,7 +56,12 @@ public class AdminRateLimitFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest req) {
         String uri = req.getRequestURI();
-        return uri == null || !uri.startsWith(ADMIN_PATH_PREFIX);
+        if (uri == null) {
+            return true;
+        }
+        // 与 JwtAuthenticationFilter.isAdminPath 完全一致:精确匹配 /api/admin,
+        // 或前缀匹配 /api/admin/。这样 /api/adminalice 不会被误判。
+        return !(uri.equals("/api/admin") || uri.startsWith("/api/admin/"));
     }
 
     @Override
@@ -75,12 +88,11 @@ public class AdminRateLimitFilter extends OncePerRequestFilter {
     }
 
     private static String clientIp(HttpServletRequest req) {
-        String fwd = req.getHeader("X-Forwarded-For");
-        if (fwd != null && !fwd.isBlank()) {
-            int comma = fwd.indexOf(',');
-            return (comma < 0 ? fwd : fwd.substring(0, comma)).trim();
-        }
-        return req.getRemoteAddr() == null ? "unknown" : req.getRemoteAddr();
+        // 关键:只用 TCP 层对端 IP,绝不读 X-Forwarded-For 头 —— 否则攻击者
+        // 任何请求都自带 XFF 即可绕过按 IP 的限流桶。生产环境由前置 nginx/ALB
+        // 把真实客户端 IP 透到 TCP socket。
+        String remote = req.getRemoteAddr();
+        return remote == null || remote.isBlank() ? "unknown" : remote;
     }
 
     private static String currentAccount() {

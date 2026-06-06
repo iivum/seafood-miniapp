@@ -39,9 +39,15 @@ public class MongoUriValidator {
                             + "to a value starting with mongodb:// or mongodb+srv://");
         }
         if (!MONGODB_URI_PATTERN.matcher(uri).matches()) {
+            // PR review #9:不要把 URI 的任何子串回显到错误消息。
+            // 原实现 `uri.substring(0, 16)` 会泄漏 username(`mongodb://user:...` 前 16 字符
+            // 就包含 user),密码虽然在第一个 @ 之后,但 username 本身已是 PII。
+            // 错误消息只描述"应当是什么格式"和"环境变量名",让运维自行查 ——
+            // 这与 {code @ConfigurationProperties} 校验异常的脱敏惯例一致。
             throw new IllegalStateException(
-                    "spring.data.mongodb.uri must start with mongodb:// or mongodb+srv:// "
-                            + "(got: " + uri.substring(0, Math.min(uri.length(), 16)) + "***)");
+                    "spring.data.mongodb.uri must start with mongodb:// or mongodb+srv://. "
+                            + "Check the MONGODB_URI environment variable (value not echoed to avoid "
+                            + "leaking embedded credentials).");
         }
     }
 }

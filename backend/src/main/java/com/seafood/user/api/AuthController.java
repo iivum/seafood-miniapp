@@ -55,8 +55,12 @@ public class AuthController {
     }
 
     @PostMapping("/wechat-login")
-    public TokenResponse wechatLogin(@Valid @RequestBody WechatLoginRequest req) {
-        return auth.wechatLogin(req);
+    public TokenResponse wechatLogin(@Valid @RequestBody WechatLoginRequest req,
+                                     HttpServletRequest httpReq) {
+        // PR review #7:lockout key 必须用 clientIp(在 exchange 之前没有 openId)。
+        // 不用 X-Forwarded-For — 由前置 nginx/ALB 写到 TCP socket,getRemoteAddr 已可信
+        // (参见 AdminRateLimitFilter 同款决策)。
+        return auth.wechatLogin(req, httpReq.getRemoteAddr());
     }
 
     @PostMapping("/refresh")

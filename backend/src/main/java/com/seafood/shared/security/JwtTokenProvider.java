@@ -59,9 +59,16 @@ public class JwtTokenProvider {
         return issue(userKey, userId, role, props.getAccessTokenTtl(), "access");
     }
 
-    /** 签发 refresh token(sub=userId, type=refresh, jti, iat, exp)。 */
-    public IssuedToken issueRefreshToken(String userId) {
-        return issue(userKey, userId, null, props.getRefreshTokenTtl(), "refresh");
+    /**
+     * 签发 refresh token(sub=userId, type=refresh, role, jti, iat, exp)。
+     *
+     * <p>PR review #30:必须包含 {@code role} claim —— {@code AuthService.refresh()}
+     * 走 happy path 时会 {@code Role.valueOf(claims.get("role", String.class))} 拿角色
+     * 签发新 access。原实现省略 role(传 null),refresh 路径在 line 158 NPE;此 bug 此前
+     * 0 测试覆盖,因为本仓库曾经完全没 happy-path refresh 测试。
+     */
+    public IssuedToken issueRefreshToken(String userId, Role role) {
+        return issue(userKey, userId, role, props.getRefreshTokenTtl(), "refresh");
     }
 
     // ----- admin-ui /api/admin/auth/**(独立密钥)-----
@@ -70,8 +77,8 @@ public class JwtTokenProvider {
         return issue(adminKey, userId, role, props.getAccessTokenTtl(), "access");
     }
 
-    public IssuedToken issueAdminRefreshToken(String userId) {
-        return issue(adminKey, userId, null, props.getRefreshTokenTtl(), "refresh");
+    public IssuedToken issueAdminRefreshToken(String userId, Role role) {
+        return issue(adminKey, userId, role, props.getRefreshTokenTtl(), "refresh");
     }
 
     // ----- 解析 -----

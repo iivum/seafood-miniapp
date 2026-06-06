@@ -87,7 +87,17 @@ RSS_MIB=$(printf '%s' "$RSS_RAW" | awk '
   { print 0 }
 ')
 log "RSS ≈ ${RSS_MIB} MiB"
-if ! [ "$RSS_MIB" -lt 200 ] 2>/dev/null; then
+# PR review #23 关键修复:原版 `! [ "$RSS_MIB" -lt 200 ]` 在 RSS_MIB 为空/0 时
+# ([ 表达式 ] 解析失败 → 退出 1 → !1 = 0 → 条件不成立) 会静默通过 ——
+# 容器起不来、stats 不可读、inspect 拿不到数字时,验收完全失去意义。
+# 显式三态判定:空 / 0 / 非数字 → 失败;否则才比较 < 200。
+if [ -z "$RSS_MIB" ] || ! printf '%s' "$RSS_MIB" | grep -qE '^[0-9]+$'; then
+  fail "could not measure backend RSS (raw='$RSS_RAW', parsed='$RSS_MIB')"
+fi
+if [ "$RSS_MIB" -le 0 ]; then
+  fail "backend RSS is 0/empty — measurement broken or container not running"
+fi
+if [ "$RSS_MIB" -ge 200 ]; then
   fail "RSS budget exceeded: ${RSS_MIB} MiB (must be < 200 MiB)"
 fi
 

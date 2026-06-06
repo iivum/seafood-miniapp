@@ -10,8 +10,9 @@ import org.springframework.boot.actuate.context.properties.ConfigurationProperti
 import org.springframework.boot.actuate.endpoint.SanitizableData;
 import org.springframework.boot.actuate.endpoint.Show;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Import;
 import tools.jackson.databind.ObjectMapper;
@@ -51,6 +52,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * the <em>primary</em> {@code ObjectMapper} path (controller JSON, log message formatting). Both
  * defences are exercised here so a regression in either path fails this test.
  *
+ * <p><b>Weakness of the actuator test (PR review #5):</b> {@code Show.NEVER} + actuator's
+ * hard-coded sanitization patterns ({@code password|secret|key|token|credential|...}) would mask
+ * {@code secret}/{@code appid} <em>even if we deleted {@link JacksonSensitiveValueConfig}</em>.
+ * To prove the primary-ObjectMapper path is actually protected by our module — not just by
+ * actuator defaults — {@link #primaryObjectMapperMasksFieldsBeyondActuatorDefaults()} registers a
+ * custom {@code @ConfigurationProperties} bean whose field name ({@code mongoUri}) is in our
+ * regex but <em>not</em> in actuator's default sanitization set. If {@link JacksonSensitiveValueConfig}
+ * is removed, the {@code mongoUri} raw value would leak through the primary ObjectMapper and this
+ * test would fail.
+ *
  * <p>Setup is intentionally lightweight: {@link ApplicationContextRunner} with
  * {@link JacksonAutoConfiguration} + the production {@link JacksonSensitiveValueConfig}. No
  * Testcontainers, no admin-auth harness, no production {@code application.yml} change to expose
@@ -63,6 +74,24 @@ class ConfigPropsMaskingIT {
     private static final String WECHAT_APPID = "wxAppId1234567890";
     private static final String WECHAT_SECRET = "wechat-server-side-secret-value";
 
+    /**
+     * Custom test fixture whose {@code mongoUri} field is in our regex
+     * ({@code SensitiveValueBeanSerializerModifier.SENSITIVE_FIELD_PATTERN}) but NOT in
+     * Spring Boot's actuator default sanitization set (which only covers
+     * {@code password|secret|key|token|credential|vcap_services} by default). Lets us prove
+     * {@link JacksonSensitiveValueConfig} is doing real work — not just relying on actuator defaults.
+     */
+    @ConfigurationProperties(prefix = "fixture")
+    static class FixtureProps {
+        private String mongoUri;
+        private String plainLabel;
+
+        public String getMongoUri() { return mongoUri; }
+        public void setMongoUri(String mongoUri) { this.mongoUri = mongoUri; }
+        public String getPlainLabel() { return plainLabel; }
+        public void setPlainLabel(String plainLabel) { this.plainLabel = plainLabel; }
+    }
+
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class))
             .withUserConfiguration(TestApp.class)
@@ -71,7 +100,10 @@ class ConfigPropsMaskingIT {
                     "security.jwt.admin-secret=" + JWT_ADMIN_SECRET,
                     "wechat.enabled=true",
                     "wechat.appid=" + WECHAT_APPID,
-                    "wechat.secret=" + WECHAT_SECRET);
+                    "wechat.secret=" + WECHAT_SECRET,
+                    // fixture: 'mongoUri' is in OUR regex (contains "uri") but NOT in actuator default
+                    "fixture.mongo-uri=mongodb://user:hunter2@db.example.com:27017/seafood?ssl=true",
+                    "fixture.plain-label=this-is-not-sensitive");
 
     @Test
     void actuatorConfigPropsReplacesSensitiveValuesWithSanitizedPlaceholder() {
@@ -84,7 +116,10 @@ class ConfigPropsMaskingIT {
             String rendered = renderDescriptorAsString(descriptor);
 
             // Spec scenario "configprops masks JWT secret" + sister fields for wechat.
-            // Actuator default Show.NEVER → Sanitizer returns the literal SANITIZED_VALUE ("******").
+            // Note: this asserts actuator's built-in Sanitizer (defaults cover
+            // password|secret|key|token|credential) — NOT our JacksonSensitiveValueConfig.
+            // See #primaryObjectMapperMasksFieldsBeyondActuatorDefaults for a test that
+            // genuinely depends on our module being active.
             assertSanitizedValueEquals(descriptor, "security.jwt", "secret");
             assertSanitizedValueEquals(descriptor, "security.jwt", "adminSecret");
             assertSanitizedValueEquals(descriptor, "wechat", "secret");
@@ -128,6 +163,43 @@ class ConfigPropsMaskingIT {
         });
     }
 
+    /**
+     * PR review #5 — Regression guard for {@link JacksonSensitiveValueConfig}.
+     *
+     * <p>Uses a field ({@code mongoUri}) that is in our regex but NOT in actuator's default
+     * sanitization set. Asserts:
+     * <ol>
+     *   <li>The primary {@link ObjectMapper} masks {@code mongoUri} (proves our module is active
+     *       and doing real work — would fail if {@link JacksonSensitiveValueConfig} were removed).</li>
+     *   <li>The non-sensitive {@code plainLabel} is left intact (proves the module does not
+     *       over-mask).</li>
+     * </ol>
+     */
+    @Test
+    void primaryObjectMapperMasksFieldsBeyondActuatorDefaults() {
+        contextRunner.run(context -> {
+            ObjectMapper mapper = context.getBean(ObjectMapper.class);
+            FixtureProps fixture = context.getBean(FixtureProps.class);
+
+            String json = mapper.writeValueAsString(fixture);
+
+            // mongoUri is in our regex; raw value contains the password "hunter2" and the host.
+            String raw = fixture.getMongoUri();
+            String expectedMask = raw.substring(0, 4) + "***";
+            assertThat(json)
+                    .as("mongoUri must be masked on primary ObjectMapper (our module, not actuator)")
+                    .contains("\"mongoUri\":\"" + expectedMask + "\"")
+                    .doesNotContain(raw)                       // whole URI gone
+                    .doesNotContain("hunter2")                 // password gone
+                    .doesNotContain("db.example.com");         // host gone
+
+            // plainLabel is NOT in our regex → must be left as-is.
+            assertThat(json)
+                    .as("non-sensitive field must NOT be masked")
+                    .contains("\"plainLabel\":\"this-is-not-sensitive\"");
+        });
+    }
+
     private static void assertSanitizedValueEquals(
             ConfigurationPropertiesDescriptor descriptor,
             String prefix,
@@ -168,7 +240,7 @@ class ConfigPropsMaskingIT {
     }
 
     @SpringBootConfiguration
-    @EnableConfigurationProperties({JwtProperties.class, WechatProperties.class})
+    @EnableConfigurationProperties({JwtProperties.class, WechatProperties.class, FixtureProps.class})
     @Import(JacksonSensitiveValueConfig.class)
     static class TestApp {
     }

@@ -1,28 +1,3 @@
-<<<<<<< HEAD
-# =====================================================
-# Native build + image scan workflow (Sprint 2 §4.4 + §5.4)
-#   C4: 仅交付 Trivy 步骤(stub)
-#   C5: 填充 nativeTest → nativeCompile → docker build → smoke test
-# =====================================================
-name: Native
-
-on:
-  pull_request:
-    paths:
-      - "backend/**"
-      - "Dockerfile"
-      - "docker-compose.yml"
-      - ".github/workflows/native.yml"
-  push:
-    branches: [main]
-
-# 所有 run: 块均硬编码,无 ${{ github.event.* }} 插值
-jobs:
-  trivy-image:
-    name: Trivy scan (seafood-backend:native)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-=======
 name: Native (GraalVM + Distroless)
 
 # Sprint 2 C5 §5.4
@@ -39,61 +14,28 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# 默认 env:JWT 密钥满足 @Size(min=32),ci 文件不依赖 secret
+# 默认 env:JWT 密钥满足 @Size(min=32);本 workflow 不引用 secrets.JWT_*,
+# 只用 secrets.GITHUB_TOKEN(GraalVM setup + ghcr.io 登录)。
 env:
   JWT_SECRET: ci-native-test-secret-must-be-at-least-32-bytes-AAAA
   JWT_ADMIN_SECRET: ci-native-test-admin-secret-must-be-at-least-32-bytes-BBBB
   MONGODB_URI: mongodb://localhost:27017/seafood_native
+  # PR review #8:admin.bootstrap.password 改为必填,CI 显式注入(原 :admin123 兜底已删)
+  ADMIN_BOOTSTRAP_PASSWORD: ci-native-test-admin-bootstrap-pw-MUST-NOT-be-default
 
 jobs:
   # =============================================================
-  # native-build — agent 收集 metadata + nativeCompile + docker build
+  # native-build — agent 收集 metadata + nativeCompile + docker build + Trivy + smoke
+  # 该 job 既覆盖 C4 §4.4 的 Trivy 镜像扫描,也覆盖 C5 §5.4 的端到端 native pipeline。
   # =============================================================
   native-build:
     name: GraalVM native build (Ubuntu)
     runs-on: ubuntu-latest
     timeout-minutes: 30
->>>>>>> feat/sprint2-c5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-<<<<<<< HEAD
-      # ---- C5 填充区:开始 ----
-      # C5 任务 5.4 将在此位置插入:
-      #   1. Setup GraalVM CE 25
-      #   2. Cache ~/.gradle
-      #   3. ./gradlew nativeTest         (生成 agent metadata)
-      #   4. bash scripts/normalize-native-metadata.sh
-      #   5. ./gradlew nativeCompile
-      #   6. docker build -t seafood-backend:nimalive .
-      # 详见 openspec/changes/sprint2-native-security/tasks.md §5
-      # ---- C5 填充区:结束 ----
-
-      - name: Build placeholder image for scan
-        # 临时占位 — 若上游 nativeCompile 步骤未跑,Trivy 至少能跑通流水线
-        # C5 实装后此步骤删除
-        run: |
-          echo "FROM scratch" > /tmp/Dockerfile.placeholder
-          docker build -t seafood-backend:native -f /tmp/Dockerfile.placeholder /tmp
-
-      - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: seafood-backend:native
-          format: sarif
-          output: trivy-results.sarif
-          severity: HIGH,CRITICAL
-          exit-code: "1"
-          ignore-unfixed: true
-
-      - name: Upload Trivy SARIF to Code Scanning
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy-image
-=======
       - name: Set up GraalVM JDK 25
         uses: graalvm/setup-graalvm@v1
         with:
@@ -157,7 +99,7 @@ jobs:
         working-directory: backend
         run: docker build -t seafood-backend:native -f Dockerfile .
 
-      - name: Trivy image scan (C4 step preserved)
+      - name: Trivy image scan (covers C4 §4.4)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'seafood-backend:native'
@@ -187,4 +129,3 @@ jobs:
           name: seafood-backend-native
           path: backend/build/native/nativeCompile/seafood-backend
           retention-days: 7
->>>>>>> feat/sprint2-c5

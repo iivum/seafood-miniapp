@@ -44,9 +44,37 @@ class SensitiveValueBeanSerializerModifierTest {
 
     @Test
     void masksFieldNamedUri() {
+        // 字段名就叫 "uri" — 命中 *Uri$ 规则(以 Uri 结尾)
         record Bean(String uri) {}
         String json = objectMapper().writeValueAsString(new Bean("mongodb://user:pw@host"));
         assertThat(json).contains("\"uri\":\"mong***\"");
+    }
+
+    @Test
+    void masksFieldEndingInUri() {
+        // PR review #24:常见 URI 字段命名(后缀 Uri)— 仍应被脱敏
+        record Bean(String mongoUri, String jdbcUri, String redirectUri) {}
+        String json = objectMapper().writeValueAsString(
+                new Bean("mongodb://u:p@h", "jdbc:postgresql://x", "https://example.com/cb"));
+        assertThat(json).contains("\"mongoUri\":\"mong***\"")
+                .contains("\"jdbcUri\":\"jdbc***\"")
+                .contains("\"redirectUri\":\"http***\"");
+    }
+
+    @Test
+    void doesNotMaskWordsContainingUriSubstring() {
+        // PR review #24 回归保护:false positive 防御。原 regex `(?i).*uri.*`
+        // 会把这些合法字段误判为 URI 凭据。修复后 `.*Uri$` 只匹配后缀。
+        record Bean(String touristName, String tutorialTitle, String durationMs, String curious) {}
+        String json = objectMapper().writeValueAsString(
+                new Bean("Alice", "How to cook", "PT5M", "wonder"));
+        assertThat(json)
+                .as("none of these may be masked — none end in 'Uri'")
+                .contains("\"touristName\":\"Alice\"")
+                .contains("\"tutorialTitle\":\"How to cook\"")
+                .contains("\"durationMs\":\"PT5M\"")
+                .contains("\"curious\":\"wonder\"")
+                .doesNotContain("***");
     }
 
     @Test
