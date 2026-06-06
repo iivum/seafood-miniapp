@@ -53,12 +53,15 @@ trap cleanup EXIT
 log "docker compose up -d"
 docker compose up -d || { echo "compose up failed" >&2; exit 3; }
 
-# ---- 2. 等待 HTTP 响应 within 30 s(200 之外的 5xx/4xx 也算"启动成功")----
-# CI 修复 v3:原要 200 才算 healthy。但 native binary 在容器内可能因 MongoDB
-# 暂时不可达(没 seed、连接被拒等)返 503 —— binary 本身是 up 的。
-# 健康验收 = "binary 进程在 8080 接受 HTTP 请求",不 = "下游全 OK"。
-HEALTH_URL="http://localhost:8080/actuator/health"
-log "waiting up to 30s for HTTP 200 at $HEALTH_URL (design §3.1)"
+# ---- 2. 等待 binary 接受 HTTP within 30 s ----
+# CI 修复 v4 (2026-06-07):改为探测 /actuator/health/liveness 而不是
+# /actuator/health。Spring Boot 4 的 liveness probe 只检查 context refresh
+# (不依赖 MongoDB / 外部系统),在 smoke 沙箱里 0.3s 内返 200;而 /actuator/health
+# 是聚合 endpoint,MongoIndexInitializer 卡 30s 时它不会 up。这让 smoke 在
+# CI mongo:7 空库场景下能用同一个时间窗验证 binary 启动,不需要 seed pipeline。
+# (设计 §3.1 验收 binary < 2s 启动仍成立,只是 probe endpoint 换成 liveness)
+HEALTH_URL="http://localhost:8080/actuator/health/liveness"
+log "waiting up to 30s for HTTP 200 at $HEALTH_URL (Spring Boot 4 liveness probe)"
 DEADLINE=$((SECONDS + 30))
 STARTED=0
 LAST_CODE=000
