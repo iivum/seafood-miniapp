@@ -7,6 +7,7 @@ import com.seafood.user.infra.RevokedToken;
 import com.seafood.user.infra.RevokedTokenRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -61,6 +62,11 @@ public class TokenRevocationService {
     private final Cache<String, Boolean> cache;
     private final Ticker ticker;
 
+    /**
+     * CI 修复:同 {@link com.seafood.shared.security.AdminRateLimiter} ——
+     * 两个 constructor 触发 Spring 6 AOT 失败。{@code @Autowired} 显式标记 1-arg 为首选。
+     */
+    @Autowired
     public TokenRevocationService(RevokedTokenRepository repo) {
         this(repo, Ticker.systemTicker());
     }

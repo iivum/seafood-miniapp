@@ -3,6 +3,7 @@ package com.seafood.user.application;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Ticker;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -31,6 +32,12 @@ public class LoginAttemptService {
     private final Cache<String, AtomicReference<FailureCounter>> counters;
     private final Ticker ticker;
 
+    /**
+     * CI 修复:同 {@link com.seafood.shared.security.AdminRateLimiter} ——
+     * 两个 constructor 触发 Spring 6 AOT 的 "No constructor or factory method
+     * candidate found" 失败。{@code @Autowired} 显式标记 1-arg 为首选。
+     */
+    @Autowired
     public LoginAttemptService(LoginAttemptProperties props) {
         this(props, Ticker.systemTicker());
     }
