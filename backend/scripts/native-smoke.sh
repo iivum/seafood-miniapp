@@ -20,21 +20,24 @@ log()  { printf '[smoke] %s\n' "$*"; }
 fail() { printf '[smoke] FAIL — %s\n' "$*" >&2; exit 1; }
 
 # ---- 工具检查 ----
-for bin in docker docker-compose curl jq awk; do
+# CI 修复:删除 docker-compose v1 检查 —— GitHub Actions ubuntu-latest 自 2022
+# 起只装 docker CLI plugin(v2),`docker-compose` v1 binary 不再自带,装它会引额外
+# setup step。v2 plugin 兼容,直接用 `docker compose`。
+for bin in docker curl jq awk; do
   command -v "$bin" >/dev/null 2>&1 || { echo "[smoke] missing: $bin" >&2; exit 2; }
 done
+# 进一步确认 docker compose v2 plugin 可用
+docker compose version >/dev/null 2>&1 || { echo "[smoke] missing: docker compose v2 plugin" >&2; exit 2; }
 
 cleanup() {
-  log "docker-compose down -v"
-  docker compose down -v >/dev/null 2>&1 || docker-compose down -v >/dev/null 2>&1 || true
+  log "docker compose down -v"
+  docker compose down -v >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 # ---- 1. 拉起 stack ----
 log "docker compose up -d"
-if command -v docker >/dev/null 2>&1; then
-  docker compose up -d || docker-compose up -d || { echo "compose up failed" >&2; exit 3; }
-fi
+docker compose up -d || { echo "compose up failed" >&2; exit 3; }
 
 # ---- 2. 等待 /actuator/health 200 within 30 s ----
 HEALTH_URL="http://localhost:8080/actuator/health"

@@ -16,7 +16,9 @@ jobs:
   dependency-check:
     name: OWASP Dependency-Check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # CI 修复:超时从 15 提到 30 分钟 —— NVD 数据下载 + 全 transitive dep 扫描常超过
+    # 15min(尤其首次冷启动)。30min 是 NVD 推荐 + 实测稳定值。
+    timeout-minutes: 30
     env:
       CI: "true"   # 触发 build.gradle 中 CI-only 的 dependsOn binding
     steps:
