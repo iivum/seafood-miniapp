@@ -60,12 +60,14 @@ jobs:
           fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
 
       - name: TruffleHog filesystem scan
-        # CI 修复:pin 到具体 tag —— @main 解析失败(branch ref 不稳定,
-        # 经常被改名/删)。v3.84.x 系列是 stable 3.0 action 的最后一个,后续 v4
-        # 是重写。仍以 3.x action 镜像对齐 README 文档。
-        uses: trufflehog/trufflehog@3.84.4
-        with:
-          scan: filesystem
-          scan-flags: --since-commit=HEAD~1 --fail
-          base: ${{ github.repository }}
-          head: HEAD
+        # CI 修复 v2:之前 3.84.4 也不存在 —— trufflehog/trufflehog 这个 repo
+        # 不是 TruffleHog 官方。官方是 trufflesecurity/trufflehog,GitHub Action
+        # 路径是 trufflesecurity/trufflehog-action(且版本号独立)。
+        # 改用 Docker 镜像跑(最稳,不依赖 action 仓库版本):
+        #   docker run trufflesecurity/trufflehog:latest filesystem ...
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            -e GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
+            trufflesecurity/trufflehog:latest \
+            filesystem --directory=/repo --since-commit=HEAD~1 --fail --no-verification

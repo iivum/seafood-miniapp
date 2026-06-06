@@ -1,0 +1,22 @@
+# CI 修复:显式列出 build context,避免 BuildKit 看到 .git/、build/、.gradle/ 等大目录
+# 触发 cache key 频繁变化(尤其 gradle.properties 等被 commit 但 .gradle/ 在 container 内生成)。
+
+.git/
+.gradle/
+build/
+.classpath
+.project
+.settings/
+bin/
+out/
+*.iml
+.idea/
+.vscode/
+dependency-check-suppressions.xml
+.trivyignore
+*.sarif
+*.log
+node_modules/
+coverage/
+*.tar
+*.zip
