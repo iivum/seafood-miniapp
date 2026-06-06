@@ -1,7 +1,7 @@
 # =====================================================
 # Security workflow (Sprint 2 §4.3)
 #   - OWASP Dep-Check (SCA):  ./gradlew dependencyCheckAnalyze
-#   - TruffleHog (secret scan): filesystem --since-commit=HEAD~1
+#   - TruffleHog (secret scan): git file:///repo --since-commit=HEAD~1
 # 两个 job 并行;SARIF 全部上传到 GitHub Code Scanning。
 # =====================================================
 name: Security
@@ -10,6 +10,12 @@ on:
   pull_request:
   push:
     branches: [main, "feat/**", "fix/**"]
+
+# PR review C3:显式声明 GITHUB_TOKEN 权限。默认 token 不含 security-events: write,
+# 静默导致 github/codeql-action/upload-sarif@v3 报 403,SARIF 永远到不了 Code Scanning。
+permissions:
+  contents: read
+  security-events: write
 
 # 所有 run: 块均硬编码,无 ${{ github.event.* }} 插值
 jobs:
@@ -64,15 +70,23 @@ jobs:
         with:
           fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
 
-      - name: TruffleHog filesystem scan
-        # CI 修复 v7:filesystem 模式仍会扫 .git/config(CI 临时写 ghs_... extraheader)。
-        # 之前试 --exclude-paths /repo/.git 没用(TruffleHog 把它当 glob,匹配不到
-        # 容器内 mount 后的绝对路径)。最稳的解:用 tmpfs 覆盖 .git 目录,
-        # 这样容器内 /repo/.git 是空目录(挂 0 字节 tmpfs),filesystem 扫到空目录就过。
+      - name: TruffleHog git diff scan
+        # PR review v8(C4 + C5 + I8):从 filesystem + tmpfs hack (a80518b / 7fdb7b3 /
+        # 043a693) 切到 `git` 模式。理由:
+        # 1) `git` 模式原生支持 --since-commit=HEAD~1(a80518b 之前的设计意图),
+        #    配合上面 fetch-depth: 2,HEAD~1 在 runner checkout 里一定存在。
+        # 2) tmpfs 覆盖 .git 的方案(7fdb7b3 / 043a693)在 runner 上从未被日志验证,
+        #    且为屏蔽 .git/config(CI 临时写 ghs_... extraheader)而隐藏整个 .git,
+        #    范围过宽。
+        # 3) `git` 模式扫的是 commit 历史而非 working tree,正好需要 .git 存在 ——
+        #    所以 tmpfs hack 反而跟需求方向相反。
+        # 4) 去掉 --exclude-detectors MongoDB,Postgres(C5):mongodb://user:pass@host/db
+        #    是项目最常见的 secret 形态;该排除项是 alice:hunter2 FP 时代遗留,
+        #    2e8e5b6 改名为 TEST_USER_FAKE:TEST_PASSWORD_FAKE 后已无 FP 风险。
+        # 5) 镜像 pin 3.88.0(I8):f475004 曾经 pin 过,043a693 切到 :latest 时丢了。
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo:ro" \
-            --mount type=tmpfs,destination=/repo/.git \
-            trufflesecurity/trufflehog:latest \
-            filesystem /repo --fail --no-verification \
-            --exclude-detectors MongoDB,Postgres
+            trufflesecurity/trufflehog:3.88.0 \
+            git file:///repo --fail --no-verification \
+            --since-commit=HEAD~1

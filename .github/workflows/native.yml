@@ -14,6 +14,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# PR review C3:显式声明 GITHUB_TOKEN 权限。默认 token 不含 security-events: write,
+# 静默导致 github/codeql-action/upload-sarif@v3(Trivy SARIF 上传)报 403。
+# packages: write 是 push to main 时 docker/login-action 推 ghcr.io 镜像所需。
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  packages: write
+
 # 默认 env:JWT 密钥满足 @Size(min=32);本 workflow 不引用 secrets.JWT_*,
 # 只用 secrets.GITHUB_TOKEN(GraalVM setup + ghcr.io 登录)。
 env:
@@ -90,6 +99,21 @@ jobs:
         # merge gate 上。
         run: ./gradlew --no-daemon nativeTest
         continue-on-error: true
+
+      # PR review C7 修复:加硬 gate 校验 agent 实际跑了。
+      # 此前 nativeTest 失败被 continue-on-error 吞掉,agent 也没跑 → 整条
+      # pipeline 仍报绿,metadata 缺口永远到 prod 才暴露。
+      # 现在:不论 nativeTest 步本身 fail/success,下一必跑 validation 步
+      # 校验 reflect-config.json 存在且非空,缺则 ::error 失败整个 job。
+      - name: Validate native-image metadata captured
+        if: always()
+        run: |
+          set -e
+          test -f backend/build/native/agent-output/test/reflect-config.json \
+            || (echo "::error::reflect-config.json missing — nativeTest agent did not run" && exit 1)
+          test -s backend/build/native/agent-output/test/reflect-config.json \
+            || (echo "::error::reflect-config.json is empty" && exit 1)
+          echo "reflect-config.json present and non-empty"
 
       - name: Normalize + diff META-INF/native-image
         working-directory: backend
