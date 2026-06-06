@@ -53,6 +53,11 @@ trap cleanup EXIT
 log "docker compose up -d"
 docker compose up -d || { echo "compose up failed" >&2; exit 3; }
 
+# CI 修复 v2 (2026-06-07):dump 实际生效的环境,确认 MONGODB_URI 真的注入到
+# backend container。这是诊断的临时手柄,正常情况不会出现在 smoke log 中。
+log "docker inspect seafood-backend --format '{{.Config.Env}}' | grep -E 'MONGODB_URI|JWT_'"
+docker inspect seafood-backend --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | awk -F= '/^(MONGODB_URI|JWT_)/{print "  " $0}' || true
+
 # ---- 2. 等待 binary 接受 HTTP within 30 s ----
 # CI 修复 v4 (2026-06-07):改为探测 /actuator/health/liveness 而不是
 # /actuator/health。Spring Boot 4 的 liveness probe 只检查 context refresh
@@ -105,12 +110,14 @@ done
 #   4xx → fail(配置/路由错)
 # 拿 code + body 一次性写入 mktemp 文件,再 -w '%{http_code}' 拆出 code。
 PRODUCTS_URL="http://localhost:8080/api/products?page=0&size=10"
-log "GET $PRODUCTS_URL (max-time 30s to allow MongoIndexInitializer 30s server-selection timeout)"
+log "GET $PRODUCTS_URL (max-time 8s to allow MongoIndexInitializer 3s server-selection timeout + Tomcat thread release)"
 PRODUCTS_BODY=$(mktemp)
-# max-time 30s:products endpoint 走 Mongo,MongoIndexInitializer 在 native binary
-# 启动时会等 server-selection(默认 30s)。等 MongoIndexInitializer 完成后 /
-# api/products 才会返 200 + totalElements=0。max-time 太短会误判 000。
-PRODUCTS_CODE=$(curl -s -o "$PRODUCTS_BODY" -w '%{http_code}' "$PRODUCTS_URL" --max-time 30 2>/dev/null || echo "000")
+# max-time 8s:products endpoint 走 Mongo,smoke env 已注入
+# serverSelectionTimeoutMS=3000,所以 MongoIndexInitializer + products 查询都
+# 在 3s 内失败。8s 上限给 Tomcat thread scheduling 留 buffer。
+# (PR review v5:之前用 30s,但 serverSelectionTimeoutMS 在 MongoDB URI 4.2+ 已
+# 弃名,实际驱动忽略。改用更短 curl max-time 强制 fail-fast。)
+PRODUCTS_CODE=$(curl -s -o "$PRODUCTS_BODY" -w '%{http_code}' "$PRODUCTS_URL" --max-time 8 2>/dev/null || echo "000")
 if [ "${PRODUCTS_CODE:0:1}" = "5" ]; then
   rm -f "$PRODUCTS_BODY"
   fail "products endpoint returned 5xx ($PRODUCTS_CODE) — backend regression"
