@@ -16,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.context.WebApplicationContext;
@@ -129,6 +130,17 @@ class SecurityFilterChainOrderIT {
     }
 
     @TestConfiguration
+    // Sprint 2 C5 §3.7 fix (2026-06-07):@Profile("!native") — Mockito
+    // mock(TokenRevocationService.class) 在 GraalVM 25 nativeTest binary 下
+    // static init 失败(byte-buddy 反射 metadata 缺 → NoClassDefFoundError →
+    // BeanCreationException),cascade 到 ApplicationContext 启动失败 →
+    // Spring Test failure threshold=1 skip 所有后续 context → 11+ 测试 fail
+    // (AdminBffServiceTest / OrderServiceTest / ProductServiceTest 等)。
+    // Native 模式下:TokenRevocationService / JwtAuthenticationFilter /
+    // SecurityHeadersFilter / AdminRateLimitFilter 都由 Spring Security
+    // 真实 @Configuration + @Service 注入,filter chain 顺序契约仍可验证
+    // (本 IT 核心断言是 filter 顺序,不是 mock 行为)。
+    @Profile("!native")
     static class TestBeans {
         // 所有 *Properties 由 SecurityConfig.@EnableConfigurationProperties 提供,不重复声明
         @Bean SecurityHeadersFilter securityHeadersFilter(SecurityHeadersProperties p) { return new SecurityHeadersFilter(p); }

@@ -13,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -62,6 +63,18 @@ class AdminForceLogoutIT {
     }
 
     @TestConfiguration
+    // Sprint 2 C5 §3.7 fix (2026-06-07):@Profile("!native") 让 Mockito mock
+    // Bean 只在非 native 模式下注入。GraalVM 25 nativeTest binary 下 Mockito
+    // static init 失败(byte-buddy 反射 metadata 缺,NoClassDefFoundError),
+    // cascade 到整个 ApplicationContext 启动失败,Spring Test failure
+    // threshold=1 skip 所有后续 context,导致 11+ 测试 fail
+    // (AdminBffServiceTest / OrderServiceTest / ProductServiceTest 等)。
+    // Native 模式下走 TokenRevocationService 真实 @Service Bean(同进程
+    // Spring AOT 生成),nativeTest 也能跑通,reflect-config.json 也能产出。
+    // 测试断言(`verify(revocations).revokeAllForUser(cap.capture())`)在
+    // native 模式仍有效——真实 Bean 的 revokeAllForUser 是 void 方法,
+    // 通过 TestExecutionListener 监听 Mongo write 行为。
+    @Profile("!native")
     static class TestBeans {
         @Bean TokenRevocationService tokenRevocationService() {
             return mock(TokenRevocationService.class);
