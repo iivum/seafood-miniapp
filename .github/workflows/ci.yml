@@ -103,14 +103,15 @@ jobs:
             echo "admin-ui/ not present yet (refactor §9 deferred)"
           fi
 
-  docker:
-    name: Docker build (best-effort)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: backend
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build backend image
-        working-directory: backend
-        run: docker build -t seafood-backend:ci-test .
+  # Sprint 2 CI 修复 (2026-06-07):删 docker job。
+  # 原 job 跑 `docker build -t seafood-backend:ci-test .`,但 Dockerfile 自 P0 #2
+  # 改成单阶段 COPY pre-built binary (P0 #2 commit 553f107),依赖 nativeCompile
+  # 已产出 backend/build/native/nativeCompile/seafood-backend。CI workflow 这边
+  # 没有 nativeCompile step (那是 native.yml 的职责),所以 docker build 必然报
+  # "build/native/nativeCompile/seafood-backend: not found"(2074033 run 5m48:45
+  # 失败 9s)。
+  #
+  # 原 job 标 `continue-on-error: true` 是历史 best-effort 兜底,但失败 status
+  # 会污染 PR 整体 status 视觉。Native workflow (native.yml) 已独立跑 docker
+  # build + Trivy + smoke (line 165-170),职责已上移;CI workflow 删 docker job
+  # 是责任单一化的结果。
