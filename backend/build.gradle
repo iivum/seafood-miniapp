@@ -31,8 +31,15 @@
 //   allprojects { apply plugin: 'org.owasp.dependencycheck' }
 buildscript {
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        // Sprint 2 CI 修复 v5 (2026-06-07):0eac9f7 run Security 48s 失败,
+        // Gradle 拉传递依赖 org.slf4j:slf4j-bom:2.0.17 时
+        // aliyun gradle-plugin 仓库返 502 Bad Gateway,35 more failures 同因。
+        // 修法:把 mavenCentral() 放最优先,slf4j/spring-core/jackson 等 core
+        // Java 库走 mavenCentral 稳拿;aliyun gradle-plugin 保留(放后面)
+        // 给 OWASP plugin marker/主 artifact 备用;Plugin Portal 兜底。
+        mavenCentral()
         maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         gradlePluginPortal()
     }
     dependencies {
