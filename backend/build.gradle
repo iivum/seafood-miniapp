@@ -75,6 +75,15 @@ repositories {
 
 ext {
     set('jjwtVersion', "0.12.6")
+    // Sprint 2 CI 修复 (2026-06-07):override Spring Boot 4.0.6 BOM 的 tomcat.version
+    // 11.0.21 → 11.0.22。NVD 报告 11.0.0-M1..11.0.21 含 7 CVE
+    // (CVE-2026-41284/41293/42498/43512/43513/43514/43515),CVSS >= 7.0 命中 6
+    // 个(770313a OWASP Dep-Check 4m27s failBuildOnCVSS 失败)。
+    // Apache Tomcat 11.0.22 (2026-05-05) 一次性修这 7 个 CVE,tomcat-embed-core
+    // 升到 11.0.22 即全部消化。
+    // Spring Boot 4.0.6 BOM 当时锁的是 11.0.21,需要 ext property 显式 override,
+    // Spring Boot dependency-management plugin 会读这个 property 解 BOM。
+    set('tomcat.version', "11.0.22")
 }
 
 dependencies {
