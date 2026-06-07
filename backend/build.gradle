@@ -40,6 +40,12 @@ dependencyCheck {
     // source value contains an element of type java.io.File"。改直接传
     // 字符串路径。
     suppressionFiles = ['dependency-check-suppressions.xml']
+    // Sprint 2 CI 修复 v5 (2026-06-07):12.2.2 默认不输出 SARIF(只 HTML/JSON/
+    // XML),security.yml 的 "Upload SARIF to Code Scanning" step 报
+    // "Path does not exist: dependency-check-report.sarif"。12.x 加
+    // format = 'ALL' 显式开全部格式。Format enum 文档:
+    // https://github.com/dependency-check/dependency-check-gradle#the-extension
+    format = 'ALL'
     nvd {
         apiKey = System.getenv('NVD_API_KEY')
     }
