@@ -2,26 +2,62 @@
 // GraalVM Native 已启用(§7.1)。验收:Native binary 启动 < 2s、内存 < 200MB(design §"GraalVM Native Image 启用")
 // Gradle 9 配置格式
 
+// Sprint 2 CI 修复 v4 (2026-06-07):OWASP plugin 用 buildscript classpath
+// legacy pattern,绕开 Gradle plugin DSL marker resolution。
+//
+// 背景:d8564d5 run Security 37s 失败,Gradle 报 12.2.2 plugin marker artifact
+// 'org.owasp.dependencycheck:org.owasp.dependencycheck.gradle.plugin:12.2.2'
+// 在 8 个 repo 全找不到。但本地实测 12.2.2 marker 在 Plugin Portal
+// (https://plugins.gradle.org/m2/) 和 aliyun gradle-plugin 仓库 (200) 都有。
+//
+// 根因:Gradle 9 plugin DSL 走 'org.gradle.plugin' namespace 解析,8 个 repo
+// 测的 url 是 'org/owasp/dependencycheck/org.owasp.dependencycheck.gradle.plugin/...'
+// (plugin marker),不是主 artifact 'org/owasp/dependency-check-gradle/...'。
+// 多个 mirror 缓存主 artifact 但不缓存 plugin marker namespace,Plugin Portal
+// 拉 marker 在 CI runner 上间歇性 5xx / timeout,触发 Gradle plugin resolution
+// 整体 fail。
+//
+// 修法:用 buildscript { dependencies { classpath } } 直接拉主 artifact
+// (org.owasp:dependency-check-gradle:12.2.2,aliyun gradle-plugin 已确认
+// 200),不经过 plugin marker namespace。apply plugin 仍用 id
+// 'org.owasp.dependencycheck'。修后 CI 不再依赖 plugin marker,只走主
+// artifact 解析,稳定。
+//
+// 文档(README "What if my project includes multiple sub-project?"):
+//   buildscript {
+//     repositories { maven { url "https://plugins.gradle.org/m2/" } }
+//     dependencies { classpath "org.owasp:dependency-check-gradle:12.2.2" }
+//   }
+//   allprojects { apply plugin: 'org.owasp.dependencycheck' }
+buildscript {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath 'org.owasp:dependency-check-gradle:12.2.2'
+    }
+}
+
 plugins {
     id 'java'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.springframework.boot' version '4.0.6'
     id 'org.graalvm.buildtools.native' version '0.11.5'
     // Sprint 2 §4.1 — OWASP Dependency-Check(CI-only;本地跳过避免 10min NVD 下载)
-    // CI 修复 v3 (2026-06-07):10.0.4 → 12.2.2。原因:10.0.4 内置 H2/SQLite schema
-    // 把 reference URL 列定义成 VARCHAR(1000),NVD feed 2026 年某些 CVE
-    // (CVE-2026-6785/6786,bugzilla.mozilla.org 长 URL)超 1000 chars 时抛
-    // DatabaseException 中断 analyze,0dd7330 run OWASP 4m41s 失败。12.2.2
-    // (2026-05-03) 显式修了 "widen reference URL column to handle long Mozilla
-    // CVE URLs" (jeremylong/DependencyCheck#8467),schema 更新到能容纳
-    // bugzilla 长 URL。
+    // OWASP plugin 通过 buildscript classpath legacy pattern 加载(见上),
+    // 不在 plugins DSL 块声明,避免 Gradle 9 plugin marker resolution 间歇性
+    // 失败(d8564d5 run Security 37s 失败根因)。
     //
-    // 之前 v2 注释担心 11.1.0 在 aliyun mirror 不可用,Gradle Plugin Portal 也
-    // 只列到 12.x(没 11.1.0 marker)。12.2.2 是 12.x 当前 stable,Gradle Plugin
-    // Portal 一定有 marker artifact。如果 aliyun 命中失败,gradlePluginPortal()
-    // 兜底。
-    id 'org.owasp.dependencycheck' version '12.2.2'
+    // 12.2.2 (2026-05-03) 修了 "widen reference URL column to handle long
+    // Mozilla CVE URLs" (jeremylong/DependencyCheck#8467) — 10.0.4 内置
+    // H2/SQLite schema 把 reference URL 列定义成 VARCHAR(1000),NVD feed
+    // 2026 年某些 CVE (CVE-2026-6785/6786,bugzilla.mozilla.org 长 URL)
+    // 超 1000 chars 时抛 DatabaseException 中断 analyze。
 }
+
+apply plugin: 'org.owasp.dependencycheck'
 
 // Sprint 2 §4.1 — OWASP Dep-Check 配置
 // CVSS >= 7.0 = High/Critical → fail build;NVD datafeed 走官方默认,CI 注 NVD_API_KEY 提速
