@@ -221,3 +221,65 @@ logging:
   - SLA bucket:对齐业务客单价分布(需先做数据分析)
   - **倾向**:几何分桶 4 档,后续接入 Grafana 再调整
   - **解决时机**:specs 阶段定义指标契约时确定
+
+## ADR(Resolved Open Questions)
+
+> 实施阶段 tasks 0.1-0.4 已解决上述 3 个 OQ,本节锁定最终决议供下游 PR 与 review 引用。
+
+### ADR-OQ1 — RequestID 生成器:`java-uuid-generator`
+
+**Decision**:引入 `com.fasterxml.uuid:java-uuid-generator:5.1.0`(简称 JUG),使用 `Generators.timeBasedEpochGenerator().generate()` 产生 UUID v7。
+
+**Evidence**:JDK 25 `java.util.UUID` 经 `jshell` 探测,静态方法仅含 `randomUUID() / fromString() / nameUUIDFromBytes()`;`randomUUID().version()` 返回 4。无 v7 工厂方法。
+
+**Rationale**:
+- JUG 由 FasterXML 维护(Jackson 同源),v5 系列对 GraalVM Native 友好,无反射依赖
+- 体积 ~50 KB,RSS 影响可忽略
+- API 直观:`Generators.timeBasedEpochGenerator()` 单例线程安全
+- 替代方案 `f4b6a3/uuid-creator` 体积更大且 native 兼容性未官方验证
+
+**Impact**:
+- `backend/build.gradle` 加 `implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'`
+- `RequestIdGenerator` 默认实现包装 JUG 静态生成器
+- 单元测试可 mock `RequestIdGenerator` 接口注入固定 UUID
+
+### ADR-OQ2 — Structured logging schema:`logstash`
+
+**Decision**:`logging.structured.format.console: logstash` + `logging.structured.format.file: logstash`(prod profile)。
+
+**Rationale**:
+- 字段扁平(`@timestamp` / `level` / `thread` / `message` / `logger_name`),Grafana Loki LogQL 直接 `{level="ERROR"}` 过滤,无需嵌套路径
+- Task #7(Phase 2 部署 Grafana/Loki)技术栈一致性最高
+- 自定义 MDC 字段(如 `requestId`)直接作为顶层 key,无需映射
+- 替代方案 `ecs` 嵌套深(`log.level` / `process.thread.name`),适合 ELK 全套,但本项目无 ELK 部署计划
+
+**Trade-off**:若 Task #8 选 Self-hosted Sentry + ELK 副本路径,需要 logstash schema → ecs 字段映射(可在 Loki/Sentry 侧配置,不阻塞)。
+
+### ADR-OQ3 — `orders.paid` amountBucket:几何 4 档
+
+**Decision**:`OrderMetrics.bucketize(BigDecimal amount)` 返回字符串标签,边界为:
+
+| 区间(元) | 标签值 |
+|---|---|
+| `< 100` | `lt100` |
+| `[100, 500)` | `100to500` |
+| `[500, 2000)` | `500to2000` |
+| `>= 2000` | `gte2000` |
+
+**Rationale**:
+- 海鲜电商客单价分布对数偏态(多数 < 500 元,长尾大单),几何分桶更贴合
+- 4 档保持 tag cardinality 受控(`paymentMethod` 3 档 × `amountBucket` 4 档 = 12 series)
+- 后续接入 Grafana 后可调整边界(改动只在 `OrderMetrics`,无 schema 破坏)
+- 负数与 `null` 视为编程错误,分别抛 `IllegalArgumentException` / `NullPointerException`
+
+**Implementation 草图**:
+```java
+public static String bucketize(BigDecimal amount) {
+    Objects.requireNonNull(amount, "amount");
+    if (amount.signum() < 0) throw new IllegalArgumentException("negative amount");
+    if (amount.compareTo(BigDecimal.valueOf(100)) < 0) return "lt100";
+    if (amount.compareTo(BigDecimal.valueOf(500)) < 0) return "100to500";
+    if (amount.compareTo(BigDecimal.valueOf(2000)) < 0) return "500to2000";
+    return "gte2000";
+}
+```

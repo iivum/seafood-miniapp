@@ -11,11 +11,11 @@
 
 ## 0. Preflight — 解决 Open Questions
 
-- [ ] 0.1 OQ-1:在 JShell 里运行 `java.util.UUID.class.getMethods()` 过滤名含 `version7|timeBased|v7` 的方法,确认 JDK 25 是否内置 UUID v7 API
-- [ ] 0.2 OQ-1:若 JDK 25 无内置 API,在 `backend/build.gradle` 加 `implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'`(或检查 Spring Boot 4.0.6 BOM 是否已托管)
-- [ ] 0.3 OQ-2:在 design.md 加 ADR 段落,锁定结构化日志 schema 选 `logstash`(Loki LogQL 友好,后续 Phase 2 Task #7 接 Loki/Grafana 一致)
-- [ ] 0.4 OQ-3:在 design.md 加 ADR 段落,锁定 `orders.paid` 的 `amountBucket` 用几何分桶 4 档:`lt100` / `100to500` / `500to2000` / `gte2000`,提供 `OrderMetrics.bucketize(BigDecimal)` 工具方法签名
-- [ ] 0.5 在 `feat/observability-stack` 分支创建 4 个里程碑 commit 占位(`feat(observability): structured logging`、`...: metrics endpoint`、`...: business counters`、`chore(observability): verification & docs`)便于 PR review 单元化
+- [x] 0.1 OQ-1:在 JShell 里运行 `java.util.UUID.class.getMethods()` 过滤名含 `version7|timeBased|v7` 的方法,确认 JDK 25 是否内置 UUID v7 API — **JDK 25 无内置 v7 API**(jshell 验证,randomUUID 仍为 v4)
+- [x] 0.2 OQ-1:若 JDK 25 无内置 API,在 `backend/build.gradle` 加 `implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'`(或检查 Spring Boot 4.0.6 BOM 是否已托管) — **决议:引 JUG 5.1.0,见 ADR-OQ1**
+- [x] 0.3 OQ-2:在 design.md 加 ADR 段落,锁定结构化日志 schema 选 `logstash`(Loki LogQL 友好,后续 Phase 2 Task #7 接 Loki/Grafana 一致) — **见 ADR-OQ2**
+- [x] 0.4 OQ-3:在 design.md 加 ADR 段落,锁定 `orders.paid` 的 `amountBucket` 用几何分桶 4 档:`lt100` / `100to500` / `500to2000` / `gte2000`,提供 `OrderMetrics.bucketize(BigDecimal)` 工具方法签名 — **见 ADR-OQ3,含 Java 实现草图**
+- [~] 0.5 在 `feat/observability-stack` 分支创建 4 个里程碑 commit 占位(`feat(observability): structured logging`、`...: metrics endpoint`、`...: business counters`、`chore(observability): verification & docs`)便于 PR review 单元化 — **跳过:每个 PR 完成时自然有一个 commit,无需占位 commit 污染历史**
 
 ## 1. PR #1 — Structured Logging + RequestIdFilter
 
