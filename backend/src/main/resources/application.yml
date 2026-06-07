@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: seafood-backend
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/seafood}
+      auto-index-creation: false  # 索引由 MongoIndexInitializer 启动时显式创建
+  threads:
+    virtual:
+      enabled: true  # Java 25 虚拟线程(参见 design.md §Java 25 现代化)
+
+server:
+  port: ${PORT:8080}
+  # PR review push-sweep #3:显式 {@code none} —— 我们<em>不</em>信任 XFF(参见
+  # {@code AdminRateLimitFilter.clientIp} 与 {@code AuthService.wechatLogin} 的注释)。
+  # 原 {@code framework} 策略会注册 {@code ForwardedHeaderFilter} 处理 XFF for
+  # Spring web(redirect URL / host / proto),但<em>不</em>动 {@code getRemoteAddr()},
+  # 与我们"用 TCP 端 IP,绝不读 XFF"的立场是 gate/action mismatch ——
+  # 配置文件给的是"会处理 XFF"的能力,代码却反过来完全忽略它,会让维护者误以为
+  # 后续 PR 可以依赖 framework 的语义加 XFF 支持。{@code none} 让两边一致。
+  forward-headers-strategy: none
+  compression:
+    enabled: true
+  shutdown: graceful
+
+# JWT 鉴权(参见 design.md §4)
+security:
+  jwt:
+    secret: ${JWT_SECRET:}                # 启动时校验,缺失即 fail-fast
+    access-token-ttl: 15m
+    refresh-token-ttl: 7d
+    admin-secret: ${JWT_ADMIN_SECRET:}    # admin-ui 独立密钥
+  # Sprint 2 §2.1 — HTTP 安全响应头基线,值可按 env 收紧
+  headers:
+    strict-transport-security: "max-age=31536000; includeSubDomains"
+    x-content-type-options: "nosniff"
+    x-frame-options: "DENY"
+    referrer-policy: "strict-origin-when-cross-origin"
+    permissions-policy: "geolocation=(), microphone=(), camera=()"
+    content-security-policy: "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+  # Sprint 2 §2.4 — /api/admin/** 限流(60 rpm per (IP, account))
+  rate-limit:
+    requests-per-minute: 60
+    bucket-ttl-seconds: 120
+  # Sprint 2 §3.8 — 登录失败锁定(5 次失败 / 15 分钟窗口 / 锁 15 分钟,user+admin 共用)
+  login-lock:
+    max-failures: 5
+    window-minutes: 15
+    lock-minutes: 15
+
+# 业务端点
+api:
+  base-path: /api
+  admin:
+    base-path: /api/admin
+    # PR review #8 + push review #1(FAIL-OPEN STATE DRIFT):admin 启动期密码
+    # <em>必须</em>由 env 注入,缺即 fail-fast。YAML <em>不给</em>空串默认 ——
+    # `${ADMIN_BOOTSTRAP_PASSWORD:}` 看似无害,实则 Spring 成功解析为空串,
+    # 配合 {@code @Value} 无 default 会注入空串而非抛错,导致应用带空密码进入生产。
+    # 现:无默认,env 缺失时 Spring 在 binding 阶段直接抛
+    # {@code UnresolvedPlaceholderException} / {@code ConfigurationPropertiesBindException}
+    # 阻断 ready。Bootstrap 校验仍由 {@code AuthService.adminLogin} 兜底(空密码 → IllegalStateException)。
+    bootstrap:
+      username: ${ADMIN_BOOTSTRAP_USERNAME:admin}
+      password: ${ADMIN_BOOTSTRAP_PASSWORD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.seafood: DEBUG
+    org.springframework.data.mongodb.core.MongoTemplate: INFO

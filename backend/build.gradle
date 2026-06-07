@@ -1,23 +1,234 @@
-// 根项目构建脚本 - Spring Boot 4.0.6 + JDK 25
-// 支持 GraalVM Native Image
-// 使用 Gradle 9 配置格式
+// 单仓 Spring Boot 4.0.6 + Java 25 (refactor 7→1)
+// GraalVM Native 已启用(§7.1)。验收:Native binary 启动 < 2s、内存 < 200MB(design §"GraalVM Native Image 启用")
+// Gradle 9 配置格式
 
 plugins {
-    id 'io.spring.dependency-management' version '1.1.7' apply false
-    id 'org.springframework.boot' version '4.0.6' apply false
-    id 'org.graalvm.buildtools.native' version '0.11.3' apply false
+    id 'java'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springframework.boot' version '4.0.6'
+    id 'org.graalvm.buildtools.native' version '0.11.5'
+    // Sprint 2 §4.1 — OWASP Dependency-Check(CI-only;本地跳过避免 10min NVD 下载)
+    // CI 修复 v3 (2026-06-07):10.0.4 → 12.2.2。原因:10.0.4 内置 H2/SQLite schema
+    // 把 reference URL 列定义成 VARCHAR(1000),NVD feed 2026 年某些 CVE
+    // (CVE-2026-6785/6786,bugzilla.mozilla.org 长 URL)超 1000 chars 时抛
+    // DatabaseException 中断 analyze,0dd7330 run OWASP 4m41s 失败。12.2.2
+    // (2026-05-03) 显式修了 "widen reference URL column to handle long Mozilla
+    // CVE URLs" (jeremylong/DependencyCheck#8467),schema 更新到能容纳
+    // bugzilla 长 URL。
+    //
+    // 之前 v2 注释担心 11.1.0 在 aliyun mirror 不可用,Gradle Plugin Portal 也
+    // 只列到 12.x(没 11.1.0 marker)。12.2.2 是 12.x 当前 stable,Gradle Plugin
+    // Portal 一定有 marker artifact。如果 aliyun 命中失败,gradlePluginPortal()
+    // 兜底。
+    id 'org.owasp.dependencycheck' version '12.2.2'
 }
 
-allprojects {
-    group = 'com.seafood'
-    version = '2.0.0-SNAPSHOT'
+// Sprint 2 §4.1 — OWASP Dep-Check 配置
+// CVSS >= 7.0 = High/Critical → fail build;NVD datafeed 走官方默认,CI 注 NVD_API_KEY 提速
+// CI 修复 v3 (2026-06-07):**真正接通** NVD_API_KEY ——
+// 之前 workflow 里注了 secrets.NVD_API_KEY 但 plugin 没读它,plugin 用匿名限流
+// (5 req/30s),NVD 全量同步 30min(实测 Run Dependency-Check Analyze: 1809s)。
+// 接上 nvd { apiKey } 后限流升到 50 req/30s(10×),预期 30min → 3-5min。
+// API key 申请:https://nvd.nist.gov/developers/request-an-api-key(免费,邮箱秒到)
+// 注意:plugin v8+ 起 apiKey 嵌套在 nvd { } 块里(早期 nvdApiKey 直挂 dependencyCheck
+// 已不存在)。env var 缺失时 apiKey = null,plugin 退化为匿名(本地开发不阻断)。
+dependencyCheck {
+    failBuildOnCVSS = 7.0
+    // Sprint 2 CI 修复 v4 (2026-06-07):12.2.2 改 suppressionFiles 类型为
+    // List<String>,10.0.4 的 files('...') 返 FileCollection,plugin 12.2.2
+    // 报 "Cannot get the value of a property of type List<String> as the
+    // source value contains an element of type java.io.File"。改直接传
+    // 字符串路径。
+    suppressionFiles = ['dependency-check-suppressions.xml']
+    // Sprint 2 CI 修复 v5 (2026-06-07):12.2.2 默认不输出 SARIF(只 HTML/JSON/
+    // XML),security.yml 的 "Upload SARIF to Code Scanning" step 报
+    // "Path does not exist: dependency-check-report.sarif"。12.x 加
+    // format = 'ALL' 显式开全部格式。Format enum 文档:
+    // https://github.com/dependency-check/dependency-check-gradle#the-extension
+    format = 'ALL'
+    nvd {
+        apiKey = System.getenv('NVD_API_KEY')
+    }
 }
 
-subprojects {
-    apply plugin: 'io.spring.dependency-management'
-    dependencyManagement {
-        imports {
-            mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2024.0.0'
+// Sprint 2 §4.1 — OWASP Dep-Check 只在 security.yml 跑(Sprint 2 CI 加速 2026-06-07)
+// 原写法:在 CI env 下 bind `check.dependsOn dependencyCheckAnalyze`,让 ci.yml 的
+// `./gradlew check` 顺带跑 OWASP,而 security.yml 又独立跑同一个 task。两 job 共享
+// ~/.gradle/dependency-check-data cache,首次冷启动 NVD 几 GB(实测 5-15min),
+// 双 job 同时跑互相 cache miss。
+// 决策:删除 CI-triggered binding。OWASP 只在 security.yml 的 dependency-check job
+// 跑(已配 NVD_API_KEY + weekly cache);CI check 不再静默触发,实测 CI Backend
+// job 8m → ~6m(去掉 NVD 拉取 + transitive dep 扫描)。本地 ./gradlew check
+// 也不会被 workflow 静默触发,需显式调 dependencyCheckAnalyze。
+
+group = 'com.seafood'
+version = '2.0.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    maven { url 'https://maven.aliyun.com/repository/spring' }
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://repo.spring.io/snapshot' }
+    gradlePluginPortal()
+    mavenCentral()
+}
+
+ext {
+    set('jjwtVersion', "0.12.6")
+    // Sprint 2 CI 修复 (2026-06-07):override Spring Boot 4.0.6 BOM 的 tomcat.version
+    // 11.0.21 → 11.0.22。NVD 报告 11.0.0-M1..11.0.21 含 7 CVE
+    // (CVE-2026-41284/41293/42498/43512/43513/43514/43515),CVSS >= 7.0 命中 6
+    // 个(770313a OWASP Dep-Check 4m27s failBuildOnCVSS 失败)。
+    // Apache Tomcat 11.0.22 (2026-05-05) 一次性修这 7 个 CVE,tomcat-embed-core
+    // 升到 11.0.22 即全部消化。
+    // Spring Boot 4.0.6 BOM 当时锁的是 11.0.21,需要 ext property 显式 override,
+    // Spring Boot dependency-management plugin 会读这个 property 解 BOM。
+    set('tomcat.version', "11.0.22")
+}
+
+dependencies {
+    // Spring Boot starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // JWT
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly    "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly    "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // Sprint 2 §2 — Caffeine token bucket for admin rate limit (no version: BOM-managed by Spring Boot 4)
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.assertj:assertj-core'
+    // Sprint 1: Testcontainers + ArchUnit (DDD layer guardrails)
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
+    testImplementation 'org.testcontainers:mongodb:1.20.4'
+    testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.1'
+    testRuntimeOnly   'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    dependencies {
+        dependency "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+        dependency "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+        dependency "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform {
+        // Sprint 1: skip Testcontainers-backed tests when -PexcludeTags=docker is passed
+        // (useful for environments without Docker, e.g. local dev on a laptop without Docker Desktop)
+        def exclude = project.findProperty('excludeTags')
+        if (exclude != null) {
+            excludeTags exclude.split(',')
+        }
+    }
+    // JDK 25 强模块封装 — Spring Data Mongo 4.5 的 PreferredConstructor 在解析
+    // java.time.Instant 时用反射 setAccessible(true),需 opens 才能工作。
+    jvmArgs '--add-opens', 'java.base/java.time=ALL-UNNAMED'
+}
+
+// P0 #1 失败回滚(2026-06-07):尝试用三种方式限制 nativeTest 只跑 @Tag("native")
+// 切片,均未生效:
+//   1. tasks.named('nativeTest').runtimeArgs.add('-Djunit.jupiter.tags.include=native')
+//      — runtimeArgs 是 native binary 启动 argv,不是 JVM system property
+//   2. graalvmNative.binaries.named('test').buildArgs.add('-Djunit.jupiter.tags...')
+//      — buildArgs 是 native-image build tool 自己的参数(如 --no-fallback),
+//        不会传成 runtime system property
+//   3. src/test/resources/junit-platform.properties with
+//      junit.jupiter.tags.include=native — JUnit Jupiter 6.0.3 不识别这个
+//        property name(JupiterConfiguration constants 列表里没有 INCLUDE_TAGS),
+//        静默 ignore
+//
+// JUnit Jupiter 6.x 当前的 tag filtering 入口在 build tool(Gradle test task 的
+// useJUnitPlatform.includeTags DSL),nativeTest 是 NativeRunTask,没有这个 DSL。
+// 完整 patch 需要打 patch 到 junit-platform-native 0.11.5 或绕过 NativeImageJUnitLauncher
+// 直接 fork LauncherFactory 调用 — ROI 太低,回滚到原状。
+//
+// 原状 nativeTest 9m17s(已知) → 8m36s(实测,见 commit 5b05bee 实际历史)。
+// 节省来自 docker build 4m47s → ~1m (P0 #2 修复,Dockerfile 改单阶段 COPY
+// pre-built binary),仍保留。
+// (设计意图见 design §3.2 + CLAUDE.md "nativeTest 切片" 段)
+
+// 静态扫描:禁止 @RefreshScope(GraalVM Native 不兼容)
+// 失败 = build 失败。参见 design.md §3.3 + §10 风险 #7。
+tasks.register('checkNoRefreshScope', Exec) {
+    description = 'Fails the build if any Java file references @RefreshScope'
+    commandLine 'bash', 'scripts/check-no-refresh-scope.sh'
+}
+tasks.named('check') { dependsOn 'checkNoRefreshScope' }
+
+// §7.2 GraalVM Native 构建配置(design §3.1 + §3.3 已知陷阱)
+//
+// 状态(2026-06-06 — Sprint 2 C5 闭包):buildArgs 已收紧为最小安全集 + 3 个新增项;
+// 反射/资源/proxy 配置靠 Spring Boot AOT (`processAot` 任务) + `nativeTest` 阶段
+// agent 捕获。`nativeTest` 任务在 metadataRepository + agent 模式下运行,生成的
+// JSON 由 `scripts/normalize-native-metadata.sh` 归一化后落到
+// `src/main/resources/META-INF/native-image/`(已占位)。
+//
+// 解法(design §3.2 + §10 风险 #1 缓解):
+//   1. CI 跑 `./gradlew nativeTest` — agent 跑 @Tag("native") 切片,生成 reflect/resource/proxy JSON
+//   2. normalize-native-metadata.sh 排序去重并提交到 META-INF/native-image/
+//   3. 再跑 nativeCompile;若仍缺,迭代 1-2
+//   4. Phase 2 末若 native binary 仍不能 E2E,回退 JVM 部署(design §10 风险 #1)
+graalvmNative {
+    // metadataRepository 启用后,plugin 会把收集到的 metadata 写入
+    // `build/native/agent-output/test/` 供 normalize 脚本消费。
+    // (Sprint 2 C5 §5.1 — 0.11.5 DSL:metadataRepository / agent 都挂在顶层,
+    //  binary 内只有 deprecated agent { enabled / options } 形式)
+    metadataRepository {
+        enabled = true
+    }
+    // agent 在 nativeTest 阶段以 standard 模式运行:拦截所有反射 / 资源 / 代理
+    // 访问并把缺失的 JSON 合并到 metadataRepository 输出目录
+    agent {
+        defaultMode = "standard"
+        enabled = true
+    }
+    binaries {
+        main {
+            imageName = 'seafood-backend'
+            mainClass = 'com.seafood.SeafoodApplication'
+            buildArgs.addAll(
+                '--no-fallback',                                       // 禁用 JVM fallback,失败即 fail
+                '-H:+ReportExceptionStackTraces',                     // 异常时打印栈,方便定位 agent 漏抓
+                '--initialize-at-build-time=java.util.TimeZone',      // design §3.3 时区坑
+                '-H:+AddAllCharsets',                                 // SnakeYAML / 网络 IO 需要的字符集
+                '--enable-url-protocols=https,http',                  // HTTP 客户端 + MongoDB driver 反射 URL 协议
+                '-H:+InstallExitHandlers',                            // 进程内正确处理 SIGTERM(Supervised / docker stop)
+                '--strict-image-heap',                                // 启动时校验 image heap 越界,失败即停(Sprint 2 hardening)
+                // CI 修复:把 zlib + glibc 静态链进 native binary,避免 runtime
+                // 缺 libz.so.1(原镜像 base-debian12 + cc-debian12 都把 libz 放在
+                // /usr/lib/x86_64-linux-gnu/,native binary 的 ELF DT_NEEDED
+                // 解析不走这个路径)。代价:image ~+5MB(MongoDB driver / Spring Core
+                // 静态链 zlib)。
+                '-H:+StaticExecutableWithDynamicLibC'
+            )
+        }
+        // Sprint 2 CI 加速 (2026-06-07):nativeTest 8m57s 占 Native workflow 60%,
+        // 全因 test binary 跑完整 PGO / debug 符号 / reachability metadata 收集。
+        // 我们只关心 agent 抓出来的 reflect/resource/proxy JSON(写到
+        // build/native/agent-output/test/ 给 normalize 脚本消费),quickBuild 模式
+        // (-Ob)完全够用 — 跳过优化但不跳 metadata 收集。
+        // 文档(https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/guides/include-reachability-metadata-gradle.md)
+        // 验证 quickBuild 用于 metadata-only 场景。**不**对 main binary 开 ——
+        // 主 binary 上线性能不能妥协。
+        // 预期:nativeTest 8m57s → ~2-3min(节省 5-6min)。
+        test {
+            quickBuild = true
         }
     }
 }

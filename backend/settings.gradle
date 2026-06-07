@@ -10,23 +10,4 @@ pluginManagement {
     }
 }
 
-dependencyResolutionManagement {
-    repositories {
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://maven.aliyun.com/repository/spring' }
-        maven { url 'https://repo.spring.io/milestone' }
-        maven { url 'https://repo.spring.io/snapshot' }
-        mavenCentral()
-    }
-}
-
 rootProject.name = 'seafood-backend'
-
-include 'common'
-include 'gateway'
-include 'product-service'
-include 'order-service'
-include 'user-service'
-include 'discovery-service'
-include 'config-service'
-include 'admin-ui'

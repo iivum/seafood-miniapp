@@ -1,0 +1,7 @@
+[
+  { "_id": "cat-fish",   "type": "category", "name": "鱼类", "sortOrder": 1 },
+  { "_id": "cat-shrimp", "type": "category", "name": "虾蟹", "sortOrder": 2 },
+  { "_id": "cat-shell",  "type": "category", "name": "贝类", "sortOrder": 3 },
+  { "_id": "cat-mollusk","type": "category", "name": "软体", "sortOrder": 4 },
+  { "_id": "cat-seaweed","type": "category", "name": "海藻", "sortOrder": 5 }
+]

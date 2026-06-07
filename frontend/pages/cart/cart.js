@@ -1,186 +1,170 @@
+/**
+ * Cart page — wired to the new `features/cart` store + API per
+ * OpenSpec §8.5. The store pulls from the server-side cart endpoints
+ * (GET /api/cart, POST /api/cart/items, etc.) and exposes imperative
+ * actions for add/remove/update/toggle/clear. The page binds the
+ * store state to its `data` and forwards user actions to the store.
+ */
+const { cartStore } = require('../../src/features/cart/store');
 const cartUtil = require('../../utils/cart.js');
-
-// TODO: 运费计算应移至后端，根据收货地址计算
-// 当前前端暂时计算运费，后续需要调用后端API获取准确运费
-const FREIGHT_BASE = 10;  // 基础运费
-const FREIGHT_FREE_THRESHOLD = 99;  // 满99免运费（暂时由前端计算）
 
 Page({
   data: {
     cartItems: [],
-    totalPrice: 0,
-    selectedPrice: 0,
+    totalPrice: '0.00',
+    selectedPrice: '0.00',
     selectedItems: [],
     selectedAddress: null,
-    shippingFee: FREIGHT_BASE
+    shippingFee: 0,
+    isLoading: false,
+    isError: false,
+    errorMessage: '',
   },
 
-  onShow: function() {
-    // Check login status before allowing cart access
+  onShow: function () {
     const app = getApp();
     if (!app.globalData.userInfo) {
-      wx.showToast({
-        title: '请先登录',
-        icon: 'none'
-      });
+      wx.showToast({ title: '请先登录', icon: 'none' });
       wx.navigateTo({
-        url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages/cart/cart')
+        url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages/cart/cart'),
       });
       return;
     }
-
     this.refreshCart();
-
-    const pages = getCurrentPages();
-    const currentPage = pages[pages.length - 1];
-
-    if (currentPage.selectedAddressFromList) {
-      this.setData({
-        selectedAddress: currentPage.selectedAddressFromList
-      });
-      // TODO: 后端应根据收货地址计算运费
-      currentPage.selectedAddressFromList = null;
-    }
   },
 
-  refreshCart: function() {
-    const items = cartUtil.getCart();
-    let total = 0;
-    items.forEach(item => {
-      total += item.price * item.quantity;
-    });
+  refreshCart: function () {
+    this.setData({ isLoading: true, isError: false });
+    cartStore
+      .refresh()
+      .then((cart) => this.renderCart(cart))
+      .catch((err) => {
+        // Fall back to local cache so the UI doesn't go blank when
+        // the user is offline.
+        const local = cartUtil.getCart();
+        this.setData({
+          cartItems: local,
+          isError: true,
+          errorMessage: err && err.message ? err.message : '加载购物车失败',
+        });
+        this.computeTotals(local);
+        this.setData({ isLoading: false });
+      });
+  },
 
-    // Calculate selected items price
-    const selectedIds = this.data.selectedItems;
-    let selectedTotal = 0;
-    items.forEach(item => {
-      if (selectedIds.includes(item.id)) {
-        selectedTotal += item.price * item.quantity;
-      }
-    });
-
-    // Calculate shipping fee based on selected address and amount
-    // TODO: 后端应根据收货地址计算实际运费
-    let shippingFee = FREIGHT_BASE;
-    if (selectedTotal >= FREIGHT_FREE_THRESHOLD) {
-      shippingFee = 0;  // 满99免运费
-    }
-
-    // Calculate total price (前端暂时计算，后续由后端计算)
-    const totalPrice = (selectedTotal + shippingFee).toFixed(2);
-
+  renderCart: function (cart) {
+    // Translate server-side cart items into the shape the WXML
+    // expects: {id, name, price, imageUrl, quantity, selected}.
+    const items = (cart.items || []).map((it) => ({
+      id: it.productId,
+      productId: it.productId,
+      name: it.productName || it.name || it.productId,
+      price: it.unitPrice || it.price || 0,
+      imageUrl: it.imageUrl || '',
+      quantity: it.quantity,
+      selected: !!it.selected,
+    }));
+    this.computeTotals(items);
     this.setData({
       cartItems: items,
-      totalPrice: totalPrice,
-      selectedPrice: selectedTotal.toFixed(2),
-      shippingFee: shippingFee
+      isLoading: false,
+      isError: false,
+      errorMessage: '',
     });
   },
 
-  // Handle checkbox-group change (selected items from checkbox)
-  onCheckboxChange: function(e) {
+  computeTotals: function (items) {
+    let total = 0;
+    let selected = 0;
+    const selectedIds = this.data.selectedItems || [];
+    items.forEach((item) => {
+      total += item.price * item.quantity;
+      if (selectedIds.includes(item.id)) {
+        selected += item.price * item.quantity;
+      }
+    });
+    const shippingFee = selected >= 99 ? 0 : 10;
+    this.setData({
+      totalPrice: (selected + shippingFee).toFixed(2),
+      selectedPrice: selected.toFixed(2),
+      shippingFee: shippingFee,
+    });
+  },
+
+  onCheckboxChange: function (e) {
     const selectedItems = e.detail.value;
-    this.setData({ selectedItems: selectedItems });
-    this.refreshCart();
+    this.setData({ selectedItems });
+    this.computeTotals(this.data.cartItems);
   },
 
-  // Handle select-all checkbox change
-  onSelectAll: function(e) {
-    if (e.detail.checked) {
-      const allIds = this.data.cartItems.map(item => item.id);
-      this.setData({ selectedItems: allIds });
-    } else {
-      this.setData({ selectedItems: [] });
-    }
-    this.refreshCart();
+  onSelectAll: function (e) {
+    const ids = e.detail.checked ? this.data.cartItems.map((i) => i.id) : [];
+    this.setData({ selectedItems: ids });
+    this.computeTotals(this.data.cartItems);
   },
 
-  // Handle quantity input change (input type="number")
-  onQuantityChange: function(e) {
-    const app = getApp();
-    if (!app.globalData.userInfo) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
+  onQuantityChange: function (e) {
     const id = e.currentTarget.dataset.id;
     const quantity = Math.max(1, parseInt(e.detail.value) || 1);
-    cartUtil.updateQuantity(id, quantity);
-    this.refreshCart();
+    this.callStore('updateItem', id, quantity);
   },
 
-  // Handle minus button tap
-  onMinus: function(e) {
-    const app = getApp();
-    if (!app.globalData.userInfo) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
+  onMinus: function (e) {
     const id = e.currentTarget.dataset.id;
-    const item = this.data.cartItems.find(i => i.id === id);
-    if (item && item.quantity > 1) {
-      cartUtil.updateQuantity(id, item.quantity - 1);
-      this.refreshCart();
-    }
+    const item = this.data.cartItems.find((i) => i.id === id);
+    if (item && item.quantity > 1) this.callStore('updateItem', id, item.quantity - 1);
   },
 
-  // Handle plus button tap
-  onPlus: function(e) {
-    const app = getApp();
-    if (!app.globalData.userInfo) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
+  onPlus: function (e) {
     const id = e.currentTarget.dataset.id;
-    const item = this.data.cartItems.find(i => i.id === id);
-    if (item) {
-      cartUtil.updateQuantity(id, item.quantity + 1);
-      this.refreshCart();
-    }
+    const item = this.data.cartItems.find((i) => i.id === id);
+    if (item) this.callStore('updateItem', id, item.quantity + 1);
   },
 
-  onRemove: function(e) {
-    const app = getApp();
-    if (!app.globalData.userInfo) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
+  onRemove: function (e) {
     const id = e.currentTarget.dataset.id;
-    cartUtil.removeFromCart(id);
-    this.refreshCart();
+    this.callStore('removeItem', id);
   },
 
-  onCheckout: function() {
+  onToggleSelected: function (e) {
+    const id = e.currentTarget.dataset.id;
+    this.callStore('toggleItem', id);
+  },
+
+  callStore: function (action, productId, quantity) {
+    const fn = cartStore[action];
+    if (typeof fn !== 'function') return;
+    const promise = quantity === undefined ? fn.call(cartStore, productId) : fn.call(cartStore, productId, quantity);
+    promise
+      .then((cart) => this.renderCart(cart))
+      .catch((err) => {
+        wx.showToast({ title: err && err.message ? err.message : '操作失败', icon: 'none' });
+      });
+  },
+
+  onCheckout: function () {
     if (this.data.cartItems.length === 0) return;
-
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.navigateTo({
-        url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages/cart/cart')
+        url: '/pages-sub/user/login/login?redirect=' + encodeURIComponent('/pages/cart/cart'),
       });
       return;
     }
-
-    // 跳转到订单确认页面
-    wx.navigateTo({
-      url: '/pages-sub/order/order-confirm/order-confirm'
-    });
+    wx.navigateTo({ url: '/pages-sub/order/order-confirm/order-confirm' });
   },
 
-  selectAddress: function() {
+  selectAddress: function () {
     const app = getApp();
     if (!app.globalData.userInfo) {
-      wx.showToast({
-        title: '请先登录',
-        icon: 'none'
-      });
+      wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
-
     const selectedAddress = this.data.selectedAddress || null;
     wx.navigateTo({
-      url: '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=' +
-        encodeURIComponent(selectedAddress ? JSON.stringify(selectedAddress) : '')
+      url:
+        '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=' +
+        encodeURIComponent(selectedAddress ? JSON.stringify(selectedAddress) : ''),
     });
   },
-
-})
+});

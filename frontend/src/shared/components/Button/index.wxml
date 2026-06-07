@@ -1,0 +1,8 @@
+<button
+  class="btn-shared btn-shared--{{type}} {{disabled ? 'is-disabled' : ''}} {{loading ? 'is-loading' : ''}}"
+  bindtap="onTap"
+  disabled="{{disabled || loading}}"
+>
+  <text wx:if="{{loading}}" class="btn-shared__spinner"></text>
+  <slot />
+</button>

@@ -1,0 +1,16 @@
+<view class="cart-item-row">
+  <view wx:if="{{!readonly}}" class="cart-item-row__check" catchtap="onToggle">
+    <view class="checkbox {{item.selected ? 'checkbox--on' : ''}}"></view>
+  </view>
+  <image class="cart-item-row__image" src="{{item.imageUrl}}" mode="aspectFill" />
+  <view class="cart-item-row__body">
+    <view class="cart-item-row__name">{{item.name || item.productId}}</view>
+    <view class="cart-item-row__price">¥ {{item.price}}</view>
+    <view class="cart-item-row__qty">
+      <view wx:if="{{!readonly}}" class="cart-item-row__btn" catchtap="onMinus">-</view>
+      <text class="cart-item-row__count">{{item.quantity}}</text>
+      <view wx:if="{{!readonly}}" class="cart-item-row__btn" catchtap="onPlus">+</view>
+    </view>
+  </view>
+  <view wx:if="{{!readonly}}" class="cart-item-row__remove" catchtap="onRemove">删除</view>
+</view>

@@ -1,0 +1,82 @@
+schema: spec-driven
+
+# Project context — injected into AI when creating artifacts.
+# Keep terse; substance beats prose.
+context: |
+  Stack:
+    - Backend: Java 25, Spring Boot 4.0.6, GraalVM Native, Gradle 9.x, MongoDB 7.x
+    - Frontend: WeChat mini-program (TypeScript 5.x, Jest 29.x)
+    - Admin UI: Vue 3.5 + Element Plus + Pinia + Vue Router 4 (backend/admin-ui/vue/)
+    - BFF: /api/admin/** (3 endpoints), same-process ApplicationService composition
+
+  Module layout (per bounded context):
+    api         → Controller + Request/Response DTO (record)
+    application → Service + UseCase + cross-module entry
+    domain      → Aggregate Root + Entity + Value Object + Domain Event
+    infra       → Repository impl + MongoDB Document
+
+  Module map: product / order / cart / user / bff
+
+  Cross-module rule: only via ApplicationService. NEVER cross Repository boundary.
+  (Design §1.3 — preserves future re-split option.)
+
+  Hard rules:
+    - TDD mandatory. Test first, then impl, then refactor.
+    - Coverage: backend ≥80%, frontend ≥88%, core modules ≥90%.
+    - @RefreshScope BANNED (GraalVM Native incompatible). `gradle check` enforces.
+    - No `any` in TS production code (test files exempt).
+    - Backend style: Google Java Format, line width 120.
+    - No `console.log` in production code.
+    - JWT_SECRET ≥32 bytes (HS256 fail-fast). Admin uses separate JWT_ADMIN_SECRET.
+    - @WebMvcTest + @MockBean unavailable in Spring Boot 4 → use plain JUnit + Mockito.
+
+  Commands:
+    - Backend tests: cd backend && ./gradlew test | check | compileJava
+    - Single test class: ./gradlew :test --tests "*ProductTest"
+    - Frontend tests: cd frontend && npm test [-- --coverage]
+    - Docker: docker-compose up -d (backend Native binary + mongodb)
+
+  Known gotchas (refactor lessons):
+    - MongoIndexInitializer: explicit MongoPersistentEntityIndexResolver at startup
+    - findAll(any()) ambiguous → use any(Pageable.class)
+    - bson 5.6 + GraalVM: run nativeTest agent, don't hand-write META-INF
+    - Order findTop500ByOrderByCreatedAtDesc until aggregation pipeline ready
+    - assertThatThrownBy on record + List.of() — use catch + getMessage().isEqualTo
+
+  Performance budgets:
+    - First paint <2s, page switch <300ms, API <500ms
+
+  Branches:
+    - main: production (7 modules archived to archive/backend-multi-module-2026-06/)
+    - feature/refactor: single-module, 5 commits pending PR
+    - feat/* | fix/* for new work
+
+  Commit format: feat(<scope>): / fix: / refactor: / docs: / test: / chore:
+
+# Per-artifact rules — applied during proposal/specs/design/tasks generation.
+rules:
+  proposal:
+    - Include "Why" (1-2 sentences), "What Changes", "Capabilities", "Impact".
+    - Mark breaking changes with **BREAKING**.
+    - Capabilities section is the contract: every name → specs/<name>/spec.md.
+    - List "Non-goals" explicitly.
+    - Max 500 words body.
+
+  specs:
+    - One spec file per capability (kebab-case folder name).
+    - Modified capabilities: write delta spec at specs/<name>/spec.md, sync via /opsx:sync.
+    - Specify REQUIREMENTS, not implementation. No code blocks in specs.
+    - Use SHALL / MUST for normative requirements.
+
+  design:
+    - Sections: Context, Goals/Non-goals, Architecture, Data model, API, Cross-module impact, Native image compatibility (when touching infra), Testing strategy, Risks.
+    - Cross-module changes must call out which ApplicationService is the entry point.
+    - Document GraalVM reflection / resource / proxy changes explicitly.
+
+  tasks:
+    - Group by bounded context (product / order / cart / user / bff / shared).
+    - Each task: ID, title, file paths, which test class proves it, estimate (≤2h chunks).
+    - Mark GraalVM Native reflection/resource tasks with tag [native].
+    - Mark breaking changes with [breaking].
+    - Final task: verification (gradle check + npm test --coverage + native build when applicable).
+    - Numbered 1..N for ordering, blockers marked with addBlockedBy.

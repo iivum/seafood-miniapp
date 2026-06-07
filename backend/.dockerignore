@@ -1,0 +1,29 @@
+# CI 修复:显式列出 build context,避免 BuildKit 看到 .git/、build/、.gradle/ 等大目录
+# 触发 cache key 频繁变化(尤其 gradle.properties 等被 commit 但 .gradle/ 在 container 内生成)。
+#
+# CI 设计说明 (Sprint 2 C5 §5.5 + P0 #2 perf):
+# `build/` 整体排除 —— 但 native binary 路径 build/native/nativeCompile/seafood-backend
+# 是 .github/workflows/native.yml 的 "nativeCompile" step 产物,Dockerfile 直接
+# COPY 进来。例外规则 !build/native/nativeCompile/seafood-backend 放回 binary,
+# 其他 build 子目录(.gradle 内部、intermediates、classes 等)继续被屏蔽。
+
+.git/
+.gradle/
+build/
+# P0 #2 修复:放回 native binary 让 Dockerfile COPY 能拿到
+!build/native/nativeCompile/seafood-backend
+.classpath
+.project
+.settings/
+bin/
+out/
+*.iml
+.idea/
+.vscode/
+dependency-check-suppressions.xml
+*.sarif
+*.log
+node_modules/
+coverage/
+*.tar
+*.zip

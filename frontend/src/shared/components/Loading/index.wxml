@@ -1,0 +1,4 @@
+<view wx:if="{{visible}}" class="loading">
+  <view class="loading__spinner"></view>
+  <view class="loading__message">{{message}}</view>
+</view>

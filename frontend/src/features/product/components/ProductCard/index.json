@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "shared-empty": "/src/shared/components/Empty/index"
+  }
+}

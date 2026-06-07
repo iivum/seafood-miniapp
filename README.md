@@ -53,27 +53,29 @@ npm run build
 ```bash
 cd backend
 
-# 构建所有服务
-./gradlew build
+# 单模块 Spring Boot 4.0.6 + Java 25 + GraalVM Native(单仓收敛,7 模块已归档)
+./gradlew build                  # JVM 单元测试
+./gradlew nativeTest             # @Tag("native") 切片,带 GraalVM agent 收集 metadata
+./gradlew nativeCompile          # 编译 native binary(~80MB,启动 < 2s)
+./gradlew test -PexcludeTags=docker   # 无 Docker 环境跳过 Testcontainers IT
 
-# 启动所有服务 (Docker)
+# 启动 (Docker Compose:2 服务 — backend GraalVM native + mongodb)
 docker-compose up -d
-
-# 查看日志
 docker-compose logs -f
+docker-compose down
 ```
 
-### 服务端口
+### 服务端口(Sprint 2 单仓)
 
-| 服务 | 端口 |
-|------|------|
-| Gateway | 8080 |
-| Product Service | 8081 |
-| Order Service | 8082 |
-| User Service | 8083 |
-| Discovery | 8761 |
-| Admin UI | 8084 |
-| MongoDB | 27017 |
+| 服务 | 端口 | 镜像 / 形态 |
+|------|------|------------|
+| Backend (单仓,API + admin-ui 静态资源) | 8080 | `seafood-backend:native`(GraalVM binary,distroless) |
+| MongoDB | 27017 | `mongo:7` |
+
+> **Sprint 2 C5**:多模块 Spring Cloud 架构已收敛为单 Spring Boot 模块;`docker-compose up -d`
+> 启动后 backend RSS 验收 < 200 MB,`/actuator/health` 30 s 内 200。完整冒烟见
+> `backend/scripts/native-smoke.sh`。CI 工作流: `.github/workflows/native.yml`。
+
 
 ## 🛠️ 技术栈
 

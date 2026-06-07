@@ -1,0 +1,30 @@
+[
+  {
+    "openId": "admin-seed-001",
+    "nickname": "店铺管理员",
+    "avatarUrl": "https://example.com/avatar/admin.png",
+    "role": "ADMIN",
+    "phone": "13800000000",
+    "addresses": [],
+    "createdAt": "2026-06-03T00:00:00Z"
+  },
+  {
+    "openId": "customer-seed-001",
+    "nickname": "测试用户",
+    "avatarUrl": "https://example.com/avatar/customer.png",
+    "role": "CUSTOMER",
+    "phone": "13900000000",
+    "addresses": [
+      {
+        "id": "addr-001",
+        "name": "测试用户",
+        "phone": "13900000000",
+        "province": "上海市",
+        "city": "上海市",
+        "detail": "浦东新区世纪大道 1 号",
+        "isDefault": true
+      }
+    ],
+    "createdAt": "2026-06-03T00:00:00Z"
+  }
+]

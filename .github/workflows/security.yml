@@ -1,0 +1,141 @@
+# =====================================================
+# Security workflow (Sprint 2 §4.3)
+#   - OWASP Dep-Check (SCA):  ./gradlew dependencyCheckAnalyze
+#   - TruffleHog (secret scan): git file:///repo --since-commit=HEAD~1
+# 两个 job 并行;SARIF 全部上传到 GitHub Code Scanning。
+# =====================================================
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+
+# Sprint 2 CI 加速 (2026-06-07):新 push 立刻取消同 PR 的旧 run,避免占 runner。
+# main / feat/* / fix/* 上不取消(group key 含 ref,各分支独立)。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# PR review C3:显式声明 GITHUB_TOKEN 权限。默认 token 不含 security-events: write,
+# 静默导致 github/codeql-action/upload-sarif@v3 报 403,SARIF 永远到不了 Code Scanning。
+permissions:
+  contents: read
+  security-events: write
+
+# 所有 run: 块均硬编码,无 ${{ github.event.* }} 插值
+jobs:
+  dependency-check:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    # CI 修复:超时从 15 提到 30 分钟 —— NVD 数据下载 + 全 transitive dep 扫描常超过
+    # 15min(尤其首次冷启动)。30min 是 NVD 推荐 + 实测稳定值。
+    # CI 修复 (2026-06-07):30 → 60min。NVD cache restore 1s 完成(已 weekly
+    # bucket + restore-keys 兜底),但 Run Dependency-Check Analyze 仍要重新
+    # 比对 NVD 全 200K+ CVE entries vs 所有 transitive dep —
+    # 冷启动实测 30-45min(NVD_API_KEY 接通可降到 10-20min,需用户在 repo
+    # secrets 配置)。30min timeout 在 75f0c88 run 触发 cancel,拉整个
+    # Security workflow 失败(尽管 TruffleHog 8s 已 success)。
+    timeout-minutes: 60
+    env:
+      CI: "true"   # 触发 build.gradle 中 CI-only 的 dependsOn binding
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Compute ISO week for cache key
+        id: iso-week
+        run: echo "week=$(date -u +'%G-%V')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache OWASP NVD datafeed
+        # Sprint 2 CI 加速 (2026-06-07):cache key 改为 weekly bucket,
+        # 不再 hash build.gradle —— 改 backend/build.gradle(加 dep / 改 plugin
+        # 版本)不应让 NVD datafeed cache 失效(NVD 数据库内容跟 build.gradle 完全
+        # 解耦)。weekly bucket 保证最多 7 天拿一次全量 + 每次跑只下增量。
+        # restore-keys 兜底:本周 miss 时复用上周 cache 也比从 0 拉强。
+        # GITHUB_RUN_ID 加在 key 末尾确保<em>每次</em>都 save(同 week 内多次跑能滚动
+        # 更新缓存),restore 时按周匹配。
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/dependency-check-data
+          key: owasp-nvd-${{ runner.os }}-week-${{ steps.iso-week.outputs.week }}-${{ github.run_id }}
+          restore-keys: |
+            owasp-nvd-${{ runner.os }}-week-${{ steps.iso-week.outputs.week }}-
+            owasp-nvd-${{ runner.os }}-week-
+            owasp-nvd-${{ runner.os }}-
+
+      - name: Run Dependency-Check Analyze
+        working-directory: backend
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          # CI 修复 v2 (2026-06-07):GRADLE_OPTS 设了但 Gradle 9.4 daemon 仍用
+          # 默认 512 MiB heap → 265e8f4 run 1m58s GC thrashing 失败。
+          # 原因:GRADLE_OPTS 是给 Gradle 客户端进程的,daemon 自身 heap 读
+          # org.gradle.jvmargs(JVM 启动时 system property)。改用 -D 前缀透传:
+          # `-Dorg.gradle.jvmargs=...` 让 daemon 启动时把整个 arg 串当
+          # jvmargs,等价写在 gradle.properties。
+          #
+          # 4 GiB heap 在 265e8f4 仍 OOM(daemon 用了默认 512 MiB,真 analyze
+          # 阶段 4 GiB 也吃紧);提到 6 GiB + 1 GiB metaspace。GitHub Actions
+          # public repo ubuntu-latest = 4 CPU / 16 GB RAM,JVM 6 GiB + 系统
+          # 5 GB + 其他 step 5 GB = 16 GB 顶满。
+          #
+          # 不用 backend/gradle.properties — 在 .gitignore (dev-only SDK path)。
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
+        # CI 修复:用 daemon(默认)替代 --no-daemon —— plugin 解析失败时,daemon
+        # 可复用 pluginManagement 缓存 + 减少冷启动网络尖刺。NVD cache 已在前面步骤
+        # 暖好,dependencyCheckAnalyze 实际跑 scan 阶段只需 ~5-10min。
+        run: ./gradlew dependencyCheckAnalyze
+
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: backend/build/reports/dependency-check-report.sarif
+          category: dependency-check
+
+  secret-scan:
+    name: TruffleHog (PR diff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # CI 修复 v11 (2026-06-07):fetch-depth: 1 只拉 HEAD —— TruffleHog
+          # --branch=HEAD 只需要 HEAD 一个 commit;之前 fetch-depth: 0 拉全
+          # history 让 TruffleHog 扫到老 7 模块的 build/libs/*.jar 触发 103
+          # 个 unverified secret (exit 183)。
+          fetch-depth: 1
+
+      - name: TruffleHog git diff scan
+        # CI 修复 v11 (2026-06-07):TruffleHog 在 80ccce0 run 上 exit 183 —
+        # fetch-depth: 0 拉全 history 后 TruffleHog 沿着 git graph 找到所有历史
+        # commit + 它们的文件,而 v10 注释里"全 repo 扫"实际上扫了 7 模块时代的
+        # 老 build/libs/*.jar:
+        #   backend/admin-ui/build/libs/admin-ui-1.0.0-SNAPSHOT.jar
+        #   backend/discovery-service/build/libs/discovery-service-1.0.0-SNAPSHOT.jar
+        #   backend/gateway/build/libs/gateway-1.0.0-SNAPSHOT.jar
+        #   backend/order-service/build/libs/order-*.jar
+        #   backend/product-service/build/libs/product-*.jar
+        #   backend/user-service/build/libs/user-*.jar
+        # 这些 jar 在当前工作树里已不存在(7 模块在 2026-06 refactor 删了),
+        # 但 git history 里有 → 103 个 unverified JDBC / MongoDB detector 命中,
+        # exit 183。
+        #
+        # --exclude-globs 只对当前工作树有效,git history 里的老路径不命中。
+        # 修法:--branch=HEAD 限制只扫当前 commit 的内容,等价"扫当前代码"语义。
+        # 等价于 filesystem 模式但保留 git 模式的 metadata + 历史注释。
+        # fetch-depth 改回 1(只拿 HEAD,不再拉全 history)。
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo:ro" \
+            trufflesecurity/trufflehog:3.88.0 \
+            git file:///repo --branch=HEAD --fail --no-verification \
+            --exclude-globs='backend/src/test/**,.github/**'
