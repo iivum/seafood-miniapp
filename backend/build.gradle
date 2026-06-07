@@ -8,13 +8,19 @@ plugins {
     id 'org.springframework.boot' version '4.0.6'
     id 'org.graalvm.buildtools.native' version '0.11.5'
     // Sprint 2 §4.1 — OWASP Dependency-Check(CI-only;本地跳过避免 10min NVD 下载)
-    // CI 修复 v2 (2026-06-07):回滚 11.1.0 → 10.0.4。11.1.0 在 aliyun mirror
-    // 不可用,Gradle Plugin Portal 也只列到 12.x(没 11.1.0 marker),导致 CI
-    // compileJava 阶段 plugin 解析失败,整个 backend compile 阻断。10.0.4 在
-    // Gradle Plugin Portal 上 marker artifact 完整,被 aliyun mirror 命中失败
-    // 后能 fallback 找到。同时保留 settings.gradle 的 gradlePluginPortal()
+    // CI 修复 v3 (2026-06-07):10.0.4 → 12.2.2。原因:10.0.4 内置 H2/SQLite schema
+    // 把 reference URL 列定义成 VARCHAR(1000),NVD feed 2026 年某些 CVE
+    // (CVE-2026-6785/6786,bugzilla.mozilla.org 长 URL)超 1000 chars 时抛
+    // DatabaseException 中断 analyze,0dd7330 run OWASP 4m41s 失败。12.2.2
+    // (2026-05-03) 显式修了 "widen reference URL column to handle long Mozilla
+    // CVE URLs" (jeremylong/DependencyCheck#8467),schema 更新到能容纳
+    // bugzilla 长 URL。
+    //
+    // 之前 v2 注释担心 11.1.0 在 aliyun mirror 不可用,Gradle Plugin Portal 也
+    // 只列到 12.x(没 11.1.0 marker)。12.2.2 是 12.x 当前 stable,Gradle Plugin
+    // Portal 一定有 marker artifact。如果 aliyun 命中失败,gradlePluginPortal()
     // 兜底。
-    id 'org.owasp.dependencycheck' version '10.0.4'
+    id 'org.owasp.dependencycheck' version '12.2.2'
 }
 
 // Sprint 2 §4.1 — OWASP Dep-Check 配置
