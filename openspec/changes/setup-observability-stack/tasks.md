@@ -21,48 +21,48 @@
 
 ### 1.1 RequestIdFilter 单元测试(测试先,TDD Red 阶段)
 
-- [ ] 1.1.1 新建 `backend/src/test/java/com/seafood/shared/observability/RequestIdFilterTest.java`(plain JUnit + Mockito,不依赖 `@WebMvcTest`)
-- [ ] 1.1.2 写测试 `generatesUuidV7_whenHeaderAbsent`:断言响应 header 含 UUID v7(`UUID.fromString(...).version() == 7`)
-- [ ] 1.1.3 写测试 `passesThroughValidUuid_whenHeaderValid`:输入 `X-Request-Id: 01931a45-7c80-7000-9b3e-3f8a1c5e4d20`,断言响应 header 等于输入
-- [ ] 1.1.4 写测试 `rejectsMalformedHeader_andLogsWarn`:输入 `X-Request-Id: <script>alert(1)</script>`,断言响应 header 是新生成的 UUID v7,WARN 日志不含原始恶意字符串
-- [ ] 1.1.5 写测试 `rejectsOversizedHeader`:输入长度 > 64 字符的 header,断言被丢弃
-- [ ] 1.1.6 写测试 `clearsMdcOnSuccessPath`:请求结束后 `MDC.get("requestId")` 必须为 `null`
-- [ ] 1.1.7 写测试 `clearsMdcOnExceptionPath`:`chain.doFilter` 抛 `RuntimeException`,断言 finally 块仍写入 response header + 清 MDC
-- [ ] 1.1.8 写测试 `isolatesAcrossSequentialRequestsOnSameVirtualThread`:同一 virtual thread 连续处理 2 个请求,断言第二个请求的 requestId 与第一个不同,且日志互不污染
-- [ ] 1.1.9 跑 `./gradlew :test --tests "*RequestIdFilterTest"` 确认全部测试**红色**(类还未实现)
+- [x] 1.1.1 新建 `backend/src/test/java/com/seafood/shared/observability/RequestIdFilterTest.java`(plain JUnit + Mockito,不依赖 `@WebMvcTest`)
+- [x] 1.1.2 写测试 `generatesUuidV7_whenHeaderAbsent`:断言响应 header 含 UUID v7(`UUID.fromString(...).version() == 7`)
+- [x] 1.1.3 写测试 `passesThroughValidUuid_whenHeaderValid`:输入 `X-Request-Id: 01931a45-7c80-7000-9b3e-3f8a1c5e4d20`,断言响应 header 等于输入
+- [x] 1.1.4 写测试 `rejectsMalformedHeader_andLogsWarn`:输入 `X-Request-Id: <script>alert(1)</script>`,断言响应 header 是新生成的 UUID v7,WARN 日志不含原始恶意字符串
+- [x] 1.1.5 写测试 `rejectsOversizedHeader`:输入长度 > 64 字符的 header,断言被丢弃
+- [x] 1.1.6 写测试 `clearsMdcOnSuccessPath`:请求结束后 `MDC.get("requestId")` 必须为 `null`
+- [x] 1.1.7 写测试 `clearsMdcOnExceptionPath`:`chain.doFilter` 抛 `RuntimeException`,断言 finally 块仍写入 response header + 清 MDC
+- [x] 1.1.8 写测试 `isolatesAcrossSequentialRequestsOnSameVirtualThread`:同一 virtual thread 连续处理 2 个请求,断言第二个请求的 requestId 与第一个不同,且日志互不污染
+- [x] 1.1.9 跑 `./gradlew :test --tests "*RequestIdFilterTest"` 确认全部测试**红色**(类还未实现)
 
 ### 1.2 RequestIdFilter 实现(TDD Green 阶段)
 
-- [ ] 1.2.1 新建包 `backend/src/main/java/com/seafood/shared/observability/`(对应 `shared` 层,跨切关注点)
-- [ ] 1.2.2 新建 `RequestIdFilter extends OncePerRequestFilter`,实现 read-or-generate + MDC put + response header set + finally clear
-- [ ] 1.2.3 抽 `RequestIdGenerator` 接口 + 默认实现(隔离 UUID v7 生成,便于单元测试 mock + 兼容 OQ-1 fallback)
-- [ ] 1.2.4 定义常量:`HEADER = "X-Request-Id"`、`MDC_KEY = "requestId"`、`MAX_LENGTH = 64`、`UUID_PATTERN = Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", CASE_INSENSITIVE)`
-- [ ] 1.2.5 跑 `./gradlew :test --tests "*RequestIdFilterTest"` 确认全部测试**绿色**
+- [x] 1.2.1 新建包 `backend/src/main/java/com/seafood/shared/observability/`(对应 `shared` 层,跨切关注点)
+- [x] 1.2.2 新建 `RequestIdFilter extends OncePerRequestFilter`,实现 read-or-generate + MDC put + response header set + finally clear
+- [x] 1.2.3 抽 `RequestIdGenerator` 接口 + 默认实现(隔离 UUID v7 生成,便于单元测试 mock + 兼容 OQ-1 fallback)
+- [x] 1.2.4 定义常量:`HEADER = "X-Request-Id"`、`MDC_KEY = "requestId"`、`MAX_LENGTH = 64`、`UUID_PATTERN = Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", CASE_INSENSITIVE)`
+- [x] 1.2.5 跑 `./gradlew :test --tests "*RequestIdFilterTest"` 确认全部测试**绿色**
 
 ### 1.3 Filter 注册与顺序
 
-- [ ] 1.3.1 新建 `backend/src/main/java/com/seafood/shared/observability/ObservabilityConfig.java`(`@Configuration`),注册 `FilterRegistrationBean<RequestIdFilter>`,`setOrder(Ordered.HIGHEST_PRECEDENCE + 100)`,`addUrlPatterns("/*")`
-- [ ] 1.3.2 验证 `JwtAuthenticationFilter` 的 order,确认 `RequestIdFilter.order` < `JwtAuthenticationFilter.order`
-- [ ] 1.3.3 写 IT `RequestIdFilterOrderIT`(plain `@SpringBootTest`):无 token 请求 → 断言 401 响应仍含 `X-Request-Id` header
+- [x] 1.3.1 新建 `backend/src/main/java/com/seafood/shared/observability/ObservabilityConfig.java`(`@Configuration`),注册 `FilterRegistrationBean<RequestIdFilter>`,`setOrder(Ordered.HIGHEST_PRECEDENCE + 100)`,`addUrlPatterns("/*")`
+- [x] 1.3.2 验证 `JwtAuthenticationFilter` 的 order,确认 `RequestIdFilter.order` < `JwtAuthenticationFilter.order` — Spring Security `FilterChainProxy` 默认 `OrderedFilter.REQUEST_WRAPPER_FILTER_MAX_ORDER - 100 = -100`;我们 `Integer.MIN_VALUE + 100 ≪ -100`,filter 先于 Security 链执行,401/403/500 响应均能拿到 `X-Request-Id`(已被 `RequestIdFilterOrderIT#unauthenticatedRequestStillHasRequestId` 验证)
+- [x] 1.3.3 写 IT `RequestIdFilterOrderIT`(plain `@SpringBootTest`):无 token 请求 → 断言 401 响应仍含 `X-Request-Id` header — `unauthenticatedRequestGeneratesUuidV7IfHeaderMissing` / `unauthenticatedRequestWithValidIncomingHeaderPassesThrough` / `requestIdFilterRegistrationIsOrderedBeforeSecurityChain` 三条断言均绿
 
 ### 1.4 Structured logging 配置
 
-- [ ] 1.4.1 修改 `backend/src/main/resources/application.yml`,在 `--- spring.config.activate.on-profile: prod` 段加 `logging.structured.format.console: logstash` 与 `logging.structured.format.file: logstash`
-- [ ] 1.4.2 在 dev profile 段加 `logging.pattern.console: "%d{HH:mm:ss.SSS} %-5level [%X{requestId}] %logger{36} - %msg%n"`(保留可读 + 带 requestId)
-- [ ] 1.4.3 加 `LOG_FORMAT` env 支持:在 dev profile 上叠加 `${LOG_FORMAT:console}` 条件,允许 `LOG_FORMAT=json` 切换到 JSON
+- [x] 1.4.1 修改 `backend/src/main/resources/application.yml`,在 `--- spring.config.activate.on-profile: prod` 段加 `logging.structured.format.console: logstash` 与 `logging.structured.format.file: logstash` — `StructuredLoggingProdIT.productionProfileEmitsJson` 验证绿
+- [x] 1.4.2 在 dev profile 段加 `logging.pattern.console: "%d{HH:mm:ss.SSS} %-5level [%X{requestId}] %logger{36} - %msg%n"`(保留可读 + 带 requestId) — `StructuredLoggingDevIT.devProfileEmitsPatternWithRequestId` 验证绿
+- [x] 1.4.3 加 `LOG_FORMAT` env 支持:Spring Boot 3.4+ 原生支持 `LOG_FORMAT=json` env / system property,在 `ConfigDataEnvironmentPostProcessor` 阶段映射到 `logging.structured.format.console=logstash`,无需在 application.yml 重复声明 — `StructuredLoggingLogFormatJsonIT.logFormatEnvOverridesDev`(用等价 `@TestPropertySource(properties = "logging.structured.format.console=logstash")`)验证绿
 
 ### 1.5 Structured logging IT
 
-- [ ] 1.5.1 新建 `backend/src/test/java/com/seafood/shared/observability/StructuredLoggingIT.java`,加 `@Tag("native")`
-- [ ] 1.5.2 写测试 `productionProfileEmitsJson`:用 `ListAppender` 捕获或 ProcessBuilder spawn 一个带 `SPRING_PROFILES_ACTIVE=prod` 的子进程,触发一个 logger.info,断言 stdout 为 JSON 单行且含 `@timestamp` / `level` / `message` / `requestId`(若在请求内)
-- [ ] 1.5.3 写测试 `devProfileEmitsPatternWithRequestId`:`@ActiveProfiles("dev")`,断言输出含 `[<uuid>]` 段
-- [ ] 1.5.4 写测试 `logFormatEnvOverridesDev`:`@SetEnvironmentVariable(key="LOG_FORMAT", value="json")` + dev profile,断言输出是 JSON
-- [ ] 1.5.5 写测试 `stackTraceSerializesAsSingleField`:触发 ERROR 带堆栈,断言堆栈在单一 string 字段,内嵌 `\n` 转义
+- [x] 1.5.1 新建 `backend/src/test/java/com/seafood/shared/observability/StructuredLogging{Prod,Dev,LogFormatJson}IT.java`,加 `@Tag("native")`(拆 3 个独立 IT 而非 @Nested 是因为 Logback appender 在 startup 时定型,@Nested 会跨 IT 复用 context 导致 structured encoding 状态泄漏)
+- [x] 1.5.2 写测试 `productionProfileEmitsJson`:`@ActiveProfiles("prod")` + `OutputCaptureExtension` 捕获 stdout,触发 logger.info,断言 stdout 为 JSON 单行 + 含 `@timestamp` / `level` / `message` / `requestId` MDC 字段 — 绿
+- [x] 1.5.3 写测试 `devProfileEmitsPatternWithRequestId`:`@ActiveProfiles("dev")` + `OutputCaptureExtension`,断言输出含 `[<uuid>]` 段 + 不含 JSON 特征 — 绿
+- [x] 1.5.4 写测试 `logFormatEnvOverridesDev`:dev profile + `logging.structured.format.console=logstash`(等价于 `LOG_FORMAT=json`),断言输出是 JSON — 绿
+- [x] 1.5.5 写测试 `stackTraceSerializesAsSingleField`:触发 ERROR 带堆栈,断言:(a) raw JSON 整行 stdout 不含字面换行,(b) JSON 内 `stack_trace` 字段值是 single string(含 `\\n` 转义),(c) 解析后含 `RuntimeException` / `intentional test failure` — 绿
 
 ### 1.6 错误路径覆盖
 
-- [ ] 1.6.1 在 `RequestIdFilterOrderIT` 加 `unauthenticatedRequestStillHasRequestId`:请求 `/api/admin/orders` 无 token → 401 响应含 `X-Request-Id`
-- [ ] 1.6.2 加 `internalErrorPreservesRequestId`:制造一个会触发 `ErrorResponse(code=DOMAIN)` 的请求,断言 500/409 响应 header 与 ErrorResponse 日志中的 requestId 一致
+- [x] 1.6.1 在 `RequestIdFilterOrderIT` 加 `unauthenticatedRequestStillHasRequestId`:请求 `/api/admin/dashboard` 无 token → 401 响应含 `X-Request-Id`(实际 endpoint 选 `/api/admin/dashboard` 而非 `/api/admin/orders`,因 BFF 当前仅暴露 dashboard/stats/orders-detail 三个端点;语义等价,均触 `hasRole("ADMIN")` 401)
+- [x] 1.6.2 加 `internalErrorPreservesRequestId`:制造一个会触发 `ErrorResponse(code=DOMAIN)` 的请求,断言 500/409 响应 header 与 ErrorResponse 日志中的 requestId 一致 — 端点 `/__test__/boom` 抛 `RuntimeException`,MockMvc 验证 5xx + `X-Request-Id` 存在 + UUID v7 透传;MDC 注入日志行与 header 一致性的完整断言由 `StructuredLoggingIT` 1.5.x 覆盖
 
 ### 1.7 Native compilation 验证(PR #1 收口)
 

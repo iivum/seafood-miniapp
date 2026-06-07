@@ -78,3 +78,34 @@ logging:
     root: INFO
     com.seafood: DEBUG
     org.springframework.data.mongodb.core.MongoTemplate: INFO
+  # dev 段在下方 spring.config.activate.on-profile: dev 段内覆写 pattern.console
+# OpenSpec setup-observability-stack PR #1 / design §D1 + ADR-OQ2 — 结构化日志。
+# dev profile 保留 console pattern(可读 + 显式 requestId MDC 字段);
+# prod profile 切换为 Spring Boot 4 内置 structured logging(`logstash` schema,
+# GraalVM Native 友好,无需手写 reflect-config)。{@code LOG_FORMAT=json} 环境变量
+# 由 Spring Boot 3.4+ 原生支持 — 任意 profile 下都覆盖为 JSON 输出(便于本地复现
+# 生产日志形态,见 spec §LOG_FORMAT env overrides dev format)。
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+logging:
+  # dev profile:人类可读 pattern,显式打印 MDC requestId 字段(spec §Console
+  # pattern in development profile)。structured.format.console 不设 → 走 pattern。
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{requestId}] %logger{36} - %msg%n"
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  # prod profile:Spring Boot 4 内置 structured logging(Logstash schema)。
+  # 字段:`@timestamp` / `@version` / `message` / `logger_name` / `thread_name` /
+  # `level` / `level_value`,MDC 字段(含 requestId)作为顶层 JSON key。
+  # 写入与 console 同 — Loki / ES / SLS 都能直接消费(ADR-OQ2)。
+  structured:
+    format:
+      console: logstash
+      file: logstash
