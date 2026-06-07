@@ -34,7 +34,12 @@ plugins {
 // 已不存在)。env var 缺失时 apiKey = null,plugin 退化为匿名(本地开发不阻断)。
 dependencyCheck {
     failBuildOnCVSS = 7.0
-    suppressionFiles = files('dependency-check-suppressions.xml')
+    // Sprint 2 CI 修复 v4 (2026-06-07):12.2.2 改 suppressionFiles 类型为
+    // List<String>,10.0.4 的 files('...') 返 FileCollection,plugin 12.2.2
+    // 报 "Cannot get the value of a property of type List<String> as the
+    // source value contains an element of type java.io.File"。改直接传
+    // 字符串路径。
+    suppressionFiles = ['dependency-check-suppressions.xml']
     nvd {
         apiKey = System.getenv('NVD_API_KEY')
     }
