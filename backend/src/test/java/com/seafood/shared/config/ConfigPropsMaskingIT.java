@@ -104,7 +104,7 @@ class ConfigPropsMaskingIT {
                     // fixture: 'mongoUri' is in OUR regex (contains "uri") but NOT in actuator default
                     // CI fix:用户名/密码换成显眼的 _FAKE 占位 —— TruffleHog filesystem
                     // 扫描会拿 hunter2 等当 secret,触发假阳性。
-                    "fixture.mongo-uri=mongodb://TEST_USER_FAKE:TEST_PASSWORD_FAKE@db.example.com:27017/seafood?ssl=true",
+                    "fixture.mongo-uri=mongodb://TEST_USER_FAKE:TEST_PASSWORD_FAKE@db.example.com:27017/seafood?ssl=true", // trufflehog:ignore — placeholder fixture
                     "fixture.plain-label=this-is-not-sensitive");
 
     @Test

@@ -82,7 +82,7 @@ class MongoUriValidatorTest {
         // 错的协议 + 内嵌凭据;目标是触发 schema 校验失败同时验证错误消息不泄漏。
         // CI fix:用户名/密码改成 "TEST_USER_FAKE" / "TEST_PASSWORD_FAKE" —— 任何
         // 真凭据检测器(TruffleHog 等)会拿这俩字符串当 fake 占位,不会触发泄漏告警。
-        String sensitiveUri = "postgres://TEST_USER_FAKE:TEST_PASSWORD_FAKE@db.example.com:5432/seafood";
+        String sensitiveUri = "postgres://TEST_USER_FAKE:TEST_PASSWORD_FAKE@db.example.com:5432/seafood"; // trufflehog:ignore — placeholder, see @Test javadoc
         MongoUriValidator validator = new MongoUriValidator(sensitiveUri);
 
         assertThatThrownBy(validator::validate)
