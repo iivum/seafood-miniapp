@@ -105,31 +105,6 @@ HTTP → [ JwtAuthenticationFilter → @PreAuthorize → Controller
 React 18 SPA (admin-ui/) → backend BFF (/api/admin/**) → 同进程内 ApplicationService 编排
 ```
 
-### 管理后台 (Admin UI)
-
-**技术栈**: Vue 3.5.x + Element Plus + Pinia + Vue Router 4.x + Axios
-
-**目录结构**:
-```
-backend/admin-ui/vue/
-├── src/
-│   ├── api/           # Axios API 调用
-│   ├── components/    # 表单组件 (ProductForm, OrderDetailDialog 等)
-│   ├── composables/   # 可复用逻辑 (useFormatters, useStatusHelper)
-│   ├── layouts/       # MainLayout 主布局
-│   ├── router/       # Vue Router 配置
-│   ├── stores/       # Pinia 状态管理 (auth, product, order, user, config)
-│   ├── styles/       # 全局样式
-│   ├── types/        # TypeScript 类型定义
-│   └── views/        # 页面视图 (Login, Dashboard, ProductList 等)
-└── vite.config.ts    # Vite 构建配置
-```
-
-**BFF 聚合端点**:
-- `GET /api/admin/orders/{id}/detail` - 订单详情(含用户、商品)
-- `GET /api/admin/products/stats` - 商品统计
-- `GET /api/admin/dashboard` - 仪表盘汇总数据
-
 ---
 
 ## 关键规则
@@ -261,20 +236,6 @@ docker-compose down -v            # 停止 + 清 mongodb_data volume
 > `curl http://localhost:8080/api/products?page=0&size=10` 应返回 200 且
 > `totalElements > 0`(需先跑 `backend/seed/seed.sh`)。完整冒烟见
 > `backend/scripts/native-smoke.sh`。
-
-### CI/CD
-> **Sprint 2 C5 §5.4 新增**:`.github/workflows/native.yml` — GraalVM native 端到端
-> pipeline(只在改 `backend/**` / `Dockerfile` / `docker-compose.yml` 时跑):
->
-> 1. `nativeTest`(`@Tag("native")` 切片)→ agent 收集 metadata
-> 2. `normalize-native-metadata.sh` 排序去重 + git diff gate
-> 3. `nativeCompile` → `seafood-backend` binary
-> 4. `docker build` → `seafood-backend:native`
-> 5. Trivy 镜像扫描(HIGH/CRITICAL fail),SARIF 上传 GitHub Code Scanning
-> 6. `native-smoke.sh` 端到端冒烟(health 200 / totalElements>0 / RSS<200MB)
->
-> 与 C4 计划的 3-job 拆分(design §Decision 2)一致 — `jvm-check`(`ci.yml`)
-> 跑得频;`native` 和 `security` 由路径过滤在 PR 改动相应文件时才跑。
 
 ### Git 工作流
 - **提交格式**:`feat(<scope>):` `fix:` `refactor:` `docs:` `test:` `chore:`
