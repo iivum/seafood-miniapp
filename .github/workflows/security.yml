@@ -74,20 +74,20 @@ jobs:
         working-directory: backend
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-          # CI 修复 (2026-06-07):GRADLE_OPTS 给 daemon 显式 4 GiB heap +
-          # 1 GiB metaspace。OWASP 12.2.2 plugin 的 dependencyCheckAnalyze
-          # 把全 transitive dep + NVD data 装进内存,Gradle 9.4 默认 512 MiB
-          # heap 触发 GC thrashing → daemon 自杀(7e2b8f5 run 1m55s 失败,
-          # 报错 "configured max heap space is '512 MiB'")。
+          # CI 修复 v2 (2026-06-07):GRADLE_OPTS 设了但 Gradle 9.4 daemon 仍用
+          # 默认 512 MiB heap → 265e8f4 run 1m58s GC thrashing 失败。
+          # 原因:GRADLE_OPTS 是给 Gradle 客户端进程的,daemon 自身 heap 读
+          # org.gradle.jvmargs(JVM 启动时 system property)。改用 -D 前缀透传:
+          # `-Dorg.gradle.jvmargs=...` 让 daemon 启动时把整个 arg 串当
+          # jvmargs,等价写在 gradle.properties。
           #
-          # 用 GRADLE_OPTS 而非 backend/gradle.properties — 后者在 .gitignore
-          # (dev-only SDK 路径等),不能在 workflow commit 改。GRADLE_OPTS 是
-          # Gradle daemon 启动时读的 env,等价于 org.gradle.jvmargs。
+          # 4 GiB heap 在 265e8f4 仍 OOM(daemon 用了默认 512 MiB,真 analyze
+          # 阶段 4 GiB 也吃紧);提到 6 GiB + 1 GiB metaspace。GitHub Actions
+          # public repo ubuntu-latest = 4 CPU / 16 GB RAM,JVM 6 GiB + 系统
+          # 5 GB + 其他 step 5 GB = 16 GB 顶满。
           #
-          # GitHub Actions public repo ubuntu-latest = 4 CPU / 16 GB RAM(无
-          # 更大 SKU)。4 GiB heap + 1 GiB metaspace 给 OWASP 够用,留 11 GB
-          # 给系统 + 后续 step。
-          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
+          # 不用 backend/gradle.properties — 在 .gitignore (dev-only SDK path)。
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
         # CI 修复:用 daemon(默认)替代 --no-daemon —— plugin 解析失败时,daemon
         # 可复用 pluginManagement 缓存 + 减少冷启动网络尖刺。NVD cache 已在前面步骤
         # 暖好,dependencyCheckAnalyze 实际跑 scan 阶段只需 ~5-10min。
