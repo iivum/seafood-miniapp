@@ -166,7 +166,21 @@ fi
 #   3) "0B" / "0" 显式早退到 inspect fallback(cgroup v2 上 docker stats 返 0B)
 RSS_RAW=$(docker stats --no-stream --format '{{.MemUsage}}' "$CONTAINER_NAME" 2>/dev/null \
   | head -n1 | awk -F' / ' '{print $1}' | tr -d '[:space:]' || true)
-if [ -z "$RSS_RAW" ] || [ "$RSS_RAW" = "0B" ] || [ "$RSS_RAW" = "0" ]; then
+# CI 修复 v6 (2026-06-07):cgroup v2 + 容器刚启动 ~6s 时 docker stats 可能返
+# 容器 header 行(空)+ 第一行 "0B" / "0",`head -n1` 截到空行后 awk $1 = "" →
+# RSS_RAW 空 → 走 inspect fallback 是预期;但 cgroup v2 上 inspect .MemoryStats.usage
+# 也返 0,两次 fallback 都拿到 "0",要确保都识别成"无法测量"。
+# 防御:用 `printf '%s' "$RSS_RAW" | grep -qE '^[0-9BKMGTPibkmgtp.]+$'` 之外,
+# 把 "0" / "0B" / "00" / "0.0" 一切全 0 形式都早退。
+is_unusable_rss() {
+  local r="$1"
+  [ -z "$r" ] && return 0
+  case "$r" in
+    0|0B|0b|0.0|0.0B|00|000|0K|0KB|0KiB|0M|0MB|0MiB|0G|0GB|0GiB) return 0 ;;
+  esac
+  return 1
+}
+if is_unusable_rss "$RSS_RAW"; then
   # docker stats 拿不到时(docker daemon 旧 / cgroup v2 GHA runner 返 0B)回退到 inspect。
   # 这里<em>只</em>回退到 inspect 路径,不再静默切到 mongodb。
   CID=$(docker ps -qf "name=$CONTAINER_NAME" || true)
@@ -178,7 +192,7 @@ if [ -z "$RSS_RAW" ] || [ "$RSS_RAW" = "0B" ] || [ "$RSS_RAW" = "0" ]; then
     #  实测/k8s metrics 拿,不在 CI smoke 强制要求。cgroup v2 runner 不
     #  提供 RSS 时,binary-up signal 已由 liveness 200 证明,真 fail 不会被掩盖。)
     RSS_RAW=$(docker inspect -f '{{.MemoryStats.usage}}' "$CID" 2>/dev/null | tr -d '[:space:]' || echo 0)
-    if [ -z "$RSS_RAW" ] || [ "$RSS_RAW" = "0" ]; then
+    if is_unusable_rss "$RSS_RAW"; then
       log "raw RSS unavailable (cgroup v2 limitation on GitHub Actions runner); skipping RSS budget check"
       log "all smoke checks passed (RSS measurement skipped)"
       exit 0

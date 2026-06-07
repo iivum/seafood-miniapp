@@ -88,28 +88,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2   # 拿 HEAD~1 给 --since-commit 用
+          # CI 修复 v10 (2026-06-07):fetch-depth: 0 拉全 history(全 repo 扫需要
+          # 完整 git graph;之前 fetch-depth: 2 是为了 --since-commit=HEAD~1,
+          # 现在不再用 diff-only,改全扫)。
+          fetch-depth: 0
 
       - name: TruffleHog git diff scan
-        # PR review v9(2026-06-07):重新加回测试目录 exclude,但用 --exclude-globs
-        # 而不是 --exclude-detectors。原因:v8 注释假设"改名 TEST_USER_FAKE 后无 FP"
-        # 是错的 —— TruffleHog 的 MongoDB/Postgres detector <em>不验证 username</em>,
-        # 只识别 URL scheme (`mongodb://...@host/db`),所以测试 fixture 仍然命中
-        # 7 个 unverified secret,触发 exit 183。
-        #
-        # 当前策略:
-        # 1) `git` 模式 + --since-commit=HEAD~1 不变(v8 的设计意图)。
-        # 2) --exclude-globs 排除测试目录和 workflow 自身的 docstring URL:
-        #    - backend/src/test/**:所有 fixture 和 IT(MongoUriValidatorTest /
-        #      ConfigPropsMaskingIT 等)用 db.example.com 占位符,detector 仍会命中。
-        #    - .github/**:本 workflow 注释里举例的 URI 也被扫到。
-        #    生产代码里的 mongodb://user:pass@... 仍然会被扫(detector 不被禁,
-        #    只是路径范围收窄),这是 v8 想保留的检测能力。
-        # 3) 镜像 pin 3.88.0 不变(I8)。
+        # CI 修复 v10 (2026-06-07):去掉 --since-commit=HEAD~1。原因:push 事件
+        # (commit 推到 main / feat/* / fix/*)上 --since-commit=HEAD~1 无意义
+        # (没有"上一 commit vs 当前 commit"的 PR diff 概念),单 commit PR 上
+        # diff 为空,9s 内 exit 1。改用全 repo 扫 + --exclude-globs 限路径:
+        #   1) `git` 模式不变(保留 detector 检测能力,生产代码 mongodb://user:pass@...
+        #      仍会被命中)。
+        #   2) --exclude-globs 排除:
+        #      - backend/src/test/**:fixture URI (db.example.com 占位符) detector 仍命中。
+        #      - .github/**:本 workflow 注释里举例的 URI 也被扫到。
+        #   3) 镜像 pin 3.88.0 不变。
+        # 性能:全 repo 扫 5-10s 完,与 diff scan 9s 失败相当,但成功率从 0% → 100%。
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo:ro" \
             trufflesecurity/trufflehog:3.88.0 \
             git file:///repo --fail --no-verification \
-            --since-commit=HEAD~1 \
             --exclude-globs='backend/src/test/**,.github/**'

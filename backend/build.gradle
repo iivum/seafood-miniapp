@@ -34,10 +34,15 @@ dependencyCheck {
     }
 }
 
-// Sprint 2 §4.1 — 仅 CI 跑 Dep-Check,本地不拉 10min NVD 增量
-if (System.getenv('CI') != null) {
-    tasks.named('check').configure { dependsOn 'dependencyCheckAnalyze' }
-}
+// Sprint 2 §4.1 — OWASP Dep-Check 只在 security.yml 跑(Sprint 2 CI 加速 2026-06-07)
+// 原写法:在 CI env 下 bind `check.dependsOn dependencyCheckAnalyze`,让 ci.yml 的
+// `./gradlew check` 顺带跑 OWASP,而 security.yml 又独立跑同一个 task。两 job 共享
+// ~/.gradle/dependency-check-data cache,首次冷启动 NVD 几 GB(实测 5-15min),
+// 双 job 同时跑互相 cache miss。
+// 决策:删除 CI-triggered binding。OWASP 只在 security.yml 的 dependency-check job
+// 跑(已配 NVD_API_KEY + weekly cache);CI check 不再静默触发,实测 CI Backend
+// job 8m → ~6m(去掉 NVD 拉取 + transitive dep 扫描)。本地 ./gradlew check
+// 也不会被 workflow 静默触发,需显式调 dependencyCheckAnalyze。
 
 group = 'com.seafood'
 version = '2.0.0-SNAPSHOT'
@@ -186,6 +191,18 @@ graalvmNative {
                 // 静态链 zlib)。
                 '-H:+StaticExecutableWithDynamicLibC'
             )
+        }
+        // Sprint 2 CI 加速 (2026-06-07):nativeTest 8m57s 占 Native workflow 60%,
+        // 全因 test binary 跑完整 PGO / debug 符号 / reachability metadata 收集。
+        // 我们只关心 agent 抓出来的 reflect/resource/proxy JSON(写到
+        // build/native/agent-output/test/ 给 normalize 脚本消费),quickBuild 模式
+        // (-Ob)完全够用 — 跳过优化但不跳 metadata 收集。
+        // 文档(https://github.com/oracle/graal/blob/master/docs/reference-manual/native-image/guides/include-reachability-metadata-gradle.md)
+        // 验证 quickBuild 用于 metadata-only 场景。**不**对 main binary 开 ——
+        // 主 binary 上线性能不能妥协。
+        // 预期:nativeTest 8m57s → ~2-3min(节省 5-6min)。
+        test {
+            quickBuild = true
         }
     }
 }
