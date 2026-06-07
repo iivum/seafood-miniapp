@@ -34,11 +34,16 @@ permissions:
 # 只用 secrets.GITHUB_TOKEN(GraalVM setup + ghcr.io 登录)。
 # MONGODB_URI 不在全局设 —— nativeCompile 跑 JVM 测试时不需要连 Mongo。
 # smoke step 自己声明 MONGODB_URI 并用 docker compose 的 `mongodb` service name。
+# Sprint 2 CI 修复 (2026-06-08):Node.js 20 actions 已弃用(2026-09-16 升 hard error)。
+# 7 类 action 已升到 Node 24 兼容 major(checkout@v6 / cache@v5 / docker/login-action@v4
+# / codeql-action/upload-sarif@v4 / upload-artifact@v5);FORCE_JAVASCRIPT_ACTIONS_TO_NODE24
+# 是 fail-safe,覆盖 action 自身声明的 node20。
 env:
   JWT_SECRET: ci-native-test-secret-must-be-at-least-32-bytes-AAAA
   JWT_ADMIN_SECRET: ci-native-test-admin-secret-must-be-at-least-32-bytes-BBBB
   # PR review #8:admin.bootstrap.password 改为必填,CI 显式注入(原 :admin123 兜底已删)
   ADMIN_BOOTSTRAP_PASSWORD: ci-native-test-admin-bootstrap-pw-MUST-NOT-be-default
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   # =============================================================
@@ -51,7 +56,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up GraalVM JDK 25
         uses: graalvm/setup-graalvm@v1
@@ -69,7 +74,7 @@ jobs:
       # JDK,跑 Gradle 完全 OK,且它把 native-image 工具一起放好了)。
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -80,7 +85,7 @@ jobs:
             ${{ runner.os }}-
 
       - name: Cache Docker layers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-docker-${{ hashFiles('backend/Dockerfile') }}
@@ -89,7 +94,7 @@ jobs:
 
       - name: docker login (ghcr, optional push)
         if: github.event_name == 'push'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -181,7 +186,7 @@ jobs:
 
       - name: Upload Trivy SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-native.sarif
 
@@ -201,7 +206,7 @@ jobs:
 
       - name: Upload native binary
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: seafood-backend-native
           path: backend/build/native/nativeCompile/seafood-backend

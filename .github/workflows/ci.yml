@@ -14,6 +14,15 @@ concurrency:
 
 # 单 job 串行跑:快速反馈,共享缓存
 # 安全:所有 run: 块均硬编码,无 ${{ github.event.* }} 插值
+# Sprint 2 CI 修复 (2026-06-08):Node.js 20 actions 已弃用(2026-09-16 升 hard error)。
+# 8 类 action 已升到 Node 24 兼容 major(checkout@v6 / setup-node@v6 /
+# setup-java@v5 / cache@v5 / upload-artifact@v5 / docker/login-action@v4 /
+# codeql-action/upload-sarif@v4)。
+# FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 是 fail-safe:即使未来 PR 引入未升的新
+# action,这个 env var 强制所有 JS action 走 Node 24 runtime(覆盖 action 自身
+# 声明的 node20),防止 Node 20 deprecation 警告回流。
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 jobs:
   backend:
     name: Backend (Java 25 + GraalVM)
@@ -30,7 +39,7 @@ jobs:
         image: mongo:7
         ports: ["27017:27017"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up GraalVM JDK 25
         uses: graalvm/setup-graalvm@v1
@@ -40,7 +49,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -67,8 +76,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -89,8 +98,8 @@ jobs:
     timeout-minutes: 15
     continue-on-error: true   # §9 还没落地
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Test
