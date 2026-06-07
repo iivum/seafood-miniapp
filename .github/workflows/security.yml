@@ -30,7 +30,13 @@ jobs:
     runs-on: ubuntu-latest
     # CI 修复:超时从 15 提到 30 分钟 —— NVD 数据下载 + 全 transitive dep 扫描常超过
     # 15min(尤其首次冷启动)。30min 是 NVD 推荐 + 实测稳定值。
-    timeout-minutes: 30
+    # CI 修复 (2026-06-07):30 → 60min。NVD cache restore 1s 完成(已 weekly
+    # bucket + restore-keys 兜底),但 Run Dependency-Check Analyze 仍要重新
+    # 比对 NVD 全 200K+ CVE entries vs 所有 transitive dep —
+    # 冷启动实测 30-45min(NVD_API_KEY 接通可降到 10-20min,需用户在 repo
+    # secrets 配置)。30min timeout 在 75f0c88 run 触发 cancel,拉整个
+    # Security workflow 失败(尽管 TruffleHog 8s 已 success)。
+    timeout-minutes: 60
     env:
       CI: "true"   # 触发 build.gradle 中 CI-only 的 dependsOn binding
     steps:
