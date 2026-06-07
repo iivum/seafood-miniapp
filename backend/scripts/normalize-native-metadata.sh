@@ -14,8 +14,9 @@
 #
 # 退出码:
 #   0  = 本次归一化产物与 HEAD committed 版本一致(可能都是空 [] / {})
-#   1  = 与 HEAD 不一致 — 提交方需把 src/main/resources/META-INF/native-image/
-#        下的更新加入 commit 后重跑 CI
+#   0  = 与 HEAD 不一致 — 仅 ::warning:: annotation,Pipeline 继续推进;
+#        提交方需把 src/main/resources/META-INF/native-image/ 下的更新加入 commit
+#        (drift 设计如此:agent 输出非 byte-stable,Sprint 2 C5 决定不再硬拦截)
 #   2  = 必要依赖缺失 / 输入文件缺失 / 致命错误
 # ============================================================
 
@@ -92,6 +93,12 @@ echo
 echo "[normalize] Untracked files in META-INF/native-image/:"
 git ls-files --others --exclude-standard src/main/resources/META-INF/native-image/ || true
 echo
+# Sprint 2 CI 修复 (2026-06-08):drift 分支从 exit 1 改为 ::warning:: + exit 0。
+# 原 exit 1 被 workflow 的 continue-on-error: true 吞掉不 fail run,但 GitHub UI
+# 在 step detail 仍显示 "Error: Process completed with exit code 1" 干扰阅读。
+# 改 ::warning:: 标 annotation,drift 仍输出到 log 供人 review,但 step 标 green。
+# 退出码契约见文件头注释。
 echo "[normalize] ACTION: review the diff above, commit the regenerated" >&2
 echo "              JSON, and re-run the native pipeline." >&2
-exit 1
+echo "::warning::normalize-native-metadata drift detected, see log above"
+exit 0
