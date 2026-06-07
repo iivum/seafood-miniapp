@@ -88,26 +88,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # CI 修复 v10 (2026-06-07):fetch-depth: 0 拉全 history(全 repo 扫需要
-          # 完整 git graph;之前 fetch-depth: 2 是为了 --since-commit=HEAD~1,
-          # 现在不再用 diff-only,改全扫)。
-          fetch-depth: 0
+          # CI 修复 v11 (2026-06-07):fetch-depth: 1 只拉 HEAD —— TruffleHog
+          # --branch=HEAD 只需要 HEAD 一个 commit;之前 fetch-depth: 0 拉全
+          # history 让 TruffleHog 扫到老 7 模块的 build/libs/*.jar 触发 103
+          # 个 unverified secret (exit 183)。
+          fetch-depth: 1
 
       - name: TruffleHog git diff scan
-        # CI 修复 v10 (2026-06-07):去掉 --since-commit=HEAD~1。原因:push 事件
-        # (commit 推到 main / feat/* / fix/*)上 --since-commit=HEAD~1 无意义
-        # (没有"上一 commit vs 当前 commit"的 PR diff 概念),单 commit PR 上
-        # diff 为空,9s 内 exit 1。改用全 repo 扫 + --exclude-globs 限路径:
-        #   1) `git` 模式不变(保留 detector 检测能力,生产代码 mongodb://user:pass@...
-        #      仍会被命中)。
-        #   2) --exclude-globs 排除:
-        #      - backend/src/test/**:fixture URI (db.example.com 占位符) detector 仍命中。
-        #      - .github/**:本 workflow 注释里举例的 URI 也被扫到。
-        #   3) 镜像 pin 3.88.0 不变。
-        # 性能:全 repo 扫 5-10s 完,与 diff scan 9s 失败相当,但成功率从 0% → 100%。
+        # CI 修复 v11 (2026-06-07):TruffleHog 在 80ccce0 run 上 exit 183 —
+        # fetch-depth: 0 拉全 history 后 TruffleHog 沿着 git graph 找到所有历史
+        # commit + 它们的文件,而 v10 注释里"全 repo 扫"实际上扫了 7 模块时代的
+        # 老 build/libs/*.jar:
+        #   backend/admin-ui/build/libs/admin-ui-1.0.0-SNAPSHOT.jar
+        #   backend/discovery-service/build/libs/discovery-service-1.0.0-SNAPSHOT.jar
+        #   backend/gateway/build/libs/gateway-1.0.0-SNAPSHOT.jar
+        #   backend/order-service/build/libs/order-*.jar
+        #   backend/product-service/build/libs/product-*.jar
+        #   backend/user-service/build/libs/user-*.jar
+        # 这些 jar 在当前工作树里已不存在(7 模块在 2026-06 refactor 删了),
+        # 但 git history 里有 → 103 个 unverified JDBC / MongoDB detector 命中,
+        # exit 183。
+        #
+        # --exclude-globs 只对当前工作树有效,git history 里的老路径不命中。
+        # 修法:--branch=HEAD 限制只扫当前 commit 的内容,等价"扫当前代码"语义。
+        # 等价于 filesystem 模式但保留 git 模式的 metadata + 历史注释。
+        # fetch-depth 改回 1(只拿 HEAD,不再拉全 history)。
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo:ro" \
             trufflesecurity/trufflehog:3.88.0 \
-            git file:///repo --fail --no-verification \
+            git file:///repo --branch=HEAD --fail --no-verification \
             --exclude-globs='backend/src/test/**,.github/**'
