@@ -95,10 +95,6 @@ management:
   metrics:
     tags:
       application: seafood-backend
-  endpoint:
-    health:
-      show-details: when-authorized
-    prometheus:
 
 logging:
   level:
