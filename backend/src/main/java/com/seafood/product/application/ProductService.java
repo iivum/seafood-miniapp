@@ -9,6 +9,7 @@ import com.seafood.product.infra.ProductDocument;
 import com.seafood.product.infra.ProductMapper;
 import com.seafood.product.infra.ProductRepository;
 import com.seafood.shared.error.NotFoundException;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -26,14 +27,22 @@ import java.util.List;
  *   <li>公共读不强制登录,但只返回 status == ACTIVE 的商品</li>
  *   <li>{@link #decrementStock} 是给订单服务用的入口,跨模块唯一接口</li>
  * </ul>
+ *
+ * <p>OpenSpec setup-observability-stack PR #3 — {@link #listPublic} 成功路径对每个返回的商品
+ * 累加 {@code products.queried{category=...}} 计数器,tag value 是分类的中文 displayName
+ * (与 {@link ProductResponse#category()} 一致)。category 维度基数 = 5(sealed interface),
+ * 满足 design §D5 标签白名单约束(参见 ArchUnit
+ * {@code MetricsCardinalityTest})。
  */
 @Service
 public class ProductService {
 
     private final ProductRepository repo;
+    private final MeterRegistry meterRegistry;
 
-    public ProductService(ProductRepository repo) {
+    public ProductService(ProductRepository repo, MeterRegistry meterRegistry) {
         this.repo = repo;
+        this.meterRegistry = meterRegistry;
     }
 
     // ----- 写(ADMIN)-----
@@ -102,6 +111,12 @@ public class ProductService {
                 .map(ProductMapper::toDomain)
                 .map(ProductResponse::from)
                 .toList();
+        // 业务埋点:每个被浏览的商品 +1。tag value 是分类 displayName(5 档 sealed
+        // interface,低基数),不用 category filter 维度。无结果时 0 增量,
+        // 计数器只在真正被消费时增长,避免 0/全量导致 PromQL `rate()` 分母为零。
+        for (ProductResponse r : mapped) {
+            meterRegistry.counter("products.queried", "category", r.category()).increment();
+        }
         return new PageImpl<>(mapped, pageable, page.getTotalElements());
     }
 

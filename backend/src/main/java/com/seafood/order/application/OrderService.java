@@ -15,6 +15,7 @@ import com.seafood.product.infra.ProductRepository;
 import com.seafood.shared.error.DomainException;
 import com.seafood.shared.error.NotFoundException;
 import com.seafood.shared.security.Role;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +37,17 @@ import java.util.List;
  *   <li>list:调用方角色决定 userId 过滤 — CUSTOMER 看自己,ADMIN 看全部</li>
  *   <li>ship/cancel:状态机集中规则,任何越界抛 DomainException</li>
  * </ul>
+ *
+ * <p>OpenSpec setup-observability-stack PR #3 — 业务计数器埋点
+ * (design §D5 + specs/metrics-export §Business counters):
+ * <ul>
+ *   <li>{@code orders.created{paymentMethod}} — 下单成功时累加,tag 为支付渠道</li>
+ *   <li>{@code orders.cancelled{reason}} — 取消成功时累加,tag 为取消原因</li>
+ *   <li>{@code orders.paid{paymentMethod,amountBucket}} — 支付成功时累加,amount bucket
+ *       由 {@link OrderMetrics#bucketize} 计算(design §ADR-OQ3 几何 4 档)</li>
+ * </ul>
+ * tag 全部为低基数字符串(wechat/admin/unknown,user/timeout/admin,lt100/100to500/500to2000/gte2000),
+ * 满足 ArchUnit {@code MetricsCardinalityTest} 约束(参见 design §D5)。
  */
 @Service
 public class OrderService {
@@ -43,16 +55,30 @@ public class OrderService {
     private final OrderRepository orders;
     private final CartRepository carts;
     private final ProductRepository products;
+    private final MeterRegistry meterRegistry;
 
-    public OrderService(OrderRepository orders, CartRepository carts, ProductRepository products) {
+    public OrderService(OrderRepository orders,
+                        CartRepository carts,
+                        ProductRepository products,
+                        MeterRegistry meterRegistry) {
         this.orders = orders;
         this.carts = carts;
         this.products = products;
+        this.meterRegistry = meterRegistry;
     }
 
     // ----- create -----
 
     public OrderResponse create(String userId) {
+        return create(userId, "wechat");
+    }
+
+    /**
+     * @param paymentMethod 支付渠道 — 留 metric tag 用。当前单渠道(微信小程序),暂不持久化到
+     *                      Order document(Sprint 3 接入真实支付时再加 {@code paymentMethod}
+     *                      字段 + Mongo migration);只用于埋 {@code orders.created} 计数。
+     */
+    public OrderResponse create(String userId, String paymentMethod) {
         Cart cart = carts.findById(userId)
                 .map(d -> new com.seafood.order.domain.Cart(d.getUserId(), d.getItems(), d.getUpdatedAt()))
                 .orElseThrow(() -> new DomainException("购物车为空"));
@@ -105,6 +131,13 @@ public class OrderService {
         // 4) 清空 cart
         carts.deleteById(userId);
 
+        // 5) 业务埋点(PR #3 3.3):下单成功(库存已扣 + 订单已落库 + cart 已清)后累加。
+        // 失败路径(库存不足/商品下架/购物车空)在 catch + 早 throw 处退出,不递增。
+        // paymentMethod tag 显式落在 create(userId, paymentMethod) 重载入口,无值默认
+        // "wechat"(本期单渠道);Sprint 3 多支付接入后这里扩展为枚举校验。
+        String method = (paymentMethod == null || paymentMethod.isBlank()) ? "wechat" : paymentMethod;
+        meterRegistry.counter("orders.created", "paymentMethod", method).increment();
+
         return OrderResponse.from(OrderMapper.toDomain(saved));
     }
 
@@ -136,13 +169,45 @@ public class OrderService {
     public OrderResponse cancel(String orderId, String reason) {
         Order o = load(orderId);
         Order next = o.cancel(reason, Instant.now());
-        return OrderResponse.from(persistAndReturn(next));
+        OrderResponse resp = OrderResponse.from(persistAndReturn(next));
+
+        // 业务埋点(PR #3 3.4):取消成功时累加。reason 规范化到低基数白名单
+        // (user / timeout / admin)— 其他输入(空 / 随意字符串)归到 "other",防止
+        // 用户/攻击者在 reason 里塞高基数字符串污染 PromQL 时间序列。
+        String tag = normalizeCancelReason(reason);
+        meterRegistry.counter("orders.cancelled", "reason", tag).increment();
+        return resp;
     }
 
     public OrderResponse markPaid(String orderId) {
         Order o = load(orderId);
         Order next = o.markPaid(Instant.now());
-        return OrderResponse.from(persistAndReturn(next));
+        OrderResponse resp = OrderResponse.from(persistAndReturn(next));
+
+        // 业务埋点(PR #3 3.5):支付成功时累加。paymentMethod tag 暂固定 "wechat"
+        // (本期单渠道,订单创建时无 paymentMethod 字段 — Sprint 3 接入真实支付再
+        // 扩展);amountBucket 由 OrderMetrics.bucketize(design §ADR-OQ3 几何 4 档)
+        // 计算 — 严格低基数标签白名单。
+        String amountBucket = OrderMetrics.bucketize(next.totalAmount());
+        meterRegistry.counter("orders.paid",
+                        "paymentMethod", "wechat",
+                        "amountBucket", amountBucket)
+                .increment();
+        return resp;
+    }
+
+    /**
+     * 把 {@code reason} 字符串规范化到低基数白名单 4 档。空白或不在白名单的归 "other",
+     * 防止任意字符串污染 PromQL series 数量。
+     */
+    private static String normalizeCancelReason(String reason) {
+        if (reason == null) return "other";
+        String r = reason.trim();
+        if (r.isEmpty()) return "other";
+        if (r.equalsIgnoreCase("user")) return "user";
+        if (r.equalsIgnoreCase("timeout")) return "timeout";
+        if (r.equalsIgnoreCase("admin")) return "admin";
+        return "other";
     }
 
     // ----- 跨模块只读(BFF 用)-----

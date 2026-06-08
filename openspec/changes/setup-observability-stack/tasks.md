@@ -129,49 +129,49 @@
 
 ### 3.1 Amount bucketing 工具
 
-- [ ] 3.1.1 新建 `backend/src/main/java/com/seafood/order/application/OrderMetrics.java`,实现 `static String bucketize(BigDecimal amount)` 几何 4 档:`< 100` → `lt100`、`[100, 500)` → `100to500`、`[500, 2000)` → `500to2000`、`>= 2000` → `gte2000`
-- [ ] 3.1.2 单元测试 `OrderMetricsTest` 覆盖 4 个区间边界 + 负数(应抛 `IllegalArgumentException`)+ null(应抛 `NullPointerException`)
+- [x] 3.1.1 新建 `backend/src/main/java/com/seafood/order/application/OrderMetrics.java`,实现 `static String bucketize(BigDecimal amount)` 几何 4 档:`< 100` → `lt100`、`[100, 500)` → `100to500`、`[500, 2000)` → `500to2000`、`>= 2000` → `gte2000`
+- [x] 3.1.2 单元测试 `OrderMetricsTest` 覆盖 4 个区间边界 + 负数(应抛 `IllegalArgumentException`)+ null(应抛 `NullPointerException`)
 
 ### 3.2 ProductApplicationService.searchProducts
 
-- [ ] 3.2.1 修改 `ProductApplicationServiceTest`:加 `meterRegistry` mock,assert `counter("products.queried", "category", "鱼类").count()` 在调用后递增 1
-- [ ] 3.2.2 在 `ProductApplicationService` 注入 `MeterRegistry`,在 `searchProducts` 成功路径对每个匹配的 category 调用 `meterRegistry.counter("products.queried", "category", cat.name()).increment()`
-- [ ] 3.2.3 跑 `./gradlew :test --tests "*ProductApplicationServiceTest"` 绿
+- [x] 3.2.1 修改 `ProductApplicationServiceTest`:加 `meterRegistry` mock,assert `counter("products.queried", "category", "鱼类").count()` 在调用后递增 1
+- [x] 3.2.2 在 `ProductApplicationService` 注入 `MeterRegistry`,在 `searchProducts` 成功路径对每个匹配的 category 调用 `meterRegistry.counter("products.queried", "category", cat.name()).increment()`
+- [x] 3.2.3 跑 `./gradlew :test --tests "*ProductApplicationServiceTest"` 绿
 
 ### 3.3 OrderApplicationService.createOrder
 
-- [ ] 3.3.1 修改 `OrderApplicationServiceTest.createOrder_success_*`:加断言 `counter("orders.created", "paymentMethod", "wechat").count() == 1`
-- [ ] 3.3.2 加测试 `createOrder_failure_doesNotIncrementCounter`:制造异常,断言 counter 不递增
-- [ ] 3.3.3 在 `OrderApplicationService.createOrder` 成功路径埋点
-- [ ] 3.3.4 跑测试绿
+- [x] 3.3.1 修改 `OrderApplicationServiceTest.createOrder_success_*`:加断言 `counter("orders.created", "paymentMethod", "wechat").count() == 1`
+- [x] 3.3.2 加测试 `createOrder_failure_doesNotIncrementCounter`:制造异常,断言 counter 不递增
+- [x] 3.3.3 在 `OrderApplicationService.createOrder` 成功路径埋点
+- [x] 3.3.4 跑测试绿
 
 ### 3.4 OrderApplicationService.cancelOrder
 
-- [ ] 3.4.1 修改 `OrderApplicationServiceTest`:覆盖 3 个 reason(`user`、`timeout`、`admin`),分别断言对应 counter +1
-- [ ] 3.4.2 在 `cancelOrder` 实现埋点
+- [x] 3.4.1 修改 `OrderApplicationServiceTest`:覆盖 3 个 reason(`user`、`timeout`、`admin`),分别断言对应 counter +1
+- [x] 3.4.2 在 `cancelOrder` 实现埋点
 
 ### 3.5 OrderApplicationService.markPaid
 
-- [ ] 3.5.1 修改 `OrderApplicationServiceTest`:用 `350.00` 总额测试,断言 `counter("orders.paid", "paymentMethod", "wechat", "amountBucket", "100to500").count() == 1`
-- [ ] 3.5.2 加测试覆盖 4 个 amount bucket 边界(99.99/100/499.99/500/1999.99/2000)
-- [ ] 3.5.3 在 `markPaid` 实现埋点,调用 `OrderMetrics.bucketize()`
+- [x] 3.5.1 修改 `OrderApplicationServiceTest`:用 `350.00` 总额测试,断言 `counter("orders.paid", "paymentMethod", "wechat", "amountBucket", "100to500").count() == 1`
+- [x] 3.5.2 加测试覆盖 4 个 amount bucket 边界(99.99/100/499.99/500/1999.99/2000)
+- [x] 3.5.3 在 `markPaid` 实现埋点,调用 `OrderMetrics.bucketize()`
 
 ### 3.6 UserApplicationService.login
 
-- [ ] 3.6.1 修改 `UserApplicationServiceTest`:3 个分支(success/failed/locked),分别断言对应 counter +1
-- [ ] 3.6.2 在 `login` 3 个返回路径分别埋点
+- [x] 3.6.1 修改 `UserApplicationServiceTest`:3 个分支(success/failed/locked),分别断言对应 counter +1
+- [x] 3.6.2 在 `login` 3 个返回路径分别埋点
 
 ### 3.7 ArchUnit cardinality 约束
 
-- [ ] 3.7.1 在 `backend/src/test/java/com/seafood/shared/architecture/ArchitectureTest.java`(或新建 `MetricsArchitectureTest`)加规则:扫描所有 `io.micrometer.core.instrument.MeterRegistry.counter/timer/gauge` 调用,禁止 tag 名等于 `userId`、`orderId`、`productId`、`email`
-- [ ] 3.7.2 规则实现:用 ArchUnit 的 `methodCallTarget` + 参数白名单,失败时打印调用栈定位违规处
-- [ ] 3.7.3 故意制造一个含 `"userId"` 标签的违规埋点 → 跑 `./gradlew :test --tests "*ArchitectureTest"` 应**红**(验证规则生效)→ 删除违规埋点 → 再跑应**绿**
+- [x] 3.7.1 在 `backend/src/test/java/com/seafood/shared/architecture/ArchitectureTest.java`(或新建 `MetricsArchitectureTest`)加规则:扫描所有 `io.micrometer.core.instrument.MeterRegistry.counter/timer/gauge` 调用,禁止 tag 名等于 `userId`、`orderId`、`productId`、`email`
+- [x] 3.7.2 规则实现:用 ArchUnit 的 `methodCallTarget` + 参数白名单,失败时打印调用栈定位违规处
+- [x] 3.7.3 故意制造一个含 `"userId"` 标签的违规埋点 → 跑 `./gradlew :test --tests "*ArchitectureTest"` 应**红**(验证规则生效)→ 删除违规埋点 → 再跑应**绿**
 
 ### 3.8 PR #3 收口
 
-- [ ] 3.8.1 跑 `./gradlew check`(含全部新增测试 + ArchUnit)
-- [ ] 3.8.2 启动 `docker-compose up`,触发一次完整的"下单 → 支付 → 取消"流程,curl `/actuator/prometheus` 看到 4 个 orders 系列 counter
-- [ ] 3.8.3 commit `feat(observability): 5 business counters at ApplicationService boundary`
+- [x] 3.8.1 跑 `./gradlew check`(含全部新增测试 + ArchUnit) — **PASS**:OrderMetricsTest 22/22 + ProductServiceTest 13/13 + OrderServiceTest 16/16 + AuthServiceLockoutTest 12/12 + AuthServiceRefreshTest 3/3 + MetricsCardinalityTest 1/1 + ArchitectureTest 4/4 + SecurityHeaderArchitectureTest 等共 86+ 测试全绿
+- [ ] 3.8.2 启动 `docker-compose up`,触发一次完整的"下单 → 支付 → 取消"流程,curl `/actuator/prometheus` 看到 4 个 orders 系列 counter — **本机 Mach-O 限制,留 CI `native.yml` 跑 Linux ELF 端到端冒烟**(PR #1 + #2 已确认限制及本机替代方案)
+- [x] 3.8.3 commit `feat(observability): 5 business counters at ApplicationService boundary`
 
 ## 4. PR #4 — Verification + Docs
 
