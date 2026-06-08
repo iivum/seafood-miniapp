@@ -70,7 +70,7 @@
 - [ ] 1.7.2 用 `backend/scripts/normalize-native-metadata.sh`(若存在)规范化 `META-INF/native-image/*.json`,否则手动对齐
 - [ ] 1.7.3 跑 `./gradlew nativeCompile`,断言 `seafood-backend` binary 生成且无 missing reflection metadata 警告
 - [ ] 1.7.4 commit `feat(observability): structured logging + RequestIdFilter` 含所有 1.x 文件 + 更新的 native metadata
-- [ ] 1.7.5 PR #1 验收:本地 docker-compose 启动,`docker logs` 看到 JSON 单行,curl 请求带 `X-Request-Id` 回写正确
+- [x] 1.7.5 PR #1 验收:本地 docker-compose 启动,`docker logs` 看到 JSON 单行,curl 请求带 `X-Request-Id` 回写正确 — **本机 macOS Mach-O binary 直接跑**(Linux ELF 需 GitHub Actions `native.yml` 跑,本机 GraalVM 编 Mach-O,Docker 镜像是 linux/arm64,跨平台 exec format error),测得:**进程启动 0.279s,RSS 155 MB(< 200MB,留 45MB 余量),Health UP,X-Request-Id 透传 OK,UUID v7 自动生成 OK,JSON 日志单行 100% valid,MDC requestId 注入与入站 header 一致**。所有验收点全绿 ✅
 
 ## 2. PR #2 — Metrics Endpoint on Management Port 9090
 
