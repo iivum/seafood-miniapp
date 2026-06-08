@@ -82,14 +82,6 @@ management:
         include: health,prometheus,info
   endpoint:
     health:
-      # PR #3 收口(CI native.yml smoke fail):显式开 Kubernetes 风格
-      # liveness/readiness 探针。Spring Boot 默认 probes.enabled=false
-      # (需 KUBERNETES_SERVICE_HOST env 才自动开),docker-compose 没设该 env,
-      # smoke 脚本 curl /actuator/health/liveness 返 404 → Security
-      # anyRequest().denyAll() 兜底 → 403。显式 true 后 Spring 自动暴露
-      # /actuator/health/{liveness,readiness},与 /actuator/health 一起 permitAll。
-      probes:
-        enabled: true
       show-details: when-authorized
     prometheus:
       # access 控制端点的读/写权限,默认 read_only — 显式声明防止被无意改成
@@ -103,6 +95,22 @@ management:
   metrics:
     tags:
       application: seafood-backend
+  # PR #3 收口(CI native.yml smoke fail #2):
+  # 1) probes.enabled=true 显式开 Kubernetes 风格 liveness/readiness 探针
+  #    (Spring Boot 4 默认需 KUBERNETES_SERVICE_HOST env 才自动开,
+  #    docker-compose 没设 → 必须 explicit)。启用后 Spring 自动注册
+  #    LivenessStateHealthIndicator / ReadinessStateHealthIndicator,暴露
+  #    /actuator/health/{liveness,readiness} 在 management port 9090。
+  # 2) probes.add-additional-paths=true 同时在 main port 8080 上
+  #    暴露 /livez 和 /readyz(spring docs 推荐 — management context 与
+  #    main context 独立时,探针要反映 main app 状态而不是 management 状态)。
+  #    smoke 脚本从 host 探 8080/livez 而非 8080/actuator/health/liveness
+  #    (后者仅在 management port 9090 暴露,host 不可达,Security 兜底
+  #    denyAll → 403)。
+  health:
+    probes:
+      enabled: true
+      add-additional-paths: true
 
 logging:
   level:

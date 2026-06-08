@@ -84,8 +84,17 @@ docker inspect seafood-backend --format '{{range .Config.Env}}{{println .}}{{end
 # 是聚合 endpoint,MongoIndexInitializer 卡 30s 时它不会 up。这让 smoke 在
 # CI mongo:7 空库场景下能用同一个时间窗验证 binary 启动,不需要 seed pipeline。
 # (设计 §3.1 验收 binary < 2s 启动仍成立,只是 probe endpoint 换成 liveness)
-HEALTH_URL="http://localhost:8080/actuator/health/liveness"
-log "waiting up to 30s for HTTP 200 at $HEALTH_URL (Spring Boot 4 liveness probe)"
+#
+# CI 修复 v7 (2026-06-08):进一步改成 /livez(Spring Boot 4
+# `management.health.probes.add-additional-paths=true` 在 main port 8080
+# 上额外暴露的探针路径)。原 /actuator/health/liveness 只在 management
+# port 9090 上(management context 与 main context 独立时,探针不暴露在
+# main port — design §D2 物理隔离),host curl 8080 路径 → 404 → Security
+# anyRequest().denyAll() 兜底 → 403。/livez 由 add-additional-paths 暴露
+# 在 main port 8080,host 直接 curl 可达;与 design §D2 不冲突(9090 仍
+# 是 cluster-internal 隔离,host:8080/livez 仅供 smoke / k8s sidecar)。
+HEALTH_URL="http://localhost:8080/livez"
+log "waiting up to 30s for HTTP 200 at $HEALTH_URL (Spring Boot 4 liveness probe via add-additional-paths)"
 DEADLINE=$((SECONDS + 30))
 STARTED=0
 LAST_CODE=000
