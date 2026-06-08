@@ -194,6 +194,53 @@ interface Order {
 
 ---
 
+## 可观测性(OpenSpec setup-observability-stack PR #1+#2+#3)
+
+### 端口拓扑(物理隔离,design §D2)
+
+- **业务端口 8080** — `server.port`,对外暴露 `/api/**`,**不**注册任何 `/actuator/**` 路由(management context 与 main context 完全分离)。
+- **管理端口 9090** — `management.server.port: 9090`,`management.server.address: 0.0.0.0`,**仅**容器内可达(cluster-internal 隔离);`docker-compose.yml` 不映射 `9090:9090`,Prometheus scrape 走 k8s sidecar / cluster-internal service。
+- **业务端口 8080 上 `/actuator/**`** — `permitAll` 让 Security 不挡,8080 context 不注册 actuator handler → NoHandlerFoundException → **404**(MetricsEndpointIT 8/8 守契约)。
+
+### 5 个业务 counter(ApplicationService 边界埋点)
+
+| Counter | Tags | Increment site | 限制 |
+|---|---|---|---|
+| `orders.created` | `paymentMethod` ∈ {`wechat`} | `OrderService.create()` 成功路径 | paymentMethod 暂硬编码 "wechat" 单渠道,Sprint 3 接入真实支付再加 |
+| `orders.cancelled` | `reason` ∈ {`user`,`timeout`,`admin`,`other`} | `OrderService.cancel()` 成功路径 | reason 规范化到 4 档白名单,防高基数字符串污染 PromQL series |
+| `orders.paid` | `paymentMethod`,`amountBucket` ∈ {`lt100`,`100to500`,`500to2000`,`gte2000`} | `OrderService.markPaid()` 成功路径 | amountBucket 由 `OrderMetrics.bucketize(BigDecimal)` 几何 4 档计算 |
+| `products.queried` | `category` ∈ {`鱼类`,`虾蟹`,`贝类`,`软体`,`海藻`} | `ProductService.listPublic()` 每个结果 +1 | sealed interface 5 档 displayName,低基数 |
+| `users.login.attempts` | `result` ∈ {`success`,`failed`,`locked`} | `AuthService.wechatLogin/adminLogin` 3 个返回路径 | 3 档白名单 |
+
+`application=seafood-backend` 通用 common tag 通过 `application.yml` 注入。
+
+### Tag cardinality 静态约束(ArchUnit 守)
+
+`MetricsCardinalityTest`(ArchUnit 1.4 + SourceCodeLocation + 源码行扫描)禁止:
+- `userId`,`orderId`,`productId`,`email` 4 个高基数 / PII tag key
+- 动态拼字符串(ArchUnit 看不到,留 code review 兜底)
+
+违规埋点 → 编译期测红 → 阻止合并。故意造违规测试见 3.7.3。
+
+### 日志格式(StructuredLogging)
+
+- **dev profile**:`%d{HH:mm:ss.SSS} %-5level [%X{requestId}] %logger{36} - %msg%n`,人类可读 + requestId
+- **prod profile**:`logging.structured.format.console: logstash`,Spring Boot 4 内置 JSON 单行,字段含 `@timestamp` / `@version` / `message` / `logger_name` / `thread_name` / `level` / `level_value` + MDC(`requestId`)
+- **环境变量 override**:`LOG_FORMAT=json` 在任意 profile 下覆盖为 JSON(Spring Boot 3.4+ 原生支持,ConfigDataEnvironmentPostProcessor 阶段映射到 `logging.structured.format.console=logstash`)
+
+### 与 Task #7 (Prometheus/Grafana) / Task #8 (Sentry) 衔接
+
+- **Task #7 部署 Prometheus + Grafana** 时,scrape `backend:9090/actuator/prometheus`(容器内 DNS)。本文档已就位,Task #7 实施者只需配 `prometheus.yml` scrape job + Grafana datasource,无需改 backend 代码。
+- **Task #8 接入 Sentry / GlitchTip** 时,Sentry SDK 自行管理采样,`requestId` MDC 可在 Sentry 上下文显示("breadcrumb" pattern)。当前 backend 不依赖 Sentry,本节作为衔接说明。
+
+### 性能预算
+
+- RSS < 200 MB(`./gradlew nativeCompile` + docker smoke 验证 ~84 MiB,远低于 budget)
+- p50 overhead(结构化日志 + RequestIdFilter)< 2 ms(spec 契约)
+- 启动 < 2 s(design §3.1;实测 ~0.3s native / ~1s JVM)
+
+---
+
 ## 开发说明
 
 ### 环境变量(必填,启动时 fail-fast)

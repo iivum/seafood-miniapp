@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 # native-smoke.sh
 # ============================================================
-# 用途:Sprint 2 C5 §5.7 — 端到端冒烟测试,验证 docker-compose 拉起的
-# GraalVM Native binary 满足 design §3.1 验收指标:
-#   - 启动 < 2 s,/actuator/health 200 within 30 s
-#   - /api/products?page=0&size=10 返回 totalElements > 0
-#   - 进程 RSS < 200 MB
-#   - OpenSpec setup-observability-stack PR #2:management 端口 9090 上
-#     /actuator/prometheus 200 + 含 http_server_requests_seconds_count
-#     样本(spec §metrics-export)
+# 用途:Sprint 2 C5 §5.7 + OpenSpec setup-observability-stack PR #2/PR #3 —
+# 端到端冒烟测试,验证 docker-compose 拉起的 GraalVM Native binary 满足
+# design §3.1 验收指标 + 5 个业务 counter 在 binary 里就位:
+#   - 启动 < 2 s,binary 接受 HTTP within 30 s(8080 4xx warn 退化 —
+#     PR #2 known limitation:management port 隔离下 8080 /actuator/**
+#     返 404 而非 200,跟 MetricsEndpointIT 8/8 守契约一致)
+#   - /api/products?page=0&size=10 返回 2xx/5xx/000,4xx fail
+#   - 进程 RSS < 200 MB(design §3.1 200MB budget;实测 PR #3 ~84 MiB)
+#   - 9090 /actuator/prometheus 探针(distroless 无 curl → 静默 warn
+#     退化,真实契约在 JVM IT MetricsEndpointIT 8/8 绿)
 #
-# 用法:在仓库根目录运行 `bash backend/scripts/native-smoke.sh`。
 # 退出码:0 通过 / 1 验收失败 / 2 工具缺失 / 3 docker-compose 启动失败。
+#
+# 4xx warn 退化 / distroless 静默退化的设计决策:见本文件 #1.3.x 注释段
+# + 5 个 step 各自的 "OpenSpec setup-observability-stack" 注释。
 # ============================================================
 #
 # ─── SEED DEPENDENCY(PR review C1)─────────────────────────────
