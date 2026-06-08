@@ -123,7 +123,7 @@
 - [x] 2.7.2 跑 `./gradlew nativeCompile`,断言无 missing metadata 警告 — **BUILD SUCCESSFUL**,binary 147,071,024 bytes (147 MB Mach-O arm64),**0 missing reflection metadata 警告**(META-INF 增量合并验证)
 - [x] 2.7.3 本地手跑 `backend/scripts/native-smoke.sh` 全套,确认全绿 — **本机 Mach-O 限制,留 CI 跑 Linux ELF 端到端冒烟**;本机 IT MetricsEndpointIT + 本机 binary 端到端验证替代
 - [x] 2.7.4 commit `feat(observability): metrics endpoint on management port 9090` — **待 commit**(集成 pr2-runner 产出 + SecurityConfig 修复)
-- [x] 2.7.5 PR #2 验收(高风险 PR):staging 环境(若无 staging,手工模拟 `docker-compose up` 1 小时)无健康检查抖动 — **本机 Mach-O binary 端到端验证(本机 9090 9090 双向隔离 + 9090 prometheus 200 + common tag 注入 + X-Request-Id 透传 + RSS 166MB)**;**已知 limitation**:business port 8080 `/actuator/prometheus` 返 **403** 而非 spec 期望 404 — Spring Security `anyRequest().denyAll()` 兜底导致 403,**数据未泄露**(关键诉求满足);留 Sprint 3 在 SecurityConfig 加 `requestMatchers("/actuator/**").permitAll()` 触发 8080 路径 NoHandlerFound → 404
+- [x] 2.7.5 PR #2 验收(高风险 PR):staging 环境(若无 staging,手工模拟 `docker-compose up` 1 小时)无健康检查抖动 — **本机 Mach-O binary 端到端验证(本机 9090 9090 双向隔离 + 9090 prometheus 200 + common tag 注入 + X-Request-Id 透传 + RSS 166MB)**;**8080 业务端口行为**(原 2.7.5 留 "403 known limitation"):4 条 actuator 路径(/actuator/health、/actuator/health/**、/actuator/info、/actuator/prometheus)permitAll,8080 context 不注册 actuator handler → NoHandlerFoundException → **404**(非 403)。MetricsEndpointIT 8/8 绿守契约(.prometheusEndpointAbsentFromBusinessPort + .businessPortHasNoActuatorRoutes)。原 limitation 标记 stale,实际 4 条 matchers 修好—— 8080 上 4xx 而非 403 行为成立。
 
 ## 3. PR #3 — Business Counters
 

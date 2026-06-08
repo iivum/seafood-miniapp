@@ -60,16 +60,23 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/wechat-login").permitAll()
                 .requestMatchers("/api/admin/auth/login", "/api/admin/auth/refresh").permitAll()
                 // 静态资源(管理后台 SPA)
-                // 注意:/actuator/health/** 用 ** 后缀,允许 Spring Boot 4 的子组
-                // probes(/actuator/health/liveness, /actuator/health/readiness)
-                // 也 permitAll,k8s 探针和 CI smoke 不用走 JWT。
+                // 注意:4 条 actuator 路径<em>显式</em>列白名单(不用 /actuator/**
+                // 通配符)—— 安全姿态"已知白名单" > "全通配";未来 yml 加
+                // 新 actuator 端点(例如 /actuator/env)若想免 JWT,需在
+                // SecurityConfig 显式 permit(白名单收缩),否则 anyRequest
+                // .denyAll() 兜底返 403(原 PR #2 known limitation 2.7.5)。
                 //
                 // OpenSpec setup-observability-stack PR #2 / design §D2:`/actuator/prometheus`
-                // 也 permitAll — management port 9090 是 cluster-internal 隔离(design §D2),
+                // permitAll — management port 9090 是 cluster-internal 隔离(design §D2),
                 // 物理上不暴露到外网,Prometheus scrape 用 k8s sidecar / cluster-internal
-                // service 访问,无需 JWT。如果未来要把 management 端点暴露到公网,应
-                // 改用 mTLS / network policy 保护,而不是靠 JWT(避免 token 在 scrape 配置
-                // 里明文)。
+                // service 访问,无需 JWT。
+                //
+                // 设计意图:8080 上 /actuator/{health,info,prometheus} 返 404
+                // (management context 与 main context 分离,8080 context 没
+                // 注册 actuator handler → NoHandlerFoundException → 404),
+                // 不是 403。`permitAll` 让 Security 不挡,交给 Spring 路由
+                // 层报 404。MetricsEndpointIT .prometheusEndpointAbsentFromBusinessPort
+                // + businessPortHasNoActuatorRoutes 期望 404 守此契约。
                 .requestMatchers("/admin/**", "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 // 写商品 = ADMIN
                 .requestMatchers(HttpMethod.POST, "/api/products", "/api/products/**").hasRole("ADMIN")
