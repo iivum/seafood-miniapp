@@ -4,6 +4,9 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,19 +15,20 @@ import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import java.io.IOException;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 /**
  * PR #1 / 1.1.x — {@link RequestIdFilter} 单元测试。
  *
- * <p>纯单元测试,plain JUnit + Mockito + Spring 的 {@code MockHttpServletRequest/Response}。
- * 不依赖 {@code @WebMvcTest}(Spring Boot 4 移除)。直接 new filter,手工触发。
+ * <p>纯单元测试,plain JUnit + Spring 的 {@code MockHttpServletRequest/Response} +
+ * hand-rolled {@link RecordingFilterChain}。**不使用 Mockito** — GraalVM Native
+ * Image 不支持 Mockito 的 ByteBuddy bytecode agent(参见 PR #1 final commit
+ * 注释),改用手写 stub 同样覆盖所有 WHEN-THEN 行为,且 native-friendly。
+ *
+ * <p>不依赖 {@code @WebMvcTest}(Spring Boot 4 移除)。直接 new filter,手工触发。
  *
  * <p>覆盖设计 §D3 / §D4 / §spec §Request identifier passthrough and generation /
  * §MDC lifecycle isolation 的所有 WHEN-THEN 行为。
@@ -56,7 +60,7 @@ class RequestIdFilterTest {
     void generatesUuidV7_whenHeaderAbsent() throws Exception {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/products");
         MockHttpServletResponse res = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
+        RecordingFilterChain chain = new RecordingFilterChain();
 
         filter.doFilter(req, res, chain);
 
@@ -74,7 +78,7 @@ class RequestIdFilterTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/products");
         req.addHeader(RequestIdFilter.HEADER, validV7);
         MockHttpServletResponse res = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
+        RecordingFilterChain chain = new RecordingFilterChain();
 
         filter.doFilter(req, res, chain);
 
@@ -88,7 +92,7 @@ class RequestIdFilterTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/products");
         req.addHeader(RequestIdFilter.HEADER, evil);
         MockHttpServletResponse res = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
+        RecordingFilterChain chain = new RecordingFilterChain();
 
         filter.doFilter(req, res, chain);
 
@@ -115,7 +119,7 @@ class RequestIdFilterTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/products");
         req.addHeader(RequestIdFilter.HEADER, oversized);
         MockHttpServletResponse res = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
+        RecordingFilterChain chain = new RecordingFilterChain();
 
         filter.doFilter(req, res, chain);
 
@@ -132,7 +136,7 @@ class RequestIdFilterTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/products");
         req.addHeader(RequestIdFilter.HEADER, "01931a45-7c80-7000-9b3e-3f8a1c5e4d20");
         MockHttpServletResponse res = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
+        RecordingFilterChain chain = new RecordingFilterChain();
 
         filter.doFilter(req, res, chain);
 
@@ -147,8 +151,8 @@ class RequestIdFilterTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/products");
         req.addHeader(RequestIdFilter.HEADER, "01931a45-7c80-7000-9b3e-3f8a1c5e4d20");
         MockHttpServletResponse res = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
-        doThrow(new RuntimeException("boom")).when(chain).doFilter(any(), any());
+        RecordingFilterChain chain = new RecordingFilterChain();
+        chain.setThrowOnDoFilter(new RuntimeException("boom"));
 
         // finally 块必须清理 MDC + 写入 response header(虽 response 已 commit,setHeader 不会抛 NPE)
         try {
@@ -169,7 +173,7 @@ class RequestIdFilterTest {
         MockHttpServletRequest req1 = new MockHttpServletRequest("GET", "/api/products");
         req1.addHeader(RequestIdFilter.HEADER, "01931a45-7c80-7000-9b3e-3f8a1c5e4d20");
         MockHttpServletResponse res1 = new MockHttpServletResponse();
-        filter.doFilter(req1, res1, mock(FilterChain.class));
+        filter.doFilter(req1, res1, new RecordingFilterChain());
 
         String firstId = res1.getHeader(RequestIdFilter.HEADER);
         assertThat(firstId).isEqualTo("01931a45-7c80-7000-9b3e-3f8a1c5e4d20");
@@ -179,7 +183,7 @@ class RequestIdFilterTest {
         // 第二个请求不带 header — 必须新生成,不能复用 firstId
         MockHttpServletRequest req2 = new MockHttpServletRequest("GET", "/api/products");
         MockHttpServletResponse res2 = new MockHttpServletResponse();
-        filter.doFilter(req2, res2, mock(FilterChain.class));
+        filter.doFilter(req2, res2, new RecordingFilterChain());
 
         String secondId = res2.getHeader(RequestIdFilter.HEADER);
         assertThat(secondId)
@@ -198,7 +202,7 @@ class RequestIdFilterTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/products");
         req.addHeader(RequestIdFilter.HEADER, validV7Upper);
         MockHttpServletResponse res = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
+        RecordingFilterChain chain = new RecordingFilterChain();
 
         filter.doFilter(req, res, chain);
 
@@ -215,7 +219,34 @@ class RequestIdFilterTest {
         MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/products");
         req.addHeader(RequestIdFilter.HEADER, validV7);
         MockHttpServletResponse res = new MockHttpServletResponse();
-        filter.doFilter(req, res, mock(FilterChain.class));
+        filter.doFilter(req, res, new RecordingFilterChain());
         assertThat(res.getHeader(RequestIdFilter.HEADER)).isEqualTo(validV7);
+    }
+
+    /**
+     * 手写 FilterChain stub,代替 Mockito。
+     *
+     * <p>GraalVM Native Image 启动时 classloader 不支持 Mockito 的 ByteBuddy
+     * 字节码 agent,故 {@code Mockito.mock(FilterChain.class)} 在 native 二进制下
+     * 抛 {@code NoClassDefFoundError: Could not initialize class
+     * org.mockito.Mockito}。本 stub 等价 mock 的核心行为(doFilter 透传
+     * request/response),并支持"doFilter 抛异常"以验证 RequestIdFilter
+     * 异常路径的 finally 块。
+     */
+    private static class RecordingFilterChain implements FilterChain {
+        private RuntimeException throwOnDoFilter;
+
+        void setThrowOnDoFilter(RuntimeException e) {
+            this.throwOnDoFilter = e;
+        }
+
+        @Override
+        public void doFilter(ServletRequest request, ServletResponse response)
+                throws IOException, ServletException {
+            if (throwOnDoFilter != null) {
+                throw throwOnDoFilter;
+            }
+            // 透传 — 实际不做事,RequestIdFilter 不依赖 chain 的副作用
+        }
     }
 }
