@@ -63,7 +63,14 @@ public class SecurityConfig {
                 // 注意:/actuator/health/** 用 ** 后缀,允许 Spring Boot 4 的子组
                 // probes(/actuator/health/liveness, /actuator/health/readiness)
                 // 也 permitAll,k8s 探针和 CI smoke 不用走 JWT。
-                .requestMatchers("/admin/**", "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                //
+                // OpenSpec setup-observability-stack PR #2 / design §D2:`/actuator/prometheus`
+                // 也 permitAll — management port 9090 是 cluster-internal 隔离(design §D2),
+                // 物理上不暴露到外网,Prometheus scrape 用 k8s sidecar / cluster-internal
+                // service 访问,无需 JWT。如果未来要把 management 端点暴露到公网,应
+                // 改用 mTLS / network policy 保护,而不是靠 JWT(避免 token 在 scrape 配置
+                // 里明文)。
+                .requestMatchers("/admin/**", "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 // 写商品 = ADMIN
                 .requestMatchers(HttpMethod.POST, "/api/products", "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")

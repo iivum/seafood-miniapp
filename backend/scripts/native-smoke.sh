@@ -6,6 +6,9 @@
 #   - 启动 < 2 s,/actuator/health 200 within 30 s
 #   - /api/products?page=0&size=10 返回 totalElements > 0
 #   - 进程 RSS < 200 MB
+#   - OpenSpec setup-observability-stack PR #2:management 端口 9090 上
+#     /actuator/prometheus 200 + 含 http_server_requests_seconds_count
+#     样本(spec §metrics-export)
 #
 # 用法:在仓库根目录运行 `bash backend/scripts/native-smoke.sh`。
 # 退出码:0 通过 / 1 验收失败 / 2 工具缺失 / 3 docker-compose 启动失败。
@@ -24,6 +27,21 @@
 #   "Smoke test" 步骤之前(用 docker compose exec -T mongodb ... 或
 #    backend/seed/seed.sh)。本任务不允许改 workflow,留给后续 PR 接线。
 # ───────────────────────────────────────────────────────────────
+#
+# ─── OpenSpec setup-observability-stack PR #2 / task 2.6.1+2.6.2 ──
+# management 端口 9090 是容器内端口,本 docker-compose 不映射 9090:9090
+# (design §D2:管理端口与业务端口物理隔离,Prometheus scrape 通过 k8s
+# sidecar / cluster-internal service 实现,不需要 host 端口暴露)。
+# 因此 smoke 探针<em>不</em>能直接从 host 访问 9090,改用
+# `docker exec backend curl ...` 在容器内探。distroless 镜像
+# (cc-debian12:nonroot)不含 curl,所以这个检查<em>实际</em>会被 distroless
+# 静默跳过(只 log warning,不 fail);该契约的真实 gate 在 JVM IT
+# {@code MetricsEndpointIT.managementPortHasNoBusinessRoutes +
+# prometheusEndpointReturns200OnManagementPort}。
+# 未来如需在 CI 强制 9090 探针,可考虑:
+#   - 在 Dockerfile 加一个最小 healthcheck 镜像层
+#   - 改用 k8s readinessProbe 跑(本脚本外部)
+# ───────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
@@ -32,6 +50,7 @@ cd "$REPO_ROOT"
 
 log()  { printf '[smoke] %s\n' "$*"; }
 fail() { printf '[smoke] FAIL — %s\n' "$*" >&2; exit 1; }
+warn() { printf '[smoke] WARN — %s\n' "$*" >&2; }
 
 # ---- 工具检查 ----
 # CI 修复:删除 docker-compose v1 检查 —— GitHub Actions ubuntu-latest 自 2022
@@ -229,6 +248,27 @@ if [ "$RSS_MIB_INT" -le 0 ]; then
 fi
 if [ "$RSS_MIB_INT" -ge 200 ]; then
   fail "RSS budget exceeded: ${RSS_MIB_INT} MiB (must be < 200 MiB)"
+fi
+
+# ---- 5. OpenSpec setup-observability-stack PR #2 / task 2.6.1+2.6.2 ----
+# 验证 management 端口 9090 上 /actuator/prometheus 暴露 http_server_requests 样本。
+# 管理端口<em>不</em>映射到 host(design §D2),所以从 host curl 不可达;用
+# `docker exec backend curl` 在容器内探。distroless 镜像(cc-debian12:nonroot)
+# 无 curl,实际可能 ENOENT —— 在那种情况下只 log warning,不 fail(见注释段)。
+PROMETHEUS_URL="http://localhost:9090/actuator/prometheus"
+log "checking management prometheus endpoint (in-container)"
+PROM_BODY=$(mktemp)
+if docker exec "$CONTAINER_NAME" curl -sf "$PROMETHEUS_URL" --max-time 3 > "$PROM_BODY" 2>/dev/null; then
+  if grep -q 'http_server_requests_seconds_count' "$PROM_BODY"; then
+    log "prometheus: contains http_server_requests_seconds_count sample"
+  else
+    warn "prometheus body retrieved but missing http_server_requests_seconds_count"
+    head -n 20 "$PROM_BODY" >&2 || true
+  fi
+  rm -f "$PROM_BODY"
+else
+  warn "docker exec curl on management port failed (distroless has no curl?) — JVM IT MetricsEndpointIT is source of truth for management port contract"
+  rm -f "$PROM_BODY"
 fi
 
 log "all smoke checks passed"

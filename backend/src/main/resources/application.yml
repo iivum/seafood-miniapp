@@ -65,13 +65,36 @@ api:
       password: ${ADMIN_BOOTSTRAP_PASSWORD}
 
 management:
+  # OpenSpec setup-observability-stack PR #2 / design §D2:management server 跑
+  # 在独立端口 9090,与业务端口 8080 物理隔离;address 显式 0.0.0.0(容器内绑定
+  # 任意接口,配合 docker-compose / k8s sidecar scrape)。业务端口 8080 **不**
+  # 暴露 /actuator/**(由 `management.server.port` != `server.port` 触发,
+  # Spring Boot 4 自动把 management endpoints 全部迁移到独立 context)。
+  server:
+    port: 9090
+    address: 0.0.0.0
   endpoints:
     web:
+      # OpenSpec setup-observability-stack PR #2:新增 `prometheus` 端点暴露
+      # (Micrometer PrometheusMeterRegistry 自动注册);`health` / `info` 保留
+      # 已有行为。
       exposure:
-        include: health,info
+        include: health,prometheus,info
   endpoint:
     health:
       show-details: when-authorized
+    prometheus:
+      # access 控制端点的读/写权限,默认 read_only — 显式声明防止被无意改成
+      # read_write(只有写权限才能修改 metrics 状态,read_only 是 scrape 唯一
+      # 需要的权限)。
+      access: read_only
+  # OpenSpec setup-observability-stack PR #2 / design §D5:`application` 作
+  # common tag 注入到所有 metrics(design §D5 决议,PR #2 阶段只配 common
+  # tag,具体业务 counters 是 PR #3 工作)。该 tag 在 Prometheus 侧用于多服务
+  # 联邦/聚合(`sum by (application) (rate(...))`)。
+  metrics:
+    tags:
+      application: seafood-backend
 
 logging:
   level:
