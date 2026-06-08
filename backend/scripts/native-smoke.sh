@@ -78,23 +78,19 @@ log "docker inspect seafood-backend --format '{{.Config.Env}}' | grep -E 'MONGOD
 docker inspect seafood-backend --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | awk -F= '/^(MONGODB_URI|JWT_)/{print "  " $0}' || true
 
 # ---- 2. 等待 binary 接受 HTTP within 30 s ----
-# CI 修复 v4 (2026-06-07):改为探测 /actuator/health/liveness 而不是
-# /actuator/health。Spring Boot 4 的 liveness probe 只检查 context refresh
-# (不依赖 MongoDB / 外部系统),在 smoke 沙箱里 0.3s 内返 200;而 /actuator/health
-# 是聚合 endpoint,MongoIndexInitializer 卡 30s 时它不会 up。这让 smoke 在
-# CI mongo:7 空库场景下能用同一个时间窗验证 binary 启动,不需要 seed pipeline。
-# (设计 §3.1 验收 binary < 2s 启动仍成立,只是 probe endpoint 换成 liveness)
-#
-# CI 修复 v7 (2026-06-08):进一步改成 /livez(Spring Boot 4
-# `management.health.probes.add-additional-paths=true` 在 main port 8080
-# 上额外暴露的探针路径)。原 /actuator/health/liveness 只在 management
-# port 9090 上(management context 与 main context 独立时,探针不暴露在
-# main port — design §D2 物理隔离),host curl 8080 路径 → 404 → Security
-# anyRequest().denyAll() 兜底 → 403。/livez 由 add-additional-paths 暴露
-# 在 main port 8080,host 直接 curl 可达;与 design §D2 不冲突(9090 仍
-# 是 cluster-internal 隔离,host:8080/livez 仅供 smoke / k8s sidecar)。
-HEALTH_URL="http://localhost:8080/livez"
-log "waiting up to 30s for HTTP 200 at $HEALTH_URL (Spring Boot 4 liveness probe via add-additional-paths)"
+# CI 修复 v8 (2026-06-08):回到 /actuator/health(design §3.1 原始设计)。
+# 之前 v4 改成 liveness 探针是为了绕开 MongoDB server selection 卡 30s 的
+# 问题(聚合 /actuator/health 当时不通);v4-v7 各种 liveness / add-additional-paths
+# / health group 方案在 management port 独立的 Spring Boot 4.0.6 + docker-compose
+# 沙箱里都暴露不完整(`Exposing 3 endpoints beneath '/actuator'`,liveness 不在
+# /actuator/health 下)。
+# 现在 docker-compose `depends_on: mongodb: { condition: service_healthy }`
+# 保证 backend 启动时 mongodb 容器已 healthy(mongosh ping ok),server
+# selection 3s 内必成功,/actuator/health 聚合 UP 200 走原路径。
+# 9090 management port 契约的真实 gate 在 JVM IT MetricsEndpointIT
+# (PR #2 8/8 绿),smoke 这里用 8080 + 聚合 health 是合 design 的简化。
+HEALTH_URL="http://localhost:8080/actuator/health"
+log "waiting up to 30s for HTTP 200 at $HEALTH_URL (design §3.1 聚合 health)"
 DEADLINE=$((SECONDS + 30))
 STARTED=0
 LAST_CODE=000
