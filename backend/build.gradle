@@ -151,6 +151,10 @@ dependencies {
     // Sprint 2 §2 — Caffeine token bucket for admin rate limit (no version: BOM-managed by Spring Boot 4)
     implementation 'com.github.ben-manes.caffeine:caffeine'
 
+    // OpenSpec setup-observability-stack PR #1 / ADR-OQ1:UUID v7 generator
+    // FasterXML JUG 5.1.0, native-image 友好,无反射,包 ~50 KB
+    implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
