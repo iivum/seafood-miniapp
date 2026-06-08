@@ -10,6 +10,7 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import com.seafood.shared.observability.RequestIdFilter;
 import com.seafood.shared.security.AdminRateLimitFilter;
 import com.seafood.shared.security.SecurityHeadersFilter;
 
@@ -27,6 +28,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
  * <ul>
  *   <li>{@link SecurityHeadersFilter} — 6 个基线安全头的唯一生产者</li>
  *   <li>{@link AdminRateLimitFilter} — 写 {@code Retry-After} (非安全头)</li>
+ *   <li>{@link RequestIdFilter} — 写 {@code X-Request-Id} 跟踪头(OpenSpec
+ *       setup-observability-stack PR #1);非安全头,但需在 response 上 setHeader</li>
  * </ul>
  * 任何其它类调用 setHeader 即视为"想在 filter 链里塞头",触发 review。
  */
@@ -40,6 +43,7 @@ class SecurityHeaderArchitectureTest {
             methods()
                     .that().areDeclaredInClassesThat().areNotAssignableTo(SecurityHeadersFilter.class)
                     .and().areDeclaredInClassesThat().areNotAssignableTo(AdminRateLimitFilter.class)
+                    .and().areDeclaredInClassesThat().areNotAssignableTo(RequestIdFilter.class)
                     .should(notCallHttpServletResponseSetHeader())
                     .because("baseline security headers must only be written by "
                             + "com.seafood.shared.security.SecurityHeadersFilter; "

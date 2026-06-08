@@ -151,6 +151,18 @@ dependencies {
     // Sprint 2 §2 — Caffeine token bucket for admin rate limit (no version: BOM-managed by Spring Boot 4)
     implementation 'com.github.ben-manes.caffeine:caffeine'
 
+    // OpenSpec setup-observability-stack PR #1 / ADR-OQ1:UUID v7 generator
+    // FasterXML JUG 5.1.0, native-image 友好,无反射,包 ~50 KB
+    implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+
+    // OpenSpec setup-observability-stack PR #2 / design §D2:Prometheus exposition
+    // 暴露在 management port 9090(design §D2 — 与业务端口 8080 物理隔离,
+    // 不暴露 /actuator/** 到外网)。版本由 Spring Boot 4.0.6 BOM 托管(无需
+    // 显式 version,保持与 BOM 对齐)。Spring Boot 4 的 ActuatorAutoConfiguration
+    // 检测到该 registry 后自动装配 /actuator/prometheus 端点(Micrometer
+    // PrometheusMeterRegistry + PrometheusScrapeEndpoint)。
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'

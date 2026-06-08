@@ -74,9 +74,15 @@ services:
       # 没有 `--health-check` 子命令,且加一个会膨胀 binary 与 GraalVM 反射面。
       # 决策:删 docker healthcheck,把"健康"判定交给容器外探针。
       # 部署侧应配 k8s readinessProbe:
-      #   httpGet: { path: /actuator/health, port: 8080 }
+      #   httpGet: { path: /actuator/health, port: 9090 }   # PR #2:管理端口 9090
+      #                ^^^^^^^^^^^^^^^^^^^^^ 注意端口是 9090,不是业务 8080
       # 这样 readiness 由 Spring Actuator 自身决定(包括 MongoIndexHealthIndicator
       # 等 critical 依赖),行为比端口 probe 更准确。
+      #
+      # OpenSpec setup-observability-stack PR #2:management 端口独立后,
+      # 容器内业务端口 8080 仍跑 API(对外服务),管理端口 9090 暴露 actuator
+      # 给 k8s sidecar / Prometheus scrape。两者都 < 200MB RSS 预算,内存
+      # limit 256M 仍够(2 个 Tomcat + actuator 共享 native binary heap)。
       #
       # 注意:`depends_on: mongodb: { condition: service_healthy }` 仍然有效
       # —— mongodb 是普通镜像,自带 mongosh,healthcheck 正常跑。
