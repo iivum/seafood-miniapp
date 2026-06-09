@@ -48,6 +48,7 @@ class AuthServiceRefreshTest {
     private UserRepository users;
     private WechatCodeExchanger wechat;
     private LoginAttemptService attempts;
+    private io.micrometer.core.instrument.MeterRegistry meterRegistry;
     private AuthService auth;
 
     @BeforeEach
@@ -65,8 +66,9 @@ class AuthServiceRefreshTest {
         wechat = mock(WechatCodeExchanger.class);
         attempts = mock(LoginAttemptService.class);
         when(attempts.isLocked(anyString())).thenReturn(0);
+        meterRegistry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
 
-        auth = new AuthService(tokens, refreshStore, users, wechat, attempts);
+        auth = new AuthService(tokens, refreshStore, users, wechat, attempts, meterRegistry);
     }
 
     @Test
@@ -187,7 +189,7 @@ class AuthServiceRefreshTest {
         // 用 spy 替换 JwtTokenProvider.parseUser,返回没有 role claim 的 Claims
         // (模拟"本 PR 之前签的" refresh token)。
         JwtTokenProvider legacyTokens = org.mockito.Mockito.mock(JwtTokenProvider.class);
-        AuthService authWithLegacy = new AuthService(legacyTokens, refreshStore, users, wechat, attempts);
+        AuthService authWithLegacy = new AuthService(legacyTokens, refreshStore, users, wechat, attempts, meterRegistry);
         io.jsonwebtoken.Jws<io.jsonwebtoken.Claims> jws = org.mockito.Mockito.mock(io.jsonwebtoken.Jws.class);
         io.jsonwebtoken.Claims legacyClaims = io.jsonwebtoken.Jwts.claims()
                 .id(refreshToken.jti())

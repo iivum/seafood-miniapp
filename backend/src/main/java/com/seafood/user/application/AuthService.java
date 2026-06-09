@@ -12,6 +12,7 @@ import com.seafood.user.infra.UserDocument;
 import com.seafood.user.infra.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -42,6 +43,7 @@ public class AuthService {
     private final UserRepository users;
     private final WechatCodeExchanger wechat;
     private final LoginAttemptService loginAttempts;
+    private final MeterRegistry meterRegistry;
 
     /**
      * Admin 启动期凭据 — 简化版,生产应替换为 {@code UserRepository.findByUsernameAndPasswordHash}
@@ -62,12 +64,14 @@ public class AuthService {
                        RefreshTokenStore refreshStore,
                        UserRepository users,
                        WechatCodeExchanger wechat,
-                       LoginAttemptService loginAttempts) {
+                       LoginAttemptService loginAttempts,
+                       MeterRegistry meterRegistry) {
         this.tokens = tokens;
         this.refreshStore = refreshStore;
         this.users = users;
         this.wechat = wechat;
         this.loginAttempts = loginAttempts;
+        this.meterRegistry = meterRegistry;
     }
 
     // ----- 小程序 /api/auth/wechat-login -----
@@ -82,7 +86,13 @@ public class AuthService {
     public TokenResponse wechatLogin(WechatLoginRequest req, String clientIp) {
         // 阶段 1:exchange 之前没有 openId,用 IP 锁 — 防止单 IP 不断换 code 暴力打
         String ipAccount = "wechat-ip:" + (clientIp == null || clientIp.isBlank() ? "unknown" : clientIp);
-        ensureNotLocked(ipAccount);
+        try {
+            ensureNotLocked(ipAccount);
+        } catch (AccountLockedException locked) {
+            // PR #3 3.6:locked 路径埋点 — 命中 IP 黑名单直接 423
+            recordLoginAttempt("locked");
+            throw locked;
+        }
 
         String openId;
         try {
@@ -90,8 +100,10 @@ public class AuthService {
         } catch (RuntimeException e) {
             int lockRetry = loginAttempts.recordFailure(ipAccount);
             if (lockRetry > 0) {
+                recordLoginAttempt("locked");
                 throw new AccountLockedException(lockRetry);
             }
+            recordLoginAttempt("failed");
             throw e;
         }
 
@@ -101,6 +113,7 @@ public class AuthService {
         if (lockedRetry > 0) {
             // 释放 IP 计数器(本次 IP 未失败);让用户的 openId 锁生效
             loginAttempts.recordSuccess(ipAccount);
+            recordLoginAttempt("locked");
             throw new AccountLockedException(lockedRetry);
         }
 
@@ -123,13 +136,16 @@ public class AuthService {
             int lockRetry = loginAttempts.recordFailure(openIdAccount);
             loginAttempts.recordSuccess(ipAccount); // IP 这边成功了
             if (lockRetry > 0) {
+                recordLoginAttempt("locked");
                 throw new AccountLockedException(lockRetry);
             }
+            recordLoginAttempt("failed");
             throw new DomainException("登录失败");
         }
         // 成功:两个计数器都清零(IP 这次没失败,openId 走通了)
         loginAttempts.recordSuccess(ipAccount);
         loginAttempts.recordSuccess(openIdAccount);
+        recordLoginAttempt("success");
         return issuePair(doc.getId(), Role.CUSTOMER, Audience.USER);
     }
 
@@ -153,12 +169,23 @@ public class AuthService {
         // 其余全部归并到 {@code admin:unknown} 一个固定桶,避免 username 撞出无界桶。
         String normalizedUsername = adminUsername.equals(req.username()) ? adminUsername : "unknown";
         String account = "admin:" + normalizedUsername;
-        ensureNotLocked(account);
+        try {
+            ensureNotLocked(account);
+        } catch (AccountLockedException locked) {
+            // PR #3 3.6:locked 路径埋点
+            recordLoginAttempt("locked");
+            throw locked;
+        }
 
         // 阶段 2:用 IP 锁 —— 同一 IP 多次失败触发锁定,与 username 正交。
         // 没有这一步的话,攻击者从多 IP 各猜 5 次,绕过 per-username 锁。
         String ipAccount = "admin-ip:" + (clientIp == null || clientIp.isBlank() ? "unknown" : clientIp);
-        ensureNotLocked(ipAccount);
+        try {
+            ensureNotLocked(ipAccount);
+        } catch (AccountLockedException locked) {
+            recordLoginAttempt("locked");
+            throw locked;
+        }
 
         // PR review I5:用 constant-time 比较,避免 String.equals 短路计时泄露首个不匹配字符
         // 位置。lockout-after-5-fails 缓解了大部分可利用性,但在边界场景仍有意义。
@@ -173,13 +200,16 @@ public class AuthService {
             loginAttempts.recordFailure(ipAccount);
             if (lockRetry > 0) {
                 // 这次失败触发了锁定 → 返 423 而不是 409
+                recordLoginAttempt("locked");
                 throw new AccountLockedException(lockRetry);
             }
+            recordLoginAttempt("failed");
             throw new DomainException("用户名或密码错误");
         }
         // 凭据正确:两个计数器都清零
         loginAttempts.recordSuccess(account);
         loginAttempts.recordSuccess(ipAccount);
+        recordLoginAttempt("success");
         // 简单起见:admin 凭据来自配置,不查库。生产应改为 UserRepository.findByUsernameAndPasswordHash
         return issuePair("admin-bootstrap", Role.ADMIN, Audience.ADMIN);
     }
@@ -245,6 +275,18 @@ public class AuthService {
         if (retryAfter > 0) {
             throw new AccountLockedException(retryAfter);
         }
+    }
+
+    /**
+     * PR #3 3.6:登录尝试埋点。tag value 严格白名单 3 档:
+     * <ul>
+     *   <li>{@code success} — 颁发 token,所有 lockout 计数器清零</li>
+     *   <li>{@code failed} — 凭据错误 / wechat exchanger 抛错,尚未触发锁定</li>
+     *   <li>{@code locked} — 命中 lockout 黑名单,直接 423 拒绝</li>
+     * </ul>
+     */
+    private void recordLoginAttempt(String result) {
+        meterRegistry.counter("users.login.attempts", "result", result).increment();
     }
 
     private TokenResponse issuePair(String userId, Role role, Audience audience) {

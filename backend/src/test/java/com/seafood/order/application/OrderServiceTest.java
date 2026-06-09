@@ -12,6 +12,8 @@ import com.seafood.product.domain.ProductStatus;
 import com.seafood.product.infra.ProductDocument;
 import com.seafood.product.infra.ProductRepository;
 import com.seafood.shared.error.DomainException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -34,6 +36,7 @@ class OrderServiceTest {
     private OrderRepository orderRepo;
     private CartRepository cartRepo;
     private ProductRepository productRepo;
+    private MeterRegistry meterRegistry;
     private OrderService service;
 
     @BeforeEach
@@ -41,7 +44,10 @@ class OrderServiceTest {
         orderRepo = mock(OrderRepository.class);
         cartRepo = mock(CartRepository.class);
         productRepo = mock(ProductRepository.class);
-        service = new OrderService(orderRepo, cartRepo, productRepo);
+        // PR #3 3.x:SimpleMeterRegistry in-memory,与 Spring Boot Actuator 默认
+        // 装配的 MeterRegistry 类型兼容;counter().count() 直接可读,断言语义直白。
+        meterRegistry = new SimpleMeterRegistry();
+        service = new OrderService(orderRepo, cartRepo, productRepo, meterRegistry);
         SecurityContextHolder.clearContext();
     }
 
@@ -191,5 +197,149 @@ class OrderServiceTest {
         service.list(null, org.springframework.data.domain.PageRequest.of(0, 20));
 
         org.mockito.Mockito.verify(orderRepo).findAll(any(org.springframework.data.domain.Pageable.class));
+    }
+
+    // === PR #3 3.3:orders.created counter 埋点 ===
+
+    @Test
+    void create_success_incrementsOrdersCreatedCounter() {
+        // 复用现有 create_snapshotsPriceAndDecrementsStock 的 fixture,但显式断言 counter
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(new CartItem("p1", 2, true, Instant.now())));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        service.create("u1", "wechat");
+
+        assertThat(meterRegistry.counter("orders.created", "paymentMethod", "wechat").count())
+                .as("下单成功 → orders.created{wechat} += 1")
+                .isEqualTo(1.0);
+    }
+
+    @Test
+    void create_failure_doesNotIncrementCounter() {
+        // 库存不足:create 在第 1 步(商品校验)抛 DomainException,根本走不到 counter 累加点
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(new CartItem("p1", 5, true, Instant.now())));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 2)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 2)));
+
+        assertThatThrownBy(() -> service.create("u1", "wechat"))
+                .isInstanceOf(DomainException.class);
+
+        assertThat(meterRegistry.find("orders.created").counters())
+                .as("下单失败 → orders.created 任何 series 都不应被创建")
+                .isEmpty();
+    }
+
+    // === PR #3 3.4:orders.cancelled counter 埋点(3 个 reason 各自 +1)===
+
+    @Test
+    void cancel_userReason_incrementsOrdersCancelledWithUserTag() {
+        cancelAndAssertReason("user", "user");
+    }
+
+    @Test
+    void cancel_timeoutReason_incrementsOrdersCancelledWithTimeoutTag() {
+        cancelAndAssertReason("timeout", "timeout");
+    }
+
+    @Test
+    void cancel_adminReason_incrementsOrdersCancelledWithAdminTag() {
+        cancelAndAssertReason("admin", "admin");
+    }
+
+    @Test
+    void cancel_arbitraryReason_collapsesToOtherTag() {
+        // reason 是任意字符串:归 "other",防止高基数字符串污染 PromQL series
+        cancelAndAssertReason("我不想要了", "other");
+    }
+
+    private void cancelAndAssertReason(String inputReason, String expectedTag) {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        OrderDocument doc = pendingOrder("o1", "u1", new BigDecimal("100.00"));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(doc));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.cancel("o1", inputReason);
+
+        assertThat(meterRegistry.counter("orders.cancelled", "reason", expectedTag).count())
+                .as("取消 reason=%s 应映射到 tag=%s", inputReason, expectedTag)
+                .isEqualTo(1.0);
+    }
+
+    // === PR #3 3.5:orders.paid counter 埋点 + amountBucket 4 档分桶 ===
+
+    @Test
+    void markPaid_totalAmount350_classifiesAs100to500Bucket() {
+        // 总金额 350 元 → amountBucket=100to500
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        OrderDocument doc = pendingOrder("o1", "u1", new BigDecimal("350.00"));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(doc));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.markPaid("o1");
+
+        assertThat(meterRegistry.counter("orders.paid",
+                "paymentMethod", "wechat",
+                "amountBucket", "100to500").count())
+                .as("总金额 350 → orders.paid{wechat,100to500} += 1")
+                .isEqualTo(1.0);
+    }
+
+    @Test
+    void markPaid_amountBoundaries_classifyIntoCorrectBucket() {
+        // 6 个 boundary 值,每个跑一遍 markPaid,断言落到 4 档的哪一档
+        record Case(BigDecimal amount, String expectedBucket) {}
+        List<Case> cases = List.of(
+                new Case(new BigDecimal("99.99"),   "lt100"),
+                new Case(new BigDecimal("100.00"),  "100to500"),
+                new Case(new BigDecimal("499.99"),  "100to500"),
+                new Case(new BigDecimal("500.00"),  "500to2000"),
+                new Case(new BigDecimal("1999.99"), "500to2000"),
+                new Case(new BigDecimal("2000.00"), "gte2000"));
+
+        for (Case c : cases) {
+            // 每个 case 独立 setup,counter 累加
+            meterRegistry.clear();
+            loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+            OrderDocument doc = pendingOrder("o1", "u1", c.amount());
+            when(orderRepo.findById("o1")).thenReturn(Optional.of(doc));
+            when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            service.markPaid("o1");
+
+            assertThat(meterRegistry.counter("orders.paid",
+                    "paymentMethod", "wechat",
+                    "amountBucket", c.expectedBucket()).count())
+                    .as("amount=%s → amountBucket=%s", c.amount(), c.expectedBucket())
+                    .isEqualTo(1.0);
+        }
+    }
+
+    // === helpers(仅 PR #3 测) ===
+
+    private static OrderDocument pendingOrder(String orderId, String userId, BigDecimal totalAmount) {
+        OrderDocument doc = new OrderDocument();
+        doc.setId(orderId);
+        doc.setUserId(userId);
+        doc.setItems(List.of(new com.seafood.order.domain.OrderItem(
+                "p1", "三文鱼", new BigDecimal("50.00"), 1)));
+        doc.setTotalAmount(totalAmount);
+        doc.setStatus("PENDING");
+        doc.setCreatedAt(Instant.now());
+        doc.setUpdatedAt(Instant.now());
+        return doc;
     }
 }

@@ -10,9 +10,15 @@ import com.seafood.product.infra.ProductMapper;
 import com.seafood.product.infra.ProductRepository;
 import com.seafood.shared.error.DomainException;
 import com.seafood.shared.error.NotFoundException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -30,12 +36,17 @@ import static org.mockito.Mockito.when;
 class ProductServiceTest {
 
     private ProductRepository repo;
+    private MeterRegistry meterRegistry;
     private ProductService service;
 
     @BeforeEach
     void setUp() {
         repo = mock(ProductRepository.class);
-        service = new ProductService(repo);
+        // OpenSpec PR #3 3.2 — 用 SimpleMeterRegistry(纯 in-memory,无网络/无外部依赖)
+        // 代替 Mockito mock,直接用 counter().count() 断言,语义更直白;
+        // Micrometer 公开 API 在 native 下也工作,虽然此测试不是 @Tag("native")。
+        meterRegistry = new SimpleMeterRegistry();
+        service = new ProductService(repo, meterRegistry);
     }
 
     private ProductRequest sampleRequest() {
@@ -149,6 +160,62 @@ class ProductServiceTest {
         ProductDocument d = ProductMapper.toDocument(p);
         Product back = ProductMapper.toDomain(d);
         assertThat(back.category()).isInstanceOf(ProductCategory.Shrimp.class);
+    }
+
+    // --- 3.2.1:products.queried 计数器埋点(PR #3)---
+
+    @Test
+    void listPublic_incrementsProductsQueriedCounterOncePerMatchedCategory() {
+        // 3 个鱼类 + 1 个虾蟹 → 4 个 increment,鱼类 tag 累计 3,虾蟹 tag 累计 1
+        List<ProductDocument> docs = List.of(
+                docOf("p1", "三文鱼", new BigDecimal("99.00"), 10, ProductStatus.ACTIVE),
+                docOf("p2", "金枪鱼", new BigDecimal("199.00"), 5, ProductStatus.ACTIVE),
+                docOf("p3", "带鱼",   new BigDecimal("49.00"),  20, ProductStatus.ACTIVE),
+                docOf("p4", "对虾",   new BigDecimal("129.00"), 8, ProductStatus.ACTIVE));
+        // 第三个 doc 改 category 为"虾蟹"以测试多种 category 累加
+        docs.get(3).setCategory("虾蟹");
+        Pageable pageable = PageRequest.of(0, 20);
+        when(repo.findByStatus(ProductStatus.ACTIVE, pageable))
+                .thenReturn(new PageImpl<>(docs, pageable, docs.size()));
+
+        service.listPublic(null, pageable);
+
+        assertThat(meterRegistry.counter("products.queried", "category", "鱼类").count())
+                .as("鱼类 3 个商品 → counter += 3")
+                .isEqualTo(3.0);
+        assertThat(meterRegistry.counter("products.queried", "category", "虾蟹").count())
+                .as("虾蟹 1 个商品 → counter += 1")
+                .isEqualTo(1.0);
+    }
+
+    @Test
+    void listPublic_emptyResult_doesNotIncrementCounter() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(repo.findByStatus(ProductStatus.ACTIVE, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        service.listPublic(null, pageable);
+
+        // 无结果时不应新建任何 counter(避免空 series 污染 PromQL)
+        assertThat(meterRegistry.find("products.queried").counters())
+                .as("empty listPublic 不应产生任何 products.queried series")
+                .isEmpty();
+    }
+
+    @Test
+    void listAdmin_doesNotEmitProductsQueriedCounter() {
+        // listAdmin 走管理后台路径,不应算入"用户浏览商品"业务计数(避免数据污染)
+        List<ProductDocument> docs = List.of(
+                docOf("p1", "三文鱼", new BigDecimal("99.00"), 10, ProductStatus.ACTIVE));
+        Pageable pageable = PageRequest.of(0, 20);
+        when(repo.findAll(pageable))
+                .thenReturn(new PageImpl<>(docs, pageable, docs.size()));
+
+        service.listAdmin(null, pageable);
+
+        assertThat(meterRegistry.find("products.queried").counters())
+                .as("listAdmin 不算用户侧浏览量,不应埋 products.queried")
+                .isEmpty();
     }
 
     // ----- helpers -----

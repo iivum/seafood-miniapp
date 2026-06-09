@@ -8,6 +8,8 @@ import com.seafood.user.api.dto.AdminLoginRequest;
 import com.seafood.user.api.dto.TokenResponse;
 import com.seafood.user.api.dto.WechatLoginRequest;
 import com.seafood.user.infra.UserRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -43,6 +45,7 @@ class AuthServiceLockoutTest {
     private WechatCodeExchanger wechat;
     private LoginAttemptService attempts;
     private LoginAttemptProperties props;
+    private MeterRegistry meterRegistry;
     private AuthService auth;
 
     @BeforeEach
@@ -63,8 +66,10 @@ class AuthServiceLockoutTest {
         props.setMaxFailures(5);
         props.setWindowMinutes(15);
         props.setLockMinutes(15);
+        // PR #3 3.6:in-memory 注册表,counter().count() 断言无歧义
+        meterRegistry = new SimpleMeterRegistry();
 
-        auth = new AuthService(tokens, refreshStore, users, wechat, attempts);
+        auth = new AuthService(tokens, refreshStore, users, wechat, attempts, meterRegistry);
         ReflectionTestUtils.setField(auth, "adminUsername", "admin");
         ReflectionTestUtils.setField(auth, "adminPassword", "admin123");
     }
@@ -223,5 +228,89 @@ class AuthServiceLockoutTest {
         // 反向断言:不应传 code-hash 形式的 key 给 isLocked
         assertThat(keyCaptor.getAllValues())
                 .noneMatch(k -> k != null && k.startsWith("wechat:") && !k.startsWith("wechat-ip:"));
+    }
+
+    // === PR #3 3.6:users.login.attempts 计数器埋点 ===
+
+    @Test
+    void adminLogin_success_incrementsLoginAttemptsSuccess() {
+        when(attempts.isLocked(anyString())).thenReturn(0);
+        // 找得到 user → admin 凭据直接放行
+        com.seafood.user.infra.UserDocument doc = new com.seafood.user.infra.UserDocument();
+        doc.setId("admin-bootstrap");
+        doc.setRole("ADMIN");
+        // adminLogin 当前不查 users(走 bootstrap 凭据),无需 stub findBy*
+
+        TokenResponse resp = auth.adminLogin(new AdminLoginRequest("admin", "admin123"), "10.0.0.1");
+
+        assertThat(resp.accessToken()).isNotBlank();
+        assertThat(meterRegistry.counter("users.login.attempts", "result", "success").count())
+                .as("admin login 成功 → users.login.attempts{success} += 1")
+                .isEqualTo(1.0);
+        assertThat(meterRegistry.counter("users.login.attempts", "result", "failed").count())
+                .as("success 路径不应累加 failed")
+                .isEqualTo(0.0);
+    }
+
+    @Test
+    void adminLogin_wrongPassword_incrementsLoginAttemptsFailed() {
+        when(attempts.isLocked(anyString())).thenReturn(0);
+        when(attempts.recordFailure(anyString())).thenReturn(0);
+
+        assertThatThrownBy(() -> auth.adminLogin(new AdminLoginRequest("admin", "bad"), "10.0.0.1"))
+                .isInstanceOf(DomainException.class);
+
+        assertThat(meterRegistry.counter("users.login.attempts", "result", "failed").count())
+                .as("admin login 密码错(未触发锁) → users.login.attempts{failed} += 1")
+                .isEqualTo(1.0);
+        assertThat(meterRegistry.counter("users.login.attempts", "result", "success").count())
+                .as("failed 路径不应累加 success")
+                .isEqualTo(0.0);
+    }
+
+    @Test
+    void adminLogin_locked_incrementsLoginAttemptsLocked() {
+        // isLocked 返回 777 → 还没查密码,ensureNotLocked 阶段就抛 423
+        when(attempts.isLocked(anyString())).thenReturn(777);
+
+        assertThatThrownBy(() -> auth.adminLogin(new AdminLoginRequest("admin", "admin123"), "10.0.0.1"))
+                .isInstanceOf(AccountLockedException.class);
+
+        assertThat(meterRegistry.counter("users.login.attempts", "result", "locked").count())
+                .as("admin login 命中锁 → users.login.attempts{locked} += 1")
+                .isEqualTo(1.0);
+        assertThat(meterRegistry.counter("users.login.attempts", "result", "failed").count())
+                .as("locked 路径不应再累加 failed(直接 423,没走凭据校验)")
+                .isEqualTo(0.0);
+    }
+
+    @Test
+    void wechatLogin_exchangeFailure_incrementsLoginAttemptsFailed() {
+        when(attempts.isLocked(anyString())).thenReturn(0);
+        when(wechat.exchange(anyString())).thenThrow(new RuntimeException("wechat down"));
+        when(attempts.recordFailure(anyString())).thenReturn(0);
+
+        assertThatThrownBy(() -> auth.wechatLogin(
+                new WechatLoginRequest("bad-code", null, null), "10.0.0.1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("wechat down");
+
+        assertThat(meterRegistry.counter("users.login.attempts", "result", "failed").count())
+                .as("wechat exchanger 抛错(未触发锁) → users.login.attempts{failed} += 1")
+                .isEqualTo(1.0);
+    }
+
+    @Test
+    void wechatLogin_lockedIp_incrementsLoginAttemptsLocked() {
+        // IP 锁:ensureNotLocked 第一阶段就 423
+        when(attempts.isLocked("wechat-ip:10.0.0.1")).thenReturn(60);
+
+        assertThatThrownBy(() -> auth.wechatLogin(
+                new WechatLoginRequest("any-code", null, null), "10.0.0.1"))
+                .isInstanceOf(AccountLockedException.class);
+
+        assertThat(meterRegistry.counter("users.login.attempts", "result", "locked").count())
+                .as("wechat IP 锁命中 → users.login.attempts{locked} += 1")
+                .isEqualTo(1.0);
     }
 }
