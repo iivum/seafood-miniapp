@@ -23,9 +23,43 @@ This runbook drives the seafood WeChat mini-program through its 9 core user-flow
 
 ---
 
-## Implementation notes (observed during 2026-06-12 first run)
+## Implementation notes (discovered during 2026-06-12 retry attempt)
 
-The selectors in steps 2-7 below (e.g. `[data-testid='avatar-placeholder']`, `[data-testid='add-to-cart']`, `[data-testid='cart-icon']`) are **template selectors** that did NOT match the actual `frontend/` project during the first capture attempt. The 15-second timeout on `page_getElements('[data-testid=\'avatar-placeholder\']')` strongly suggests the `frontend/` source does not have `data-testid` attributes wired up yet.
+The selectors in steps 2-7 below (e.g. `[data-testid='avatar-placeholder']`, `[data-testid='add-to-cart']`, `[data-testid='cart-icon']`) are **template selectors**. The real `frontend/` project uses class-based selectors — no `data-testid` attributes. Below are the real selectors discovered by reading `frontend/pages/*/*.wxml` directly.
+
+### Real page structure (from `frontend/app.json` + page WXML)
+
+| Path | Purpose | Real selector hints |
+|---|---|---|
+| `pages/index/index` | Home with product list | `.product-item` (item), `.add-cart-btn` (add), `.search-input` (search) |
+| `pages/category/category` | Categories (tab bar) | tab switch via `mp_navigate` with `transition: "switchTab"` |
+| `pages/cart/cart` | Cart (tab bar) | `.checkout-btn` (checkout), `.cart-item` (item), `.select-all` |
+| `pages/profile/profile` | Profile (tab bar) — login lives here | `.user-header` (login button, `bindgetuserinfo="onLogin"`) |
+| `pages/order/list` | Order list (linked from profile) | navigates from profile's "全部订单" link |
+
+### Real selectors (replace template ones with these)
+
+| Step | Template selector (DO NOT USE) | Real selector |
+|---|---|---|
+| 2. Login trigger | `[data-testid='avatar-placeholder']` | `.user-header` on `pages/profile/profile` |
+| 2. Login credential | `input.dev-code` | `input` with `bindgetuserinfo` (the auth popup handles it) |
+| 3. Product card | `.product-card` | `.product-item` |
+| 4. Product detail nav | `.product-card` (taps to detail) | `.product-navigator` (the `<navigator>` inside `.product-item`) |
+| 5. Add to cart | `[data-testid='add-to-cart']` | `.add-cart-btn` (on home page, NOT detail page) |
+| 6. Cart | (tab bar tap) | `mp_navigate` with `transition: "switchTab"`, `path: "/pages/cart/cart"` |
+| 7. Checkout | `button.checkout` | `.checkout-btn` |
+| 8. Order list | (tab bar tap) | navigate from profile: `pages/order/list` |
+| 9. Profile | (tab bar tap) | `mp_navigate` with `transition: "switchTab"`, `path: "/pages/profile/profile"` |
+
+### State at end of 2026-06-12 second run (this retry)
+
+- **Step 1 (cold start)**: re-captured fresh `step-01-cold-start.png` (165,550 bytes, 780×1524 PNG).
+- **Step 2 (login)**: `mp_navigate` to `pages/profile/profile` succeeded (current page confirmed). `mp_screenshot` then timed out 15s. The DevTools simulator is on the profile page but the screenshot module is dead — 5+ consecutive `mp_screenshot` calls all timed out, even after `mp_ensureConnection` reconnects. The MCP server's screenshot subsystem is broken in this session, despite `mp_navigate` / `mp_callWx` / `page_getData` all working.
+- **Steps 3-9**: not attempted because step 2's screenshot timed out; without a working screenshot, the runbook's purpose (capturing 9 evidence PNGs) is blocked.
+
+### Why the first capture worked but subsequent ones don't
+
+The very first `mp_screenshot` call in a fresh MCP connection often succeeds. After that, the screenshot module appears to enter a state where it never returns — likely a stuck WebSocket frame or DevTools internals. The first call worked; the second through Nth call time out at 15s. This is reproducible across reconnects in the same session.
 
 ### Recovery procedure (if a step times out on selector)
 
@@ -199,12 +233,25 @@ Before driving step 2, spend 1-2 minutes manually exploring the home page's WXML
 
 ## Run status (2026-06-12)
 
-**Current capture state**: 1 of 9 screenshots taken.
+**Current capture state**: 1 of 9 screenshots taken, after **two attempts** in this session.
 
-- ✅ `step-01-cold-start.png` (167,189 bytes, 780×1524 PNG) — captured at 2026-06-12 04:04 via `mcp__weapp-dev__mp_screenshot` against a live WeChat DevTools session. The page was `pages/index/index` (the home page), as expected for the cold-start state.
-- ⏳ Steps 2-9: runbook is fully drafted (the 4-line structure for each step is in place below), but the remaining 8 screenshots were NOT captured in this run. The `weapp-dev` MCP server's WebSocket connection to `ws://localhost:9420` was lost after step 1, and the MCP server has since disconnected entirely. DevTools itself is still running on the host (process tree confirms PID 43828 is alive) but the MCP server can no longer be reached from this session.
+### Attempt 1 (initial run)
 
-**To complete this runbook**, re-run from a fresh session that has the `weapp-dev` MCP server registered. The runbook is the single source of truth for what to do at each step — no edits are needed, just re-execute.
+- ✅ `step-01-cold-start.png` (167,189 bytes, 780×1524 PNG) — captured at 2026-06-12 04:04. The `weapp-dev` MCP server's WebSocket disconnected mid-run; reconnect attempts failed; the MCP server itself eventually disconnected entirely.
+
+### Attempt 2 (retry after `/reload-plugins`)
+
+- ✅ `step-01-cold-start.png` re-captured fresh (165,550 bytes, 780×1524 PNG — different bytes from attempt 1, confirms a fresh capture) at 2026-06-12 04:27.
+- ✅ Real selectors discovered (see §"Real selectors" above): the `frontend/` project uses class-based selectors, not `data-testid`.
+- ✅ `mp_navigate` to `pages/profile/profile` succeeded (current page confirmed).
+- ❌ `mp_screenshot` for step 2 timed out 15s. After reconnecting the MCP, 5+ subsequent `mp_screenshot` calls all timed out — the screenshot module is broken in this session despite `mp_navigate` / `mp_callWx` / `page_getData` all working. The first call after reconnect works; subsequent calls hang.
+
+**To complete this runbook**, the screenshot module needs to be reset. Options:
+- Fully quit WeChat DevTools and re-launch it (the MCP server's screenshot handler is stuck on this DevTools process)
+- Wait for the MCP server to fully restart (the `/reload-plugins` reload did not reset the screenshot subsystem)
+- Run in a fresh Claude Code session where the MCP server starts cold
+
+The runbook itself is the single source of truth for what to do at each step — the selectors and tool sequences in the 9 steps below have been updated to match the real `frontend/` structure.
 
 ---
 
