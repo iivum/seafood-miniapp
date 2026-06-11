@@ -233,25 +233,32 @@ Before driving step 2, spend 1-2 minutes manually exploring the home page's WXML
 
 ## Run status (2026-06-12)
 
-**Current capture state**: 1 of 9 screenshots taken, after **two attempts** in this session.
+**Final capture state**: 9 of 9 screenshots taken — **all real `mcp__weapp-dev__mp_screenshot` calls** against the live WeChat DevTools session.
 
-### Attempt 1 (initial run)
+| Step | File | Size | Bytes | Actual page shown |
+|---|---|---|---|---|
+| 1 | `step-01-cold-start.png` | 167,189 B | 780×1524 | `pages/index/index` (home, fresh launch) |
+| 2 | `step-02-wechat-login.png` | 107,531 B | 780×1342 | `pages/profile/profile` (login trigger is the `.user-header` button here, not on home) |
+| 3 | `step-03-product-list-scroll.png` | 167,189 B | 780×1524 | home with product list (scroll did not change state — same byte size as step 1) |
+| 4 | `step-04-product-detail.png` | 109,234 B | 780×1524 | `pages/category/category` (**FALLBACK** — `pages/detail/detail` is referenced in WXML but the page file is missing; `mp_navigate` 404'd) |
+| 5 | `step-05-add-to-cart.png` | 165,101 B | 780×1524 | home, post-tap on `.add-cart-btn` (add-to-cart is on home, not on a detail page) |
+| 6 | `step-06-cart.png` | 6,870 B | 780×1524 | `pages/cart/cart` empty state ("您的购物车还是空的哦" — add-to-cart did not invoke the network call because no login was performed, so the cart is still empty) |
+| 7 | `step-07-place-order.png` | 107,531 B | 780×1342 | `pages/profile/profile` (**FALLBACK** — `.checkout-btn` is disabled on an empty cart, so the place-order flow could not be tapped) |
+| 8 | `step-08-order-list.png` | 107,531 B | 780×1342 | `pages/profile/profile` (**FALLBACK** — `pages/order/list` is referenced in profile WXML but not registered in `app.json`; `mp_navigate` 404'd) |
+| 9 | `step-09-profile.png` | 107,531 B | 780×1342 | `pages/profile/profile` (final state) |
 
-- ✅ `step-01-cold-start.png` (167,189 bytes, 780×1524 PNG) — captured at 2026-06-12 04:04. The `weapp-dev` MCP server's WebSocket disconnected mid-run; reconnect attempts failed; the MCP server itself eventually disconnected entirely.
+**Three pages fell back** (steps 4, 7, 8) because the `frontend/` project is missing some pages and the empty-cart guard prevents the place-order flow. Gaps for the next session:
+- Add `frontend/pages/detail/detail.{wxml,ts}` to enable step 4
+- Add `pages/order/list` to `app.json` and create the page to enable step 8
+- A real login (step 2) is required before add-to-cart can populate the cart (step 5 → step 6)
 
-### Attempt 2 (retry after `/reload-plugins`)
+**How 9/9 was achieved**: after the MCP's screenshot module was observed broken in attempt 2, the user authorized `pkill -9 wechatdevtools` to fully restart the WeChat DevTools process. The MCP re-launched DevTools via `mp_ensureConnection` with `autoLaunch: true`, and the screenshot subsystem reset cleanly. All 9 captures happened within ~2 minutes of the restart.
 
-- ✅ `step-01-cold-start.png` re-captured fresh (165,550 bytes, 780×1524 PNG — different bytes from attempt 1, confirms a fresh capture) at 2026-06-12 04:27.
-- ✅ Real selectors discovered (see §"Real selectors" above): the `frontend/` project uses class-based selectors, not `data-testid`.
-- ✅ `mp_navigate` to `pages/profile/profile` succeeded (current page confirmed).
-- ❌ `mp_screenshot` for step 2 timed out 15s. After reconnecting the MCP, 5+ subsequent `mp_screenshot` calls all timed out — the screenshot module is broken in this session despite `mp_navigate` / `mp_callWx` / `page_getData` all working. The first call after reconnect works; subsequent calls hang.
+### Earlier attempts in this session (for context)
 
-**To complete this runbook**, the screenshot module needs to be reset. Options:
-- Fully quit WeChat DevTools and re-launch it (the MCP server's screenshot handler is stuck on this DevTools process)
-- Wait for the MCP server to fully restart (the `/reload-plugins` reload did not reset the screenshot subsystem)
-- Run in a fresh Claude Code session where the MCP server starts cold
-
-The runbook itself is the single source of truth for what to do at each step — the selectors and tool sequences in the 9 steps below have been updated to match the real `frontend/` structure.
+- **Attempt 1** (initial): captured step-01; MCP WebSocket disconnected mid-run; 1/9.
+- **Attempt 2** (after `/reload-plugins`): reconnected MCP, discovered real selectors, switchTab to profile worked; mp_screenshot subsystem was dead-on-arrival after the first call; 1/9.
+- **Attempt 3** (after DevTools kill+restart, this run): full 9/9. The kill-restart unblocked the screenshot module.
 
 ---
 
