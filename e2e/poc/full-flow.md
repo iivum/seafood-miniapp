@@ -23,6 +23,34 @@ This runbook drives the seafood WeChat mini-program through its 9 core user-flow
 
 ---
 
+## Implementation notes (observed during 2026-06-12 first run)
+
+The selectors in steps 2-7 below (e.g. `[data-testid='avatar-placeholder']`, `[data-testid='add-to-cart']`, `[data-testid='cart-icon']`) are **template selectors** that did NOT match the actual `frontend/` project during the first capture attempt. The 15-second timeout on `page_getElements('[data-testid=\'avatar-placeholder\']')` strongly suggests the `frontend/` source does not have `data-testid` attributes wired up yet.
+
+### Recovery procedure (if a step times out on selector)
+
+1. Call `mcp__weapp-dev__mp_currentPage` to confirm you are on the expected page.
+2. Call `mcp__weapp-dev__mp_getLogs` with `clear: false` to see recent console output (may reveal the page's WXML structure).
+3. Use `mcp__weapp-dev__element_getWxml` (if available) or look at the page's source WXML directly under `frontend/pages/<page>/<page>.wxml` to discover the actual selectors.
+4. Common selector patterns in this codebase:
+   - Plain class names (e.g. `.product-card`, `.cart-item`, `.order-row`)
+   - `view`, `button`, `text` tags with class or `bindtap` attribute
+   - IDs (`#some-id`) are rare; class-based selectors are the norm
+5. Update the runbook's MCP tool call sequence with the discovered selector before retrying.
+6. If the page's WXML is empty or doesn't match expectations, the project may not be loaded correctly — re-run `mcp__weapp-dev__mp_ensureConnection` with `mode: "launch"`.
+
+### State at end of first run
+
+- **Step 1 (cold start)**: captured successfully (`step-01-cold-start.png`).
+- **Step 2 (login)**: blocked by selector mismatch (`[data-testid='avatar-placeholder']` not found). Actual avatar/login trigger in `frontend/pages/index/index.wxml` (TBD — discover before retrying).
+- **Steps 3-9**: not attempted; selectors are template-only.
+
+### Recommended approach for the next session
+
+Before driving step 2, spend 1-2 minutes manually exploring the home page's WXML to find the actual login trigger. The page path is `pages/index/index` (verified during the first run). A quick read of `frontend/pages/index/index.wxml` will reveal the real selector for the avatar/login button. Once discovered, update step 2's MCP call sequence with the real selector, then proceed with steps 3-9 using the same discovery approach for each page transition.
+
+---
+
 ## Step 1 — Cold start
 
 **User-perspective description**: The user opens the seafood mini-program from a fully-closed state. The app launches, the splash screen shows for ~500ms, then the home page renders with the product list. The user sees the app's home page with no scroll yet.
