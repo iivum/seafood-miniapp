@@ -24,6 +24,24 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 jobs:
+  # v2-visual-redesign Sprint 0 (2026-06-13):design token 派生 + parity 护栏。
+  # 跑在所有下游 job 之前,3 分钟超时;零 npm 依赖(Node 自带 --test)。
+  # 任何改 docs/redesign/tokens.json 的 PR 都会触发本 job 验证 mp + admin 两端
+  # 派生产物一一对应(visual-design-system spec § "Cross-surface token parity test")。
+  tokens:
+    name: Design Tokens (v2 OKLch parity)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Build tokens (mp WXSS + admin Tailwind TS)
+        run: npm run build:tokens
+      - name: Parity test (wxss ↔ tailwind.ts ↔ tokens.json)
+        run: npm run test:tokens
+
   backend:
     name: Backend (Java 25 + GraalVM)
     runs-on: ubuntu-latest
