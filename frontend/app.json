@@ -63,7 +63,7 @@
   "preloadRule": {
     "pages/index/index": {
       "network": "all",
-      "packages": ["pages-sub/product", "pages-sub/order", "pages-sub/user", "pages-sub/merchant"]
+      "packages": ["pages-sub/product", "pages-sub/order", "pages-sub/user"]
     }
   },
   "subpackages": [
@@ -86,16 +86,6 @@
         "login/login",
         "address/address-list",
         "address/address-edit"
-      ]
-    },
-    {
-      "root": "pages-sub/merchant",
-      "pages": [
-        "merchant/merchant",
-        "product-manage/product-manage",
-        "order-manage/order-manage",
-        "user-manage/user-manage",
-        "dashboard/dashboard"
       ]
     }
   ]

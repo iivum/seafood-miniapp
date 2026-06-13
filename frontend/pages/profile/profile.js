@@ -26,14 +26,6 @@ Page({
     wx.navigateTo({ url: '/pages-sub/order/order-list/order-list' });
   },
 
-  goToMerchant: function () {
-    if (!authStore.getState().isAuthenticated) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
-    wx.navigateTo({ url: '/pages-sub/merchant/merchant/merchant' });
-  },
-
   onLogin: function () {
     if (authStore.getState().isAuthenticated) {
       wx.showToast({ title: '您已登录', icon: 'none' });

@@ -9,7 +9,7 @@
 **海鲜商城小程序** - 微信小程序 + Spring Boot 单仓电商平台(由原 7 模块 Spring Cloud 收敛而来)
 
 - **前端**：微信小程序 (TypeScript 5.x, Jest 29.x, ESLint 8.x)
-- **管理后台**：规划 React 18 + shadcn/ui + Vite(§9 任务,Vue admin-ui 已废弃)
+- **管理后台**：**当前无(单卖家模型,不走 Web 后台)**;§9 规划的 React 18 + shadcn/ui + Vite 是未来工作(若日后需要多角色)
 - **后端**：Java 25, Spring Boot 4.0.6, GraalVM Native, Gradle 9.x
 - **数据库**：MongoDB 7.x(单库,不分微服务)
 - **服务发现/配置**：已砍(单进程不需要)
@@ -59,7 +59,7 @@ seafood-miniapp/
 ├── frontend/                           # 微信小程序
 │   ├── src/
 │   │   ├── shared/                   # 跨 feature(api/components/hooks/tokens)
-│   │   ├── features/{product,cart,order,user,admin}/
+│   │   ├── features/{product,cart,order,user}/
 │   │   └── pages/                    # WXML/WXSS/.ts 路由入口
 │   └── pages/                        # 原生 app.json 路由
 │
@@ -100,10 +100,7 @@ HTTP → [ JwtAuthenticationFilter → @PreAuthorize → Controller
        → MongoDB ]
 ```
 
-**管理后台架构**(目标态):
-```
-React 18 SPA (admin-ui/) → backend BFF (/api/admin/**) → 同进程内 ApplicationService 编排
-```
+**管理后台架构**(暂未实现):当前是单卖家模型,Web 后台不在 Sprint 范围内。后端 `/api/admin/**` 3 端点(`dashboard` / `products/stats` / `orders/{id}/detail`)已就位但无消费方;若日后需要多角色管理,§9 规划 `React 18 SPA (admin-ui/) → backend BFF (/api/admin/**) → 同进程内 ApplicationService 编排`。
 
 ---
 
@@ -131,7 +128,6 @@ React 18 SPA (admin-ui/) → backend BFF (/api/admin/**) → 同进程内 Applic
 
 ### 设计准则
 - **微信小程序**：颜色变量在 `app.wxss`，安全区域 `padding-bottom: var(--safe-area-bottom)`
-- **Admin UI**：使用 `frontend/admin-design/` 中的设计令牌和 Element Plus 主题
 - 详细规范见 [`DESIGN.md`](./docs/DESIGN.md)
 
 ---
@@ -329,9 +325,11 @@ docker-compose down -v            # 停止 + 清 mongodb_data volume
 
 - `openspec/changes/refactor-rust-rebuild-frontend/` - **本次重构的 OpenSpec change**(proposal/design/4 specs/63 tasks)
 - `docs/DESIGN.md` - 设计系统规范(待按新单仓重写)
-- `frontend/admin-design/` - 小程序设计令牌(shared with admin-ui,§8/§9 重构)
+- `frontend/admin-design/` - 小程序设计令牌(暂未与任何 admin-ui 共享)
 - `backend/seed/seed.sh` - MongoDB 种子数据(50 商品 / 5 分类 / 2 用户)
 - `backend/scripts/check-no-refresh-scope.sh` - GraalVM Native 兼容性扫描
+- `https://github.com/yfmeii/weapp-dev-mcp` - weapp-dev-mcp 的官方文档
+- context7 插件
 
 ---
 
