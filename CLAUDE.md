@@ -9,7 +9,7 @@
 **海鲜商城小程序** - 微信小程序 + Spring Boot 单仓电商平台(由原 7 模块 Spring Cloud 收敛而来)
 
 - **前端**：微信小程序 (TypeScript 5.x, Jest 29.x, ESLint 8.x)
-- **管理后台**：**当前无(单卖家模型,不走 Web 后台)**;§9 规划的 React 18 + shadcn/ui + Vite 是未来工作(若日后需要多角色)
+- **管理后台**：**Sprint 1+ 启动**(单卖家内部运营,**不**做外部商家入驻/多 seller/自助门户/结算分账)。技术栈 React 18 + shadcn/ui + Vite,代码在 `admin-ui/`;与小程序共享同一份 `docs/redesign/tokens.json` 派生设计 token。详见 `docs/redesign-requirements.md` § 3 + `05-moscow-roadmap.md` § 3
 - **后端**：Java 25, Spring Boot 4.0.6, GraalVM Native, Gradle 9.x
 - **数据库**：MongoDB 7.x(单库,不分微服务)
 - **服务发现/配置**：已砍(单进程不需要)
@@ -72,7 +72,7 @@ seafood-miniapp/
 │   │   ├── product/{api,application,domain,infra}/
 │   │   ├── order/{api,application,domain,infra}/
 │   │   ├── user/{api,application,domain,infra}/
-│   │   └── bff/admin/                # /api/admin/** 3 端点
+│   │   └── bff/admin/                # /api/admin/** 端点(由 admin-ui 消费:Sprint 1+ 启用 ad-01/02/03,Sprint 2+ 启用 ad-04/05/06,详见 docs/redesign/)
 │   ├── src/main/resources/
 │   │   ├── application.yml           # JWT fail-fast、虚拟线程
 │   │   └── META-INF/native-image/    # 反射/资源/代理 JSON 占位
@@ -100,7 +100,7 @@ HTTP → [ JwtAuthenticationFilter → @PreAuthorize → Controller
        → MongoDB ]
 ```
 
-**管理后台架构**(暂未实现):当前是单卖家模型,Web 后台不在 Sprint 范围内。后端 `/api/admin/**` 3 端点(`dashboard` / `products/stats` / `orders/{id}/detail`)已就位但无消费方;若日后需要多角色管理,§9 规划 `React 18 SPA (admin-ui/) → backend BFF (/api/admin/**) → 同进程内 ApplicationService 编排`。
+**管理后台架构**(2026-06-13 决策启动):**单卖家内部运营**,**不**做外部商家接入(无入驻/多 seller/自助门户/结算分账)。`admin-ui/`(React 18 + shadcn/ui + Vite)→ 同进程内 `/api/admin/**` → `ApplicationService` → MongoDB。设计上与小程序共享同一份 `docs/redesign/tokens.json`(Sprint 0 落地)。6 屏 4 个 Sprint 切分:ad-01/02/03 在 Sprint 1,ad-04/05 在 Sprint 2-3,ad-06 在 Sprint 3;详细见 `docs/redesign-requirements.md` + `docs/redesign/05-moscow-roadmap.md`。
 
 ---
 
@@ -244,7 +244,7 @@ interface Order {
 ```bash
 # 后端 — Sprint 2 起 @Validated 在 binding 阶段 fail-fast(早于 @PostConstruct)
 JWT_SECRET=<≥32 字节随机串>           # 缺失/<32B 即 fail-fast。生成:openssl rand -base64 48
-JWT_ADMIN_SECRET=<≥32 字节随机串>      # admin-ui 独立签名密钥;MUST 与 JWT_SECRET 不同(@AssertTrue 校验)
+JWT_ADMIN_SECRET=<≥32 字节随机串>      # admin-ui 独立签名密钥;MUST 与 JWT_SECRET 不同(@AssertTrue 校验)。Sprint 1+ admin-ui 启用此密钥;token 先存 localStorage,Sprint 1 末迁 httpOnly Cookie(需后端 cookie auth 端点)
 MONGODB_URI=mongodb://localhost:27017/seafood   # 必须以 mongodb:// 或 mongodb+srv:// 开头
 WECHAT_ENABLED=false                    # dev 期可保持 false,wechat.login code 必须以 dev- 开头
 WECHAT_APPID=...                        # WECHAT_ENABLED=true 时必填(@AssertTrue 跨字段校验)
@@ -267,6 +267,8 @@ API_BASE_URL=http://localhost:8080
 > `seafood-backend:native`,基于 `gcr.io/distroless/base-debian12:nonroot`,**无 JRE**)
 > + `mongodb:7`。`mongodb` 与 `backend` 都带 healthcheck,backend 通过
 > `depends_on: mongodb: { condition: service_healthy }` 串行启动。
+>
+> **Sprint 1 末决策待办**:admin-ui 部署方式 — 第 3 个独立 image / 与 backend 同进程静态服务 / 走 k8s。当前 docker-compose 仍为 2 服务;`admin-ui/` 启动时按决策修改 `docker-compose.yml`。详见 `docs/redesign-requirements.md` § 5 未决问题 7。
 
 ```bash
 docker-compose up -d              # 启动所有服务(backend 需先 docker build)
@@ -325,7 +327,7 @@ docker-compose down -v            # 停止 + 清 mongodb_data volume
 
 - `openspec/changes/refactor-rust-rebuild-frontend/` - **本次重构的 OpenSpec change**(proposal/design/4 specs/63 tasks)
 - `docs/DESIGN.md` - 设计系统规范(待按新单仓重写)
-- `frontend/admin-design/` - 小程序设计令牌(暂未与任何 admin-ui 共享)
+- `docs/redesign/` - **本仓库 OD 重设计审计 + 路线图**(6 份 .md:索引 `redesign-requirements.md` + `01-functional-mp.md` + `02-functional-ad.md` + `03-design-system.md` + `04-gap-analysis.md` + `05-moscow-roadmap.md`,含 mp + ad 14 屏功能拆解 + MoSCoW + Sprint 0/1/2/3 切分)。原 `frontend/admin-design/` 已被 `docs/redesign/03-design-system.md` § 8 替代
 - `backend/seed/seed.sh` - MongoDB 种子数据(50 商品 / 5 分类 / 2 用户)
 - `backend/scripts/check-no-refresh-scope.sh` - GraalVM Native 兼容性扫描
 - `https://github.com/yfmeii/weapp-dev-mcp` - weapp-dev-mcp 的官方文档
