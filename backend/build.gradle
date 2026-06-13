@@ -133,6 +133,17 @@ ext {
     // Spring Boot 4.0.6 BOM 当时锁的是 11.0.21,需要 ext property 显式 override,
     // Spring Boot dependency-management plugin 会读这个 property 解 BOM。
     set('tomcat.version', "11.0.22")
+    // Sprint 2 CI 修复 v6 (2026-06-13):override Spring Framework 7.0.7 → 7.0.8。
+    // NVD 报 spring-webmvc 7.0.7 含 12 CVE(CVE-2026-41838/41840/41841/41842/41843/
+    // 41844/41845/41846/41848/41850/41851/41852),其中 5 个 CVSS >= 7.0
+    // (CVE-2026-41842/41848/41838/41851/41850) 命中 failBuildOnCVSS=7.0 阈值,
+    // 导致 PR #19 (E2E POC) Security workflow OWASP job fail
+    // (spring-webmvc-7.0.7.jar 在 backend/build/libs)。
+    // Spring Framework 7.0.8 (2026-06-XX) 一次性修这批 CVE;Spring Boot 4.0.6
+    // BOM 当时锁的是 7.0.7,需要 ext property 显式 override。
+    // Spring Boot dependency-management plugin 会读 'spring-framework.version'
+    // property 解 BOM(同 tomcat.version 的机制)。
+    set('spring-framework.version', "7.0.8")
 }
 
 dependencies {
