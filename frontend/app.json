@@ -7,7 +7,8 @@
   ],
   "window": {
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#1e3a5f",
+    "_hex_fallback_note": "v2 OKLch tokens live in docs/redesign/tokens.json; native WeChat nav bar does not support CSS variables so we hardcode hex fallbacks here. Values below are perceptual approx of oklch(...) — Sprint 0 末 design owner 拍板后会被精确 OKLch→sRGB 转换值替换。Source: accent=oklch(64% 0.16 38), muted=oklch(50% 0.015 40), bg=oklch(99% 0.006 60)",
+    "navigationBarBackgroundColor": "#C9744A",
     "navigationBarTitleText": "海鲜生鲜商城",
     "navigationBarTextStyle": "white",
     "enablePullDownRefresh": false
@@ -28,9 +29,9 @@
     "bottom": "resizable"
   },
   "tabBar": {
-    "color": "#718096",
-    "selectedColor": "#1e3a5f",
-    "backgroundColor": "#faf8f5",
+    "color": "#7E7670",
+    "selectedColor": "#C9744A",
+    "backgroundColor": "#FAF8F4",
     "list": [
       {
         "pagePath": "pages/index/index",

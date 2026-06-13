@@ -1,3 +1,20 @@
+/**
+ * app.wxss — Ocean Market Premium (v1) + v2 OKLch tokens co-exist.
+ *
+ * v1 hex block (=== TOKENS:BEGIN === below) remains the production source
+ * until design owner signs off on v2; see openspec/changes/v2-visual-redesign/
+ * tasks.md 1.14 / 1.22. The v2 import below is inert: nothing currently
+ * references var(--accent) / var(--bg) / etc., so the import has zero visual
+ * effect today. The migration is a per-component follow-up, not a
+ * wholesale replacement.
+ *
+ * To remove v1 once v2 is approved:
+ *   1. delete the === TOKENS:BEGIN === block below
+ *   2. change all var(--color-*) refs to var(--*) (v2 names)
+ *   3. remove this header note
+ */
+@import '/shared/tokens/tokens.wxss';
+
 /**app.wxss - Ocean Market Premium **/
 
 .container {
