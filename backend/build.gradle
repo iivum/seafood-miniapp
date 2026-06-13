@@ -144,6 +144,12 @@ ext {
     // Spring Boot dependency-management plugin 会读 'spring-framework.version'
     // property 解 BOM(同 tomcat.version 的机制)。
     set('spring-framework.version', "7.0.8")
+    // Sprint 2 CI 修复 v6 follow-up (2026-06-13):override Spring Security 7.0.5 → 7.0.6。
+    // bump spring-framework 7.0.7→7.0.8 后,spring-security-{config,core,crypto,web}
+    // 7.0.5 露出来,3 个 CVE (CVE-2026-40988 CVSS>=7.0 命中 failBuildOnCVSS 阈值;
+    // CVE-2026-41003 / 41694 CVSS 较低但仍需清)。Spring Security 7.0.6 (2026-06-XX)
+    // 修这批 CVE。Spring Boot 4.0.6 BOM 当时锁 7.0.5,需 ext property 显式 override。
+    set('spring-security.version', "7.0.6")
 }
 
 dependencies {
