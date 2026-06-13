@@ -126,20 +126,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Merchant Section */
-.merchant-nav .btn {
-  display: block;
-  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
-  color: #fff;
-  text-align: center;
-  padding: 24rpx;
-  border-radius: 16rpx;
-  font-size: 30rpx;
-  font-weight: 600;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.3);
-  margin: 0 20rpx;
-}
-
 /* Card overrides */
 .profile-container .card {
   background-color: var(--color-surface);
