@@ -101,27 +101,22 @@ docs/
 
 ---
 
-## 5. 未决问题(供后续讨论)
+## 5. 已落定决策(2026-06-13,共 8 项)
 
-1. **设计系统落点** — mp 端 `frontend/src/shared/tokens/` 与 admin-ui 端 `admin-ui/tailwind.config.ts`
-   共享同一份 `tokens.json`?建议单一 source of truth 放 `docs/redesign/tokens.json`,build step 同时
-   生成 mp `tokens.wxss` 和 admin `tokens.tailwind.ts`(Sprint 0 决策)
-2. **mp-08 + ad-06 状态机的后端支持** — `OrderStatus` 现在支持 PENDING/PAID/SHIPPED/COMPLETED/CANCELLED。
-   OD 屏提的"提醒发货"对应派生而非新增 status;"申请售后"需新增 `REFUNDING` 还是新表?需要 backend owner
-   拍板(Sprint 1 前置)
-3. **字体加载成本** — Fraunces + Inter Tight + Geist Mono 三套字体在 mp 包大小 + admin-ui bundle size
-   上的影响?mp 端按需下载 vs 全局注入;admin-ui 走字体子集化。需要 frontend 性能 owner 评估
-   (Sprint 0 末)
-4. **ad-04 SKU 领域扩张对 mp 端影响** — `Product.skus` 字段加入后,mp-03 商品详情需要"选规格"UI
-   (现 OD 屏未明确,假设后续补)。需 design + frontend 联合拍板(Sprint 2 中)
-5. **后端 owner 负载** — Sprint 3 后端 1 个 owner 同时支持 C-1(物流)+ C-2(退款)+ A-5(批量)+
-   A-6(payload)+ 滑入 A-4 收尾 = 5 条线,极高负载。需 Sprint 2 末对齐哪些必交付
-6. **admin-ui 用户账号管理** — `02-functional-ad.md` § 1.1 提到"内部账号管理(扩展 /api/admin/users
-   )" 留给 Sprint 3 之后,优先级未定
-7. **admin-ui 部署方式** — 跟 mp + backend 一起 docker-compose?还是独立部署?Sprint 0 末决策
-8. **admin-ui 鉴权与 mp 端 token 隔离** — `JWT_ADMIN_SECRET` 已独立,但 localStorage 存 token 在
-   XSS 风险下不安全。CLAUDE.md § 安全要求提到"Admin UI 使用 httpOnly Cookie 存储 JWT" — 需
-   backend 提供 cookie-based auth 端点(Sprint 1 前置)
+> 8 项决策经分组讨论(Sprint 0 前置 3 项 + Sprint 1 前置 2 项 + Sprint 2/3/Backlog 3 项)逐项拍板。
+> Q5 + Q6 都选了"高工作量"选项,意味着 Sprint 1 + Sprint 3 **无 MVP 降级空间**;若执行遇阻,
+> 优先回退的是 Q5(后端 owner 全做)而非 Q6(账号管理在 Sprint 1)。
+
+| # | 决策项 | 选项 | Sprint 落点 | Trade-off / 备注 |
+|---|---|---|---|---|
+| 1 | tokens.json 落点 | **A** `docs/redesign/tokens.json` 单一源 + build step 派生 mp `tokens.wxss` + admin `tokens.tailwind.ts` | Sprint 0 | 设计 owner 一处改,eng 两端受益;跨目录耦合 |
+| 2 | Order 状态机后端支持 | **B** 退款新表 `Refund` + 新增 `Order.status = REFUNDING`;"提醒发货" = 派生(客户端提示) | Sprint 1 起 | Order 状态机变复杂但语义清晰;`COMPLETED → REFUNDING → REFUNDED` 流 |
+| 3 | 字体加载 | **A** Sprint 0 末做字体子集化 spike(取数字+英文+常用汉字 ~500 字);mp `@font-face` 打包;admin `fontsource` npm | Sprint 0 末 | 子集化后 mp ~200KB / admin ~150KB;1d 字频统计 spike |
+| 4 | mp-03 SKU 选规格 UI | **A** 底部 sheet(轻量,1 次额外点击) | Sprint 2 中 | 主详情页保持简洁;选完关闭;不放在主详情 tab |
+| 5 | 后端 owner 负载 | **B** Sprint 3 全做 5 条线(C-1 物流 + C-2 退款 + A-5 批量 + A-6 payload + 滑入 A-4 收尾),**接受延期风险** | Sprint 3 | 🔴 高风险:1 owner 同时 5 条线;无降级缓冲;遇阻回退 Q5 |
+| 6 | 账号管理优先级 | **B** Sprint 1 就做账号 CRUD(后端 `/api/admin/users` 表 + 前端 ad-07 屏,多 3-4d) | Sprint 1 扩 | Sprint 1 总工作量原估 21d → ~25d(2-3 人 12 工作日 ≈ 仍可 2 周) |
+| 7 | admin-ui 部署 | **A** 第 3 独立 image(Vite build 产物 + nginx),`docker-compose.yml` 加 `admin-ui` 服务 | Sprint 1 末 | 职责清晰;`depends_on: backend` + env 配 `VITE_API_BASE_URL` |
+| 8 | admin-ui 鉴权 | **A** Sprint 1 启动就走 httpOnly Cookie(后端 `/api/admin/auth/cookie-login` 端点 + XSS/CSRF 防护 + logout 端点) | Sprint 1 启动 | 不走 localStorage 中间态;后端多 1-2d(cookie 端点 + CSRF token) |
 
 ---
 
