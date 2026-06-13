@@ -1,0 +1,10 @@
+{
+  "name": "seafood-miniapp",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Monorepo root for seafood-miniapp (mp + admin-ui + backend). Houses shared scripts (build-tokens, etc.).",
+  "scripts": {
+    "build:tokens": "node scripts/build-tokens.js",
+    "test:tokens": "node --test scripts/__tests__/build-tokens.test.js"
+  }
+}
