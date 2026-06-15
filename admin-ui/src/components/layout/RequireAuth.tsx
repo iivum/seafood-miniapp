@@ -14,7 +14,7 @@ export function RequireAuth() {
 
   if (!hydrated) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-app-muted">正在加载…</div>
+      <div className="flex min-h-screen items-center justify-center text-muted">正在加载…</div>
     );
   }
 
@@ -32,7 +32,7 @@ export function RequireAnonymous() {
 
   if (!hydrated) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-app-muted">正在加载…</div>
+      <div className="flex min-h-screen items-center justify-center text-muted">正在加载…</div>
     );
   }
 

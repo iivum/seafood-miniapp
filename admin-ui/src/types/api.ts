@@ -12,6 +12,7 @@
  */
 
 export type ProductStatus = 'ACTIVE' | 'OUT_OF_STOCK' | 'DISCONTINUED';
+export const PRODUCT_STATUSES = ['ACTIVE', 'OUT_OF_STOCK', 'DISCONTINUED'] as const;
 
 export const PRODUCT_CATEGORIES = ['鱼类', '虾蟹', '贝类', '软体', '海藻'] as const;
 export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
@@ -53,7 +54,14 @@ export interface PageResponse<T> {
   size: number;
 }
 
-export type OrderStatusCode = 'PENDING' | 'PAID' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED';
+export type OrderStatusCode =
+  | 'PENDING'
+  | 'PAID'
+  | 'SHIPPED'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'REFUNDING'
+  | 'REFUNDED';
 
 export interface OrderItem {
   productId: string;
@@ -71,6 +79,56 @@ export interface OrderResponse {
   cancelReason: string | null;
   createdAt: string;
   updatedAt: string;
+  // 4.1 物流信息(SHIPPED 之后才有值;老订单无字段,前端按 undefined 处理)
+  tracking?: {
+    carrier: string;
+    trackingNumber: string;
+    events: Array<{ at: string; status: string; location: string; description: string }>;
+  } | null;
+}
+
+// ===== 路线图 4.13 / 4.15:批量发货 + CSV 导出 =====
+
+export interface BatchShipRequest {
+  orderIds: string[];
+  carrier?: string;
+  trackingNumber?: string;
+}
+
+export interface BatchShipFailedItem {
+  orderId: string;
+  reason: string;
+}
+
+export interface BatchShipResponse {
+  successIds: string[];
+  failed: BatchShipFailedItem[];
+  total: number;
+  successCount: number;
+  failedCount: number;
+}
+
+// ===== 路线图 4.8 + 4.11:退款审核 =====
+
+export type RefundStatusCode = 'REQUESTED' | 'APPROVED' | 'REJECTED';
+
+export interface RefundResponse {
+  id: string;
+  orderId: string;
+  userId: string;
+  amount: string;
+  reason: string;
+  status: RefundStatusCode;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
 }
 
 export interface OrderDetailItem {
@@ -98,10 +156,19 @@ export interface TopProductResponse {
   totalQuantitySold: number;
 }
 
+export interface TrendPointResponse {
+  date: string; // ISO local date (yyyy-MM-dd),UTC+8
+  count: number;
+}
+
 export interface DashboardResponse {
   orderStats: OrderStatsResponse;
   productStats: ProductStatsResponse;
   topProducts: TopProductResponse[];
+  // 路线图 2.17 / 2.18 / 2.21:
+  trend7d: TrendPointResponse[];
+  lowStock: ProductResponse[];
+  recentOrders: OrderResponse[];
 }
 
 export interface UserResponse {

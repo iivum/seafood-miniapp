@@ -1,150 +1,91 @@
 import type { Config } from 'tailwindcss';
 import animate from 'tailwindcss-animate';
-import tokens from '../frontend/admin-design/tokens.json';
+import { tokens, typography, radius, shadow } from './src/shared/tokens/tokens.tailwind';
 
 /**
- * All design tokens (color, spacing, typography, radius, shadow, breakpoint)
- * come from `frontend/admin-design/tokens.json` so admin-ui and the mini-program
- * share the same visual language. See openspec design §7.2 + §8 visual baseline.
+ * OD v2 design tokens (Sprint 0 1.22 切流)— 消费 ./src/shared/tokens/tokens.tailwind.ts
+ * 单一源:docs/redesign/tokens.json(经 scripts/build-tokens.js 生成 tokens.tailwind.ts)。
+ *
+ * v1 nested (`primary-500` / `app-muted` / `feedback-error` / `h1` / `body` / `xs`)
+ * 全部移除,只保留 v2 flat(`bg-accent` / `text-muted` / `text-error` / `text-2xl` 等)。
+ *
+ * 与 mp tokens.wxss 的对应关系见 `scripts/__tests__/build-tokens.test.js`(9/9 parity)。
  */
-const color = (path: string) =>
-  path
-    .split('.')
-    .reduce<unknown>((acc, key) => (acc as Record<string, unknown>)[key], tokens);
-
-type Tokens = typeof tokens;
-type ColorTokens = Tokens['color'];
-
-function flattenColorTree(node: ColorTokens, prefix = ''): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(node)) {
-    const next = prefix ? `${prefix}-${key}` : key;
-    if (typeof value === 'string') {
-      out[next] = value;
-    } else {
-      Object.assign(out, flattenColorTree(value as ColorTokens, next));
-    }
-  }
-  return out;
-}
-
-const primaryPalette = color('color.primary') as Record<string, string>;
-const coralPalette = color('color.accent.coral') as Record<string, string>;
-const tealPalette = color('color.accent.teal') as Record<string, string>;
-
-const brandColors = {
-  ...Object.fromEntries(Object.entries(primaryPalette).map(([k, v]) => [`primary-${k}`, v])),
-  ...Object.fromEntries(Object.entries(coralPalette).map(([k, v]) => [`coral-${k}`, v])),
-  ...Object.fromEntries(Object.entries(tealPalette).map(([k, v]) => [`teal-${k}`, v])),
-};
-
-const semanticColors = {
-  sidebar: {
-    DEFAULT: color('color.sidebar.bg') as string,
-    text: color('color.sidebar.text') as string,
-    muted: color('color.sidebar.textMuted') as string,
-    hover: color('color.sidebar.hover') as string,
-    active: color('color.sidebar.active') as string,
-  },
-  app: {
-    bg: color('color.content.bg') as string,
-    surface: color('color.content.surface') as string,
-    text: color('color.content.text') as string,
-    muted: color('color.content.textMuted') as string,
-    border: color('color.content.border') as string,
-    divider: color('color.content.divider') as string,
-  },
-  success: color('color.feedback.success') as string,
-  warning: color('color.feedback.warning') as string,
-  'feedback-error': color('color.feedback.error') as string,
-  info: color('color.feedback.info') as string,
-};
-
 const config: Config = {
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      // OD v2 19 个颜色 token(扁平)— 不再嵌套
       colors: {
-        ...brandColors,
-        ...semanticColors,
-        ring: primaryPalette['500'],
-        background: semanticColors.app.bg,
-        foreground: semanticColors.app.text,
-        primary: {
-          DEFAULT: primaryPalette['500'],
-          foreground: '#FFFFFF',
-        },
-        secondary: {
-          DEFAULT: semanticColors.app.surface,
-          foreground: semanticColors.app.text,
-        },
-        muted: {
-          DEFAULT: semanticColors.app.divider,
-          foreground: semanticColors.app.muted,
-        },
-        accent: {
-          DEFAULT: coralPalette['400'],
-          foreground: '#FFFFFF',
-        },
-        destructive: {
-          DEFAULT: color('color.feedback.error') as string,
-          foreground: '#FFFFFF',
-        },
-        card: {
-          DEFAULT: semanticColors.app.surface,
-          foreground: semanticColors.app.text,
-        },
+        // surface
+        bg: tokens.bg,
+        surface: tokens.surface,
+        fg: tokens.fg,
+        muted: tokens.muted,
+        soft: tokens.soft,
+        border: tokens.border,
+        'border-strong': tokens['border-strong'],
+        // accent
+        accent: tokens.accent,
+        'accent-soft': tokens['accent-soft'],
+        'accent-strong': tokens['accent-strong'],
+        'accent-deep': tokens['accent-deep'],
+        // state
+        success: tokens.success,
+        warning: tokens.warning,
+        error: tokens.error,
+        info: tokens.info,
+        'success-soft': tokens['success-soft'],
+        'warning-soft': tokens['warning-soft'],
+        'error-soft': tokens['error-soft'],
+        'info-soft': tokens['info-soft'],
       },
+      // 字体:display / body / mono(与 tokens.wxss 字体链一致)
       fontFamily: {
-        sans: [color('font.family.body') as string],
-        display: [color('font.family.display') as string],
-        mono: [color('font.family.mono') as string],
+        display: [typography.display],
+        body: [typography.body],
+        mono: [typography.mono],
+        // 保留 Tailwind 默认 font-sans 链(作为 v1 fallback,新代码用 font-body)
+        sans: [typography.body],
       },
-      fontSize: {
-        display: [color('font.size.display') as string, { lineHeight: color('font.lineHeight.tight') as string }],
-        h1: [color('font.size.h1') as string, { lineHeight: color('font.lineHeight.tight') as string }],
-        h2: [color('font.size.h2') as string, { lineHeight: color('font.lineHeight.tight') as string }],
-        h3: [color('font.size.h3') as string, { lineHeight: color('font.lineHeight.normal') as string }],
-        body: [color('font.size.body') as string, { lineHeight: color('font.lineHeight.normal') as string }],
-        small: [color('font.size.small') as string, { lineHeight: color('font.lineHeight.normal') as string }],
-        xs: [color('font.size.xs') as string, { lineHeight: color('font.lineHeight.normal') as string }],
-      },
-      fontWeight: {
-        regular: color('font.weight.regular') as unknown as number,
-        medium: color('font.weight.medium') as unknown as number,
-        semibold: color('font.weight.semibold') as unknown as number,
-        bold: color('font.weight.bold') as unknown as number,
-      },
+      // 圆角:v2 9 档(sm/md/lg/xl/2xl/3xl/22/28/pill)— 数字键名以
+      // 字符串形式传给 tailwind(否则会尝试当数字 parse)
       borderRadius: {
         none: '0',
-        sm: color('radius.sm') as string,
-        md: color('radius.md') as string,
-        lg: color('radius.lg') as string,
-        xl: color('radius.xl') as string,
-        '2xl': color('radius.2xl') as string,
-        full: color('radius.full') as string,
+        sm: radius.sm,
+        md: radius.md,
+        lg: radius.lg,
+        xl: radius.xl,
+        '2xl': radius['2xl'],
+        '3xl': radius['3xl'],
+        '22': radius['22'],
+        '28': radius['28'],
+        pill: radius.pill,
+        // 保留 Tailwind 默认 `full`(等同 v2 pill),允许 v1 `rounded-full` 写法继续编译
+        // (本次迁移将所有 v1 `rounded-full` 都改为 `rounded-pill`,但保留这里兜底)
+        full: radius.pill,
       },
+      // 阴影:v2 仅 3 档(sm/md/lg),不再有 xl
       boxShadow: {
-        sm: color('shadow.sm') as string,
-        md: color('shadow.md') as string,
-        lg: color('shadow.lg') as string,
-        xl: color('shadow.xl') as string,
+        sm: shadow.sm,
+        md: shadow.md,
+        lg: shadow.lg,
+        // 兼容:把 v1 残留 shadow-xl 降级到 lg(Sprint 1 末重审)
+        xl: shadow.lg,
+      },
+      // OD v2 显式断字距 zIndex(保留以兼容 admin-ui 现有 component 引用)
+      zIndex: {
+        sidebar: '40',
+        header: '30',
+        dropdown: '50',
+        modal: '60',
+        toast: '70',
       },
       transitionDuration: {
         fast: '150ms',
         normal: '250ms',
         slow: '350ms',
-      },
-      spacing: Object.fromEntries(
-        Object.entries(tokens.spacing as Record<string, string>).map(([k, v]) => [k, v]),
-      ),
-      zIndex: {
-        sidebar: color('zIndex.sidebar') as unknown as number,
-        header: color('zIndex.header') as unknown as number,
-        dropdown: color('zIndex.dropdown') as unknown as number,
-        modal: color('zIndex.modal') as unknown as number,
-        toast: color('zIndex.toast') as unknown as number,
       },
     },
   },
@@ -152,5 +93,3 @@ const config: Config = {
 };
 
 export default config;
-// re-export for tests that want to assert token-driven config shape
-export { flattenColorTree };

@@ -8,26 +8,37 @@ import { useLogin } from './queries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const loginSchema = z.object({
   username: z.string().min(1, '请输入用户名'),
   password: z.string().min(1, '请输入密码'),
+  remember: z.boolean().default(false),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+/** 本地"记住我"持久化 key。存用户名(非密码!)— 重新打开浏览器时自动填回。 */
+const REMEMBER_KEY = 'seafood-admin-ui:remember-username';
+
 export function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
   const hydrated = useAuthStore((s) => s.hydrated);
-  const { register, handleSubmit, formState, setError } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { username: '', password: '' },
-  });
+  const [searchParams] = useSearchParams();
+  const { register, handleSubmit, formState, setError, setValue, watch } =
+    useForm<LoginFormValues>({
+      resolver: zodResolver(loginSchema),
+      defaultValues: {
+        username: readRememberedUsername() || '',
+        password: '',
+        remember: Boolean(readRememberedUsername()),
+      },
+    });
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const login = useLogin();
+  const remember = watch('remember');
 
   /**
    * Validate the `from` redirect target against an allowlist of safe
@@ -58,7 +69,13 @@ export function LoginPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await login.mutateAsync(values);
+      // 2.14:记住我(仅持久化 username,非密码 — 安全考虑)
+      if (values.remember) {
+        writeRememberedUsername(values.username);
+      } else {
+        clearRememberedUsername();
+      }
+      await login.mutateAsync({ username: values.username, password: values.password });
       navigate(from, { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败';
@@ -67,7 +84,7 @@ export function LoginPage() {
   });
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-app-bg p-4">
+    <div className="flex min-h-screen items-center justify-center bg-bg p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>海鲜商城管理后台</CardTitle>
@@ -85,7 +102,7 @@ export function LoginPage() {
                 {...register('username')}
               />
               {formState.errors.username ? (
-                <p className="text-small text-feedback-error" role="alert">
+                <p className="text-sm text-error" role="alert">
                   {formState.errors.username.message}
                 </p>
               ) : null}
@@ -100,13 +117,27 @@ export function LoginPage() {
                 {...register('password')}
               />
               {formState.errors.password ? (
-                <p className="text-small text-feedback-error" role="alert">
+                <p className="text-sm text-error" role="alert">
                   {formState.errors.password.message}
                 </p>
               ) : null}
             </div>
+            {/* 2.14:记住我(checkbox 状态受控 watch,勾选变更触发 username 持久化) */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="remember"
+                checked={Boolean(remember)}
+                onCheckedChange={(v) => setValue('remember', Boolean(v))}
+              />
+              <Label
+                htmlFor="remember"
+                className="cursor-pointer text-sm text-muted"
+              >
+                记住我(下次自动填用户名)
+              </Label>
+            </div>
             {formState.errors.root?.serverError ? (
-              <p className="text-small text-feedback-error" role="alert">
+              <p className="text-sm text-error" role="alert">
                 {formState.errors.root.serverError.message}
               </p>
             ) : null}
@@ -118,6 +149,30 @@ export function LoginPage() {
       </Card>
     </div>
   );
+}
+
+function readRememberedUsername(): string | undefined {
+  try {
+    return localStorage.getItem(REMEMBER_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeRememberedUsername(username: string) {
+  try {
+    localStorage.setItem(REMEMBER_KEY, username);
+  } catch {
+    /* localStorage 不可用时 silently skip */
+  }
+}
+
+function clearRememberedUsername() {
+  try {
+    localStorage.removeItem(REMEMBER_KEY);
+  } catch {
+    /* silently skip */
+  }
 }
 
 export default LoginPage;

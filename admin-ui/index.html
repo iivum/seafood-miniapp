@@ -6,8 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>海鲜商城 - 管理后台</title>
   </head>
-  <body class="bg-content-bg text-content-text">
-    <div id="root"></div>
+  <!--
+    1.23 根 token 应用:body 与 #root 同时挂 v2 flat token。
+    根 component 显式声明 className,即便 index.css @apply 失效时也有兜底。
+    单一源 = tokens.tailwind.ts(由 docs/redesign/tokens.json 派生)。
+  -->
+  <body class="bg-bg text-fg">
+    <div id="root" class="bg-bg text-fg min-h-screen"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

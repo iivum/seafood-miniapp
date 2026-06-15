@@ -2,19 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * OD v2 基础层(1.22 迁移 + 1.23 根 token 应用):
+ *   - body 应用 v2 flat token(bg-bg / text-fg),与 mp tokens.wxss 一致
+ *   - 焦点环走 v2 ring-accent(替代 v1 theme('colors.primary.500'))
+ *   - 字体链走 v2 typography.body(Inter Tight)
+ */
 @layer base {
   html, body, #root {
     height: 100%;
   }
 
   body {
-    font-family: 'Outfit', 'Noto Sans SC', sans-serif;
+    @apply bg-bg text-fg;
+    font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   *:focus-visible {
-    outline: 2px solid theme('colors.primary.500');
+    outline: 2px solid var(--accent, oklch(64% 0.16 38));
     outline-offset: 2px;
   }
 }
