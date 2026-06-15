@@ -13,47 +13,56 @@ import { OrderStatus } from '../../types';
 export type OrderActionId =
   | 'pay'
   | 'cancelOrder'
+  | 'remindShip'
   | 'viewTracking'
   | 'confirmReceipt'
   | 'requestRefund'
   | 'withdrawRefund'
   | 'deleteOrder'
-  | 'reorder';
+  | 'reorder'
+  | 'review'          // 评价(占位 toast "评价功能开发中")
+  | 'afterSale'       // 申请售后(同 requestRefund,但入口名更友好)
+  | 'refundPending';  // 退款处理中(disabled)
 
 export interface OrderAction {
   id: OrderActionId;
   label: string;
-  variant: 'primary' | 'secondary' | 'danger';
+  variant: 'primary' | 'secondary' | 'danger' | 'disabled';
 }
 
+/**
+ * sprint-1-closure 7.1 — 7 状态 × 多按钮矩阵,对齐
+ * {@code openspec/changes/sprint-1-closure/specs/mini-program/spec.md §Order list and detail}
+ * 的 Scenario 列表。
+ */
 const MAP: Record<OrderStatus, OrderAction[]> = {
   PENDING: [
-    { id: 'pay', label: '支付', variant: 'primary' },
     { id: 'cancelOrder', label: '取消订单', variant: 'secondary' },
+    { id: 'pay', label: '立即付款', variant: 'primary' },
   ],
   PAID: [
-    { id: 'viewTracking', label: '查看物流', variant: 'secondary' },
+    { id: 'remindShip', label: '提醒发货', variant: 'secondary' },
     { id: 'requestRefund', label: '申请退款', variant: 'secondary' },
   ],
   SHIPPED: [
     { id: 'viewTracking', label: '查看物流', variant: 'secondary' },
     { id: 'confirmReceipt', label: '确认收货', variant: 'primary' },
-    { id: 'requestRefund', label: '申请退款', variant: 'secondary' },
   ],
   COMPLETED: [
-    { id: 'requestRefund', label: '申请退款', variant: 'secondary' },
+    { id: 'review', label: '评价', variant: 'secondary' },
     { id: 'reorder', label: '再次购买', variant: 'primary' },
-    { id: 'deleteOrder', label: '删除订单', variant: 'danger' },
+    { id: 'afterSale', label: '申请售后', variant: 'secondary' },
   ],
   CANCELLED: [
+    { id: 'deleteOrder', label: '删除', variant: 'danger' },
     { id: 'reorder', label: '再次购买', variant: 'primary' },
-    { id: 'deleteOrder', label: '删除订单', variant: 'danger' },
   ],
   REFUNDING: [
-    { id: 'viewTracking', label: '查看退款进度', variant: 'secondary' },
+    { id: 'refundPending', label: '退款处理中', variant: 'disabled' },
   ],
   REFUNDED: [
-    { id: 'deleteOrder', label: '删除订单', variant: 'danger' },
+    { id: 'deleteOrder', label: '删除', variant: 'danger' },
+    { id: 'reorder', label: '再次购买', variant: 'primary' },
   ],
 };
 

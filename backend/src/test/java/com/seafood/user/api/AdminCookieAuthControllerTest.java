@@ -6,6 +6,7 @@ import com.seafood.shared.security.Role;
 import com.seafood.user.api.dto.AdminLoginRequest;
 import com.seafood.user.api.dto.TokenResponse;
 import com.seafood.user.application.AuthService;
+import com.seafood.user.application.LoginLockoutService;
 import com.seafood.user.application.TokenRevocationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -18,6 +19,7 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -38,6 +40,7 @@ class AdminCookieAuthControllerTest {
 
     private final AuthService auth = mock(AuthService.class);
     private final TokenRevocationService revocations = mock(TokenRevocationService.class);
+    private final LoginLockoutService lockout = mock(LoginLockoutService.class);
     private JwtTokenProvider tokens;
     private AdminCookieAuthController controller;
 
@@ -50,7 +53,10 @@ class AdminCookieAuthControllerTest {
         p.setRefreshTokenTtl(java.time.Duration.ofDays(1));
         tokens = new JwtTokenProvider(p);
         tokens.init();
-        controller = new AdminCookieAuthController(auth, revocations, tokens);
+        // sprint-1-closure 2.4:默认 IP/account 未锁
+        when(lockout.isIpLocked(anyString())).thenReturn(false);
+        when(lockout.isAccountLocked(anyString())).thenReturn(false);
+        controller = new AdminCookieAuthController(auth, revocations, tokens, lockout);
     }
 
     @Test
@@ -64,7 +70,7 @@ class AdminCookieAuthControllerTest {
         httpReq.setRemoteAddr("127.0.0.1");
         MockHttpServletResponse httpRes = new MockHttpServletResponse();
 
-        ResponseEntity<Void> resp = controller.cookieLogin(req, httpReq, httpRes);
+        ResponseEntity<?> resp = controller.cookieLogin(req, httpReq, httpRes);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         String setCookie = httpRes.getHeader(HttpHeaders.SET_COOKIE);
