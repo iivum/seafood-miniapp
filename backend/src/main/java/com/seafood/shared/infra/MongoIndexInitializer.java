@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import com.seafood.product.infra.ProductDocument;
 import com.seafood.order.infra.OrderDocument;
 import com.seafood.user.infra.UserDocument;
+import com.seafood.user.infra.LoginAttemptDocument;
 
 /**
  * 启动时建索引(design §6.2,specs/backend-api §Native Image safety)。
@@ -67,6 +68,9 @@ public class MongoIndexInitializer {
         ensureAnnotationDerived(ProductDocument.class);
         ensureAnnotationDerived(OrderDocument.class);
         ensureAnnotationDerived(UserDocument.class);
+        // sprint-1-closure 2.1 — login_attempts 的 @CompoundIndex 注解(无 TTL,
+        // TTL 走下面的 critical TTL index)
+        ensureAnnotationDerived(LoginAttemptDocument.class);
 
         // text index:performance-only,失败仅 warn
         ensureOptional("products",
@@ -98,6 +102,18 @@ public class MongoIndexInitializer {
                             .expire(0L)
                             .named("ttl_expiresAt"),
                     "TTL on revoked_tokens.expiresAt — bounds revoked-token collection size");
+        } catch (IndexInitializationException e) {
+            criticalFailures.add(e);
+        }
+
+        // sprint-1-closure 2.1 — login_attempts TTL index(15 分钟,expireAfterSeconds=900)。
+        // 关键:缺失会让旧失败记录永远留在 DB,IP/account 锁永远不解。
+        try {
+            ensureCritical("login_attempts",
+                    new Index().on("ts", org.springframework.data.domain.Sort.Direction.ASC)
+                            .expire(900L)
+                            .named("ttl_ts_15min"),
+                    "TTL on login_attempts.ts — bounds lockout-window storage");
         } catch (IndexInitializationException e) {
             criticalFailures.add(e);
         }
