@@ -1,104 +1,326 @@
-.order-list-container {
-  padding: 20rpx;
+/*
+ * sprint-1-closure 7.5 — mp-08 订单列表 OD v2 视觉。
+ * tokens 单一源 docs/redesign/tokens.json。
+ */
+
+.order-list {
+  min-height: 100vh;
+  background: var(--bg, #fffbf8);
+  padding-bottom: 48rpx;
 }
 
-.empty {
+/* ===== 顶部 header(sticky)===== */
+
+.order-list__header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx 16rpx;
+  background: var(--bg, #fffbf8);
+  border-bottom: 1rpx solid var(--border, #e6e0dd);
+}
+
+.order-list__back,
+.order-list__search {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 200rpx;
-  color: var(--color-text-muted);
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--surface, #fff);
+  box-shadow: inset 0 0 0 1rpx var(--border, #e6e0dd);
+  transition: opacity 0.18s ease;
 }
+
+.order-list__back--hover,
+.order-list__search--hover {
+  opacity: 0.6;
+}
+
+.order-list__back-icon,
+.order-list__search-icon {
+  font-size: 36rpx;
+  color: var(--fg, #231814);
+  line-height: 1;
+}
+
+.order-list__title {
+  font-family: var(--font-display, serif);
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
+}
+
+/* ===== Tab pill row ===== */
+
+.order-list__tabs {
+  white-space: nowrap;
+  padding: 24rpx 24rpx 8rpx;
+  background: var(--bg, #fffbf8);
+  position: sticky;
+  top: 104rpx;
+  z-index: 9;
+}
+
+.order-list__tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 12rpx 28rpx;
+  margin-right: 12rpx;
+  background: var(--surface, #fff);
+  color: var(--muted, #6b615d);
+  border-radius: var(--radius-pill, 9999px);
+  font-size: 26rpx;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1rpx var(--border, #e6e0dd);
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.order-list__tab--active {
+  background: var(--fg, #231814);
+  color: var(--surface, #fff);
+  box-shadow: 0 4rpx 12rpx rgba(35, 24, 20, 0.18);
+}
+
+.order-list__tab-label {
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+.order-list__tab-count {
+  margin-left: 6rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  opacity: 0.75;
+  line-height: 1;
+}
+
+/* ===== 状态(loading / error / empty)===== */
+
+.order-list__state {
+  padding: 96rpx 32rpx;
+}
+
+/* ===== 卡片列表 ===== */
+
+.order-list__list {
+  padding: 16rpx 24rpx 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+/* ===== 单卡片 ===== */
 
 .order-card {
-  padding: 30rpx;
-  margin-bottom: 30rpx;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 14px);
+  padding: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(35, 24, 20, 0.06);
+  border-left: 6rpx solid transparent;
+  transition: border-color 0.18s ease;
 }
 
-.order-header {
+/* 状态色编码(左侧 accent border 强化) */
+.order-card:has(.order-card__status--PENDING) {
+  border-left-color: var(--warning, #df911a);
+}
+.order-card:has(.order-card__status--PAID) {
+  border-left-color: var(--info, #1988a3);
+}
+.order-card:has(.order-card__status--SHIPPED) {
+  border-left-color: var(--accent, #db633c);
+}
+.order-card:has(.order-card__status--COMPLETED) {
+  border-left-color: var(--success, #318f5a);
+}
+.order-card:has(.order-card__status--CANCELLED),
+.order-card:has(.order-card__status--REFUNDED) {
+  border-left-color: var(--muted, #6b615d);
+}
+.order-card:has(.order-card__status--REFUNDING) {
+  border-left-color: var(--error, #b9003d);
+}
+
+/* 顶部商家 + 状态 */
+
+.order-card__top {
   display: flex;
-  justify-content: space-between;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid var(--color-divider);
-}
-
-.order-id {
-  font-size: 24rpx;
-  color: var(--color-text-muted);
-}
-
-.order-status {
-  font-size: 24rpx;
-  font-weight: bold;
-}
-
-.status-PENDING_PAYMENT { color: var(--color-accent); }
-.status-PAID { color: var(--color-primary); }
-.status-SHIPPED { color: var(--color-success); }
-.status-COMPLETED { color: var(--color-text-muted); }
-.status-CANCELLED { color: var(--color-price); }
-
-.order-items {
-  padding: 20rpx 0;
-}
-
-.item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 28rpx;
-  margin-bottom: 10rpx;
-}
-
-.item-name {
-  flex: 1;
-}
-
-.item-qty {
-  width: 80rpx;
-  text-align: center;
-  color: var(--color-text-muted);
-}
-
-.item-price {
-  width: 150rpx;
-  text-align: right;
-  font-weight: bold;
-}
-
-.order-footer {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding-top: 20rpx;
-  border-top: 1rpx solid var(--color-divider);
+  justify-content: space-between;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid var(--border, #e6e0dd);
 }
 
-.total {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: var(--color-price);
-}
-
-.actions {
+.order-card__shop {
   display: flex;
+  align-items: center;
+  gap: 8rpx;
 }
 
-.btn {
+.order-card__shop-icon {
+  font-size: 28rpx;
+  color: var(--accent, #db633c);
+  line-height: 1;
+}
+
+.order-card__shop-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
+  line-height: 1;
+}
+
+.order-card__status {
+  font-size: 26rpx;
+  font-weight: 600;
+  padding: 6rpx 16rpx;
+  border-radius: var(--radius-pill, 9999px);
+  line-height: 1;
+}
+
+.order-card__status--PENDING {
+  color: var(--warning, #df911a);
+  background: var(--warning-soft, #ffe9cb);
+}
+.order-card__status--PAID {
+  color: var(--info, #1988a3);
+  background: var(--info-soft, #d2f5ff);
+}
+.order-card__status--SHIPPED {
+  color: var(--accent, #db633c);
+  background: var(--accent-soft, #ffe7d9);
+}
+.order-card__status--COMPLETED {
+  color: var(--success, #318f5a);
+  background: var(--success-soft, #d5f9e0);
+}
+.order-card__status--CANCELLED,
+.order-card__status--REFUNDED {
+  color: var(--muted, #6b615d);
+  background: var(--bg, #fffbf8);
+}
+.order-card__status--REFUNDING {
+  color: var(--error, #b9003d);
+  background: var(--error-soft, #ffe2e4);
+}
+
+/* 商品行 */
+
+.order-card__items {
+  padding: 16rpx 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.order-card__item {
+  display: flex;
+  gap: 20rpx;
+  align-items: flex-start;
+}
+
+.order-card__item-img {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg, #fffbf8);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.order-card__item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.order-card__item-name {
+  font-size: 28rpx;
+  color: var(--fg, #231814);
+  line-height: 1.35;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.order-card__item-spec {
+  font-size: 22rpx;
+  color: var(--muted, #6b615d);
+  line-height: 1;
+}
+
+.order-card__item-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.order-card__item-price {
+  font-family: var(--font-display, serif);
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--accent, #db633c);
+}
+
+.order-card__item-qty {
   font-size: 24rpx;
-  margin-left: 20rpx;
-  padding: 0 30rpx;
-  height: 60rpx;
-  line-height: 60rpx;
-  border-radius: 30rpx;
+  color: var(--muted, #6b615d);
 }
 
-.btn-pay {
-  background-color: var(--color-primary);
-  color: #fff;
+.order-card__more {
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--muted, #6b615d);
+  padding-top: 8rpx;
 }
 
-.btn-cancel {
-  background-color: var(--color-bg-subtle);
-  color: var(--color-text-secondary);
+/* 订单号 + 合计 */
+
+.order-card__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-top: 1rpx solid var(--border, #e6e0dd);
+}
+
+.order-card__order-no {
+  font-size: 22rpx;
+  color: var(--muted, #6b615d);
+  letter-spacing: 0.4rpx;
+}
+
+.order-card__total-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+}
+
+.order-card__total-label {
+  font-size: 24rpx;
+  color: var(--muted, #6b615d);
+}
+
+.order-card__total-price {
+  font-family: var(--font-display, serif);
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
+}
+
+/* 操作行容器 */
+
+.order-card__actions {
+  padding-top: 12rpx;
 }

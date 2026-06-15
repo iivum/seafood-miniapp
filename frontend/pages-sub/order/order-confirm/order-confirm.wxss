@@ -238,7 +238,7 @@
   font-size: 24rpx;
   color: var(--muted, #5a5451);
   font-weight: 400;
-  font-family: var(--font-sans, sans-serif);
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, sans-serif);
 }
 
 .remark-counter.is-warning {

@@ -80,14 +80,29 @@
     <shared-loading message="加载推荐中..." variant="inline"></shared-loading>
   </view>
 
-  <!-- 底部 sticky 单一主按钮(沿用 1.6 shared-button primary) -->
+  <!-- 底部 sticky 3-button bar:客服 / 收藏 / 加入购物车 / 立即购买 -->
   <view class="detail-footer safe-area-bottom-fixed">
-    <shared-button
-      type="primary"
-      bindtap="onAddToCart"
-      disabled="{{product.stock === 0 || isAdding}}"
-      loading="{{isAdding}}"
-      class="detail-footer__btn"
-    >{{product.stock === 0 ? '已售罄' : (isAdding ? '加入中…' : '加入购物车')}}</shared-button>
+    <view class="detail-footer__side">
+      <view class="detail-footer__side-btn" bindtap="onCustomerService" hover-class="detail-footer__side-btn--hover">
+        <text class="detail-footer__side-icon">☎</text>
+        <text class="detail-footer__side-label">客服</text>
+      </view>
+      <view class="detail-footer__side-btn {{favorited ? 'is-fav' : ''}}" bindtap="onToggleFavorite" hover-class="detail-footer__side-btn--hover">
+        <text class="detail-footer__side-icon">{{favorited ? '♥' : '♡'}}</text>
+        <text class="detail-footer__side-label">收藏</text>
+      </view>
+    </view>
+    <view class="detail-footer__main">
+      <view
+        class="detail-footer__btn detail-footer__btn--cart"
+        bindtap="onAddToCart"
+        hover-class="detail-footer__btn--hover"
+      >{{product.stock === 0 ? '已售罄' : (isAdding ? '加入中…' : '加入购物车')}}</view>
+      <view
+        class="detail-footer__btn detail-footer__btn--buy"
+        bindtap="onBuyNow"
+        hover-class="detail-footer__btn--hover"
+      >立即购买</view>
+    </view>
   </view>
 </view>

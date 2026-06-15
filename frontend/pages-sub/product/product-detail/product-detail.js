@@ -14,6 +14,9 @@ Page({
     isLoading: true,
     isError: false,
     errorMessage: '',
+    /** 收藏状态(本地,无后端)— 占位 */
+    favorited: false,
+    isAdding: false,
   },
 
   onLoad: function (options) {
@@ -55,9 +58,11 @@ Page({
 
   onAddToCart: function () {
     const product = this.data.product;
-    if (!product) return;
+    if (!product || product.stock === 0) return;
+    if (this.data.isAdding) return;
+    this.setData({ isAdding: true });
     cartStore
-      .addItem(product.id, 1)
+      .addItem(product.id, this.data.quantity || 1)
       .then(() => {
         wx.showToast({ title: '已加入购物车', icon: 'success' });
         recommendationModule.recordPurchase(product);
@@ -67,7 +72,47 @@ Page({
           title: (err && err.message) || '加入购物车失败',
           icon: 'none',
         });
+      })
+      .then(() => this.setData({ isAdding: false }));
+  },
+
+  /** sprint-1-closure 5.4 — 立即购买,带 direct_buy 标记跳订单确认页 */
+  onBuyNow: function () {
+    const product = this.data.product;
+    if (!product) return;
+    if (product.stock === 0) {
+      wx.showToast({ title: '已售罄', icon: 'none' });
+      return;
+    }
+    const app = getApp();
+    if (!app.globalData.userInfo) {
+      wx.navigateTo({ url: '/pages-sub/user/login/login' });
+      return;
+    }
+    // 先加入购物车再跳订单确认(后端 placeOrder 从 cart 读)
+    cartStore
+      .addItem(product.id, this.data.quantity || 1)
+      .then(() => {
+        recommendationModule.recordPurchase(product);
+        wx.navigateTo({
+          url: '/pages-sub/order/order-confirm/order-confirm?source=direct_buy',
+        });
+      })
+      .catch(() => {
+        wx.showToast({ title: '请稍后重试', icon: 'none' });
       });
+  },
+
+  onCustomerService: function () {
+    wx.showModal({ title: '客服', content: '客服微信:seafood-cs(占位)', showCancel: false });
+  },
+
+  onToggleFavorite: function () {
+    this.setData({ favorited: !this.data.favorited });
+    wx.showToast({
+      title: this.data.favorited ? '已收藏' : '已取消收藏',
+      icon: 'none',
+    });
   },
 
   onBuyNow: function () {
