@@ -1,6 +1,8 @@
 # OS
 .DS_Store
+**/.DS_Store
 Thumbs.db
+**/Thumbs.db
 
 # Gradle
 .gradle/
@@ -86,7 +88,10 @@ backend/gradle/wrapper/dists/
 frontend/coverage/
 
 # Documentation
-docs/
+# Note: `docs/` was previously ignored wholesale here, but that conflicts with
+# tracked paths like `docs/DESIGN.md`, `docs/e2e/`, `docs/redesign/`,
+# `docs/redesign-requirements.md`. If you need to ignore specific generated
+# docs, list them explicitly (e.g. `docs/build/`, `docs/**/*.tmp`).
 create_doc.py
 *.docx
 
