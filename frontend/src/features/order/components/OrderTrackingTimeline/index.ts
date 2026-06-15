@@ -25,11 +25,20 @@ export interface TimelineStages {
 function fmtTime(iso: string | null | undefined): string | null {
   if (!iso) return null;
   // mp 端时间格式:2026-06-13 10:30
-  // ISO 8601 → "YYYY-MM-DD HH:mm"
+  // 显式锁定 Asia/Shanghai(单仓在 UTC CI 跑也一致,用户面向也始终是北京时间)
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const v = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  return `${v('year')}-${v('month')}-${v('day')} ${v('hour')}:${v('minute')}`;
 }
 
 /**
