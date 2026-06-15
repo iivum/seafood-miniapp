@@ -1,47 +1,100 @@
+<!--
+  路线图 3.13 — mp-05 「我的」OD v2 视觉重写。
+  tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+  3 段:用户卡(头像+昵称+角色徽章)+ 4 状态卡(待付款/待发货/待收货/已完成,接 2.6 OrderStatus 4 档)
+  + 工具列表(地址管理 / 联系客服 / 关于我们)。
+-->
 <view class="profile-container">
-  <!-- 用户信息 -->
-  <button class="user-header" open-type="getUserInfo" bindgetuserinfo="onLogin">
-    <image class="avatar" src="{{userInfo ? userInfo.avatarUrl : '/images/default-avatar.png'}}"></image>
+  <!-- 用户卡 -->
+  <view class="user-card">
+    <image class="user-avatar" src="{{userInfo ? userInfo.avatarUrl : '/images/default-avatar.png'}}"></image>
     <view class="user-info">
-      <text class="nickname">{{userInfo ? userInfo.nickname : '点击登录'}}</text>
-      <view class="role-tag" wx:if="{{userInfo && userInfo.role === 'MERCHANT'}}">商家</view>
+      <text class="user-nickname">{{userInfo ? userInfo.nickname : '点击登录'}}</text>
+      <view class="user-role" wx:if="{{userInfo && userInfo.role === 'MERCHANT'}}">
+        <text class="role-badge">商家</text>
+      </view>
     </view>
-  </button>
+  </view>
 
-  <!-- 订单中心 -->
-  <view class="card">
-    <view class="section-title">我的订单</view>
-    <view class="order-nav">
-      <navigator class="nav-item" url="/pages/order/list?type=waiting" hover-class="navigator-hover">
-        <icon type="waiting" size="24"></icon>
-        <text>待付款</text>
+  <!-- 4 状态卡(待付款 / 待发货 / 待收货 / 已完成) -->
+  <view class="status-card">
+    <view class="status-card__title" bindtap="onGoAllOrders">
+      <text>我的订单</text>
+      <text class="status-card__more">查看全部 ›</text>
+    </view>
+    <view class="status-card__grid">
+      <navigator
+        class="status-item"
+        url="/pages-sub/order/order-list/order-list?status=PENDING"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <view class="status-item__icon status-item__icon--pending">
+          <text class="status-item__emoji">💰</text>
+        </view>
+        <text class="status-item__label">待付款</text>
+        <view class="status-item__badge" wx:if="{{badges.pending > 0}}">{{badges.pending}}</view>
       </navigator>
-      <navigator class="nav-item" url="/pages/order/list?type=paid" hover-class="navigator-hover">
-        <icon type="success" size="24"></icon>
-        <text>待发货</text>
+      <navigator
+        class="status-item"
+        url="/pages-sub/order/order-list/order-list?status=PAID"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <view class="status-item__icon status-item__icon--paid">
+          <text class="status-item__emoji">📦</text>
+        </view>
+        <text class="status-item__label">待发货</text>
+        <view class="status-item__badge" wx:if="{{badges.paid > 0}}">{{badges.paid}}</view>
       </navigator>
-      <navigator class="nav-item" url="/pages/order/list?type=shipped" hover-class="navigator-hover">
-        <icon type="download" size="24"></icon>
-        <text>待收货</text>
+      <navigator
+        class="status-item"
+        url="/pages-sub/order/order-list/order-list?status=SHIPPED"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <view class="status-item__icon status-item__icon--shipped">
+          <text class="status-item__emoji">🚚</text>
+        </view>
+        <text class="status-item__label">待收货</text>
+        <view class="status-item__badge" wx:if="{{badges.shipped > 0}}">{{badges.shipped}}</view>
+      </navigator>
+      <navigator
+        class="status-item"
+        url="/pages-sub/order/order-list/order-list?status=COMPLETED"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <view class="status-item__icon status-item__icon--completed">
+          <text class="status-item__emoji">✅</text>
+        </view>
+        <text class="status-item__label">已完成</text>
+        <view class="status-item__badge" wx:if="{{badges.completed > 0}}">{{badges.completed}}</view>
       </navigator>
     </view>
   </view>
 
-  <!-- 常用功能 -->
-  <view class="card menu-list">
-    <navigator class="menu-item" url="/pages/order/list" hover-class="navigator-hover">
-      <text>全部订单</text>
-      <text class="arrow">></text>
+  <!-- 工具列表 -->
+  <view class="tools-card">
+    <navigator
+      class="tool-item"
+      url="/pages-sub/user/address/address-list"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="tool-item__icon">📍</text>
+      <text class="tool-item__label">收货地址</text>
+      <text class="tool-item__arrow">›</text>
     </navigator>
-    <navigator class="menu-item" url="/pages/address/list" hover-class="navigator-hover">
-      <text>收货地址</text>
-      <text class="arrow">></text>
+    <navigator class="tool-item" url="/pages/service/chat" hover-class="is-clicked" hover-stay-time="100">
+      <text class="tool-item__icon">💬</text>
+      <text class="tool-item__label">联系客服</text>
+      <text class="tool-item__arrow">›</text>
     </navigator>
-    <navigator class="menu-item" url="/pages/service/chat" hover-class="navigator-hover">
-      <text>联系客服</text>
-      <text class="arrow">></text>
+    <navigator class="tool-item" url="/pages/about/about" hover-class="is-clicked" hover-stay-time="100">
+      <text class="tool-item__icon">ℹ️</text>
+      <text class="tool-item__label">关于我们</text>
+      <text class="tool-item__arrow">›</text>
     </navigator>
   </view>
-
-  <!-- 单卖家模型:无商家后台入口 -->
 </view>

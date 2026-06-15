@@ -90,6 +90,31 @@ class OrderStore {
     return order;
   }
 
+  /**
+   * 4.10:申请退款。乐观更新本地 Order.status = REFUNDING(后端同步会改,
+   * 失败时回滚),再 await 后端响应后用真实状态覆盖。后端响应只返 Refund 单,
+   * Order 状态需重新拉一次;这里用响应时间戳 + 一个合成 status 更新本地。
+   */
+  async requestRefund(id: string, amount: number, reason: string): Promise<{ orderStatus: 'REFUNDING'; updatedAt: string }> {
+    // 乐观:先标 REFUNDING(防 sheet 关闭后订单状态栏没立刻变)
+    const prevOrders = this.state.orders;
+    const prevCurrent = this.state.current;
+    this.setState({
+      orders: this.state.orders.map((o) => (o.id === id ? { ...o, status: 'REFUNDING' as const } : o)),
+      current: this.state.current?.id === id
+        ? { ...this.state.current, status: 'REFUNDING' as const }
+        : this.state.current,
+    });
+    try {
+      const refund = await OrderAPI.requestRefund(id, { amount, reason });
+      return { orderStatus: 'REFUNDING', updatedAt: refund.updatedAt };
+    } catch (err) {
+      // 失败回滚
+      this.setState({ orders: prevOrders, current: prevCurrent });
+      throw err;
+    }
+  }
+
   /** Filter helper for the order list page. */
   filter(status?: OrderStatus): Order[] {
     return status ? this.state.orders.filter((o) => o.status === status) : this.state.orders;

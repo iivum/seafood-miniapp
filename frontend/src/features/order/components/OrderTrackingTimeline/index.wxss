@@ -1,0 +1,86 @@
+/* 路线图 4.3 — mp-08 时间线样式 */
+
+.tracking-timeline {
+  padding: 24rpx 32rpx;
+  background: var(--surface, #fff);
+  border-radius: 16rpx;
+  margin: 16rpx 24rpx;
+}
+
+.tracking-timeline__title {
+  font-family: var(--font-display, serif);
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--fg, #1a1a1a);
+  margin-bottom: 16rpx;
+}
+
+.tracking-timeline__node {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+  padding-bottom: 24rpx;
+}
+
+.tracking-timeline__dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: var(--muted, #d4d4d4);
+  margin-top: 8rpx;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.tracking-timeline__node--done .tracking-timeline__dot {
+  background: var(--accent, #db633c);
+}
+
+.tracking-timeline__line {
+  position: absolute;
+  top: 24rpx;
+  left: 7rpx;
+  width: 2rpx;
+  height: calc(100% - 24rpx);
+  background: var(--border, #e5e5e5);
+  z-index: 0;
+}
+
+.tracking-timeline__node--done .tracking-timeline__line {
+  background: var(--accent, #db633c);
+}
+
+.tracking-timeline__content {
+  flex: 1;
+  margin-left: 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.tracking-timeline__label {
+  font-size: 28rpx;
+  color: var(--fg, #1a1a1a);
+}
+
+.tracking-timeline__node:not(.tracking-timeline__node--done) .tracking-timeline__label {
+  color: var(--muted, #9a9a9a);
+}
+
+.tracking-timeline__time {
+  font-size: 22rpx;
+  color: var(--muted, #9a9a9a);
+}
+
+.tracking-timeline__time--muted {
+  color: var(--muted, #c0c0c0);
+}
+
+.tracking-timeline__meta {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border, #e5e5e5);
+  font-size: 24rpx;
+  color: var(--muted, #6b6b6b);
+}

@@ -1,0 +1,94 @@
+/* 路线图 4.10 — mp-08 申请退款 sheet 样式。 */
+
+.refund-sheet-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  z-index: 1000;
+}
+
+.refund-sheet {
+  width: 100%;
+  background: var(--surface, #ffffff);
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  padding: 32rpx 32rpx 48rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.refund-sheet__title {
+  font-family: var(--font-display, serif);
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--fg, #1a1a1a);
+  text-align: center;
+}
+
+.refund-sheet__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.refund-sheet__label {
+  font-size: 26rpx;
+  color: var(--muted, #6b6b6b);
+}
+
+.refund-sheet__textarea {
+  width: 100%;
+  min-height: 160rpx;
+  padding: 16rpx 20rpx;
+  border: 1rpx solid var(--border, #e5e5e5);
+  border-radius: 16rpx;
+  background: var(--bg, #fafafa);
+  font-size: 28rpx;
+  color: var(--fg, #1a1a1a);
+  box-sizing: border-box;
+}
+
+.refund-sheet__input {
+  width: 100%;
+  height: 80rpx;
+  padding: 0 20rpx;
+  border: 1rpx solid var(--border, #e5e5e5);
+  border-radius: 16rpx;
+  background: var(--bg, #fafafa);
+  font-size: 32rpx;
+  color: var(--fg, #1a1a1a);
+  box-sizing: border-box;
+}
+
+.refund-sheet__counter {
+  font-size: 22rpx;
+  color: var(--muted, #9a9a9a);
+  align-self: flex-end;
+}
+
+.refund-sheet__counter.is-warn {
+  color: var(--warning, #d97706);
+}
+
+.refund-sheet__hint {
+  font-size: 22rpx;
+  color: var(--muted, #9a9a9a);
+}
+
+.refund-sheet__error {
+  font-size: 26rpx;
+  color: var(--error, #dc2626);
+  padding: 12rpx 16rpx;
+  background: color-mix(in oklch, var(--error, #dc2626) 8%, transparent);
+  border-radius: 12rpx;
+}
+
+.refund-sheet__actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}

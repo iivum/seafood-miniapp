@@ -81,6 +81,35 @@ describe('features/order/store', () => {
     expect(orderStore.getState().orders[0].status).toBe('CANCELLED');
   });
 
+  // ===== 路线图 4.10:requestRefund 乐观更新 + 失败回滚 =====
+
+  it('requestRefund(): optimistically sets status=REFUNDING before await', async () => {
+    setWxResponseSequence([
+      { statusCode: 200, data: [sampleOrder] },
+      { statusCode: 201, data: { id: 'r1', orderId: 'o1', updatedAt: '2026-06-13T00:00:00Z' } },
+    ]);
+    await orderStore.refresh();
+    // 起始状态 PENDING
+    expect(orderStore.getState().orders[0].status).toBe('PENDING');
+    // requestRefund await 中:乐观更新已生效
+    const p = orderStore.requestRefund('o1', 20, '质量问题');
+    // await 微任务,先断言乐观状态
+    await Promise.resolve();
+    expect(orderStore.getState().orders[0].status).toBe('REFUNDING');
+    await p;
+  });
+
+  it('requestRefund(): rolls back status on API failure', async () => {
+    setWxResponseSequence([
+      { statusCode: 200, data: [sampleOrder] },
+      { errMsg: 'refund fail' },
+    ]);
+    await orderStore.refresh();
+    await expect(orderStore.requestRefund('o1', 20, '质量问题')).rejects.toBeTruthy();
+    // 失败回滚:状态应回到 PENDING
+    expect(orderStore.getState().orders[0].status).toBe('PENDING');
+  });
+
   it('filter(): returns only matching status', () => {
     (orderStore as unknown as { state: { orders: Order[] } }).state.orders = [
       { ...sampleOrder, status: 'PENDING' },

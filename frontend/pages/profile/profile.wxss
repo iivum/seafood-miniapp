@@ -1,137 +1,188 @@
-/* Profile Page - Vibrant Modern */
+/*
+ * 路线图 3.13 — mp-05 「我的」OD v2 视觉。
+ * tokens 单一源 docs/redesign/tokens.json。
+ */
+
 .profile-container {
-  background-color: var(--color-bg);
   min-height: 100vh;
-  padding-bottom: 50rpx;
+  background: var(--bg, #fffbf8);
+  padding-bottom: 160rpx;
 }
 
-/* User Header */
-.user-header {
+/* ===== 用户卡 ===== */
+
+.user-card {
   display: flex;
   align-items: center;
-  padding: 60rpx 40rpx 40rpx;
-  background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
-  border: none;
-  border-radius: 0;
-  width: 100%;
-  box-shadow: 0 4rpx 20rpx rgba(255, 107, 107, 0.3);
+  margin: 24rpx 24rpx 0;
+  padding: 36rpx 32rpx;
+  background: linear-gradient(135deg, var(--accent, #db633c) 0%, var(--accent-strong, #b83300) 100%);
+  border-radius: var(--radius-xl, 14px);
+  box-shadow: 0 4rpx 16rpx #231814;
 }
 
-.user-header::after {
-  border: none;
-}
-
-.avatar {
+.user-avatar {
   width: 120rpx;
   height: 120rpx;
   border-radius: 50%;
-  border: 4rpx solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
-  margin-right: 30rpx;
+  border: 4rpx solid var(--surface, #fff);
+  background: var(--bg, #fffbf8);
+  margin-right: 28rpx;
+  flex-shrink: 0;
 }
 
-.nickname {
+.user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.user-nickname {
+  font-family: var(--font-display, serif);
   font-size: 36rpx;
-  font-weight: 700;
-  color: #fff;
-  display: block;
-  margin-bottom: 10rpx;
+  font-weight: 600;
+  color: var(--surface, #fff);
+  line-height: 1.3;
 }
 
-.role-tag {
+.user-role {
+  display: flex;
+}
+
+.role-badge {
   display: inline-block;
-  background-color: rgba(255, 255, 255, 0.25);
-  color: #fff;
-  font-size: 22rpx;
   padding: 4rpx 16rpx;
-  border-radius: 20rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.3);
+  font-size: 22rpx;
+  font-weight: 500;
+  color: var(--accent-strong, #b83300);
+  background: var(--surface, #fff);
+  border-radius: var(--radius-pill, 9999px);
 }
 
-/* Menu Card */
-.menu-list {
-  margin-top: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  border-left: none !important;
-  border-right: none !important;
+/* ===== 4 状态卡 ===== */
+
+.status-card {
+  margin: 24rpx 24rpx 0;
+  padding: 28rpx 28rpx 32rpx;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 14px);
+  box-shadow: 0 2rpx 10rpx #231814;
 }
 
-.menu-item {
+.status-card__title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 30rpx 20rpx;
-  border-bottom: 1rpx solid var(--color-divider);
-  background-color: var(--color-surface);
-  transition: background-color 0.2s ease;
-}
-
-.menu-item:last-child {
-  border-bottom: none;
-}
-
-.menu-item:active {
-  background-color: var(--color-bg-subtle);
-}
-
-.menu-item text:first-child {
+  margin-bottom: 24rpx;
+  font-family: var(--font-display, serif);
   font-size: 30rpx;
-  color: var(--color-text);
+  font-weight: 600;
+  color: var(--fg, #231814);
 }
 
-.menu-item .arrow {
-  color: var(--color-text-muted);
-  font-size: 28rpx;
+.status-card__more {
+  font-family: var(--font-sans, sans-serif);
+  font-size: 24rpx;
+  font-weight: 400;
+  color: var(--muted, #5a5451);
 }
 
-/* Order Nav */
-.section-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--color-text);
-  padding: 30rpx 20rpx 20rpx;
-}
-
-.order-nav {
+.status-card__grid {
   display: flex;
-  justify-content: space-around;
-  padding: 20rpx 0;
-  background-color: var(--color-surface);
-  border-radius: 16rpx;
-  margin: 0 20rpx 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255, 107, 107, 0.1);
+  align-items: flex-start;
+  justify-content: space-between;
 }
 
-.order-nav .nav-item {
+.status-item {
+  position: relative;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16rpx 24rpx;
-  transition: transform 0.3s ease-out;
+  gap: 12rpx;
+  padding: 12rpx 0;
 }
 
-.order-nav .nav-item:active {
-  transform: scale(0.95);
+.status-item__icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.order-nav .nav-item icon {
+.status-item__icon--pending { background: var(--warning-soft, #fff0d4); }
+.status-item__icon--paid { background: var(--info-soft, #d8f8ff); }
+.status-item__icon--shipped { background: var(--accent-soft, #ffe7d9); }
+.status-item__icon--completed { background: var(--success-soft, #e2f9e2); }
+
+.status-item__emoji {
   font-size: 48rpx;
-  margin-bottom: 10rpx;
-  color: var(--color-primary);
+  line-height: 1;
 }
 
-.order-nav .nav-item text {
+.status-item__label {
   font-size: 24rpx;
-  color: var(--color-text-secondary);
+  color: var(--fg, #231814);
+  line-height: 1.2;
 }
 
-/* Card overrides */
-.profile-container .card {
-  background-color: var(--color-surface);
-  border-radius: 0;
-  margin: 0;
-  padding: 0;
-  box-shadow: 0 2rpx 12rpx rgba(255, 107, 107, 0.08);
-  border: none;
+.status-item__badge {
+  position: absolute;
+  top: 0rpx;
+  right: 32rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--error, #df202e);
+  color: var(--surface, #fff);
+  font-size: 20rpx;
+  font-weight: 600;
+  line-height: 32rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 4rpx #231814;
+}
+
+/* ===== 工具列表 ===== */
+
+.tools-card {
+  margin: 24rpx 24rpx 0;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 14px);
+  box-shadow: 0 2rpx 10rpx #231814;
+  overflow: hidden;
+}
+
+.tool-item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 28rpx 32rpx;
+  border-bottom: 1rpx solid var(--border, #eae3e1);
+}
+
+.tool-item:last-child {
+  border-bottom: none;
+}
+
+.tool-item__icon {
+  font-size: 36rpx;
+  line-height: 1;
+}
+
+.tool-item__label {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--fg, #231814);
+  line-height: 1.3;
+}
+
+.tool-item__arrow {
+  font-size: 36rpx;
+  color: var(--muted, #857f7d);
+  line-height: 1;
 }

@@ -1,35 +1,50 @@
+/*
+ * OD v2 visual — surface 列表行 + accent checkbox-on + 衬线价格
+ * posture 3 价格用 accent;6 state-only 用 state 颜色
+ */
+
 .cart-item-row {
   display: flex;
   align-items: center;
-  padding: var(--space-12, 12px) var(--space-16, 16px);
-  background: var(--color-surface, #fff);
-  border-bottom: 1rpx solid var(--color-divider, #F0F1F5);
+  padding: 20rpx 24rpx;
+  background: var(--surface, #fff);
+  border-bottom: 1rpx solid var(--border, #e6e0dd);
+  transition: background 0.18s ease;
 }
 
 .cart-item-row__check {
-  margin-right: var(--space-12, 12px);
+  margin-right: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  flex-shrink: 0;
 }
 
 .checkbox {
   width: 36rpx;
   height: 36rpx;
-  border: 2rpx solid var(--color-border, #E5E7EB);
+  border: 2rpx solid var(--border-strong, #d5cbc8);
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface, #fff);
+  transition: all 0.18s ease;
 }
 
 .checkbox--on {
-  background: var(--color-primary, #FF6B6B);
-  border-color: var(--color-primary, #FF6B6B);
+  background: var(--accent, #db633c);
+  border-color: var(--accent, #db633c);
+  box-shadow: 0 2rpx 8rpx #231814;
 }
 
 .cart-item-row__image {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-subtle, #F0F1F5);
-  margin-right: var(--space-12, 12px);
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: var(--radius-lg, 10px);
+  background: var(--bg, #fffbf8);
+  margin-right: 16rpx;
   flex-shrink: 0;
+  object-fit: cover;
 }
 
 .cart-item-row__body {
@@ -37,27 +52,44 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  height: 140rpx;
+  padding: 4rpx 0;
 }
 
 .cart-item-row__name {
+  font-family: var(--font-body, -apple-system, sans-serif);
   font-size: 28rpx;
-  color: var(--color-text, #2D3436);
+  color: var(--fg, #231814);
+  font-weight: 500;
+  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .cart-item-row__price {
-  color: var(--color-price, #FF6B6B);
-  font-size: 28rpx;
+  color: var(--accent, #db633c);
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+  font-size: 30rpx;
   font-weight: 600;
-  margin-top: var(--space-4, 4px);
+  letter-spacing: 0.4rpx;
+}
+
+.cart-item-row__price::before {
+  content: '¥';
+  font-size: 22rpx;
+  margin-right: 2rpx;
+  font-weight: 500;
 }
 
 .cart-item-row__qty {
   display: flex;
   align-items: center;
-  margin-top: var(--space-8, 8px);
+  align-self: flex-end;
+  margin-top: 8rpx;
 }
 
 .cart-item-row__btn {
@@ -66,20 +98,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-bg-subtle, #F0F1F5);
-  border-radius: var(--radius-sm, 4px);
+  background: var(--bg, #fffbf8);
+  border-radius: var(--radius-md, 6px);
   font-size: 32rpx;
-  color: var(--color-text, #2D3436);
+  color: var(--fg, #231814);
+  font-weight: 500;
+  border: 1rpx solid var(--border, #e6e0dd);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.cart-item-row__btn:active {
+  background: var(--accent-soft, #ffe7d9);
+  transform: scale(0.92);
 }
 
 .cart-item-row__count {
-  width: 64rpx;
+  width: 72rpx;
   text-align: center;
+  font-family: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
   font-size: 28rpx;
+  color: var(--fg, #231814);
 }
 
 .cart-item-row__remove {
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--muted, #6b615d);
+  font-family: var(--font-body, -apple-system, sans-serif);
   font-size: 24rpx;
-  margin-left: var(--space-12, 12px);
+  margin-left: 16rpx;
+  align-self: flex-start;
+  padding: 8rpx 0;
 }

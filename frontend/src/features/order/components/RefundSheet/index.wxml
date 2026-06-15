@@ -1,0 +1,39 @@
+<!--
+  路线图 4.10 — mp-08 申请退款底部 sheet。
+  字段:原因(reason, textarea 1..200 字符)+ 金额(amount, number input,默认订单总额,> 0 且 ≤ 总额)
+  + 提交按钮。前端 zod 校验与后端 @DecimalMin / @Size 一致(防输入绕过)。
+  parent 通过 visible / order 属性控制显示与上下文。
+-->
+<view wx:if="{{visible}}" class="refund-sheet-mask" catchtap="onMaskTap">
+  <view class="refund-sheet" catchtap="noop">
+    <view class="refund-sheet__title">申请退款</view>
+    <view class="refund-sheet__row">
+      <text class="refund-sheet__label">退款原因</text>
+      <textarea
+        class="refund-sheet__textarea"
+        placeholder="请描述退款原因(海鲜质量 / 发货错误 等)"
+        maxlength="200"
+        value="{{reason}}"
+        bindinput="onReasonInput"
+        auto-height
+      />
+      <text class="refund-sheet__counter {{reason.length > 180 ? 'is-warn' : ''}}">{{reason.length}} / 200</text>
+    </view>
+    <view class="refund-sheet__row">
+      <text class="refund-sheet__label">退款金额(元)</text>
+      <input
+        class="refund-sheet__input"
+        type="digit"
+        placeholder="请输入退款金额"
+        value="{{amount}}"
+        bindinput="onAmountInput"
+      />
+      <text class="refund-sheet__hint">订单总额:¥ {{order.totalAmount}}</text>
+    </view>
+    <view wx:if="{{errorMessage}}" class="refund-sheet__error">{{errorMessage}}</view>
+    <view class="refund-sheet__actions">
+      <shared-button type="secondary" bindtap="onCancel">取消</shared-button>
+      <shared-button type="primary" loading="{{submitting}}" bindtap="onSubmit">提交申请</shared-button>
+    </view>
+  </view>
+</view>

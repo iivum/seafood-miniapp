@@ -55,6 +55,11 @@ global.getApp = jest.fn(() => ({
   },
 }));
 
+// Mock WeChat Component global(在 WeChat runtime 由框架注入;Node 测试环境 stub)
+// 测试组件时只 import 纯逻辑(`./actions` 等),`./index` 内的 Component({...}) 也能
+// 在 Node 环境下 import 不抛错。
+global.Component = global.Component || function Component() {};
+
 // Mock console methods to reduce noise in tests
 global.console.warn = jest.fn();
 global.console.error = jest.fn();

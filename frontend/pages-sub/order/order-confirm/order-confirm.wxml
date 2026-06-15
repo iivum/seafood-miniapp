@@ -1,86 +1,146 @@
+<!--
+  路线图 3.14 / 3.17 / 3.18 — mp-06 订单确认 OD v2 视觉 + 金额明细实时算 + 备注 + 配送方式。
+  5 段:地址 / 商品清单 / 配送方式 / 备注 / 金额明细 + 底部结算 sticky。
+  tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+-->
 <view class="order-confirm-container">
-  <!-- Address Section -->
-  <navigator class="section address-section" open-type="navigate" url="/pages/address/address-list?selectMode=true">
-    <view class="section-header">
-      <text class="section-title">收货地址</text>
-    </view>
-    <view class="address-content">
-      <block wx:if="{{selectedAddress}}">
-        <view class="address-info">
-          <text class="receiver">{{selectedAddress.receiverName}} {{selectedAddress.phone}}</text>
-          <text class="detail">{{selectedAddress.address}}</text>
+  <!-- 1. 地址选择器 -->
+  <navigator
+    class="address-card"
+    url="/pages-sub/user/address/address-list?selectMode=true"
+    hover-class="is-clicked"
+    hover-stay-time="100"
+  >
+    <block wx:if="{{selectedAddress}}">
+      <view class="address-card__body">
+        <view class="address-card__head">
+          <text class="address-card__name">{{selectedAddress.name}}</text>
+          <text class="address-card__phone">{{selectedAddress.phone}}</text>
         </view>
-      </block>
-      <block wx:else>
-        <view class="address-placeholder">
-          <text>请选择收货地址</text>
-        </view>
-      </block>
-      <view class="arrow">›</view>
-    </view>
+        <text class="address-card__detail">
+          {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detailAddress}}
+        </text>
+      </view>
+      <text class="address-card__arrow">›</text>
+    </block>
+    <block wx:else>
+      <view class="address-card__empty">
+        <text class="address-card__placeholder">📍 请选择收货地址</text>
+      </view>
+      <text class="address-card__arrow">›</text>
+    </block>
   </navigator>
 
-  <!-- Order Items Section -->
-  <view class="section items-section">
-    <view class="section-header">
-      <text class="section-title">订单商品</text>
-    </view>
+  <!-- 2. 商品清单(图片 + 名 + 价 + 数 + stepper) -->
+  <view class="items-card">
+    <view class="card-title">订单商品</view>
     <view class="items-list">
       <view class="item" wx:for="{{cartItems}}" wx:key="id">
-        <image class="item-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
-        <view class="item-info">
-          <text class="item-name">{{item.name}}</text>
-          <text class="item-price">￥{{item.price}}</text>
-        </view>
-        <view class="item-qty">
-          <text>x{{item.quantity}}</text>
+        <image class="item__img" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
+        <view class="item__body">
+          <text class="item__name">{{item.name}}</text>
+          <view class="item__foot">
+            <text class="item__price">¥ {{item.price}}</text>
+            <text class="item__qty">x {{item.quantity}}</text>
+          </view>
         </view>
       </view>
     </view>
   </view>
 
-  <!-- Order Summary Section -->
-  <view class="section summary-section">
+  <!-- 3. 配送方式(3 选) -->
+  <view class="delivery-card">
+    <view class="card-title">配送方式</view>
+    <view class="delivery-options">
+      <view
+        class="delivery-option {{shippingMethod === 'FREE' ? 'is-selected' : ''}}"
+        bindtap="onSelectShipping"
+        data-method="FREE"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text class="delivery-option__name">免运费</text>
+        <text class="delivery-option__fee">¥ 0</text>
+        <view wx:if="{{shippingMethod === 'FREE'}}" class="delivery-option__check">✓</view>
+      </view>
+      <view
+        class="delivery-option {{shippingMethod === 'SF' ? 'is-selected' : ''}}"
+        bindtap="onSelectShipping"
+        data-method="SF"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text class="delivery-option__name">顺丰速运</text>
+        <text class="delivery-option__fee">¥ 12</text>
+        <view wx:if="{{shippingMethod === 'SF'}}" class="delivery-option__check">✓</view>
+      </view>
+      <view
+        class="delivery-option {{shippingMethod === 'ZTO' ? 'is-selected' : ''}}"
+        bindtap="onSelectShipping"
+        data-method="ZTO"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text class="delivery-option__name">中通快递</text>
+        <text class="delivery-option__fee">¥ 8</text>
+        <view wx:if="{{shippingMethod === 'ZTO'}}" class="delivery-option__check">✓</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 4. 备注 textarea(3.18 max 50 字) -->
+  <view class="remark-card">
+    <view class="card-title">
+      <text>订单备注</text>
+      <text class="remark-counter {{remark.length > 40 ? 'is-warning' : ''}}">{{remark.length}}/50</text>
+    </view>
+    <textarea
+      class="remark-input"
+      placeholder="选填,可备注特殊需求(50字内)"
+      maxlength="50"
+      value="{{remark}}"
+      bindinput="onRemarkInput"
+      auto-height
+    />
+  </view>
+
+  <!-- 5. 金额明细(3.17 4 项联动实时算) -->
+  <view class="summary-card">
+    <view class="card-title">金额明细</view>
     <view class="summary-row">
-      <text class="label">商品总价</text>
-      <text class="value">￥{{totalPrice}}</text>
+      <text class="summary-row__label">商品总额</text>
+      <text class="summary-row__value">¥ {{subtotal}}</text>
     </view>
     <view class="summary-row">
-      <text class="label">运费</text>
-      <text class="value">
-        <text wx:if="{{shippingFee === 0}}" class="free-shipping">免运费</text>
-        <text wx:else>￥{{shippingFee}}</text>
+      <text class="summary-row__label">运费</text>
+      <text class="summary-row__value">
+        <text wx:if="{{shippingFee === 0}}" class="summary-row__free">免运费</text>
+        <text wx:else>¥ {{shippingFee}}</text>
       </text>
     </view>
-    <view class="summary-row total-row">
-      <text class="label">合计</text>
-      <text class="value total-price">￥{{orderTotal}}</text>
+    <view class="summary-row">
+      <text class="summary-row__label">优惠</text>
+      <text class="summary-row__value summary-row__discount">- ¥ {{discount}}</text>
+    </view>
+    <view class="summary-row summary-row--total">
+      <text class="summary-row__label">实付</text>
+      <text class="summary-row__value summary-row__total-price">¥ {{orderTotal}}</text>
     </view>
   </view>
 
-  <!-- Payment Method Section -->
-  <view class="section payment-section">
-    <view class="section-header">
-      <text class="section-title">支付方式</text>
+  <!-- 底部结算 sticky -->
+  <view class="bottom-bar safe-area-bottom-fixed">
+    <view class="bottom-bar__left">
+      <text class="bottom-bar__total-label">合计</text>
+      <text class="bottom-bar__total-price">¥ {{orderTotal}}</text>
     </view>
-    <view class="payment-method">
-      <view class="wechat-pay-icon">💳</view>
-      <text class="payment-name">微信支付</text>
-      <text class="payment-recommend">推荐</text>
-    </view>
-  </view>
-
-  <!-- Submit Button -->
-  <view class="bottom-bar">
-    <view class="total-info">
-      <text class="total-label">实付款：</text>
-      <text class="total-amount">￥{{orderTotal}}</text>
-    </view>
-    <button
-      class="btn-submit"
+    <view
+      class="bottom-bar__submit {{isCreating || isPaying || cartItems.length === 0 ? 'is-disabled' : ''}}"
       bindtap="onSubmitOrder"
-      disabled="{{isCreating || isPaying || cartItems.length === 0}}">
-      {{isPaying ? '支付中...' : (isCreating ? '提交中...' : '提交订单')}}
-    </button>
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      {{isPaying ? '支付中…' : (isCreating ? '提交中…' : '提交订单')}}
+    </view>
   </view>
 </view>

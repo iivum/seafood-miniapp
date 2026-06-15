@@ -1,21 +1,40 @@
 /**
- * Order confirm / detail page — wired to the new `features/order`
- * store per OpenSpec §8.5.
+ * Order confirm / detail page — 路线图 3.14 / 3.17 / 3.18 OD v2 重构。
  *
- * - If a query `id` is present, the page loads the order detail via
- *   `orderStore.loadById(id)`.
- * - Otherwise (user is checking out from the cart) the page calls
- *   `orderStore.placeOrder({addressId})` to create the order, which
- *   also clears the cart as a side effect.
+ * 3.17:4 金额项联动实时算(商品总额 = Σ item.price × item.quantity;
+ *       运费 = 配送方式映射;优惠 = 满 100 减 10 占位;实付 = 总额 + 运费 - 优惠)
+ * 3.18:配送方式 3 选(免运费 / 顺丰 12 / 中通 8)+ 备注 max 50 字
  */
 const { orderStore } = require('../../../src/features/order/store');
 const { cartStore } = require('../../../src/features/cart/store');
 const { paymentModule } = require('../../../src/modules/payment/payment.js');
 
+// 3.17 配送方式 → 运费映射
+const SHIPPING_FEE_MAP = {
+  FREE: 0,
+  SF: 12,
+  ZTO: 8,
+};
+
+// 3.17 优惠规则(占位,Sprint 3 接真实优惠):满 100 减 10
+function calcDiscount(subtotal) {
+  return subtotal >= 100 ? 10 : 0;
+}
+
 Page({
   data: {
     order: null,
     selectedAddress: null,
+    cartItems: [],
+    // 3.18 配送方式 3 选
+    shippingMethod: 'FREE',
+    shippingFee: 0,
+    // 3.18 备注 max 50 字
+    remark: '',
+    // 3.17 4 金额项
+    subtotal: 0,
+    discount: 0,
+    orderTotal: 0,
     isCreating: false,
     isPaying: false,
     errorMessage: '',
@@ -55,27 +74,45 @@ Page({
     cartStore
       .refresh()
       .then((cart) => {
-        const total = (cart.items || []).reduce(
-          (sum, it) => sum + (it.unitPrice || 0) * it.quantity,
-          0,
-        );
+        const items = (cart.items || []).map((it) => ({
+          id: it.productId,
+          name: it.productName || it.productId,
+          price: it.unitPrice || 0,
+          quantity: it.quantity,
+          imageUrl: it.imageUrl || '',
+        }));
         this.setData({
           order: {
             id: null,
-            totalAmount: total,
-            items: (cart.items || []).map((it) => ({
-              productId: it.productId,
-              productName: it.productName || it.productId,
-              unitPrice: it.unitPrice || 0,
+            totalAmount: 0,
+            items: items.map((it) => ({
+              productId: it.id,
+              productName: it.name,
+              unitPrice: it.price,
               quantity: it.quantity,
             })),
             status: 'PENDING',
           },
+          cartItems: items,
         });
+        this.recalcAmounts();
       })
       .catch(() => {
         // best-effort: leave order as null so the empty-state renders
       });
+  },
+
+  /**
+   * 3.17 实时算 4 金额项(总额 / 运费 / 优惠 / 实付)。
+   * 调用时机:refreshCartPreview + onSelectShipping + onRemarkInput(实际不触发金额变,保留)。
+   */
+  recalcAmounts: function () {
+    const items = this.data.cartItems || [];
+    const subtotal = items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+    const shippingFee = SHIPPING_FEE_MAP[this.data.shippingMethod] ?? 0;
+    const discount = calcDiscount(subtotal);
+    const orderTotal = Math.max(0, subtotal + shippingFee - discount);
+    this.setData({ subtotal, shippingFee, discount, orderTotal });
   },
 
   selectAddress: function () {
@@ -90,6 +127,24 @@ Page({
         '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=' +
         encodeURIComponent(selectedAddress ? JSON.stringify(selectedAddress) : ''),
     });
+  },
+
+  /**
+   * 3.18 配送方式切换(setData 后实时算 4 金额项)。
+   */
+  onSelectShipping: function (e) {
+    const method = e.currentTarget.dataset.method || 'FREE';
+    this.setData({ shippingMethod: method, shippingFee: SHIPPING_FEE_MAP[method] ?? 0 });
+    this.recalcAmounts();
+  },
+
+  /**
+   * 3.18 备注输入(bindinput 触发,maxlength 50 已在 wxml 守)。
+   * 不触发金额变,仅更新 remark。
+   */
+  onRemarkInput: function (e) {
+    const value = e.detail.value || '';
+    this.setData({ remark: value });
   },
 
   onSubmitOrder: function () {
@@ -115,7 +170,10 @@ Page({
     wx.showLoading({ title: '正在创建订单...' });
 
     orderStore
-      .placeOrder({ addressId: this.data.selectedAddress.id })
+      .placeOrder({
+        addressId: this.data.selectedAddress.id,
+        remark: this.data.remark || undefined,
+      })
       .then((order) => {
         this.setData({ isCreating: false, order });
         this.initiatePayment(order);

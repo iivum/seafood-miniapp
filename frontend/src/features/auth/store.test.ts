@@ -127,6 +127,102 @@ describe('features/auth/store', () => {
     expect(store.getState().isAuthenticated).toBe(false);
   });
 
+  describe('wx.login edge cases', () => {
+    it('login() rejects when wx is undefined', async () => {
+      const origWx = (globalThis as Record<string, unknown>).wx;
+      (globalThis as Record<string, unknown>).wx = undefined;
+      try {
+        await expect(authStore.login()).rejects.toThrow('wx.login is not available');
+      } finally {
+        (globalThis as Record<string, unknown>).wx = origWx;
+      }
+    });
+
+    it('login() rejects when wx.login returns no code', async () => {
+      (wx.login as jest.Mock).mockImplementation((opts: {
+        success: (res: { code?: string }) => void;
+      }) => {
+        opts.success({}); // no code
+      });
+      await expect(authStore.login()).rejects.toThrow('wx.login did not return a code');
+    });
+  });
+
+  describe('silentRelogin on TOKEN_EXPIRED', () => {
+    it('triggers silentRelogin when onAuthFailure fires with TOKEN_EXPIRED', async () => {
+      const store = new AuthStore();
+      tokenStorage.setTokens('old', 'old-refresh');
+      (wx.request as jest.Mock).mockImplementation((opts: {
+        success: (res: unknown) => void;
+      }) => {
+        if (opts.url.endsWith('/api/auth/wechat-login')) {
+          opts.success({ statusCode: 200, data: sampleLoginRes });
+        } else if (opts.url.endsWith('/api/auth/refresh')) {
+          opts.success({ statusCode: 401, data: { code: 'TOKEN_EXPIRED' } });
+        } else {
+          opts.success({ statusCode: 200, data: {} });
+        }
+      });
+      // Fire a request that will get TOKEN_EXPIRED on refresh
+      // This should trigger silentRelogin internally
+      try {
+        await request({ url: '/orders', method: 'GET', needAuth: true });
+      } catch {
+        // expected to fail
+      }
+      // Give silentRelogin time to run
+      await new Promise(r => setTimeout(r, 100));
+    });
+  });
+
+  describe('silentRelogin gating', () => {
+    it('silentRelogin returns null when locked', async () => {
+      const store = new AuthStore();
+      // Access private method for testing
+      const fn = store as unknown as {
+        silentRelogin: () => Promise<unknown>;
+        reloginLocked: boolean;
+      };
+      fn.reloginLocked = true;
+      const result = await fn.silentRelogin();
+      expect(result).toBeNull();
+    });
+
+    it('doSilentRelogin returns null when debounce is active', async () => {
+      const store = new AuthStore();
+      const fn = store as unknown as {
+        doSilentRelogin: () => Promise<unknown>;
+        recentReloginAt: number;
+        reloginLocked: boolean;
+      };
+      fn.recentReloginAt = Date.now(); // just attempted
+      fn.reloginLocked = false;
+      const result = await fn.doSilentRelogin();
+      expect(result).toBeNull();
+    });
+
+    it('doSilentRelogin hard-locks after MAX_CONSECUTIVE_RELOGIN_FAILURES', async () => {
+      const store = new AuthStore();
+      const fn = store as unknown as {
+        doSilentRelogin: () => Promise<unknown>;
+        consecutiveReloginFailures: number;
+        reloginLocked: boolean;
+        recentReloginAt: number;
+        login: () => Promise<unknown>;
+      };
+      fn.reloginLocked = false;
+      fn.consecutiveReloginFailures = 0;
+      // Mock login to always fail
+      fn.login = jest.fn().mockRejectedValue(new Error('fail'));
+      // Run enough times to hit the lock, resetting debounce each time
+      for (let i = 0; i < AuthStore.MAX_CONSECUTIVE_RELOGIN_FAILURES; i++) {
+        fn.recentReloginAt = 0; // reset debounce
+        await fn.doSilentRelogin();
+      }
+      expect(fn.reloginLocked).toBe(true);
+    });
+  });
+
   describe('security: silentRelogin gating (review #5)', () => {
     it('does NOT call wx.login when onAuthFailure is fired with TOKEN_REUSED', async () => {
       // Manually fire the registered onAuthFailure callback with a

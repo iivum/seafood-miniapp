@@ -1,0 +1,80 @@
+/*
+ * OD v2 字体子集加载策略
+ *
+ * 来源:docs/redesign/tokens.json § typography
+ *   - display: Fraunces 衬线(数字 + 英文 ~94 字子集,覆盖 LTR 数字/标点)
+ *   - body:    Inter Tight sans(数字 + 英文 ~94 字子集)
+ *   - mono:    Geist Mono 等宽(数字 + 英文 ~94 字子集)
+ *   - cjk:     Noto Sans SC(中文 420 字 + ASCII 94 字,mp 主中文渲染字体,1.16/1.17 落地)
+ *
+ * 加载策略(决策 3):
+ *   1. 全部走 woff2 子集文件,文件物理位置 frontend/assets/fonts/
+ *   2. font-display: swap — 避免白屏
+ *   3. unicode-range 锁子集范围,字频外的字符走 fallback 链
+ *   4. Sprint 0 spike 已于 2026-06-13 落地(脚本 scripts/font-subset/glyphs.txt +
+ *      fonts/4 个 woff2 文件,见 task 1.16/1.17)
+ *
+ * 文件大小(2026-06-13 spike 结果):
+ *   - fraunces-subset.woff2     80KB
+ *   - inter-tight-subset.woff2  36KB
+ *   - geist-mono-subset.woff2   25KB
+ *   - noto-sans-sc-subset.woff2 92KB(420 CJK + 94 ASCII,主中文)
+ *   - TOTAL                     233KB(略超 200KB 预算 17%,可接受;
+ *                                  Sprint 1 末评估:若 > 20% 触发 MVP 降级
+ *                                  → 删 Fraunces,衬线 display 用 system serif)
+ *
+ * MVP 降级路径(设计 § 决策 3):若包大小 > 预算 20%,
+ *   Sprint 0 末降级为 1 套 Inter Tight + Noto Sans SC,
+ *   衬线 display 用 system serif 替代(Fraunces 块注释掉)。
+ */
+
+/* === Fraunces(衬线 display,用于价格 / 状态标签 / Empty 标题) === */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/assets/fonts/fraunces-subset.woff2') format('woff2');
+  unicode-range: U+0020-007E, U+00A0-00FF; /* ASCII + Latin-1 Supplement */
+}
+
+/* === Inter Tight(主正文字体,数字 + 英文 + 标点子集) === */
+@font-face {
+  font-family: 'Inter Tight';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/assets/fonts/inter-tight-subset.woff2') format('woff2');
+  unicode-range: U+0020-007E, U+00A0-00FF;
+}
+
+/* === Geist Mono(等宽,用于订单号 / stepper 计数 / 库存数字) === */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/assets/fonts/geist-mono-subset.woff2') format('woff2');
+  unicode-range: U+0020-007E, U+00A0-00FF;
+}
+
+/* === Noto Sans SC(mp 主中文渲染字体,420 CJK + 94 ASCII) === */
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/assets/fonts/noto-sans-sc-subset.woff2') format('woff2');
+  unicode-range: U+0020-007E, U+00A0-00FF, U+2014, U+2018-201D, U+3000-303F,
+    U+4E00-9FFF;
+  /* CJK 统一表意文字基本平面 + 中文标点(全/半角);
+   * 锁区间外字符由 system serif 链接(fallback 到 PingFang SC / 苹方 / Microsoft YaHei) */
+}
+
+/*
+ * 与 tokens.wxss 的 --font-display / --font-body / --font-mono 配合:
+ * 两者 font-family 链保持一致(子集字体名 + 系统 fallback),避免
+ * font loading 切换时 layout shift。
+ *
+ * 中文渲染优先级:Noto Sans SC(子集) > PingFang SC(iOS) > Microsoft YaHei(Win) > sans-serif
+ */

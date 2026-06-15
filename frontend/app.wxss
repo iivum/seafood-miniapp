@@ -1,19 +1,16 @@
 /**
- * app.wxss — Ocean Market Premium (v1) + v2 OKLch tokens co-exist.
+ * app.wxss — v1 + v2 tokens co-exist.
  *
- * v1 hex block (=== TOKENS:BEGIN === below) remains the production source
- * until design owner signs off on v2; see openspec/changes/v2-visual-redesign/
- * tasks.md 1.14 / 1.22. The v2 import below is inert: nothing currently
- * references var(--accent) / var(--bg) / etc., so the import has zero visual
- * effect today. The migration is a per-component follow-up, not a
- * wholesale replacement.
+ * v2 tokens (inlined at bottom) win the CSS cascade over v1 blocks.
+ * Components use v2 variable names: var(--accent), var(--fg), etc.
+ * The v1 blocks are kept as fallback for any remaining var(--color-*) refs.
  *
- * To remove v1 once v2 is approved:
- *   1. delete the === TOKENS:BEGIN === block below
- *   2. change all var(--color-*) refs to var(--*) (v2 names)
+ * To fully remove v1:
+ *   1. delete the === TOKENS:BEGIN === block
+ *   2. remove any remaining var(--color-*) refs
  *   3. remove this header note
  */
-@import '/shared/tokens/tokens.wxss';
+@import '/src/shared/tokens/fonts.wxss';
 
 /**app.wxss - Ocean Market Premium **/
 
@@ -185,3 +182,51 @@ page {
   --z-toast: 500;
 }
 /* === TOKENS:END   === */
+
+/* v2 tokens — inlined AFTER v1 block so these win the cascade.
+   Components use var(--accent), var(--fg), var(--surface) etc.
+   Auto-generated from docs/redesign/tokens.json by scripts/build-tokens.js */
+page {
+  --bg: #fffbf8;
+  --surface: #ffffff;
+  --fg: #231814;
+  --muted: #6b615d;
+  --soft: #a59c99;
+  --border: #e6e0dd;
+  --border-strong: #d5cbc8;
+  --accent: #db633c;
+  --accent-soft: #ffe7d9;
+  --accent-strong: #b83300;
+  --accent-deep: #64230d;
+  --success: #318f5a;
+  --warning: #df911a;
+  --error: #b9003d;
+  --info: #1988a3;
+  --success-soft: #d5f9e0;
+  --warning-soft: #ffe9cb;
+  --error-soft: #ffe2e4;
+  --info-soft: #d2f5ff;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 18px;
+  --radius-pill: 9999px;
+  --shadow-sm: rgba(35, 24, 20, 0.05);
+  --shadow-md: rgba(35, 24, 20, 0.07);
+  --shadow-lg: rgba(35, 24, 20, 0.1);
+  --font-display: "Fraunces, 'Source Serif Pro', 'Iowan Old Style', Georgia, serif";
+  --font-body: "Inter Tight, -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
+  --font-mono: "Geist Mono, 'IBM Plex Mono', ui-monospace, Menlo, monospace";
+}
+
+/* === 路线图 3.16 死交互修复(S-2)=== */
+/* 全局 .is-clicked 闪:0.18s 缩放 + 透明度,各屏 wxml hover 元素加
+   hover-class="is-clicked" hover-stay-time="100" 即可生效。
+   覆盖 [data-action] / [data-toggle] / chips / tab / 全选 / stepper / 结算 等。*/
+.is-clicked {
+  opacity: 0.6;
+  transform: scale(0.97);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}

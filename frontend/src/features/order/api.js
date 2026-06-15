@@ -1,7 +1,7 @@
 /**
  * Runtime shim for features/order/api.ts.
  */
-const { get, post } = require('../shared/api/request');
+const { get, post } = require('../../shared/api/request');
 
 const OrderAPI = {
   list() {

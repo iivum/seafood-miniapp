@@ -1,3 +1,11 @@
+/*
+ * OD v2 visual — list 容器;子节点(ProductCard / Empty / Loading)负责自身视觉
+ * 保持单纯容器角色,只加 section 间距 + 背景
+ */
+
 .product-list {
   width: 100%;
+  min-height: 100%;
+  background: var(--bg, #fffbf8);
+  padding-bottom: 32rpx;
 }

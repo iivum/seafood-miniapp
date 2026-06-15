@@ -1,73 +1,98 @@
-<view class="category-container">
-  <!-- Category list view (when no category selected) -->
-  <view class="category-grid" wx:if="{{!selectedCategory}}">
-    <view class="category-grid-inner">
-      <navigator
-        class="category-item"
-        wx:for="{{categories}}"
+<!--
+  路线图 2.2 — mp-02 分类列表 OD v2 视觉重写。
+  双栏布局:左侧 sidebar(分类列表,active 状态 accent + 内描边) + 右侧 2 列商品 grid
+  (复用 2.1 网格 + ProductCard 1.9 OD 风格)。顶部 sticky 分类名(衬线 display)。
+  tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+-->
+<view class="cat-container">
+  <!-- 左侧分类 sidebar -->
+  <scroll-view class="cat-sidebar" scroll-y="true" enhanced="true" show-scrollbar="{{false}}">
+    <view
+      wx:for="{{categories}}"
+      wx:key="id"
+      class="cat-sidebar__item {{activeCategoryId === item.id ? 'cat-sidebar__item--active' : ''}}"
+      bindtap="onCategoryTap"
+      data-category-id="{{item.id}}"
+    >
+      <text class="cat-sidebar__emoji">{{item.icon}}</text>
+      <text class="cat-sidebar__name">{{item.name}}</text>
+    </view>
+  </scroll-view>
+
+  <!-- 右侧商品区 -->
+  <view class="cat-main">
+    <!-- sticky 分类名头 -->
+    <view class="cat-header">
+      <text class="cat-header__title">{{activeCategoryName}}</text>
+      <text class="cat-header__subtitle">{{activeCategoryDesc || '每日新鲜直送'}}</text>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="cat-state" wx:if="{{isLoading && products.length === 0}}">
+      <shared-loading message="加载中..."></shared-loading>
+    </view>
+
+    <!-- 错误状态 -->
+    <view class="cat-state" wx:elif="{{isError}}">
+      <shared-empty
+        icon="⚠️"
+        message="{{errorMessage || '加载失败'}}"
+        retry-text="重新加载"
+        bind:retry="onRetry"
+      ></shared-empty>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="cat-state" wx:elif="{{isEmpty}}">
+      <shared-empty
+        icon="🦐"
+        message="该分类暂无商品"
+      ></shared-empty>
+    </view>
+
+    <!-- 2 列商品 grid -->
+    <view class="cat-grid" wx:else>
+      <view
+        wx:for="{{products}}"
         wx:key="id"
-        open-type="reLaunch"
-        url="/pages/category/category?id={{item.id}}"
+        class="cat-grid__cell"
       >
-        <view class="category-icon-wrapper">
-          <text class="category-icon">{{item.icon}}</text>
-        </view>
-        <text class="category-name">{{item.name}}</text>
-        <text class="category-desc">{{item.description}}</text>
-      </navigator>
-    </view>
-  </view>
-
-  <!-- Products list view (when category selected) -->
-  <view class="products-view" wx:else>
-    <!-- Category header -->
-    <view class="category-header">
-      <view class="category-header-left" catchtap="onBackToCategories">
-        <text class="back-arrow">←</text>
-        <text>全部分类</text>
-      </view>
-      <text class="category-title">{{selectedCategoryName}}</text>
-    </view>
-
-    <!-- Loading state -->
-    <view class="loading-state" wx:if="{{isLoading && products.length === 0}}">
-      <text>加载中...</text>
-    </view>
-
-    <!-- Error state -->
-    <view class="error-state" wx:elif="{{isError}}">
-      <text class="error-text">{{errorMessage}}</text>
-      <view class="retry-btn" bindtap="onRetry">重新加载</view>
-    </view>
-
-    <!-- Empty state -->
-    <view class="empty-state" wx:elif="{{isEmpty}}">
-      <text class="empty-text">该分类暂无商品</text>
-      <view class="retry-btn" bindtap="onBackToCategories">返回分类</view>
-    </view>
-
-    <!-- Products grid -->
-    <view class="product-list" wx:else>
-      <view class="product-item" wx:for="{{products}}" wx:key="id">
-        <navigator class="product-card" url="/pages/detail/detail?id={{item.id}}" open-type="navigate">
-          <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
-          <view class="product-info">
-            <text class="product-name">{{item.name}}</text>
-            <text class="product-price">￥{{item.price}}</text>
+        <navigator
+          class="cat-grid__nav"
+          url="/pages-sub/product/product-detail/product-detail?id={{item.id}}"
+          open-type="navigate"
+        >
+          <image
+            class="cat-grid__img"
+            src="{{item.imageUrl}}"
+            mode="aspectFill"
+            lazy-load="true"
+          ></image>
+          <view class="cat-grid__body">
+            <text class="cat-grid__name">{{item.name}}</text>
+            <view class="cat-grid__foot">
+              <text class="cat-grid__price">¥ {{item.price}}</text>
+              <view
+                class="cat-grid__add"
+                catchtap="addToCart"
+                data-product="{{item}}"
+                hover-class="cat-grid__add--hover"
+                hover-stay-time="100"
+              >
+                <text>+</text>
+              </view>
+            </view>
           </view>
         </navigator>
-        <view class="add-cart-btn" catchtap="addToCart" data-product="{{item}}">加入购物车</view>
       </view>
     </view>
 
-    <!-- Loading more -->
-    <view class="loading-more" wx:if="{{isLoadingMore}}">
-      <text>加载更多...</text>
+    <!-- 加载更多 / 没有更多 -->
+    <view class="cat-loadmore" wx:if="{{isLoadingMore}}">
+      <shared-loading message="加载更多..." variant="inline"></shared-loading>
     </view>
-
-    <!-- No more -->
-    <view class="no-more" wx:if="{{!hasMore && products.length > 0}}">
-      <text>没有更多了</text>
+    <view class="cat-nomore" wx:elif="{{!hasMore && products.length > 0}}">
+      <text>— 没有更多了 —</text>
     </view>
   </view>
 </view>

@@ -1,42 +1,67 @@
+/*
+ * OD v2 visual — surface 卡片 + shadow-sm + state 色标
+ * posture 6 state-only-not-brand:状态色只用于状态标签,不入品牌叙事
+ */
+
 .order-item-row {
-  background: var(--color-surface, #fff);
-  border-radius: var(--radius-lg, 8px);
-  margin: var(--space-12, 12px);
-  padding: var(--space-12, 12px);
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 14px);
+  margin: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 10rpx #231814;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.order-item-row:active {
+  transform: scale(0.99);
+  box-shadow: 0 1rpx 4rpx #231814;
 }
 
 .order-item-row__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: var(--space-8, 8px);
-  border-bottom: 1rpx solid var(--color-divider, #F0F1F5);
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid var(--border, #e6e0dd);
 }
 
 .order-item-row__id {
+  font-family: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
   font-size: 24rpx;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--muted, #6b615d);
+  letter-spacing: 0.2rpx;
 }
 
 .order-item-row__status {
-  font-size: 26rpx;
-  font-weight: 500;
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 4rpx 16rpx;
+  border-radius: var(--radius-pill, 9999px);
+  letter-spacing: 0.4rpx;
 }
 
-.status--PENDING { color: var(--color-warning, #F59E0B); }
-.status--PAID    { color: var(--color-info, #3B82F6); }
-.status--SHIPPED { color: var(--color-secondary, #4ECDC4); }
-.status--COMPLETED { color: var(--color-success, #10B981); }
-.status--CANCELLED { color: var(--color-text-muted, #B4B8BC); }
+/* 状态色标:soft 背景 + 强色文字,符合 OD posture 6(state-only) */
+.status--PENDING   { color: var(--warning, #df911a);  background: var(--warning-soft, #ffe9cb); }
+.status--PAID      { color: var(--info, #1988a3);    background: var(--info-soft, #d2f5ff); }
+.status--SHIPPED   { color: var(--accent-strong, #b83300); background: var(--accent-soft, #ffe7d9); }
+.status--COMPLETED { color: var(--success, #318f5a); background: var(--success-soft, #d5f9e0); }
+.status--CANCELLED { color: var(--soft, #a59c99);    background: var(--bg, #fffbf8); }
+.status--REFUNDING { color: var(--error, #b9003d);    background: var(--error-soft, #ffe2e4); }
+.status--REFUNDED  { color: var(--accent-deep, #64230d); background: var(--bg, #fffbf8); }
+
+.order-item-row__body {
+  padding: 12rpx 0;
+}
 
 .order-item-row__line {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-8, 8px) 0;
+  padding: 8rpx 0;
   font-size: 26rpx;
-  color: var(--color-text, #2D3436);
+  color: var(--fg, #231814);
+  font-family: var(--font-body, -apple-system, sans-serif);
 }
 
 .order-item-row__name {
@@ -44,32 +69,58 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: var(--space-8, 8px);
+  margin-right: 16rpx;
+  color: var(--fg, #231814);
+}
+
+.order-item-row__qty {
+  color: var(--soft, #a59c99);
+  font-family: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  margin: 0 16rpx;
+}
+
+.order-item-row__price {
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+  color: var(--fg, #231814);
+  font-weight: 500;
 }
 
 .order-item-row__foot {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: var(--space-8, 8px);
-  border-top: 1rpx solid var(--color-divider, #F0F1F5);
-  margin-top: var(--space-8, 8px);
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border, #e6e0dd);
+  margin-top: 12rpx;
 }
 
 .order-item-row__total {
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
   font-size: 30rpx;
   font-weight: 600;
-  color: var(--color-price, #FF6B6B);
+  color: var(--accent, #db633c);
+  letter-spacing: 0.4rpx;
+}
+
+.order-item-row__total::before {
+  content: '合计 ¥';
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-size: 24rpx;
+  color: var(--muted, #6b615d);
+  font-weight: 400;
+  margin-right: 4rpx;
 }
 
 .order-item-row__cancel {
   background: transparent;
-  color: var(--color-text-secondary, #6b7280);
-  border: 1rpx solid var(--color-border, #E5E7EB);
-  border-radius: var(--radius-md, 6px);
+  color: var(--muted, #6b615d);
+  border: 1rpx solid var(--border-strong, #d5cbc8);
+  border-radius: var(--radius-pill, 9999px);
   font-size: 24rpx;
-  padding: 8rpx 20rpx;
+  padding: 8rpx 24rpx;
   line-height: 1.4;
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-weight: 500;
 }
 
 .order-item-row__cancel::after {
