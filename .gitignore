@@ -53,9 +53,11 @@ mongodb_data/
 *.bak
 .worktrees/
 
-# Local archive of archived code (see archive/backend-multi-module-2026-06/)
+# Local archive of archived code at repo root only (see archive/backend-multi-module-2026-06/).
 # Not for commit — git history already preserves the old sources.
-archive/
+# Leading slash scopes this to the repo root so `openspec/changes/archive/`
+# (used by the OpenSpec `archive` command) can still be tracked.
+/archive/
 
 # Superseded vertical-slice experiment (frozen at c44b39b, replaced by backend/)
 backend-v2/
