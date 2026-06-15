@@ -6,6 +6,8 @@ import { AxiosError } from 'axios';
 interface LoginError extends Error {
   code?: string;
   fieldErrors?: Record<string, string>;
+  /** sprint-1-closure 8.2/8.3 修复: 透传 HTTP 状态码,让 LoginPage 区分 401/423/429 */
+  status?: number;
 }
 
 function toLoginError(err: unknown): LoginError {
@@ -14,6 +16,7 @@ function toLoginError(err: unknown): LoginError {
     const wrapped: LoginError = new Error(apiError?.message ?? '登录失败,请稍后重试');
     wrapped.code = apiError?.code;
     wrapped.fieldErrors = apiError?.fieldErrors;
+    wrapped.status = err.response?.status;
     return wrapped;
   }
   if (err instanceof Error) {

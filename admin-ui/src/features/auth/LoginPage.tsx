@@ -10,8 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AxiosError } from 'axios';
-import type { ApiError } from '@/types/api';
 
 const loginSchema = z.object({
   username: z.string().min(1, '请输入用户名'),
@@ -111,28 +109,29 @@ export function LoginPage() {
       clearLockout();
       navigate(from, { replace: true });
     } catch (err) {
-      // sprint-1-closure 8.3 — 423 / 429 → 锁定 + 倒计时
-      if (err instanceof AxiosError) {
-        const status = err.response?.status;
-        const body = err.response?.data as ApiError | undefined;
-        const code = body?.code;
-        if (status === 429 || code === 'AUTH_LOCKED') {
-          // IP 锁:15 分钟倒计时
-          const until = Date.now() + 15 * 60 * 1000;
-          const next: LockoutState = { until, scope: 'IP' };
-          setLockout(next);
-          writeLockout(next);
-          setError('root.serverError', { message: '登录尝试次数过多,请 15 分钟后再试' });
-          return;
-        }
-        if (status === 423 || code === 'ACCOUNT_LOCKED') {
-          const until = Date.now() + 15 * 60 * 1000;
-          const next: LockoutState = { until, scope: 'ACCOUNT' };
-          setLockout(next);
-          writeLockout(next);
-          setError('root.serverError', { message: '账户已被锁定,请 15 分钟后再试' });
-          return;
-        }
+      // sprint-1-closure 8.2 / 8.3 — 423 / 429 → 锁定 + 倒计时
+      // useLogin 包装错误时会透传 status/code,这里用宽松的 duck-typing 兼容
+      // (useLogin 抛出 LoginError 仍可能含 status;非 AxiosError 路径下不影响)
+      const status =
+        (err as { status?: number; response?: { status?: number } })?.status ??
+        (err as { response?: { status?: number } })?.response?.status;
+      const code = (err as { code?: string })?.code;
+      if (status === 429 || code === 'AUTH_LOCKED') {
+        // IP 锁:15 分钟倒计时
+        const until = Date.now() + 15 * 60 * 1000;
+        const next: LockoutState = { until, scope: 'IP' };
+        setLockout(next);
+        writeLockout(next);
+        setError('root.serverError', { message: '登录尝试次数过多,请 15 分钟后再试' });
+        return;
+      }
+      if (status === 423 || code === 'ACCOUNT_LOCKED') {
+        const until = Date.now() + 15 * 60 * 1000;
+        const next: LockoutState = { until, scope: 'ACCOUNT' };
+        setLockout(next);
+        writeLockout(next);
+        setError('root.serverError', { message: '账户已被锁定,请 15 分钟后再试' });
+        return;
       }
       const message = err instanceof Error ? err.message : '登录失败';
       setError('root.serverError', { message });
