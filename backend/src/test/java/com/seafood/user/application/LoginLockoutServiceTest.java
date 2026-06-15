@@ -92,6 +92,8 @@ class LoginLockoutServiceTest {
 
     @Test
     void getLockoutState_returnsIp_whenIpIsLocked() {
+        when(repo.countByIpAndSuccessAndTsAfter(eq("1.2.3.4"), eq(false), any()))
+                .thenReturn(3L);
         when(repo.findByIpAndTsAfterOrderByTsDesc(eq("1.2.3.4"), any()))
                 .thenReturn(List.of(
                         attemptAt(Instant.now().minusSeconds(60)),
@@ -109,6 +111,8 @@ class LoginLockoutServiceTest {
     void getLockoutState_returnsAccount_whenAccountIsLockedButIpIsNot() {
         when(repo.countByIpAndSuccessAndTsAfter(eq("1.2.3.4"), eq(false), any()))
                 .thenReturn(1L);  // IP 未锁
+        when(repo.countByAccountAndSuccessAndTsAfter(eq("admin"), eq(false), any()))
+                .thenReturn(3L);  // Account 锁
         when(repo.findByAccountAndTsAfterOrderByTsDesc(eq("admin"), any()))
                 .thenReturn(List.of(
                         attemptAt(Instant.now().minusSeconds(60)),
