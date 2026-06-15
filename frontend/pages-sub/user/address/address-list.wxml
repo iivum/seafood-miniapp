@@ -1,38 +1,84 @@
+<!--
+  路线图 3.15 — mp-07 「地址管理」OD v2 视觉重写。
+  列表 + 默认徽章 + 编辑/删除;选择模式(订单确认页跳过来,顶部"选择地址"标题 + radio 选中)。
+  tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+-->
 <view class="address-list-container">
-  <!-- 地址列表 -->
-  <view class="address-list">
-    <view class="address-item card" wx:for="{{addresses}}" wx:key="id" bindtap="selectAddress" data-address="{{item}}">
-      <view class="address-header">
-        <text class="name">{{item.name}}</text>
-        <text class="phone">{{item.phone}}</text>
-        <text class="default-tag" wx:if="{{item.isDefault}}">默认</text>
+  <!-- 顶部选择模式标题 -->
+  <view class="select-title" wx:if="{{selectMode}}">
+    <text class="select-title__text">选择收货地址</text>
+  </view>
+
+  <view class="address-list" wx:if="{{addresses.length > 0}}">
+    <view
+      class="address-card {{selectMode && selectedId === item.id ? 'is-selected' : ''}}"
+      wx:for="{{addresses}}"
+      wx:key="id"
+    >
+      <!-- 选择模式:radio 选中 + 整卡 tap 触发 onSelectAddress -->
+      <view
+        class="address-card__body"
+        bindtap="onSelectAddress"
+        data-address="{{item}}"
+        data-id="{{item.id}}"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <view class="address-card__head">
+          <text class="address-card__name">{{item.name}}</text>
+          <text class="address-card__phone">{{item.phone}}</text>
+          <text class="address-card__default" wx:if="{{item.isDefault}}">默认</text>
+        </view>
+        <text class="address-card__detail">
+          {{item.province}}{{item.city}}{{item.district}}{{item.detailAddress}}
+        </text>
       </view>
-      <view class="address-content">
-        <text class="address-text">{{item.province}}{{item.city}}{{item.district}}{{item.detailAddress}}</text>
-      </view>
-      <view class="address-actions">
-        <view class="action-item" bindtap="editAddress" data-address="{{item}}">
-          <icon type="edit" size="16"></icon>
+      <view class="address-card__actions">
+        <view
+          class="address-card__action"
+          bindtap="onEditAddress"
+          data-address="{{item}}"
+          hover-class="is-clicked"
+          hover-stay-time="100"
+        >
+          <text class="address-card__action-icon">✏️</text>
           <text>编辑</text>
         </view>
-        <view class="action-item" bindtap="deleteAddress" data-address="{{item}}">
-          <icon type="delete" size="16"></icon>
+        <view
+          class="address-card__action address-card__action--danger"
+          bindtap="onDeleteAddress"
+          data-id="{{item.id}}"
+          hover-class="is-clicked"
+          hover-stay-time="100"
+        >
+          <text class="address-card__action-icon">🗑️</text>
           <text>删除</text>
         </view>
+      </view>
+      <!-- 选择模式:radio 圆圈 -->
+      <view wx:if="{{selectMode}}" class="address-card__radio {{selectedId === item.id ? 'is-checked' : ''}}">
+        <text wx:if="{{selectedId === item.id}}" class="address-card__radio-check">✓</text>
       </view>
     </view>
   </view>
 
   <!-- 空状态 -->
   <view class="empty-state" wx:if="{{addresses.length === 0}}">
-    <icon type="location" size="64"></icon>
-    <text class="empty-text">还没有收货地址哦</text>
-    <text class="empty-subtext">添加收货地址，方便下单收货</text>
+    <text class="empty-state__icon">📭</text>
+    <text class="empty-state__title">还没有收货地址哦</text>
+    <text class="empty-state__sub">添加收货地址,方便下单收货</text>
   </view>
 
-  <!-- 添加地址按钮 -->
-  <view class="add-address-btn" bindtap="addNewAddress">
-    <icon type="add" size="24"></icon>
-    <text>添加新地址</text>
+  <!-- 底部添加按钮(sticky) -->
+  <view class="add-bar safe-area-bottom-fixed">
+    <view
+      class="add-btn"
+      bindtap="onAddNewAddress"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="add-btn__icon">+</text>
+      <text>添加新地址</text>
+    </view>
   </view>
 </view>

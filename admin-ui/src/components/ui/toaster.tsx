@@ -29,10 +29,10 @@ export const useToastStore = create<ToastStore>((set) => ({
 }));
 
 const variantClasses: Record<ToastVariant, string> = {
-  default: 'border-app-border bg-app-surface text-app-text',
-  success: 'border-success/30 bg-success/10 text-success',
-  error: 'border-feedback-error/30 bg-feedback-error/10 text-feedback-error',
-  warning: 'border-warning/30 bg-warning/10 text-warning',
+  default: 'border-border bg-surface text-fg',
+  success: 'border-success/30 bg-success-soft text-success',
+  error: 'border-error/30 bg-error-soft text-error',
+  warning: 'border-warning/30 bg-warning-soft text-warning',
 };
 
 /** Convenience hook for components — `toast.success(msg)`, `toast.error(msg)`. */
@@ -60,7 +60,7 @@ export function Toaster() {
           type="button"
           onClick={() => dismiss(t.id)}
           className={cn(
-            'rounded-md border px-4 py-2 text-left text-body shadow-md transition-colors',
+            'rounded-md border px-4 py-2 text-left text-base shadow-md transition-colors',
             variantClasses[t.variant],
           )}
         >

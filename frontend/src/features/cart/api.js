@@ -2,7 +2,7 @@
  * Runtime shim for features/cart/api.ts — see request.js for the
  * pattern. The WeChat mini-program runtime loads `.js` files.
  */
-const { get, post, put, del, patch } = require('../shared/api/request');
+const { get, post, put, del, patch } = require('../../shared/api/request');
 
 const CartAPI = {
   get() {

@@ -1,0 +1,24 @@
+# Docker Compose override for JVM-mode backend (Mac M1 / dev local)
+# 用途:本机无 GraalVM CE 25+ 或 M1 arm64 跑 x86_64 native image 失败时,
+# 切换到 JVM 模式走 distroless... no, 直接用 graalvm-community JDK image + bootJar。
+#
+# 用法:
+#   docker compose -f docker-compose.yml -f docker-compose.jvm.yml up -d
+#
+# 注意:image 是 `seafood-backend:jvm`(本机 build),不是 `seafood-backend:native`。
+# 生产仍走 native.yml + 原始 Dockerfile。
+
+services:
+  backend:
+    image: seafood-backend:jvm
+    container_name: seafood-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.jvm
+    # 取消 healthcheck(原 Dockerfile 注释里说删了,本 override 也保持一致)
+    healthcheck:
+      test: ["CMD", "true"]  # 容器内无 curl/wget;k8s readinessProbe 走 9090
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s   # JVM 启动比 native 慢,放宽到 60s

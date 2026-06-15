@@ -1,116 +1,119 @@
+<!--
+  路线图 2.1 — mp-01 首页 OD v2 视觉重写。
+  5 分类 chips(chip pill 风格 + accent active) + 顶部 banner(swiper indicator 蓝调) +
+  「今日推荐」瀑布(2 列 grid,ProductCard OD 1.9 组件)+ 加载/错误/空状态。
+  tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+-->
 <view class="home-container">
-  <!-- 搜索栏 - 适配异形屏 -->
-  <view class="search-bar safe-area-top">
-    <view class="search-input">
-      <icon type="search" size="14"></icon>
-      <input
-        placeholder="搜索你心仪的海鲜"
-        value="{{searchKeyword}}"
-        bindinput="onSearchInput"
-        bindconfirm="onSearch"
-        confirm-type="search"
-        focus="{{searchFocused}}"
-      />
-      <icon wx:if="{{searchKeyword}}" type="clear" size="14" bindtap="onClearSearch"></icon>
-    </view>
-  </view>
-
-  <!-- 搜索结果提示 -->
-  <view class="search-tip" wx:if="{{searchKeyword}}">
-    <text>搜索: {{searchKeyword}}</text>
-    <text class="clear-search" bindtap="onClearSearch">清除</text>
-  </view>
-
-  <!-- 热门搜索词 -->
-  <view class="hot-search-section" wx:if="{{showHotSearch && !searchKeyword}}">
-    <view class="hot-search-header">
-      <text class="hot-search-title">🔥 热门搜索</text>
-    </view>
-    <view class="hot-search-list">
-      <navigator
-        class="hot-search-item"
-        wx:for="{{hotSearchKeywords}}"
-        wx:key="index"
-        url="/pages/search/search?keyword={{item.keyword}}"
-        open-type="navigate"
-      >
-        <text>{{item.keyword}}</text>
-      </navigator>
-    </view>
-  </view>
-
-  <!-- 轮播图 - 使用emoji替代缺失的图片 -->
-  <swiper class="banner" indicator-dots="true" autoplay="true" interval="3000" duration="500">
-    <swiper-item>
-      <view class="banner-placeholder">
-        <text class="banner-emoji">🦐</text>
-        <text class="banner-text">新鲜虾蟹 限时优惠</text>
-      </view>
-    </swiper-item>
-    <swiper-item>
-      <view class="banner-placeholder">
-        <text class="banner-emoji">🦞</text>
-        <text class="banner-text">鲜活龙虾 产地直发</text>
+  <!-- Banner 轮播(蓝调 indicator) -->
+  <swiper
+    class="home-banner"
+    indicator-dots="true"
+    indicator-color="rgba(200, 195, 190, 0.4)"
+    indicator-active-color="var(--accent, #db633c)"
+    autoplay="true"
+    interval="3500"
+    duration="500"
+    circular="true"
+  >
+    <swiper-item wx:for="{{banners}}" wx:key="id" bindtap="onBannerTap" data-banner-id="{{item.id}}">
+      <view class="home-banner__item home-banner__item--{{item.tone}}">
+        <text class="home-banner__emoji">{{item.emoji}}</text>
+        <view class="home-banner__copy">
+          <text class="home-banner__title">{{item.title}}</text>
+          <text class="home-banner__subtitle">{{item.subtitle}}</text>
+        </view>
       </view>
     </swiper-item>
   </swiper>
 
-  <!-- 分类入口 -->
-  <view class="category-nav safe-area-bottom-fixed">
-    <view class="nav-item" wx:for="{{categories}}" wx:key="id" bindtap="onCategoryTap" data-category="{{item.id}}">
-      <view class="category-icon-wrapper">
-        <text class="category-icon">{{item.icon}}</text>
-      </view>
-      <text>{{item.name}}</text>
+  <!-- 5 分类 chips(横向 scroll,active 状态 accent) -->
+  <scroll-view scroll-x="true" class="home-chips" enhanced="true" show-scrollbar="{{false}}">
+    <view
+      wx:for="{{categories}}"
+      wx:key="id"
+      class="home-chip {{activeCategory === item.id ? 'home-chip--active' : ''}}"
+      bindtap="onCategoryTap"
+      data-category="{{item.id}}"
+    >
+      <text class="home-chip__emoji">{{item.icon}}</text>
+      <text class="home-chip__label">{{item.name}}</text>
     </view>
+  </scroll-view>
+
+  <!-- 今日推荐 section header(衬线 display) -->
+  <view class="home-section-header">
+    <text class="home-section-title">今日推荐</text>
+    <text class="home-section-subtitle">每日 10 款 · 限时优惠</text>
   </view>
 
-  <!-- 今日推荐 -->
-  <view class="section-title">今日推荐</view>
-
-  <!-- 加载中状态 -->
-  <view class="loading-state" wx:if="{{isLoading && products.length === 0}}">
-    <text>加载中...</text>
+  <!-- 加载中(首屏,无 products) -->
+  <view class="home-state" wx:if="{{isLoading && products.length === 0}}">
+    <shared-loading message="加载中..."></shared-loading>
   </view>
 
   <!-- 错误状态 -->
-  <view class="error-state" wx:elif="{{isError}}">
-    <text class="error-text">{{errorMessage}}</text>
-    <view class="retry-btn" bindtap="onRetry">重新加载</view>
+  <view class="home-state" wx:elif="{{isError}}">
+    <shared-empty
+      icon="⚠️"
+      message="{{errorMessage || '加载失败'}}"
+      retry-text="重新加载"
+      bind:retry="onRetry"
+    ></shared-empty>
   </view>
 
-  <!-- 空状态 -->
-  <view class="empty-state" wx:elif="{{isEmpty}}">
-    <text class="empty-text">{{emptyMessage}}</text>
-    <view class="retry-btn" bindtap="onRetry">重新加载</view>
+  <!-- 空状态(过滤后无产品) -->
+  <view class="home-state" wx:elif="{{isEmpty}}">
+    <shared-empty
+      icon="🦐"
+      message="该分类暂无商品"
+      retry-text="查看全部"
+      bind:retry="onClearFilter"
+    ></shared-empty>
   </view>
 
-  <!-- 商品列表 -->
-  <view class="product-list" wx:else>
-    <view class="product-item" wx:for="{{products}}" wx:key="id">
-      <navigator class="product-navigator" url="/pages/detail/detail?id={{item.id}}" open-type="navigate">
-        <image class="product-img" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
-        <view class="product-info">
-          <view class="product-name">
-            <text wx:if="{{!item.nameHighlighted}}">{{item.name}}</text>
-            <view wx:else class="highlight-wrapper">
-              <text>{{item.nameBefore}}</text><text class="highlight">{{item.nameMatch}}</text><text>{{item.nameAfter}}</text>
+  <!-- 2 列商品 grid(瀑布) -->
+  <view class="home-grid" wx:else>
+    <view
+      wx:for="{{products}}"
+      wx:key="id"
+      class="home-grid__cell"
+    >
+      <navigator
+        class="home-grid__nav"
+        url="/pages-sub/product/product-detail/product-detail?id={{item.id}}"
+        open-type="navigate"
+      >
+        <image
+          class="home-grid__img"
+          src="{{item.imageUrl}}"
+          mode="aspectFill"
+          lazy-load="true"
+        ></image>
+        <view class="home-grid__body">
+          <text class="home-grid__name">{{item.name}}</text>
+          <view class="home-grid__foot">
+            <text class="home-grid__price">¥ {{item.price}}</text>
+            <view
+              class="home-grid__add"
+              catchtap="addToCart"
+              data-product="{{item}}"
+              hover-class="home-grid__add--hover"
+              hover-stay-time="100"
+            >
+              <text>+</text>
             </view>
           </view>
-          <text class="product-price">￥{{item.price}}</text>
         </view>
       </navigator>
-      <view class="add-cart-btn" catchtap="addToCart" data-product="{{item}}">加入购物车</view>
     </view>
   </view>
 
-  <!-- 加载更多状态 -->
-  <view class="loading-more" wx:if="{{isLoadingMore}}">
-    <text>加载更多...</text>
+  <!-- 加载更多 -->
+  <view class="home-loadmore" wx:if="{{isLoadingMore}}">
+    <shared-loading message="加载更多..." variant="inline"></shared-loading>
   </view>
-
-  <!-- 没有更多数据 -->
-  <view class="no-more" wx:if="{{!hasMore && products.length > 0}}">
-    <text>没有更多了</text>
+  <view class="home-nomore" wx:elif="{{!hasMore && products.length > 0}}">
+    <text>— 没有更多了 —</text>
   </view>
 </view>

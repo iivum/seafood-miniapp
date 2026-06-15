@@ -39,10 +39,47 @@ describe('DashboardPage', () => {
           totalQuantitySold: 30,
         },
       ],
+      // 路线图 2.17 / 2.18 / 2.21 新增字段:
+      trend7d: [
+        { date: '2026-06-07', count: 3 },
+        { date: '2026-06-08', count: 5 },
+        { date: '2026-06-09', count: 2 },
+        { date: '2026-06-10', count: 8 },
+        { date: '2026-06-11', count: 4 },
+        { date: '2026-06-12', count: 6 },
+        { date: '2026-06-13', count: 5 },
+      ],
+      lowStock: [
+        {
+          id: 'p-low-1',
+          name: '扇贝',
+          description: '',
+          price: '38.00',
+          stock: 3,
+          category: '贝类',
+          imageUrl: '',
+          status: 'ACTIVE',
+          createdAt: '',
+          updatedAt: '',
+        },
+      ],
+      recentOrders: [
+        {
+          id: 'o-recent-1',
+          userId: 'u1',
+          items: [{ productId: 'p-1', productName: '大龙虾', unitPrice: '199.00', quantity: 2 }],
+          totalAmount: '398.00',
+          status: 'PAID',
+          cancelReason: null,
+          createdAt: '2026-06-13T10:00:00Z',
+          updatedAt: '2026-06-13T10:00:00Z',
+        },
+      ],
     });
     renderWithProviders(<DashboardPage />, { authenticated: true });
     await waitFor(() => {
-      expect(screen.getByText('大龙虾')).toBeInTheDocument();
+      // 2.21 近期订单 + 销量 Top 10 都会渲染「大龙虾」,用 getAllByText 兜住
+      expect(screen.getAllByText('大龙虾').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('5')).toBeInTheDocument(); // today orders
     expect(screen.getByText('45')).toBeInTheDocument(); // onSale
@@ -60,6 +97,9 @@ describe('DashboardPage', () => {
       orderStats: { today: 0, week: 0, month: 0 },
       productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
       topProducts: [],
+      trend7d: [],
+      lowStock: [],
+      recentOrders: [],
     });
     await user.click(retry);
     await waitFor(() => {

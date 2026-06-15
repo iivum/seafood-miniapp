@@ -1,85 +1,129 @@
+<!--
+  路线图 2.4 — mp-04 购物车 OD v2 视觉重写。
+  商品行(图 + checkbox + 信息 + stepper + 删除 ×)+ 底部结算 bar(已选 N 件 · 合计 ¥xx +
+  结算按钮 pill 风格)。空购物车显示 Empty OD 组件(1.7)。
+  tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+-->
 <view class="cart-container">
+  <!-- 空购物车 -->
   <view class="cart-empty" wx:if="{{cartItems.length === 0}}">
-    <icon type="info" size="64"></icon>
-    <text>您的购物车还是空的哦</text>
-    <navigator class="btn" open-type="switchTab" url="/pages/index/index">去逛逛</navigator>
+    <shared-empty
+      icon="🛒"
+      message="购物车空空如也"
+      retry-text="去逛逛"
+      bind:retry="onGoShopping"
+    ></shared-empty>
   </view>
 
   <view class="cart-content" wx:else>
-    <!-- 收货地址 -->
-    <navigator class="address-section card" open-type="navigate" bindtap="selectAddress">
-      <view class="address-info" wx:if="{{selectedAddress}}">
-        <view class="address-header">
-          <text class="name">{{selectedAddress.name}}</text>
-          <text class="phone">{{selectedAddress.phone}}</text>
+    <!-- 收货地址卡(保持数据流,微调视觉) -->
+    <navigator class="cart-address" open-type="navigate" bindtap="selectAddress">
+      <view class="cart-address__main" wx:if="{{selectedAddress}}">
+        <view class="cart-address__head">
+          <text class="cart-address__name">{{selectedAddress.name}}</text>
+          <text class="cart-address__phone">{{selectedAddress.phone}}</text>
         </view>
-        <view class="address-content">
-          <text class="address-text">{{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detailAddress}}</text>
-        </view>
+        <text class="cart-address__detail">
+          {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detailAddress}}
+        </text>
       </view>
-      <view class="address-empty" wx:else>
-        <icon type="location" size="24"></icon>
-        <text>请选择收货地址</text>
+      <view class="cart-address__empty" wx:else>
+        <text class="cart-address__placeholder">📍 请选择收货地址</text>
       </view>
-      <icon class="arrow-icon" type="arrowright" size="16"></icon>
+      <text class="cart-address__arrow">›</text>
     </navigator>
 
     <!-- 全选栏 -->
-    <view class="select-all-bar">
-      <checkbox-group bindchange="onSelectAll">
-        <label class="select-all">
-          <checkbox value="all" checked="{{selectedItems.length === cartItems.length && cartItems.length > 0}}" />
-          <text>全选</text>
-        </label>
-      </checkbox-group>
-      <view class="selected-info">
-        <text>已选 {{selectedItems.length}} 件</text>
+    <view class="cart-bar">
+      <view class="cart-bar__select-all" bindtap="onSelectAllTap">
+        <view class="cart-checkbox {{isAllSelected ? 'cart-checkbox--checked' : ''}}">
+          <text wx:if="{{isAllSelected}}" class="cart-checkbox__icon">✓</text>
+        </view>
+        <text class="cart-bar__label">全选</text>
+      </view>
+      <text class="cart-bar__count">已选 {{selectedItems.length}} 件</text>
+    </view>
+
+    <!-- 商品列表(checkbox-group 包裹) -->
+    <view class="cart-list">
+      <view
+        wx:for="{{cartItems}}"
+        wx:key="id"
+        class="cart-item"
+      >
+        <view
+          class="cart-item__check"
+          catchtap="onItemCheckTap"
+          data-id="{{item.id}}"
+        >
+          <view class="cart-checkbox {{isItemSelected(item.id) ? 'cart-checkbox--checked' : ''}}">
+            <text wx:if="{{isItemSelected(item.id)}}" class="cart-checkbox__icon">✓</text>
+          </view>
+        </view>
+        <image
+          class="cart-item__img"
+          src="{{item.imageUrl}}"
+          mode="aspectFill"
+          lazy-load="{{true}}"
+        ></image>
+        <view class="cart-item__body">
+          <text class="cart-item__name">{{item.name}}</text>
+          <view class="cart-item__foot">
+            <text class="cart-item__price">¥ {{item.price}}</text>
+            <view class="cart-stepper">
+              <view
+                class="cart-stepper__btn {{item.quantity <= 1 ? 'is-disabled' : ''}}"
+                catchtap="onMinus"
+                data-id="{{item.id}}"
+                hover-class="cart-stepper__btn--hover"
+                hover-stay-time="100"
+              >−</view>
+              <text class="cart-stepper__value">{{item.quantity}}</text>
+              <view
+                class="cart-stepper__btn"
+                catchtap="onPlus"
+                data-id="{{item.id}}"
+                hover-class="cart-stepper__btn--hover"
+                hover-stay-time="100"
+              >+</view>
+            </view>
+          </view>
+        </view>
+        <view
+          class="cart-item__remove"
+          catchtap="onRemove"
+          data-id="{{item.id}}"
+          hover-class="cart-item__remove--hover"
+          hover-stay-time="100"
+        >×</view>
       </view>
     </view>
 
-    <!-- 商品列表 -->
-    <checkbox-group bindchange="onCheckboxChange">
-      <view class="cart-list">
-        <view class="cart-item card" wx:for="{{cartItems}}" wx:key="id">
-          <label class="item-checkbox">
-            <checkbox value="{{item.id}}" />
-          </label>
-          <image class="item-img" src="{{item.imageUrl}}" mode="aspectFill" lazy-load="true"></image>
-          <view class="item-info">
-            <text class="item-name">{{item.name}}</text>
-            <text class="item-price">￥{{item.price}}</text>
-            <view class="quantity-control">
-              <button class="minus" size="mini" catchtap="onMinus" data-id="{{item.id}}">-</button>
-              <input type="number" class="num" value="{{item.quantity}}" data-id="{{item.id}}" bindchange="onQuantityChange" />
-              <button class="plus" size="mini" catchtap="onPlus" data-id="{{item.id}}">+</button>
-            </view>
-          </view>
-          <button class="remove-btn" size="mini" catchtap="onRemove" data-id="{{item.id}}">×</button>
-        </view>
+    <!-- 订单信息(免运费 / 运费) -->
+    <view class="cart-summary">
+      <view class="cart-summary__row">
+        <text class="cart-summary__label">商品合计</text>
+        <text class="cart-summary__value">¥ {{selectedPrice}}</text>
       </view>
-    </checkbox-group>
-
-    <!-- 订单信息 -->
-    <view class="order-info card">
-      <view class="info-item">
-        <text class="label">商品合计</text>
-        <text class="value">￥{{selectedPrice}}</text>
-      </view>
-      <view class="info-item">
-        <text class="label">运费</text>
-        <text class="value">
-          <text wx:if="{{shippingFee === 0}}" class="free">免运费</text>
-          <text wx:else>￥{{shippingFee}}</text>
+      <view class="cart-summary__row">
+        <text class="cart-summary__label">运费</text>
+        <text class="cart-summary__value">
+          <text wx:if="{{shippingFee === 0}}" class="cart-summary__free">免运费</text>
+          <text wx:else>¥ {{shippingFee}}</text>
         </text>
       </view>
     </view>
 
-    <view class="footer">
-      <view class="total-info">
-        <text>合计：</text>
-        <text class="total-price">￥{{totalPrice}}</text>
+    <!-- 底部结算 bar(sticky) -->
+    <view class="cart-footer safe-area-bottom-fixed">
+      <view class="cart-footer__left">
+        <text class="cart-footer__total-label">合计</text>
+        <text class="cart-footer__total-price">¥ {{totalPrice}}</text>
       </view>
-      <button class="checkout-btn" bindtap="onCheckout" disabled="{{selectedItems.length === 0}}">去结算</button>
+      <view
+        class="cart-footer__checkout {{selectedItems.length === 0 ? 'is-disabled' : ''}}"
+        bindtap="onCheckout"
+      >去结算 ({{selectedItems.length}})</view>
     </view>
   </view>
 </view>

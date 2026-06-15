@@ -1,6 +1,5 @@
 package com.seafood.user.api.dto;
 
-import jakarta.validation.constraints.NotBlank;
 
 /** 部分字段可选;null 字段不覆盖原值。{@code isDefault=true} 强制置为默认。 */
 public record UpdateAddressRequest(

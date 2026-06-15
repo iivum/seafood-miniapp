@@ -1,0 +1,694 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`OD v2 视觉契约(7 个组件) features/cart/components/CartItemRow WXML 结构快照: wxml:features/cart/components/CartItemRow 1`] = `
+"<view class="cart-item-row">
+  <view wx:if="{{!readonly}}" class="cart-item-row__check" catchtap="onToggle">
+    <view class="checkbox {{item.selected ? 'checkbox--on' : ''}}"></view>
+  </view>
+  <image class="cart-item-row__image" src="{{item.imageUrl}}" mode="aspectFill" />
+  <view class="cart-item-row__body">
+    <view class="cart-item-row__name">{{item.name || item.productId}}</view>
+    <view class="cart-item-row__price">¥ {{item.price}}</view>
+    <view class="cart-item-row__qty">
+      <view wx:if="{{!readonly}}" class="cart-item-row__btn" catchtap="onMinus">-</view>
+      <text class="cart-item-row__count">{{item.quantity}}</text>
+      <view wx:if="{{!readonly}}" class="cart-item-row__btn" catchtap="onPlus">+</view>
+    </view>
+  </view>
+  <view wx:if="{{!readonly}}" class="cart-item-row__remove" catchtap="onRemove">删除</view>
+</view>"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) features/cart/components/CartItemRow WXSS 视觉快照: wxss:features/cart/components/CartItemRow 1`] = `
+"/*
+ * OD v2 visual — surface 列表行 + accent checkbox-on + 衬线价格
+ * posture 3 价格用 accent;6 state-only 用 state 颜色
+ */
+
+.cart-item-row {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  background: var(--surface, #fff);
+  border-bottom: 1rpx solid var(--border, #e6e0dd);
+  transition: background 0.18s ease;
+}
+
+.cart-item-row__check {
+  margin-right: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  flex-shrink: 0;
+}
+
+.checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid var(--border-strong, #d5cbc8);
+  border-radius: 50%;
+  background: var(--surface, #fff);
+  transition: all 0.18s ease;
+}
+
+.checkbox--on {
+  background: var(--accent, #db633c);
+  border-color: var(--accent, #db633c);
+  box-shadow: 0 2rpx 8rpx #231814;
+}
+
+.cart-item-row__image {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: var(--radius-lg, 10px);
+  background: var(--bg, #fffbf8);
+  margin-right: 16rpx;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.cart-item-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 140rpx;
+  padding: 4rpx 0;
+}
+
+.cart-item-row__name {
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-size: 28rpx;
+  color: var(--fg, #231814);
+  font-weight: 500;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cart-item-row__price {
+  color: var(--accent, #db633c);
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+  font-size: 30rpx;
+  font-weight: 600;
+  letter-spacing: 0.4rpx;
+}
+
+.cart-item-row__price::before {
+  content: '¥';
+  font-size: 22rpx;
+  margin-right: 2rpx;
+  font-weight: 500;
+}
+
+.cart-item-row__qty {
+  display: flex;
+  align-items: center;
+  align-self: flex-end;
+  margin-top: 8rpx;
+}
+
+.cart-item-row__btn {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg, #fffbf8);
+  border-radius: var(--radius-md, 6px);
+  font-size: 32rpx;
+  color: var(--fg, #231814);
+  font-weight: 500;
+  border: 1rpx solid var(--border, #e6e0dd);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.cart-item-row__btn:active {
+  background: var(--accent-soft, #ffe7d9);
+  transform: scale(0.92);
+}
+
+.cart-item-row__count {
+  width: 72rpx;
+  text-align: center;
+  font-family: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  font-size: 28rpx;
+  color: var(--fg, #231814);
+}
+
+.cart-item-row__remove {
+  color: var(--muted, #6b615d);
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-size: 24rpx;
+  margin-left: 16rpx;
+  align-self: flex-start;
+  padding: 8rpx 0;
+}"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) features/order/components/OrderItemRow WXML 结构快照: wxml:features/order/components/OrderItemRow 1`] = `
+"<view class="order-item-row" bindtap="onTap">
+  <view class="order-item-row__head">
+    <text class="order-item-row__id">订单号: {{order.id}}</text>
+    <text class="order-item-row__status status--{{order.status}}">{{order.status}}</text>
+  </view>
+  <view class="order-item-row__body">
+    <block wx:for="{{order.items}}" wx:key="productId" wx:for-item="line">
+      <view class="order-item-row__line">
+        <text class="order-item-row__name">{{line.productName}}</text>
+        <text class="order-item-row__qty">x {{line.quantity}}</text>
+        <text class="order-item-row__price">¥ {{line.unitPrice}}</text>
+      </view>
+    </block>
+  </view>
+  <view class="order-item-row__foot">
+    <text class="order-item-row__total">合计: ¥ {{order.totalAmount}}</text>
+    <button
+      wx:if="{{order.status === 'PENDING'}}"
+      class="order-item-row__cancel"
+      size="mini"
+      catchtap="onCancel"
+    >取消订单</button>
+  </view>
+</view>"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) features/order/components/OrderItemRow WXSS 视觉快照: wxss:features/order/components/OrderItemRow 1`] = `
+"/*
+ * OD v2 visual — surface 卡片 + shadow-sm + state 色标
+ * posture 6 state-only-not-brand:状态色只用于状态标签,不入品牌叙事
+ */
+
+.order-item-row {
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 14px);
+  margin: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 10rpx #231814;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.order-item-row:active {
+  transform: scale(0.99);
+  box-shadow: 0 1rpx 4rpx #231814;
+}
+
+.order-item-row__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid var(--border, #e6e0dd);
+}
+
+.order-item-row__id {
+  font-family: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  font-size: 24rpx;
+  color: var(--muted, #6b615d);
+  letter-spacing: 0.2rpx;
+}
+
+.order-item-row__status {
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 4rpx 16rpx;
+  border-radius: var(--radius-pill, 9999px);
+  letter-spacing: 0.4rpx;
+}
+
+/* 状态色标:soft 背景 + 强色文字,符合 OD posture 6(state-only) */
+.status--PENDING   { color: var(--warning, #df911a);  background: var(--warning-soft, #ffe9cb); }
+.status--PAID      { color: var(--info, #1988a3);    background: var(--info-soft, #d2f5ff); }
+.status--SHIPPED   { color: var(--accent-strong, #b83300); background: var(--accent-soft, #ffe7d9); }
+.status--COMPLETED { color: var(--success, #318f5a); background: var(--success-soft, #d5f9e0); }
+.status--CANCELLED { color: var(--soft, #a59c99);    background: var(--bg, #fffbf8); }
+.status--REFUNDING { color: var(--error, #b9003d);    background: var(--error-soft, #ffe2e4); }
+.status--REFUNDED  { color: var(--accent-deep, #64230d); background: var(--bg, #fffbf8); }
+
+.order-item-row__body {
+  padding: 12rpx 0;
+}
+
+.order-item-row__line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8rpx 0;
+  font-size: 26rpx;
+  color: var(--fg, #231814);
+  font-family: var(--font-body, -apple-system, sans-serif);
+}
+
+.order-item-row__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 16rpx;
+  color: var(--fg, #231814);
+}
+
+.order-item-row__qty {
+  color: var(--soft, #a59c99);
+  font-family: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  margin: 0 16rpx;
+}
+
+.order-item-row__price {
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+  color: var(--fg, #231814);
+  font-weight: 500;
+}
+
+.order-item-row__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border, #e6e0dd);
+  margin-top: 12rpx;
+}
+
+.order-item-row__total {
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--accent, #db633c);
+  letter-spacing: 0.4rpx;
+}
+
+.order-item-row__total::before {
+  content: '合计 ¥';
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-size: 24rpx;
+  color: var(--muted, #6b615d);
+  font-weight: 400;
+  margin-right: 4rpx;
+}
+
+.order-item-row__cancel {
+  background: transparent;
+  color: var(--muted, #6b615d);
+  border: 1rpx solid var(--border-strong, #d5cbc8);
+  border-radius: var(--radius-pill, 9999px);
+  font-size: 24rpx;
+  padding: 8rpx 24rpx;
+  line-height: 1.4;
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-weight: 500;
+}
+
+.order-item-row__cancel::after {
+  border: none;
+}"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) features/product/components/ProductCard WXML 结构快照: wxml:features/product/components/ProductCard 1`] = `
+"<view class="product-card" bindtap="onTap">
+  <image
+    class="product-card__image"
+    src="{{product.imageUrl}}"
+    mode="aspectFill"
+    lazy-load="true"
+  />
+  <view class="product-card__body">
+    <view class="product-card__name">{{product.name}}</view>
+    <view class="product-card__price">¥ {{product.price}}</view>
+    <view class="product-card__stock">库存: {{product.stock}}</view>
+    <button class="product-card__add" size="mini" catchtap="onAdd">加入购物车</button>
+  </view>
+</view>"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) features/product/components/ProductCard WXSS 视觉快照: wxss:features/product/components/ProductCard 1`] = `
+"/*
+ * OD v2 visual — surface 卡片 + shadow-sm 蓝调阴影 + accent 价格
+ * posture 1 实色 accent(价格)/ 2 蓝调阴影 / 3 价格用 ink or accent
+ */
+
+.product-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 14px);
+  padding: 20rpx;
+  margin: 16rpx;
+  box-shadow: 0 2rpx 10rpx #231814;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.product-card:active {
+  transform: scale(0.99);
+  box-shadow: 0 1rpx 4rpx #231814;
+}
+
+.product-card__image {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: var(--radius-lg, 10px);
+  background: var(--bg, #fffbf8);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.product-card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin-left: 20rpx;
+  min-width: 0;
+  justify-content: space-between;
+}
+
+.product-card__name {
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-size: 30rpx;
+  color: var(--fg, #231814);
+  font-weight: 500;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
+.product-card__price {
+  color: var(--accent, #db633c);
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+  font-size: 36rpx;
+  font-weight: 600;
+  margin-top: 8rpx;
+  letter-spacing: 0.4rpx;
+}
+
+.product-card__price::before {
+  content: '¥';
+  font-size: 24rpx;
+  margin-right: 2rpx;
+  font-weight: 500;
+}
+
+.product-card__stock {
+  color: var(--soft, #a59c99);
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-size: 24rpx;
+  margin-top: 4rpx;
+}
+
+.product-card__add {
+  align-self: flex-end;
+  background: var(--accent, #db633c);
+  color: var(--surface, #fff);
+  font-size: 24rpx;
+  border-radius: var(--radius-pill, 9999px);
+  padding: 10rpx 24rpx;
+  margin-top: 12rpx;
+  line-height: 1.3;
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-weight: 600;
+  box-shadow: 0 4rpx 14rpx #231814;
+}
+
+.product-card__add::after {
+  border: none;
+}"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) features/product/components/ProductList WXML 结构快照: wxml:features/product/components/ProductList 1`] = `
+"<view class="product-list">
+  <shared-loading visible="{{loading}}" message="加载中..." />
+  <shared-empty
+    wx:if="{{!loading && !error && products.length === 0}}"
+    message="暂无商品"
+  />
+  <shared-empty
+    wx:if="{{error}}"
+    message="{{error}}"
+    retryable="{{true}}"
+    bind:retry="onRetry"
+  />
+  <block wx:for="{{products}}" wx:key="id">
+    <product-card
+      product="{{item}}"
+      bind:tap="onProductTap"
+      bind:add="onAddToCart"
+    />
+  </block>
+</view>"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) features/product/components/ProductList WXSS 视觉快照: wxss:features/product/components/ProductList 1`] = `
+"/*
+ * OD v2 visual — list 容器;子节点(ProductCard / Empty / Loading)负责自身视觉
+ * 保持单纯容器角色,只加 section 间距 + 背景
+ */
+
+.product-list {
+  width: 100%;
+  min-height: 100%;
+  background: var(--bg, #fffbf8);
+  padding-bottom: 32rpx;
+}"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) shared/components/Button WXML 结构快照: wxml:shared/components/Button 1`] = `
+"<button
+  class="btn-shared btn-shared--{{type}} {{disabled ? 'is-disabled' : ''}} {{loading ? 'is-loading' : ''}}"
+  bindtap="onTap"
+  disabled="{{disabled || loading}}"
+>
+  <text wx:if="{{loading}}" class="btn-shared__spinner"></text>
+  <slot />
+</button>"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) shared/components/Button WXSS 视觉快照: wxss:shared/components/Button 1`] = `
+"/*
+ * OD v2 visual — accent 实色 + pill + 蓝调阴影
+ * tokens 来源:frontend/src/shared/tokens/tokens.wxss(由 docs/redesign/tokens.json 派生)
+ * 替换 v1 的 --color-primary/--radius-lg,沿用 OD posture 1 / 2
+ *   - primary-action-solid:实色 accent(非 135° 渐变)
+ *   - shadow-blue-neutral:蓝调阴影(非红调)
+ *   - radius-pill:pill 圆角,无边框态
+ */
+
+.btn-shared {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-pill, 9999px);
+  padding: 20rpx 36rpx;
+  font-size: 30rpx;
+  line-height: 1.4;
+  background: var(--accent, #db633c);
+  color: var(--surface, #fff);
+  margin: 0;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-weight: 600;
+  letter-spacing: 0.2rpx;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.btn-shared:active {
+  transform: scale(0.97);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-shared--secondary {
+  background: var(--surface, #fff);
+  color: var(--fg, #231814);
+  box-shadow: inset 0 0 0 2rpx var(--border-strong, #d5cbc8);
+}
+
+.btn-shared--secondary:active {
+  background: var(--bg, #fffbf8);
+}
+
+.btn-shared--ghost {
+  background: transparent;
+  color: var(--accent-strong, #b83300);
+  box-shadow: none;
+  padding: 20rpx 28rpx;
+}
+
+.btn-shared--ghost:active {
+  background: var(--accent-soft, #ffe7d9);
+}
+
+.btn-shared.is-disabled {
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+.btn-shared__spinner {
+  display: inline-block;
+  width: 24rpx;
+  height: 24rpx;
+  border: 3rpx solid #ffffff;
+  border-top-color: var(--surface, #fff);
+  border-radius: 50%;
+  margin-right: 8rpx;
+  animation: btn-shared-spin 0.8s linear infinite;
+}
+
+.btn-shared--secondary .btn-shared__spinner,
+.btn-shared--ghost .btn-shared__spinner {
+  border-color: var(--border-strong, #d5cbc8);
+  border-top-color: var(--accent, #db633c);
+}
+
+@keyframes btn-shared-spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn-shared::after {
+  border: none;
+}"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) shared/components/Empty WXML 结构快照: wxml:shared/components/Empty 1`] = `
+"<!-- shared/components/Empty/index.wxml -->
+<view class="empty">
+  <view class="empty__icon">📭</view>
+  <view class="empty__message">{{message}}</view>
+  <button
+    wx:if="{{retryable}}"
+    class="empty__retry btn"
+    bindtap="onRetry"
+  >重试</button>
+</view>"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) shared/components/Empty WXSS 视觉快照: wxss:shared/components/Empty 1`] = `
+"/*
+ * OD v2 visual — 衬线 display + accent-soft 描边图标
+ * posture 4:serif-fresh-not-trendy(Fraunces 数字 + 英文 + 常用汉字子集)
+ */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64rpx 32rpx;
+  color: var(--muted, #6b615d);
+  text-align: center;
+  background: transparent;
+}
+
+.empty__icon {
+  width: 120rpx;
+  height: 120rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 72rpx;
+  line-height: 1;
+  margin-bottom: 24rpx;
+  background: var(--accent-soft, #ffe7d9);
+  color: var(--accent-strong, #b83300);
+  border-radius: var(--radius-pill, 9999px);
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+}
+
+.empty__message {
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+  font-size: 32rpx;
+  line-height: 1.4;
+  font-weight: 400;
+  letter-spacing: 0.4rpx;
+  color: var(--fg, #231814);
+  margin-bottom: 32rpx;
+}
+
+.empty__retry {
+  background: var(--accent, #db633c);
+  color: var(--surface, #fff);
+  border-radius: var(--radius-pill, 9999px);
+  padding: 16rpx 48rpx;
+  font-size: 28rpx;
+  border: none;
+  line-height: 1.4;
+  font-family: var(--font-body, -apple-system, sans-serif);
+  font-weight: 600;
+  box-shadow: 0 6rpx 20rpx #231814;
+}
+
+.empty__retry::after {
+  border: none;
+}"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) shared/components/Loading WXML 结构快照: wxml:shared/components/Loading 1`] = `
+"<view wx:if="{{visible}}" class="loading">
+  <view class="loading__spinner"></view>
+  <view class="loading__message">{{message}}</view>
+</view>"
+`;
+
+exports[`OD v2 视觉契约(7 个组件) shared/components/Loading WXSS 视觉快照: wxss:shared/components/Loading 1`] = `
+"/*
+ * OD v2 visual — accent 双环 spinner + 衬线小字
+ * posture 4:衬线 message 区分系统/应用文案
+ */
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64rpx 0;
+  color: var(--muted, #6b615d);
+}
+
+.loading__spinner {
+  position: relative;
+  width: 56rpx;
+  height: 56rpx;
+  margin-bottom: 20rpx;
+}
+
+.loading__spinner::before,
+.loading__spinner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4rpx solid transparent;
+}
+
+.loading__spinner::before {
+  border-top-color: var(--accent, #db633c);
+  border-right-color: var(--accent-soft, #ffe7d9);
+  animation: loading-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+}
+
+.loading__spinner::after {
+  border-bottom-color: var(--accent-soft, #ffe7d9);
+  border-left-color: var(--accent-strong, #b83300);
+  animation: loading-spin 1.4s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite reverse;
+  opacity: 0.55;
+}
+
+.loading__message {
+  font-family: var(--font-display, "Source Serif Pro", Georgia, serif);
+  font-size: 26rpx;
+  color: var(--muted, #6b615d);
+  letter-spacing: 0.4rpx;
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}"
+`;

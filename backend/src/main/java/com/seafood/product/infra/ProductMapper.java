@@ -22,6 +22,7 @@ public final class ProductMapper {
                 ProductCategory.of(d.getCategory()),
                 d.getImageUrl(),
                 d.getStatus(),
+                d.getSkus(),
                 d.getCreatedAt(),
                 d.getUpdatedAt());
     }
@@ -36,6 +37,7 @@ public final class ProductMapper {
         d.setCategory(p.category().displayName());
         d.setImageUrl(p.imageUrl());
         d.setStatus(p.status());
+        d.setSkus(p.skus() == null ? java.util.List.of() : p.skus());
         d.setOnSale(p.status() == ProductStatus.ACTIVE);
         d.setCreatedAt(p.createdAt() == null ? Instant.now() : p.createdAt());
         d.setUpdatedAt(p.updatedAt() == null ? Instant.now() : p.updatedAt());

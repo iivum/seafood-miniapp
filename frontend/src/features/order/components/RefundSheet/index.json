@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "shared-button": "/shared/components/Button/index"
+  }
+}

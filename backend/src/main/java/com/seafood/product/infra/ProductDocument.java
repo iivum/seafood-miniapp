@@ -1,6 +1,7 @@
 package com.seafood.product.infra;
 
 import com.seafood.product.domain.ProductStatus;
+import com.seafood.product.domain.Sku;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -8,6 +9,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * products collection(参见 design.md §6.1)。
@@ -38,6 +40,13 @@ public class ProductDocument {
 
     @Field("status")
     private ProductStatus status;
+
+    /**
+     * SKU 列表(3.7 新增,nullable,空 list 等价"只用默认 SKU")。
+     * MongoDB 缺省不写字段,旧数据反序列化为 null(由 Product 紧凑构造器兜底转空 list)。
+     * 单 SKU ≤ 200B,默认 50 个 SKU 上限远低于 Mongo doc 16MB 限制。
+     */
+    private List<Sku> skus;
 
     @Indexed(direction = org.springframework.data.mongodb.core.index.IndexDirection.DESCENDING)
     private Instant createdAt;
@@ -70,6 +79,9 @@ public class ProductDocument {
 
     public ProductStatus getStatus() { return status; }
     public void setStatus(ProductStatus status) { this.status = status; }
+
+    public List<Sku> getSkus() { return skus; }
+    public void setSkus(List<Sku> skus) { this.skus = skus; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

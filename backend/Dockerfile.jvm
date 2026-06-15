@@ -1,0 +1,21 @@
+# =============================================================
+# JVM-mode Dockerfile (2026-06-14 引入,本机 M1 arm64 / colima 兼容)
+# -------------------------------------------------------------
+# 原 Dockerfile 是 GraalVM native binary packager,需要 ubuntu x86_64 + 联网下载。
+# 本 Dockerfile.jvm 接受外部预编的 fat jar,只做"binary packager"。
+# 流程:开发者先跑 ./gradlew bootJar -x processAot,再用本 Dockerfile build。
+# 不联网(离线),用本地已下载的 GraalVM JDK 25 + 预编 jar。
+# =============================================================
+
+# ----- runtime -----
+FROM ghcr.io/graalvm/graalvm-community:25
+WORKDIR /app
+# 复制预编 fat jar(由 ./gradlew bootJar -x processAot -x processTestAot 产出)
+COPY seafood-backend.jar /app/seafood-backend.jar
+EXPOSE 8080 9090
+# 容器以 root 跑(本 dev image 简化处理;生产 native image 用 nonroot)
+USER root
+# Spring Boot 4 (2026-06-14):prefix `spring.data.mongodb` deprecated,
+# 改 `spring.mongodb`。用 --spring.mongodb.uri= cmdline(Spring Boot 4 最高优先级)。
+ENV MONGODB_URI_FALLBACK=mongodb://localhost:27017/seafood
+ENTRYPOINT ["sh", "-c", "exec java -XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom -jar /app/seafood-backend.jar --spring.mongodb.uri=${MONGODB_URI:-${MONGODB_URI_FALLBACK}}"]

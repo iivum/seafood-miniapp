@@ -53,3 +53,17 @@ if (w && !w.matchMedia) {
   });
 }
 /* eslint-enable no-restricted-globals */
+
+// Recharts ResponsiveContainer relies on ResizeObserver(jsdom 未实现)。
+// 给一个 noop polyfill,避免测试中 chart 抛 ReferenceError。
+const w2 = (typeof globalThis !== 'undefined' ? globalThis : undefined) as unknown as {
+  ResizeObserver?: new (cb: ResizeObserverCallback) => ResizeObserver;
+} | undefined;
+if (w2 && !w2.ResizeObserver) {
+  class RO {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(w2, 'ResizeObserver', { writable: true, value: RO });
+}

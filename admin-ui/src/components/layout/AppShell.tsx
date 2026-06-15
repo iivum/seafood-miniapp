@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, LogOut, Fish } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, LogOut, Fish, Undo2 } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/admin/dashboard', label: '仪表盘', icon: LayoutDashboard },
   { to: '/admin/products', label: '商品', icon: Package },
   { to: '/admin/orders', label: '订单', icon: ShoppingCart },
+  { to: '/admin/refunds', label: '退款审核', icon: Undo2 },
 ] as const;
 
 export function AppShell() {
@@ -21,11 +22,11 @@ export function AppShell() {
   };
 
   return (
-    <div className="flex min-h-screen bg-app-bg">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-app-border bg-sidebar text-sidebar-text md:flex">
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-hover px-4">
-          <Fish className="h-6 w-6 text-coral-400" />
-          <span className="font-display text-h3 font-semibold">海鲜后台</span>
+    <div className="flex min-h-screen bg-bg">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface text-fg md:flex">
+        <div className="flex h-16 items-center gap-2 border-b border-border px-4">
+          <Fish className="h-6 w-6 text-accent" />
+          <span className="font-display text-lg font-semibold">海鲜后台</span>
         </div>
         <nav className="flex-1 space-y-1 p-3" aria-label="主导航">
           {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
@@ -34,10 +35,10 @@ export function AppShell() {
               to={to}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-body transition-colors',
+                  'flex items-center gap-3 rounded-md px-3 py-2 text-base transition-colors',
                   isActive
-                    ? 'bg-sidebar-active text-sidebar-text'
-                    : 'text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-text',
+                    ? 'bg-accent-soft text-fg'
+                    : 'text-muted hover:bg-soft hover:text-fg',
                 )
               }
             >
@@ -46,11 +47,11 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-sidebar-hover p-3 text-small text-sidebar-muted">
+        <div className="border-t border-border p-3 text-sm text-muted">
           <div className="mb-2 px-3">{username ?? '未登录'}</div>
           <Button
             variant="ghost"
-            className="w-full justify-start text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-text"
+            className="w-full justify-start text-muted hover:bg-soft hover:text-fg"
             onClick={handleLogout}
           >
             <LogOut className="mr-2 h-4 w-4" /> 退出登录

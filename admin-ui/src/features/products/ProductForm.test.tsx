@@ -45,7 +45,7 @@ describe('ProductForm validation', () => {
       <ProductForm submitLabel="保存" submitting={false} onSubmit={onSubmit} onCancel={vi.fn()} />,
     );
     await user.type(screen.getByLabelText('商品名称'), '商品');
-    await user.type(screen.getByLabelText('价格'), '0');
+    await user.type(screen.getByLabelText(/价格/), '0');
     await user.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() => {
       expect(onSubmit).not.toHaveBeenCalled();

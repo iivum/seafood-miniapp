@@ -152,6 +152,46 @@ class ProductServiceTest {
         assertThat(res.status()).isEqualTo(ProductStatus.DISCONTINUED);
     }
 
+    // ===== 路线图 3.1:duplicate =====
+
+    @Test
+    void duplicate_appendsCopySuffixAndResetsStock() {
+        ProductDocument src = docOf("p1", "三文鱼", new BigDecimal("99.00"), 50, ProductStatus.ACTIVE);
+        when(repo.findById("p1")).thenReturn(Optional.of(src));
+        when(repo.save(any(ProductDocument.class))).thenAnswer(inv -> {
+            ProductDocument d = inv.getArgument(0);
+            d.setId("p2");
+            return d;
+        });
+
+        ProductResponse res = service.duplicate("p1");
+
+        assertThat(res.id()).isEqualTo("p2");
+        assertThat(res.name()).isEqualTo("三文鱼 (副本)");
+        assertThat(res.stock()).as("库存不复位,防误判").isEqualTo(0);
+        assertThat(res.status()).as("强制 ACTIVE,即便原商品是 DISCONTINUED").isEqualTo(ProductStatus.ACTIVE);
+        assertThat(res.price()).isEqualByComparingTo("99.00");
+    }
+
+    @Test
+    void duplicate_fromDiscontinuedSourceStillFlipsToActive() {
+        ProductDocument src = docOf("p1", "金枪鱼", new BigDecimal("199.00"), 5, ProductStatus.DISCONTINUED);
+        when(repo.findById("p1")).thenReturn(Optional.of(src));
+        when(repo.save(any(ProductDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ProductResponse res = service.duplicate("p1");
+        assertThat(res.status()).isEqualTo(ProductStatus.ACTIVE);
+    }
+
+    @Test
+    void duplicate_throwsNotFoundForMissingSource() {
+        when(repo.findById("missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.duplicate("missing"))
+                .isInstanceOf(NotFoundException.class);
+        verify(repo, never()).save(any(ProductDocument.class));
+    }
+
     @Test
     void productMapper_roundTripPreservesCategory() {
         Product p = new Product("p1", "三文鱼", "x", new BigDecimal("1"), 0,

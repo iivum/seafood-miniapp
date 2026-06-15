@@ -10,7 +10,6 @@ import org.slf4j.MDC;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**

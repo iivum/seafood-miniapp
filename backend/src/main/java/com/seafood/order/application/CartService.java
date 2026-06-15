@@ -3,13 +3,11 @@ package com.seafood.order.application;
 import com.seafood.order.api.dto.CartItemRequest;
 import com.seafood.order.api.dto.CartResponse;
 import com.seafood.order.domain.Cart;
-import com.seafood.order.domain.CartItem;
 import com.seafood.order.infra.CartDocument;
 import com.seafood.order.infra.CartRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
 
 /**
  * 购物车服务(参见 specs/backend-api §Customer cart operations)。

@@ -1,7 +1,7 @@
 /**
  * Runtime shim for features/product/api.ts.
  */
-const { get } = require('../shared/api/request');
+const { get } = require('../../shared/api/request');
 
 const ProductAPI = {
   list(params) {

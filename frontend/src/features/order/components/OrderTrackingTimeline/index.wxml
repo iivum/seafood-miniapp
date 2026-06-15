@@ -1,0 +1,46 @@
+<!--
+  路线图 4.3 — mp-08 订单详情时间线(SHIPPED 后 3 节点)。
+  数据源:Order.tracking.events(后端 4.1 字段);PENDING / PAID 单没 tracking → 不渲染本组件。
+  节点 4 档:已下单(永远 done) / 已发货(第一个 SHIPPED event) / 运输中(中间 events) / 已签收(COMPLETED)。
+  简版:圆点 + 连接线,无图标依赖(避免 lucide-react 这种 web 库)。
+-->
+<view wx:if="{{visible}}" class="tracking-timeline">
+  <view class="tracking-timeline__title">订单进度</view>
+  <view class="tracking-timeline__node tracking-timeline__node--done">
+    <view class="tracking-timeline__dot"></view>
+    <view class="tracking-timeline__line"></view>
+    <view class="tracking-timeline__content">
+      <text class="tracking-timeline__label">已下单</text>
+      <text class="tracking-timeline__time">{{createdAtText}}</text>
+    </view>
+  </view>
+  <view class="tracking-timeline__node {{stages.shippedClass}}">
+    <view class="tracking-timeline__dot"></view>
+    <view class="tracking-timeline__line"></view>
+    <view class="tracking-timeline__content">
+      <text class="tracking-timeline__label">已发货</text>
+      <text wx:if="{{stages.shippedAt}}" class="tracking-timeline__time">{{stages.shippedAt}}</text>
+      <text wx:else class="tracking-timeline__time tracking-timeline__time--muted">待发货</text>
+    </view>
+  </view>
+  <view class="tracking-timeline__node {{stages.inTransitClass}}">
+    <view class="tracking-timeline__dot"></view>
+    <view class="tracking-timeline__line"></view>
+    <view class="tracking-timeline__content">
+      <text class="tracking-timeline__label">运输中</text>
+      <text wx:if="{{stages.inTransitAt}}" class="tracking-timeline__time">{{stages.inTransitAt}}</text>
+      <text wx:else class="tracking-timeline__time tracking-timeline__time--muted">暂无轨迹</text>
+    </view>
+  </view>
+  <view class="tracking-timeline__node {{stages.deliveredClass}}">
+    <view class="tracking-timeline__dot"></view>
+    <view class="tracking-timeline__content">
+      <text class="tracking-timeline__label">已签收</text>
+      <text wx:if="{{stages.deliveredAt}}" class="tracking-timeline__time">{{stages.deliveredAt}}</text>
+      <text wx:else class="tracking-timeline__time tracking-timeline__time--muted">派送中</text>
+    </view>
+  </view>
+  <view wx:if="{{trackingNumber}}" class="tracking-timeline__meta">
+    <text>{{carrier}} · 单号 {{trackingNumber}}</text>
+  </view>
+</view>

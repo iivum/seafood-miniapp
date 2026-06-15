@@ -2,7 +2,6 @@ package com.seafood.product.application;
 
 import com.seafood.product.api.dto.ProductStatsResponse;
 import com.seafood.product.domain.ProductStatus;
-import com.seafood.product.infra.ProductDocument;
 import com.seafood.product.infra.ProductRepository;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
@@ -15,7 +14,6 @@ import java.util.Map;
 
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.group;
 import static org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation;
-import static org.springframework.data.mongodb.core.query.Criteria.where;
 
 /**
  * 商品统计 / 聚合查询(参见 design.md §5.1 GET /api/admin/products/stats)。
@@ -47,6 +45,20 @@ public class ProductQueryService {
             byCategory.put(row.category, row.count);
         }
         return new ProductStatsResponse(total, onSale, outOfStock, byCategory);
+    }
+
+    /**
+     * 路线图 2.18:库存预警(默认 < 10)。返回按 stock 升序的候选列表,
+     * 调用方(AdminBffService)按 limit 截 top N 即可。
+     *
+     * <p>50 条 seed 规模用全表扫;万级商品后加 stock 索引 + Pageable 优化。
+     */
+    public List<com.seafood.product.api.dto.ProductResponse> lowStock(int threshold) {
+        return repo.findByStockLessThan(threshold).stream()
+                .sorted((a, b) -> Integer.compare(a.getStock(), b.getStock()))
+                .map(com.seafood.product.infra.ProductMapper::toDomain)
+                .map(com.seafood.product.api.dto.ProductResponse::from)
+                .toList();
     }
 
     /** group-by 投影形态,字段顺序与上面 project 对齐。 */

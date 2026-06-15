@@ -2,8 +2,6 @@ package com.seafood.bff.admin;
 
 import com.seafood.bff.admin.dto.DashboardResponse;
 import com.seafood.bff.admin.dto.OrderDetailResponse;
-import com.seafood.bff.admin.dto.OrderStatsResponse;
-import com.seafood.bff.admin.dto.TopProductResponse;
 import com.seafood.order.api.dto.OrderResponse;
 import com.seafood.order.application.OrderService;
 import com.seafood.order.domain.OrderItem;
@@ -13,7 +11,6 @@ import com.seafood.product.application.ProductQueryService;
 import com.seafood.product.application.ProductService;
 import com.seafood.product.domain.ProductStatus;
 import com.seafood.shared.error.NotFoundException;
-import com.seafood.shared.security.Role;
 import com.seafood.shared.security.UserPrincipal;
 import com.seafood.user.api.dto.UserResponse;
 import com.seafood.user.application.UserService;
@@ -50,7 +47,7 @@ class AdminBffServiceTest {
     }
 
     private OrderResponse sampleOrder(String id, String userId, List<OrderItem> items, BigDecimal total) {
-        return new OrderResponse(id, userId, items, total, "PENDING", null,
+        return new OrderResponse(id, userId, items, total, "PENDING", null, null, null,
                 Instant.parse("2026-06-03T00:00:00Z"), Instant.parse("2026-06-03T00:00:00Z"));
     }
 
@@ -59,7 +56,11 @@ class AdminBffServiceTest {
     }
 
     private ProductResponse sampleProduct(String id) {
-        return new ProductResponse(id, "三文鱼", "x", new BigDecimal("99.00"), 10,
+        return sampleProduct(id, 10);
+    }
+
+    private ProductResponse sampleProduct(String id, int stock) {
+        return new ProductResponse(id, "三文鱼", "x", new BigDecimal("99.00"), stock,
                 "鱼类", "http://img", ProductStatus.ACTIVE, Instant.now(), Instant.now());
     }
 
@@ -131,11 +132,26 @@ class AdminBffServiceTest {
     // ----- 6.3 dashboard -----
 
     @Test
-    void dashboard_aggregatesAllThreeSections() {
-        when(orders.countCreatedSince(any())).thenReturn(3L, 18L, 70L);
+    void dashboard_aggregatesAllFiveSections() {
+        // 3 个 countCreatedSince(today/week/month) + 7 个 trend7d = 10 次调用
+        // stub 返回 10 个值,3-arg 后是 trend7d
+        when(orders.countCreatedSince(any())).thenReturn(
+                3L,   // today
+                18L,  // week
+                70L,  // month
+                // 7 个 trend7d cumulative(从 today-6 累计到 today-0,各桶) ↓
+                100L, 120L, 150L, 200L, 250L, 280L, 300L);
         when(productStats.stats()).thenReturn(new ProductStatsResponse(50L, 45L, 5L,
                 Map.of("鱼类", 12L)));
+        when(productStats.lowStock(10)).thenReturn(List.of(
+                sampleProduct("p-low-1", 3),
+                sampleProduct("p-low-2", 7)));
         when(orders.findRecent(500)).thenReturn(List.of(
+                sampleOrder("o1", "u1", List.of(item("p1", "三文鱼", 3)), new BigDecimal("297")),
+                sampleOrder("o2", "u1", List.of(item("p1", "三文鱼", 2), item("p2", "金枪鱼", 5)),
+                        new BigDecimal("693"))));
+        // 2.21 recentOrders:RECENT_ORDERS_LIMIT = 10
+        when(orders.findRecent(10)).thenReturn(List.of(
                 sampleOrder("o1", "u1", List.of(item("p1", "三文鱼", 3)), new BigDecimal("297")),
                 sampleOrder("o2", "u1", List.of(item("p1", "三文鱼", 2), item("p2", "金枪鱼", 5)),
                         new BigDecimal("693"))));
@@ -153,12 +169,29 @@ class AdminBffServiceTest {
         assertThat(dash.topProducts().get(0).product().id()).isEqualTo("p1");
         assertThat(dash.topProducts().get(0).totalQuantitySold()).isEqualTo(5L);
         assertThat(dash.topProducts().get(1).totalQuantitySold()).isEqualTo(5L);
+
+        // 2.17 trend7d 7 个点(顺序 oldest→newest,length=7)
+        assertThat(dash.trend7d()).hasSize(7);
+        // today = cumulative[0] = 100(4th call stub,单调非递减首值)
+        assertThat(dash.trend7d().get(6).count()).isEqualTo(100L);
+        // 6 天前 = cumulative[6] - cumulative[5] = 300 - 280 = 20
+        assertThat(dash.trend7d().get(0).count()).isEqualTo(20L);
+        // 5 天前 = 280 - 250 = 30
+        assertThat(dash.trend7d().get(1).count()).isEqualTo(30L);
+        // 2.18 lowStock:2 个候选
+        assertThat(dash.lowStock()).hasSize(2);
+        assertThat(dash.lowStock().get(0).id()).isEqualTo("p-low-1");
+        assertThat(dash.lowStock().get(0).stock()).isEqualTo(3);
+        // 2.21 recentOrders:复用 findRecent(10) 返回最近 10 单
+        assertThat(dash.recentOrders()).hasSize(2);
+        assertThat(dash.recentOrders().get(0).id()).isEqualTo("o1");
     }
 
     @Test
     void dashboard_capsAt10() {
         when(orders.countCreatedSince(any())).thenReturn(0L);
         when(productStats.stats()).thenReturn(new ProductStatsResponse(0L, 0L, 0L, Map.of()));
+        when(productStats.lowStock(10)).thenReturn(List.of());
         List<OrderResponse> many = java.util.stream.IntStream.range(0, 15)
                 .mapToObj(i -> sampleOrder("o" + i, "u1",
                         List.of(item("p" + i, "p" + i, 1)), new BigDecimal("1")))
@@ -177,10 +210,33 @@ class AdminBffServiceTest {
     void dashboard_emptyOrders_returnsEmptyTopList() {
         when(orders.countCreatedSince(any())).thenReturn(0L);
         when(productStats.stats()).thenReturn(new ProductStatsResponse(0L, 0L, 0L, Map.of()));
+        when(productStats.lowStock(10)).thenReturn(List.of());
         when(orders.findRecent(500)).thenReturn(List.of());
 
         DashboardResponse dash = bff.dashboard();
 
         assertThat(dash.topProducts()).isEmpty();
+        assertThat(dash.trend7d()).hasSize(7);
+        assertThat(dash.trend7d()).allSatisfy(p -> assertThat(p.count()).isEqualTo(0L));
+        assertThat(dash.lowStock()).isEmpty();
+    }
+
+    @Test
+    void dashboard_lowStock_capsAt10() {
+        // 2.18:低库存返回按 stock 升序 top 10
+        when(orders.countCreatedSince(any())).thenReturn(0L);
+        when(productStats.stats()).thenReturn(new ProductStatsResponse(0L, 0L, 0L, Map.of()));
+        List<ProductResponse> many = java.util.stream.IntStream.range(0, 15)
+                .mapToObj(i -> sampleProduct("low-" + i, i + 1)) // stock 1..15
+                .toList();
+        when(productStats.lowStock(10)).thenReturn(many);
+        when(orders.findRecent(500)).thenReturn(List.of());
+
+        DashboardResponse dash = bff.dashboard();
+
+        // 2.18 截 top 10
+        assertThat(dash.lowStock()).hasSize(10);
+        assertThat(dash.lowStock().get(0).stock()).isEqualTo(1);
+        assertThat(dash.lowStock().get(9).stock()).isEqualTo(10);
     }
 }
