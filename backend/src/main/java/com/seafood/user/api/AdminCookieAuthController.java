@@ -112,8 +112,26 @@ public class AdminCookieAuthController {
             writeAdminCookie(httpRes, body.accessToken());
             return ResponseEntity.noContent().build();
         } catch (com.seafood.shared.error.DomainException e) {
-            // 业务失败 → 记一次失败,可能触发 IP/account 锁
-            lockout.recordFailure(ip, req.username());
+            // 业务失败 → 记一次失败;若本次失败触发 lock,直接返 423/429
+            // 避免下轮 request 的"先 isXLocked 后 recordFailure"read-after-write
+            // 竞态(否则第 4 次失败仍走 catch DomainException 路径 → 409)
+            if (lockout.recordFailure(ip, req.username())) {
+                if (lockout.isIpLocked(ip)) {
+                    return ResponseEntity.status(429)
+                            .header("Retry-After", "900")
+                            .body(Map.of(
+                                    "code", "AUTH_LOCKED",
+                                    "message", "登录尝试次数过多,请 15 分钟后再试",
+                                    "retryAfterSeconds", 900));
+                }
+                if (lockout.isAccountLocked(req.username())) {
+                    return ResponseEntity.status(423)
+                            .body(Map.of(
+                                    "code", "ACCOUNT_LOCKED",
+                                    "message", "账户已被锁定,请 15 分钟后再试",
+                                    "retryAfterSeconds", 900));
+                }
+            }
             throw e;  // GlobalExceptionHandler 翻译 401/AccountLockedException
         }
     }

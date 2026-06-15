@@ -68,24 +68,27 @@ class LoginLockoutServiceTest {
 
     @Test
     void recordFailure_writesAttemptAndTriggersLockedCounterOnThirdFailure() {
-        // 第一次失败:计数 0 → 写完仍 0
+        // 第一次失败:计数 0 → 写完仍 0,return false
         when(repo.countByIpAndSuccessAndTsAfter(eq("1.2.3.4"), eq(false), any()))
                 .thenReturn(0L);
-        service.recordFailure("1.2.3.4", "admin");
+        boolean firstLocked = service.recordFailure("1.2.3.4", "admin");
+        assertThat(firstLocked).isFalse();
         assertThat(meterRegistry.counter("users.login.attempts", "result", "locked").count())
                 .isEqualTo(0.0);
         // 第二次失败:写完仍 0(假设后续 IP 锁阈还没到)
         when(repo.countByIpAndSuccessAndTsAfter(eq("1.2.3.4"), eq(false), any()))
                 .thenReturn(0L);
-        service.recordFailure("1.2.3.4", "admin");
+        boolean secondLocked = service.recordFailure("1.2.3.4", "admin");
+        assertThat(secondLocked).isFalse();
         assertThat(meterRegistry.counter("users.login.attempts", "result", "locked").count())
                 .isEqualTo(0.0);
-        // 第三次失败:阈值 3 触发 → counter +1
+        // 第三次失败:阈值 3 触发 → counter +1,return true 让 caller 立即 423
         when(repo.countByIpAndSuccessAndTsAfter(eq("1.2.3.4"), eq(false), any()))
                 .thenReturn(3L);
         when(repo.countByAccountAndSuccessAndTsAfter(eq("admin"), eq(false), any()))
                 .thenReturn(2L);
-        service.recordFailure("1.2.3.4", "admin");
+        boolean thirdLocked = service.recordFailure("1.2.3.4", "admin");
+        assertThat(thirdLocked).isTrue();
         assertThat(meterRegistry.counter("users.login.attempts", "result", "locked").count())
                 .isEqualTo(1.0);
     }

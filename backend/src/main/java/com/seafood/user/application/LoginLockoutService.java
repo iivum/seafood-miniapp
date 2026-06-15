@@ -45,11 +45,19 @@ public class LoginLockoutService {
         this.meterRegistry = meterRegistry;
     }
 
-    public void recordFailure(String ip, String account) {
+    /**
+     * 记一次失败。如果本次失败把 IP 或 account 推到了 lock 阈值,
+     * 返回 {@code true} 让 caller 可以立即 throw AccountLockedException,
+     * 避免下一轮"先 isXLocked 后 recordFailure"的 read-after-write 竞态
+     * (那个竞态会让第 4 次失败仍走 catch 而不是 423)。
+     */
+    public boolean recordFailure(String ip, String account) {
         repo.save(new LoginAttemptDocument(ip, account, false, Instant.now()));
         if (isIpLocked(ip) || isAccountLocked(account)) {
             meterRegistry.counter("users.login.attempts", "result", "locked").increment();
+            return true;
         }
+        return false;
     }
 
     public void recordSuccess(String ip, String account) {
