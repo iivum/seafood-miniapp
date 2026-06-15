@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Sprint 2 §1.2 — MongoDB URI 启动期 fail-fast 校验。
  *
- * <p>Spring Boot 4 自带 {@code MongoProperties} 已绑定 {@code spring.data.mongodb.*},
+ * <p>Spring Boot 4 自带 {@code MongoProperties} 已绑定 {@code spring.mongodb.*},
  * 重复绑定会冲突;改由独立 {@link MongoUriValidator} 在 {@code @PostConstruct} 读取
  * 同一属性并校验,缺失 / 空 / 协议错误均抛 {@link IllegalStateException}。
  */
@@ -37,7 +37,7 @@ class MongoUriValidatorTest {
 
         assertThatThrownBy(validator::validate)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("spring.data.mongodb.uri");
+                .hasMessageContaining("spring.mongodb.uri");
     }
 
     @Test
@@ -46,7 +46,7 @@ class MongoUriValidatorTest {
 
         assertThatThrownBy(validator::validate)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("spring.data.mongodb.uri");
+                .hasMessageContaining("spring.mongodb.uri");
     }
 
     @Test
@@ -56,7 +56,7 @@ class MongoUriValidatorTest {
         assertThatThrownBy(validator::validate)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("mongodb://")
-                .hasMessageContaining("spring.data.mongodb.uri");
+                .hasMessageContaining("spring.mongodb.uri");
     }
 
     @Test

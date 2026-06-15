@@ -58,7 +58,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
                 // 鉴权端点
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/wechat-login").permitAll()
-                .requestMatchers("/api/admin/auth/login", "/api/admin/auth/refresh").permitAll()
+                .requestMatchers("/api/admin/auth/login", "/api/admin/auth/refresh", "/api/admin/auth/cookie-login", "/api/admin/auth/csrf").permitAll()
+                // 5.14-5.17 上传图片公开读(URL 写在商品/订单详情里,前端匿名访问)
+                .requestMatchers("/api/static/uploads/**").permitAll()
                 // 静态资源(管理后台 SPA)
                 // 注意:4 条 actuator 路径<em>显式</em>列白名单(不用 /actuator/**
                 // 通配符)—— 安全姿态"已知白名单" > "全通配";未来 yml 加

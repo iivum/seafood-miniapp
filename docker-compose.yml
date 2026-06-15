@@ -10,6 +10,10 @@ networks:
 
 volumes:
   mongodb_data:
+  # v2 视觉 5.14 — 上传文件持久化(named volume)。容器重启 / 重建后图片
+  # 仍在;若改用 host bind mount(./var/seafood/uploads:/app/var/seafood/uploads)
+  # 也可,但 named volume 跨多机部署更一致(docker swarm / k8s 兼容)。
+  seafood_uploads:
 
 services:
   # ===========================================
@@ -64,6 +68,10 @@ services:
       - "8080:8080"
     networks:
       - seafood-network
+    # 5.14 上传持久化 — 挂 named volume 到 /app/var/seafood/uploads,
+    # 与 application.yml 的 SEAFOOD_UPLOAD_DIR 默认值一致。
+    volumes:
+      - seafood_uploads:/app/var/seafood/uploads
     depends_on:
       mongodb:
         condition: service_healthy
@@ -99,8 +107,15 @@ services:
       # 让 CI smoke step 通过 env 注入短 serverSelectionTimeoutMS(默认 30s
       # 跟 smoke 总预算不兼容)。生产部署仍可显式 export MONGODB_URI 用长 timeout。
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/seafood}
+      # 5.14-5.17:Spring Boot 4 (2026-06-14) prefix 改 `spring.mongodb`(旧
+      # `spring.data.mongodb` deprecated,被静默忽略 → 默认 localhost:27017)。
+      # env var 同步改 `SPRING_MONGODB_URI`。`MONGODB_URI` 由 relaxed binding
+      # 自动映射到 `spring.mongodb.uri`。
+      SPRING_MONGODB_URI: ${SPRING_MONGODB_URI:-mongodb://mongodb:27017/seafood}
       # PR review #8:admin bootstrap 密码必填,缺即 fail-fast(@Value 无默认 + adminLogin 启动期校验)
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:?ADMIN_BOOTSTRAP_PASSWORD must be set, no default}
+      # 5.14 — 容器内上传根目录(/app/var/seafood/uploads 与 volume 挂载点对齐)
+      SEAFOOD_UPLOAD_DIR: /app/var/seafood/uploads
       SPRING_PROFILES_ACTIVE: docker
     deploy:
       resources:

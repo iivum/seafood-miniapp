@@ -17,7 +17,7 @@ class OrderTest {
 
     private Order sample() {
         return new Order("o1", "u1", List.of(item), new BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, t0, t0);
+                new OrderStatus.Pending(), null, null, null, t0, t0);
     }
 
     @Test
@@ -68,6 +68,48 @@ class OrderTest {
                 .isInstanceOf(DomainException.class);
     }
 
+    // ===== 路线图 4.7 / 4.8 退款命名方法 =====
+
+    @Test
+    void markRefunding_transitionsFromCompleted() {
+        // 4.7:COMPLETED → REFUNDING
+        Order c = sample().markPaid(t0).markShipped(t0).markCompleted(t0);
+        Order r = c.markRefunding(t0);
+        assertThat(r.status()).isInstanceOf(OrderStatus.Refunding.class);
+    }
+
+    @Test
+    void markRefunding_fromPending_throws() {
+        // PENDING 未付款不能申请退款(应在 Service 层拦;这里验证状态机兜底)
+        assertThatThrownBy(() -> sample().markRefunding(Instant.now()))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("REFUNDING");
+    }
+
+    @Test
+    void markRefunded_transitionsFromRefunding() {
+        // 4.8 admin 同意:REFUNDING → REFUNDED
+        Order r = sample().markPaid(t0).markShipped(t0).markCompleted(t0).markRefunding(t0);
+        Order refunded = r.markRefunded(t0);
+        assertThat(refunded.status()).isInstanceOf(OrderStatus.Refunded.class);
+    }
+
+    @Test
+    void markRefundRejected_fallsBackToCompleted() {
+        // 4.8 admin 拒绝:REFUNDING → COMPLETED(不是 CANCELLED,业务含义不同)
+        Order r = sample().markPaid(t0).markShipped(t0).markCompleted(t0).markRefunding(t0);
+        Order rolledBack = r.markRefundRejected(t0);
+        assertThat(rolledBack.status()).isInstanceOf(OrderStatus.Completed.class);
+    }
+
+    @Test
+    void markRefunded_fromCompleted_throws() {
+        // COMPLETED 不能直接跳 REFUNDED(必须先转 REFUNDING)
+        Order c = sample().markPaid(t0).markShipped(t0).markCompleted(t0);
+        assertThatThrownBy(() -> c.markRefunded(Instant.now()))
+                .isInstanceOf(DomainException.class);
+    }
+
     @Test
     void constructor_rejectsEmptyItems() {
         // 该路径在创建 OrderService 真实下单时也会自然触发,这里通过精简到
@@ -75,7 +117,7 @@ class OrderTest {
         DomainException ex = null;
         try {
             new Order("o1", "u1", List.of(), new BigDecimal("1"),
-                    new OrderStatus.Pending(), null, t0, t0);
+                    new OrderStatus.Pending(), null, null, null, t0, t0);
         } catch (DomainException e) {
             ex = e;
         }
@@ -86,7 +128,7 @@ class OrderTest {
     @Test
     void constructor_rejectsNonPositiveTotal() {
         assertThatThrownBy(() -> new Order("o1", "u1", List.of(item), BigDecimal.ZERO,
-                new OrderStatus.Pending(), null, t0, t0))
+                new OrderStatus.Pending(), null, null, null, t0, t0))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("金额");
     }

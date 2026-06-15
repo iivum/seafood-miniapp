@@ -1,17 +1,19 @@
 package com.seafood.order.application;
 
 import com.seafood.order.api.dto.OrderResponse;
-import com.seafood.order.domain.Cart;
 import com.seafood.order.domain.CartItem;
 import com.seafood.order.infra.CartDocument;
 import com.seafood.order.infra.CartRepository;
 import com.seafood.order.infra.OrderDocument;
 import com.seafood.order.infra.OrderRepository;
+import com.seafood.order.infra.RefundDocument;
+import com.seafood.order.infra.RefundRepository;
 import com.seafood.product.domain.ProductCategory;
 import com.seafood.product.domain.ProductStatus;
 import com.seafood.product.infra.ProductDocument;
 import com.seafood.product.infra.ProductRepository;
 import com.seafood.shared.error.DomainException;
+import com.seafood.shared.error.NotFoundException;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +38,7 @@ class OrderServiceTest {
     private OrderRepository orderRepo;
     private CartRepository cartRepo;
     private ProductRepository productRepo;
+    private RefundRepository refundRepo;
     private MeterRegistry meterRegistry;
     private OrderService service;
 
@@ -44,10 +47,12 @@ class OrderServiceTest {
         orderRepo = mock(OrderRepository.class);
         cartRepo = mock(CartRepository.class);
         productRepo = mock(ProductRepository.class);
+        // 4.7 引入 — 注入 RefundRepository(5 参构造)
+        refundRepo = mock(RefundRepository.class);
         // PR #3 3.x:SimpleMeterRegistry in-memory,与 Spring Boot Actuator 默认
         // 装配的 MeterRegistry 类型兼容;counter().count() 直接可读,断言语义直白。
         meterRegistry = new SimpleMeterRegistry();
-        service = new OrderService(orderRepo, cartRepo, productRepo, meterRegistry);
+        service = new OrderService(orderRepo, cartRepo, productRepo, refundRepo, meterRegistry);
         SecurityContextHolder.clearContext();
     }
 
@@ -341,5 +346,576 @@ class OrderServiceTest {
         doc.setCreatedAt(Instant.now());
         doc.setUpdatedAt(Instant.now());
         return doc;
+    }
+
+    // === 路线图 4.2:getTracking ===
+
+    private OrderDocument shippedOrderWithTracking(String orderId, String userId) {
+        OrderDocument doc = new OrderDocument();
+        doc.setId(orderId);
+        doc.setUserId(userId);
+        doc.setItems(List.of(new com.seafood.order.domain.OrderItem(
+                "p1", "三文鱼", new BigDecimal("50.00"), 1)));
+        doc.setTotalAmount(new BigDecimal("50.00"));
+        doc.setStatus("SHIPPED");
+        doc.setCreatedAt(Instant.now());
+        doc.setUpdatedAt(Instant.now());
+        com.seafood.order.domain.OrderTracking tracking = new com.seafood.order.domain.OrderTracking(
+                "顺丰",
+                "SF123",
+                List.of(new com.seafood.order.domain.TrackingEvent(
+                        Instant.now(), "SHIPPED", "上海", "已发货")));
+        doc.setTracking(tracking);
+        return doc;
+    }
+
+    @Test
+    void getTracking_ownerSeesTracking() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(shippedOrderWithTracking("o1", "u1")));
+
+        com.seafood.order.domain.OrderTracking t = service.getTracking("o1");
+
+        assertThat(t).isNotNull();
+        assertThat(t.carrier()).isEqualTo("顺丰");
+        assertThat(t.trackingNumber()).isEqualTo("SF123");
+        assertThat(t.events()).hasSize(1);
+    }
+
+    @Test
+    void getTracking_adminCanSeeAnyOrder() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(shippedOrderWithTracking("o1", "u-other")));
+
+        com.seafood.order.domain.OrderTracking t = service.getTracking("o1");
+        assertThat(t).isNotNull();
+    }
+
+    @Test
+    void getTracking_otherCustomerSeesNotFound() {
+        // 防 enumeration:不是订单主且非 ADMIN,对外表现为订单不存在(404)
+        loginAs("u2", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(shippedOrderWithTracking("o1", "u1")));
+
+        assertThatThrownBy(() -> service.getTracking("o1"))
+                .isInstanceOf(com.seafood.shared.error.NotFoundException.class);
+    }
+
+    @Test
+    void getTracking_pendingOrderReturnsNull() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(pendingOrder("o1", "u1", new BigDecimal("50"))));
+
+        com.seafood.order.domain.OrderTracking t = service.getTracking("o1");
+        assertThat(t).isNull();
+    }
+
+    // === 路线图 4.7:requestRefund ===
+
+    private OrderDocument completedOrder(String orderId, String userId, BigDecimal total) {
+        OrderDocument doc = new OrderDocument();
+        doc.setId(orderId);
+        doc.setUserId(userId);
+        doc.setItems(List.of(new com.seafood.order.domain.OrderItem(
+                "p1", "三文鱼", new BigDecimal("50.00"), 1)));
+        doc.setTotalAmount(total);
+        doc.setStatus("COMPLETED");
+        doc.setCreatedAt(Instant.now());
+        doc.setUpdatedAt(Instant.now());
+        return doc;
+    }
+
+    @Test
+    void requestRefund_ownerOnCompletedOrder_createsRequestedRefundAndFlipsToRefunding() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        OrderDocument order = completedOrder("o1", "u1", new BigDecimal("100.00"));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(order));
+        when(refundRepo.findByOrderId("o1")).thenReturn(Optional.empty());
+        when(refundRepo.save(any(RefundDocument.class))).thenAnswer(inv -> {
+            RefundDocument d = inv.getArgument(0);
+            d.setId("r1");
+            return d;
+        });
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument saved = inv.getArgument(0);
+            // 4.20 同步回原 doc 引用,让 test 看到最新 status(4.7 老测试假设 save
+            // 就地修改原 doc;真实 MongoDB driver 行为同理,只是 mock 需要显式同步)
+            order.setStatus(saved.getStatus());
+            order.setRefundId(saved.getRefundId());
+            return saved;
+        });
+
+        com.seafood.order.api.dto.RefundResponse res = service.requestRefund(
+                "o1", new BigDecimal("100.00"), "海鲜质量有问题");
+
+        assertThat(res.id()).isEqualTo("r1");
+        assertThat(res.status()).isEqualTo("REQUESTED");
+        assertThat(res.amount()).isEqualByComparingTo("100.00");
+        // 同步:Order 状态应改为 REFUNDING
+        assertThat(order.getStatus()).isEqualTo("REFUNDING");
+        // 4.20 同步:refundId 应挂到 Order 上
+        assertThat(order.getRefundId()).isEqualTo("r1");
+    }
+
+    @Test
+    void requestRefund_rejectsAmountExceedingTotal() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(completedOrder("o1", "u1", new BigDecimal("100.00"))));
+        when(refundRepo.findByOrderId("o1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.requestRefund("o1", new BigDecimal("150.00"), "多了"))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("订单总额");
+    }
+
+    @Test
+    void requestRefund_rejectsZeroAmount() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(completedOrder("o1", "u1", new BigDecimal("100.00"))));
+        when(refundRepo.findByOrderId("o1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.requestRefund("o1", BigDecimal.ZERO, "没金额"))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("大于 0");
+    }
+
+    @Test
+    void requestRefund_rejectsPendingOrder() {
+        // PENDING 未付款不允许申请退款
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(pendingOrder("o1", "u1", new BigDecimal("50"))));
+        when(refundRepo.findByOrderId("o1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.requestRefund("o1", new BigDecimal("50"), "想退"))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("不允许申请退款");
+    }
+
+    @Test
+    void requestRefund_otherCustomerSeesNotFound() {
+        // 防 enumeration:非订单主且非 ADMIN 抛 NotFoundException(同 getTracking 策略)
+        loginAs("u2", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(completedOrder("o1", "u1", new BigDecimal("100"))));
+
+        assertThatThrownBy(() -> service.requestRefund("o1", new BigDecimal("50"), "想退"))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void requestRefund_rejectsWhenAnotherRequestIsInFlight() {
+        // 同单已有 REQUESTED 退款单 → 拒绝再次申请
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(completedOrder("o1", "u1", new BigDecimal("100"))));
+        RefundDocument existing = new RefundDocument();
+        existing.setId("r-old");
+        existing.setOrderId("o1");
+        existing.setStatus("REQUESTED");
+        when(refundRepo.findByOrderId("o1")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.requestRefund("o1", new BigDecimal("50"), "再退"))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("进行中");
+    }
+
+    @Test
+    void requestRefund_allowsReapplyAfterRejected() {
+        // 已有 REJECTED 退款单应允许再次申请(客服场景:同单分批退)
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(completedOrder("o1", "u1", new BigDecimal("100"))));
+        RefundDocument rejected = new RefundDocument();
+        rejected.setId("r-old");
+        rejected.setOrderId("o1");
+        rejected.setStatus("REJECTED");
+        when(refundRepo.findByOrderId("o1")).thenReturn(Optional.of(rejected));
+        when(refundRepo.save(any(RefundDocument.class))).thenAnswer(inv -> {
+            RefundDocument d = inv.getArgument(0);
+            d.setId("r-new");
+            return d;
+        });
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.seafood.order.api.dto.RefundResponse res = service.requestRefund(
+                "o1", new BigDecimal("50"), "补一次");
+        assertThat(res.id()).isEqualTo("r-new");
+    }
+
+    // === 路线图 4.8:approveRefund / rejectRefund ===
+
+    private RefundDocument requestedRefund(String refundId, String orderId, String userId) {
+        RefundDocument d = new RefundDocument();
+        d.setId(refundId);
+        d.setOrderId(orderId);
+        d.setUserId(userId);
+        d.setAmount(new BigDecimal("100.00"));
+        d.setReason("质量有问题");
+        d.setStatus("REQUESTED");
+        d.setCreatedAt(Instant.now());
+        d.setUpdatedAt(Instant.now());
+        return d;
+    }
+
+    private OrderDocument refundingOrder(String orderId, String userId) {
+        OrderDocument doc = completedOrder(orderId, userId, new BigDecimal("100.00"));
+        doc.setStatus("REFUNDING");
+        return doc;
+    }
+
+    @Test
+    void approveRefund_movesRefundToApprovedAndOrderToRefunded() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(refundRepo.findById("r1")).thenReturn(Optional.of(requestedRefund("r1", "o1", "u1")));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(refundingOrder("o1", "u1")));
+        when(refundRepo.save(any(RefundDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.seafood.order.api.dto.RefundResponse res = service.approveRefund("r1");
+
+        assertThat(res.status()).isEqualTo("APPROVED");
+        // 同步:Order 应转 REFUNDED
+        org.mockito.ArgumentCaptor<OrderDocument> cap = org.mockito.ArgumentCaptor.forClass(OrderDocument.class);
+        org.mockito.Mockito.verify(orderRepo).save(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo("REFUNDED");
+    }
+
+    @Test
+    void approveRefund_rejectsWhenRefundAlreadyApproved() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        RefundDocument alreadyApproved = requestedRefund("r1", "o1", "u1");
+        alreadyApproved.setStatus("APPROVED");
+        when(refundRepo.findById("r1")).thenReturn(Optional.of(alreadyApproved));
+
+        assertThatThrownBy(() -> service.approveRefund("r1"))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("REQUESTED");
+    }
+
+    @Test
+    void rejectRefund_movesRefundToRejectedAndOrderBackToCompleted() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(refundRepo.findById("r1")).thenReturn(Optional.of(requestedRefund("r1", "o1", "u1")));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(refundingOrder("o1", "u1")));
+        when(refundRepo.save(any(RefundDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.seafood.order.api.dto.RefundResponse res = service.rejectRefund("r1", "已签收 7 天,超售后期");
+
+        assertThat(res.status()).isEqualTo("REJECTED");
+        // 同步:Order 应回退 COMPLETED(不是 CANCELLED — 业务含义不同)
+        org.mockito.ArgumentCaptor<OrderDocument> cap = org.mockito.ArgumentCaptor.forClass(OrderDocument.class);
+        org.mockito.Mockito.verify(orderRepo).save(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    void rejectRefund_rejectsOverlongReason() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        String overlong = "x".repeat(201);
+
+        assertThatThrownBy(() -> service.rejectRefund("r1", overlong))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("200 字符");
+    }
+
+    @Test
+    void rejectRefund_throwsNotFoundForMissingRefund() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(refundRepo.findById("r-missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.rejectRefund("r-missing", "无理由"))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    // === 路线图 4.13:batchShip ===
+
+    private OrderDocument paidOrder(String orderId, String userId) {
+        OrderDocument doc = new OrderDocument();
+        doc.setId(orderId);
+        doc.setUserId(userId);
+        doc.setItems(List.of(new com.seafood.order.domain.OrderItem(
+                "p1", "三文鱼", new BigDecimal("50.00"), 1)));
+        doc.setTotalAmount(new BigDecimal("50.00"));
+        doc.setStatus("PAID");
+        doc.setCreatedAt(Instant.now());
+        doc.setUpdatedAt(Instant.now());
+        return doc;
+    }
+
+    @Test
+    void batchShip_allPaid_shipsAllAndReturnsSuccess() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(paidOrder("o1", "u1")));
+        when(orderRepo.findById("o2")).thenReturn(Optional.of(paidOrder("o2", "u2")));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.seafood.bff.admin.dto.BatchShipResponse res = service.batchShip(
+                List.of("o1", "o2"), null, null);
+
+        assertThat(res.total()).isEqualTo(2);
+        assertThat(res.successCount()).isEqualTo(2);
+        assertThat(res.failedCount()).isEqualTo(0);
+        assertThat(res.successIds()).containsExactly("o1", "o2");
+        // 验证两个单都被持久化
+        org.mockito.Mockito.verify(orderRepo, org.mockito.Mockito.times(2))
+                .save(any(OrderDocument.class));
+    }
+
+    @Test
+    void batchShip_partialFailure_continuesAndReportsBoth() {
+        // 策略:逐单处理 + 失败跳过。o1 PAID → 成功;o2 PENDING → 失败(状态不对);
+        // o3 不存在 → 失败
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(paidOrder("o1", "u1")));
+        when(orderRepo.findById("o2")).thenReturn(Optional.of(pendingOrder("o2", "u1", new BigDecimal("50"))));
+        when(orderRepo.findById("o3")).thenReturn(Optional.empty());
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.seafood.bff.admin.dto.BatchShipResponse res = service.batchShip(
+                List.of("o1", "o2", "o3"), null, null);
+
+        assertThat(res.total()).isEqualTo(3);
+        assertThat(res.successCount()).isEqualTo(1);
+        assertThat(res.failedCount()).isEqualTo(2);
+        assertThat(res.successIds()).containsExactly("o1");
+        assertThat(res.failed())
+                .extracting(com.seafood.bff.admin.dto.BatchShipResponse.FailedItem::orderId)
+                .containsExactly("o2", "o3");
+        assertThat(res.failed().get(0).reason()).contains("PENDING");
+        assertThat(res.failed().get(1).reason()).isEqualTo("订单不存在");
+    }
+
+    @Test
+    void batchShip_withCarrierAndTracking_attachesTracking() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(paidOrder("o1", "u1")));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.batchShip(List.of("o1"), "顺丰", "SF123");
+
+        // 验证保存的 OrderDocument 状态 SHIPPED + tracking 已挂
+        org.mockito.ArgumentCaptor<OrderDocument> cap =
+                org.mockito.ArgumentCaptor.forClass(OrderDocument.class);
+        org.mockito.Mockito.verify(orderRepo).save(cap.capture());
+        OrderDocument saved = cap.getValue();
+        assertThat(saved.getStatus()).isEqualTo("SHIPPED");
+        assertThat(saved.getTracking()).isNotNull();
+        assertThat(saved.getTracking().carrier()).isEqualTo("顺丰");
+        assertThat(saved.getTracking().trackingNumber()).isEqualTo("SF123");
+        assertThat(saved.getTracking().events()).hasSize(1);
+    }
+
+    @Test
+    void batchShip_partialTrackingInput_reportsGlobalFailure() {
+        // 只填 carrier 没填 trackingNumber → 报 global 失败项,但 orderIds 继续处理
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(paidOrder("o1", "u1")));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        com.seafood.bff.admin.dto.BatchShipResponse res = service.batchShip(
+                List.of("o1"), "顺丰", null);
+
+        // global 失败项 + o1 仍然成功(只是没挂物流)
+        assertThat(res.successIds()).containsExactly("o1");
+        assertThat(res.failed())
+                .extracting(com.seafood.bff.admin.dto.BatchShipResponse.FailedItem::orderId)
+                .containsExactly("(global)");
+        // 验证 o1 保存时没有 tracking
+        org.mockito.ArgumentCaptor<OrderDocument> cap =
+                org.mockito.ArgumentCaptor.forClass(OrderDocument.class);
+        org.mockito.Mockito.verify(orderRepo).save(cap.capture());
+        assertThat(cap.getValue().getTracking()).isNull();
+    }
+
+    @Test
+    void batchShip_emptyList_stillReturnsEmptyResponse() {
+        // 边界:空列表应返回 total=0,不应该 NPE
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        com.seafood.bff.admin.dto.BatchShipResponse res = service.batchShip(
+                List.of(), null, null);
+        assertThat(res.total()).isZero();
+        assertThat(res.successCount()).isZero();
+        assertThat(res.failedCount()).isZero();
+    }
+
+    // === 路线图 4.9:orders.refunded counter 埋点 ===
+
+    @Test
+    void approveRefund_incrementsOrdersRefundedCounterWithAmountBucket() {
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(refundRepo.findById("r1")).thenReturn(Optional.of(requestedRefund("r1", "o1", "u1")));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(refundingOrder("o1", "u1")));
+        when(refundRepo.save(any(RefundDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.approveRefund("r1");
+
+        // 订单总额 100 → amountBucket=100to500
+        assertThat(meterRegistry.counter("orders.refunded",
+                "paymentMethod", "wechat",
+                "amountBucket", "100to500").count())
+                .as("admin 同意退款 → orders.refunded{wechat,100to500} += 1")
+                .isEqualTo(1.0);
+    }
+
+    @Test
+    void rejectRefund_doesNotIncrementOrdersRefundedCounter() {
+        // 拒绝退款不算"已退款",不递增 orders.refunded(只递增 orders.cancelled 不在这条链路上)
+        loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+        when(refundRepo.findById("r1")).thenReturn(Optional.of(requestedRefund("r1", "o1", "u1")));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(refundingOrder("o1", "u1")));
+        when(refundRepo.save(any(RefundDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.rejectRefund("r1", "已超售后期");
+
+        assertThat(meterRegistry.find("orders.refunded").counters())
+                .as("拒绝退款不写 orders.refunded")
+                .isEmpty();
+    }
+
+    @Test
+    void approveRefund_amountBoundaries_classifyIntoCorrectBucket() {
+        // 4 个 boundary 值各跑一遍,断言落到正确 bucket(与 orders.paid 同样分桶策略)
+        record Case(java.math.BigDecimal amount, String expectedBucket) {}
+        java.util.List<Case> cases = java.util.List.of(
+                new Case(new java.math.BigDecimal("99.99"),   "lt100"),
+                new Case(new java.math.BigDecimal("100.00"),  "100to500"),
+                new Case(new java.math.BigDecimal("500.00"),  "500to2000"),
+                new Case(new java.math.BigDecimal("2000.00"), "gte2000"));
+        for (Case c : cases) {
+            meterRegistry.clear();
+            loginAs("admin", com.seafood.shared.security.Role.ADMIN);
+            RefundDocument req = requestedRefund("r1", "o1", "u1");
+            when(refundRepo.findById("r1")).thenReturn(Optional.of(req));
+            when(orderRepo.findById("o1")).thenReturn(
+                    Optional.of(refundingOrderWithTotal("o1", "u1", c.amount())));
+            when(refundRepo.save(any(RefundDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            service.approveRefund("r1");
+
+            assertThat(meterRegistry.counter("orders.refunded",
+                    "paymentMethod", "wechat",
+                    "amountBucket", c.expectedBucket()).count())
+                    .as("amount=%s → amountBucket=%s", c.amount(), c.expectedBucket())
+                    .isEqualTo(1.0);
+        }
+    }
+
+    private OrderDocument refundingOrderWithTotal(String orderId, String userId, java.math.BigDecimal total) {
+        OrderDocument doc = refundingOrder(orderId, userId);
+        doc.setTotalAmount(total);
+        return doc;
+    }
+
+    // === 路线图 4.15:exportRecentOrdersAsCsv ===
+
+    @Test
+    void exportRecentOrdersAsCsv_emitsHeaderAndRow() {
+        when(orderRepo.findTop500ByOrderByCreatedAtDesc()).thenReturn(List.of(
+                paidOrderWithCreatedAt("o1", "u1", new java.math.BigDecimal("50.00"),
+                        Instant.parse("2026-06-01T00:00:00Z"))));
+        String csv = service.exportRecentOrdersAsCsv(500);
+        // header
+        assertThat(csv).startsWith("订单号,用户ID,金额(元),状态,取消原因,创建时间,更新时间\n");
+        // row:o1,u1,50.00,PAID,,2026-06-01T00:00:00Z,2026-06-01T00:00:00Z
+        assertThat(csv).contains("o1,u1,50.00,PAID,,2026-06-01T00:00:00Z,2026-06-01T00:00:00Z\n");
+    }
+
+    @Test
+    void exportRecentOrdersAsCsv_escapesCommaAndQuoteInFields() {
+        // RFC 4180:含 , / " / 换行 的字段要双引号包裹,内部 " → ""
+        // helper cancelledOrderWithReason 把 cancelReason + " " + reason2 拼一起
+        // → 整字段为 `有,问题 "双引号"转义`,同时含逗号 + 双引号
+        when(orderRepo.findTop500ByOrderByCreatedAtDesc()).thenReturn(List.of(
+                cancelledOrderWithReason("o1", "u1",
+                        "有,问题", // 含逗号
+                        "\"双引号\"转义"))); // 含双引号
+        String csv = service.exportRecentOrdersAsCsv(500);
+        // 字段同时含逗号 + 双引号 → 整体被双引号包裹,内部 " 被 "" 转义
+        assertThat(csv).contains("\"有,问题 \"\"双引号\"\"转义\"");
+    }
+
+    @Test
+    void exportRecentOrdersAsCsv_emptyResult_emitsHeaderOnly() {
+        when(orderRepo.findTop500ByOrderByCreatedAtDesc()).thenReturn(List.of());
+        String csv = service.exportRecentOrdersAsCsv(500);
+        assertThat(csv).isEqualTo("订单号,用户ID,金额(元),状态,取消原因,创建时间,更新时间\n");
+    }
+
+    @Test
+    void exportRecentOrdersAsCsv_respectsLimitCap() {
+        // 仓库返回 3 单,limit=2 → 应只输出 2 行数据
+        when(orderRepo.findTop500ByOrderByCreatedAtDesc()).thenReturn(List.of(
+                paidOrderWithCreatedAt("o1", "u1", new java.math.BigDecimal("10.00"), Instant.now()),
+                paidOrderWithCreatedAt("o2", "u2", new java.math.BigDecimal("20.00"), Instant.now()),
+                paidOrderWithCreatedAt("o3", "u3", new java.math.BigDecimal("30.00"), Instant.now())));
+        String csv = service.exportRecentOrdersAsCsv(2);
+        // 3 个订单 id 中只能出现 2 个
+        long count = csv.lines().skip(1) // 跳 header
+                .filter(line -> !line.isBlank())
+                .count();
+        assertThat(count).isEqualTo(2);
+    }
+
+    private OrderDocument paidOrderWithCreatedAt(String orderId, String userId,
+                                                  java.math.BigDecimal total, Instant createdAt) {
+        OrderDocument doc = paidOrder(orderId, userId);
+        doc.setTotalAmount(total);
+        doc.setCreatedAt(createdAt);
+        doc.setUpdatedAt(createdAt);
+        return doc;
+    }
+
+    private OrderDocument cancelledOrderWithReason(String orderId, String userId,
+                                                    String cancelReason, String reason2) {
+        // 复用一个 orderItem,reason 字段就放 cancelReason 测试逗号转义
+        OrderDocument doc = paidOrder(orderId, userId);
+        doc.setStatus("CANCELLED");
+        doc.setCancelReason(cancelReason + " " + reason2);
+        return doc;
+    }
+
+    // === 路线图 4.14:renderPicklistHtml ===
+
+    @Test
+    void renderPicklistHtml_containsOrderIdAndItemRows() {
+        OrderDocument doc = paidOrderWithCreatedAt("o1", "u1",
+                new java.math.BigDecimal("150.00"),
+                Instant.parse("2026-06-01T00:00:00Z"));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(doc));
+
+        String html = service.renderPicklistHtml("o1");
+
+        assertThat(html).contains("<title>拣货单 - o1</title>");
+        assertThat(html).contains("订单号:o1");
+        assertThat(html).contains("用户 ID:u1");
+        // 含商品行 + 合计
+        assertThat(html).contains("三文鱼");
+        assertThat(html).contains("¥ 50.00");
+        assertThat(html).contains("¥ 150.00");
+        // 含打印按钮
+        assertThat(html).contains("onclick=\"window.print()\"");
+    }
+
+    @Test
+    void renderPicklistHtml_escapesHtmlInFields() {
+        // 防御:商品含 < > & 时不应破坏 HTML 结构
+        OrderDocument doc = paidOrderWithCreatedAt("o1", "u1", new java.math.BigDecimal("50.00"),
+                Instant.now());
+        doc.setItems(List.of(new com.seafood.order.domain.OrderItem(
+                "p1", "<script>alert(1)</script>", new java.math.BigDecimal("50.00"), 1)));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(doc));
+
+        String html = service.renderPicklistHtml("o1");
+
+        assertThat(html).contains("&lt;script&gt;alert(1)&lt;/script&gt;");
+        assertThat(html).doesNotContain("<script>alert(1)</script>");
+    }
+
+    @Test
+    void renderPicklistHtml_throwsNotFoundForMissing() {
+        when(orderRepo.findById("o-missing")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.renderPicklistHtml("o-missing"))
+                .isInstanceOf(NotFoundException.class);
     }
 }

@@ -4,6 +4,7 @@ import com.seafood.bff.admin.dto.DashboardResponse;
 import com.seafood.bff.admin.dto.OrderDetailResponse;
 import com.seafood.bff.admin.dto.OrderStatsResponse;
 import com.seafood.bff.admin.dto.TopProductResponse;
+import com.seafood.bff.admin.dto.TrendPointResponse;
 import com.seafood.order.api.dto.OrderResponse;
 import com.seafood.order.application.OrderService;
 import com.seafood.product.api.dto.ProductResponse;
@@ -41,6 +42,9 @@ import java.util.stream.Collectors;
 public class AdminBffService {
 
     private static final int TOP_N = 10;
+    private static final int LOW_STOCK_THRESHOLD = 10;
+    private static final int TREND_DAYS = 7;
+    private static final int RECENT_ORDERS_LIMIT = 10;
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
 
     private final OrderService orders;
@@ -92,7 +96,6 @@ public class AdminBffService {
     // ----- 6.3 dashboard -----
 
     public DashboardResponse dashboard() {
-        Instant now = Instant.now();
         Instant startOfToday = LocalDate.now(ZONE).atStartOfDay(ZONE).toInstant();
         Instant startOfWeek = LocalDate.now(ZONE)
                 .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -107,7 +110,13 @@ public class AdminBffService {
                 orders.countCreatedSince(startOfMonth));
         ProductStatsResponse prodStats = productStats.stats();
         List<TopProductResponse> top = topProducts();
-        return new DashboardResponse(orderStats, prodStats, top);
+        List<TrendPointResponse> trend7d = trend7d();
+        List<ProductResponse> lowStock = productStats.lowStock(LOW_STOCK_THRESHOLD).stream()
+                .limit(TOP_N)
+                .toList();
+        // 路线图 2.21:近期订单流(最近 10 单,按 createdAt 倒序,findRecent 内部已排序)
+        List<com.seafood.order.api.dto.OrderResponse> recentOrders = orders.findRecent(RECENT_ORDERS_LIMIT);
+        return new DashboardResponse(orderStats, prodStats, top, trend7d, lowStock, recentOrders);
     }
 
     private List<TopProductResponse> topProducts() {
@@ -141,5 +150,41 @@ public class AdminBffService {
                 .filter(t -> t.product() != null)
                 .sorted(Comparator.comparingLong(TopProductResponse::totalQuantitySold).reversed())
                 .toList();
+    }
+
+    /**
+     * 路线图 2.17:7 天订单数折线(今日 + 前 6 天,UTC+8 当日为界)。
+     *
+     * <p>实现:对每一天的起点跑 {@code countCreatedSince(startOfDay)} — 拿到「从 startOfDay
+     * 到现在的累计订单数」。相邻两天累计数相减 = 当日新增订单数。
+     * 共 7 次 DB 读(顺序);7 天趋势刷新 P99 应 < 100ms(admin 仪表盘非热路径)。
+     *
+     * <p>性能优化方向:用 MongoDB aggregation pipeline 一次返回 7 桶;
+     * 万级订单时再做(2.5 Sprint 1 末 spike 同款 P99 监控)。
+     */
+    private List<TrendPointResponse> trend7d() {
+        LocalDate today = LocalDate.now(ZONE);
+        long[] cumulative = new long[TREND_DAYS];
+        // cumulative[i] = 从 (today - i) 天 0 点至今的累计订单数(单调非递减)
+        // i=0 → 今天 0 点(最小,只含今天); i=6 → 6 天前 0 点(最大,含 7 天)
+        for (int i = 0; i < TREND_DAYS; i++) {
+            Instant from = today.minusDays(i).atStartOfDay(ZONE).toInstant();
+            cumulative[i] = orders.countCreatedSince(from);
+        }
+        // 倒序产出 oldest → newest,与折线图 X 轴方向一致
+        List<TrendPointResponse> out = new ArrayList<>(TREND_DAYS);
+        for (int i = TREND_DAYS - 1; i >= 0; i--) {
+            long perDay;
+            if (i == 0) {
+                perDay = cumulative[0]; // 今天 0 点至今 = 今天新增
+            } else {
+                // cumulative[i] 包含 (today-i) 当天 + 之后;
+                // cumulative[i-1] 不含 (today-i) 当天(只含 (today-i+1) 之后);
+                // 差 = (today-i) 当天新增
+                perDay = cumulative[i] - cumulative[i - 1];
+            }
+            out.add(new TrendPointResponse(today.minusDays(i), perDay));
+        }
+        return out;
     }
 }

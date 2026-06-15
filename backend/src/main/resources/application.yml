@@ -1,10 +1,12 @@
 spring:
   application:
     name: seafood-backend
-  data:
-    mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/seafood}
-      auto-index-creation: false  # 索引由 MongoIndexInitializer 启动时显式创建
+  mongodb:
+    # Spring Boot 4 (2026-06-14):prefix 从 `spring.data.mongodb` 改成 `spring.mongodb`,
+    # 旧 prefix 被 deprecate 静默忽略 → MongoClient 走默认 localhost:27017。
+    # env var 同步改 `SPRING_MONGODB_URI`(`MONGODB_URI` 经 relaxed binding 自动映射)。
+    uri: ${MONGODB_URI:mongodb://localhost:27017/seafood}
+    auto-index-creation: false  # 索引由 MongoIndexInitializer 启动时显式创建
   threads:
     virtual:
       enabled: true  # Java 25 虚拟线程(参见 design.md §Java 25 现代化)
@@ -95,6 +97,15 @@ management:
   metrics:
     tags:
       application: seafood-backend
+
+# v2 视觉 5.14-5.17 — 上传路径单一源。
+# 容器内由 docker-compose 注入 SEAFOOD_UPLOAD_DIR=/app/var/seafood/uploads;
+# 本地 dev 走 ./var/seafood/uploads(相对 backend 工作目录)。
+# 写盘(AdminUploadController)与读盘(StaticResourceConfig)两处都 @Value
+# 注入同一变量,避免默认值漂移导致容器内写读路径不一致。
+seafood:
+  upload:
+    dir: ${SEAFOOD_UPLOAD_DIR:./var/seafood/uploads}
 
 logging:
   level:
