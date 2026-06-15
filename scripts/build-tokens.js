@@ -123,9 +123,53 @@ function validateShadow(shadow) {
 }
 
 // ---------------------------------------------------------------------------
-// Build mp tokens.wxss — emits a single :root { ... } block with CSS custom
-// properties. WXSS supports the same var() syntax as CSS, including
-// `oklch(...)` values (微信小程序 8.0+ WebView support).
+// oklch → hex conversion for WeChat mini program compatibility.
+// WeChat's WXSS engine does not support oklch() — values must be hex.
+// ---------------------------------------------------------------------------
+function oklchToHex(oklchStr) {
+  // Parse oklch(L% C H) or oklch(L% C H / A)
+  const m = oklchStr.match(/oklch\((\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?\)/);
+  if (!m) return oklchStr; // not oklch, return as-is
+  const L = parseFloat(m[1]) / 100;
+  const C = parseFloat(m[2]);
+  const H = parseFloat(m[3]);
+
+  // oklch → oklab → linear srgb → srgb
+  const hRad = H * Math.PI / 180;
+  const a = C * Math.cos(hRad);
+  const b = C * Math.sin(hRad);
+
+  // oklab → linear srgb (Björn Ottosson's matrix)
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+
+  const l3 = l_ * l_ * l_;
+  const m3 = m_ * m_ * m_;
+  const s3 = s_ * s_ * s_;
+
+  let r = +4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3;
+  let g = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3;
+  let bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3;
+
+  // gamma
+  const gamma = (v) => v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+  r = Math.round(Math.min(1, Math.max(0, gamma(r))) * 255);
+  g = Math.round(Math.min(1, Math.max(0, gamma(g))) * 255);
+  bl = Math.round(Math.min(1, Math.max(0, gamma(bl))) * 255);
+
+  // If alpha present, use rgba(); otherwise hex
+  if (m[4] !== undefined) {
+    const alpha = parseFloat(m[4]);
+    return `rgba(${r}, ${g}, ${bl}, ${alpha})`;
+  }
+  return '#' + [r, g, bl].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+// ---------------------------------------------------------------------------
+// Build mp tokens.wxss — emits a single page { ... } block with CSS custom
+// (WeChat mini programs don't support :root; must use page selector)
+// Values are hex (WXSS does not support oklch()).
 // ---------------------------------------------------------------------------
 function buildWxss(tokens) {
   const lines = [
@@ -135,15 +179,16 @@ function buildWxss(tokens) {
     ' *',
     ' * See openspec/changes/v2-visual-redesign/specs/visual-design-system/',
     ' */',
-    ':root {',
+    'page {',
   ];
 
   // Colors (flat + state-soft flattened as --state-<name>-soft)
+  // Convert oklch() → hex for WeChat WXSS compatibility
   for (const key of REQUIRED_COLOR_KEYS) {
-    lines.push('  --' + key + ': ' + tokens.colors[key] + ';');
+    lines.push('  --' + key + ': ' + oklchToHex(tokens.colors[key]) + ';');
   }
   for (const key of REQUIRED_STATE_SOFT_KEYS) {
-    lines.push('  --' + key + ': ' + tokens.colors['state-soft'][key] + ';');
+    lines.push('  --' + key + ': ' + oklchToHex(tokens.colors['state-soft'][key]) + ';');
   }
 
   // Radii
@@ -151,9 +196,9 @@ function buildWxss(tokens) {
     lines.push('  --radius-' + key + ': ' + tokens.radius[key] + ';');
   }
 
-  // Shadows
+  // Shadows (convert oklch to hex/rgba for WeChat compatibility)
   for (const key of REQUIRED_SHADOW_KEYS) {
-    lines.push('  --shadow-' + key + ': ' + tokens.shadow[key] + ';');
+    lines.push('  --shadow-' + key + ': ' + oklchToHex(tokens.shadow[key]) + ';');
   }
 
   // Typography — emit as --font-<name>
