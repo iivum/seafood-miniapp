@@ -79,7 +79,7 @@ public class SecurityConfig {
                 // 不是 403。`permitAll` 让 Security 不挡,交给 Spring 路由
                 // 层报 404。MetricsEndpointIT .prometheusEndpointAbsentFromBusinessPort
                 // + businessPortHasNoActuatorRoutes 期望 404 守此契约。
-                .requestMatchers("/admin/**", "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers("/admin/**", "/assets/**", "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 // 写商品 = ADMIN
                 .requestMatchers(HttpMethod.POST, "/api/products", "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")

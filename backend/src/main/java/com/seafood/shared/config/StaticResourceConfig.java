@@ -33,6 +33,11 @@ public class StaticResourceConfig implements WebMvcConfigurer {
 
     private static final String ADMIN_BASE = "/admin/**";
     private static final String ADMIN_LOCATION = "classpath:/static/admin/";
+    // v2.1 signoff 修:vite 默认 base='/',build 产物 index.html 引用 /assets/...
+    // 根路径,但实际文件在 classpath:/static/admin/assets/。修法:加 /assets/** 资源
+    // 处理器,跟 SPA index.html 同源,SecurityConfig 同时 permitAll(public JS/CSS/font)。
+    private static final String ASSETS_BASE = "/assets/**";
+    private static final String ASSETS_LOCATION = ADMIN_LOCATION + "assets/";
 
     /**
      * 路线图 3.6 上传图片静态暴露路径(/api/static/uploads/**)。
@@ -63,6 +68,10 @@ public class StaticResourceConfig implements WebMvcConfigurer {
         // 标准静态资源:实际文件存在时直接返
         registry.addResourceHandler(ADMIN_BASE)
                 .addResourceLocations(ADMIN_LOCATION)
+                .setCachePeriod(3600);
+        // v2.1:admin-ui vite 产物的 /assets/** 根路径(JS/CSS/字体)
+        registry.addResourceHandler(ASSETS_BASE)
+                .addResourceLocations(ASSETS_LOCATION)
                 .setCachePeriod(3600);
         // 3.6 上传文件 + 5.15 路径同源(file: 前缀指向文件系统;与 classpath 不同)
         registry.addResourceHandler(UPLOADS_BASE)
