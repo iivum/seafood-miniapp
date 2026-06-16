@@ -77,6 +77,19 @@ const PAGES: PageSpec[] = [
     storage: { userInfo: { openId: 'dev-mock', nickName: '视觉验收' }, token: 'dev-mock-jwt' },
     wxmlMust: [/order-confirm-container/],
   },
+  {
+    name: 'mp-07-address-list',
+    url: '/pages-sub/user/address/address-list',
+    storage: {
+      userInfo: { id: 'dev-user-001', openId: 'dev-mock', nickName: '视觉验收' },
+      token: 'dev-mock-jwt',
+    },
+    wxmlMust: [/address-list-container/, /address-list/],
+    dataMust: ['addresses', 'selectMode'],
+    fromBackend: { path: 'addresses.0', fields: ['name', 'phone', 'detail', 'isDefault'] },
+  },
+  // ⚠️ mp-05 订单详情 — 页面在 frontend/pages-sub/order/ 不存在(v2 路线图 S-1 应在 Sprint 2 实现)
+  // v2.1 signoff 标 known gap,不入 e2e
 ];
 
 function getByPath(obj: any, p: string): any {
@@ -155,7 +168,7 @@ describe('mp 3-layer 视觉验证 (outerWxml + page.data + console)', () => {
       }
     }, 30000);
 
-    it('行为:无 exception(console warn 仅记录)', async () => {
+    it('行为:无 exception + 无 console error/warning', async () => {
       if (spec.tab) {
         await miniProgram.switchTab(spec.tab);
       } else {
@@ -164,6 +177,8 @@ describe('mp 3-layer 视觉验证 (outerWxml + page.data + console)', () => {
       await new Promise((r) => setTimeout(r, 5000));
       if (consoleErrs.length) console.log(`[${spec.name}] console:\n  ${consoleErrs.join('\n  ')}`);
       expect(exceptions).toEqual([]);
+      // 用户显式要求:console 不应抛任何 error / warning
+      expect(consoleErrs).toEqual([]);
     }, 30000);
   });
 });
