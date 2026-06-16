@@ -38,7 +38,7 @@
 |---|---|---|---|
 | 1 结构 | 节点/class/文案 | `page.outerWxml()` | `page.locator()` + `aria-query` |
 | 2 数据 | 字段真实性 | `page.data()` + `fromBackend` | `page.evaluate(() => store.getState())` |
-| 3 行为 | runtime 异常 | `miniProgram.on('console'\|'exception')` | `page.on('pageerror')` |
+| 3 行为 | runtime 异常 + **console error & warning** | `miniProgram.on('console')` 按 type 分 error/warn/log + `on('exception')`,断言 `errors=[]` + `warnings=[]`(无任何 warning,用户显式要求) | `page.on('console')` + `page.on('pageerror')`,同断言 |
 | 4 颜色 | token parity + WCAG | chroma.js 解析 `getComputedStyle` | 同上 |
 
 ## 执行顺序
