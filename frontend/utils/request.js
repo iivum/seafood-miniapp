@@ -1,8 +1,21 @@
-const app = getApp();
+// sprint-1-closure 8.x: 延迟 getApp() 到调用时,模块加载时 getApp() 返 undefined
+// 导致 "Cannot read property 'globalData' of undefined" 错误
+function getAppSafe() {
+  try {
+    return getApp();
+  } catch (e) {
+    return null;
+  }
+}
 
 const request = (options) => {
   return new Promise((resolve, reject) => {
     const { url, method = 'GET', data = {}, header = {}, needAuth = false } = options;
+    const app = getAppSafe();
+    if (!app) {
+      reject(new Error('App instance not ready'));
+      return;
+    }
     const baseUrl = app.globalData.baseUrl;
 
     // 构建请求头
@@ -30,11 +43,13 @@ const request = (options) => {
             title: '登录已过期，请重新登录',
             icon: 'none'
           });
-          
+
           // 清除无效的token
           wx.removeStorageSync('token');
-          app.globalData.token = null;
-          app.globalData.userInfo = null;
+          if (app) {
+            app.globalData.token = null;
+            app.globalData.userInfo = null;
+          }
           
           // 跳转到登录页面
           setTimeout(() => {

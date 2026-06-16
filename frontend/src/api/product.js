@@ -32,7 +32,26 @@ class ProductAPI {
         data: params,
       });
 
-      // Type guard to ensure response has expected structure
+      // sprint-1-closure 8.x: backend 用 Spring Data Page<T> 格式
+      // { content, totalElements, totalPages, number, size, first, last }
+      // mp 端 UI 用自定义格式 { products, page, totalPages, totalProducts, hasNext, hasPrev }
+      // 这里做转换,让 mp 端代码不感知后端分页协议
+      console.log('[ProductAPI] raw response keys:', response ? Object.keys(response) : 'null');
+      if (Array.isArray(response?.content)) {
+        console.log('[ProductAPI] Spring Page detected, content len:', response.content.length);
+        const totalPages = response.totalPages || 0;
+        const number = response.number || 0;
+        return {
+          products: response.content,
+          page: number,
+          totalPages,
+          totalProducts: response.totalElements || response.content.length,
+          hasNext: response.last === false && number < totalPages - 1,
+          hasPrev: response.first === false && number > 0,
+        };
+      }
+
+      // 旧格式(如果后端迁回)直接返
       if (!ProductAPI.isValidPaginatedResponse(response)) {
         console.warn('Invalid response format from Product API');
         return {
