@@ -60,6 +60,14 @@ public class AdminCookieAuthController {
     @Value("${admin.cookie.secure:false}")
     private boolean cookieSecure;
 
+    /**
+     * sprint-1-closure 验证发现:dev 下 admin-ui (5173) 与 backend (8080) 端口不同,
+     * Set-Cookie 默认绑在 8080,浏览器访问 5173 不带 cookie → 403。
+     * 修:可配 cookie Domain,dev 设 "localhost" 让两端口共享;prod 留空(按请求 host 绑)。
+     */
+    @Value("${admin.cookie.domain:}")
+    private String cookieDomain;
+
     public AdminCookieAuthController(AuthService auth,
                                      TokenRevocationService revocation,
                                      JwtTokenProvider tokens,
@@ -201,6 +209,7 @@ public class AdminCookieAuthController {
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(COOKIE_MAX_AGE_SECONDS);
+        if (cookieDomain != null && !cookieDomain.isEmpty()) b.domain(cookieDomain);
         res.addHeader(HttpHeaders.SET_COOKIE, b.build());
     }
 
@@ -211,6 +220,7 @@ public class AdminCookieAuthController {
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(0);
+        if (cookieDomain != null && !cookieDomain.isEmpty()) b.domain(cookieDomain);
         res.addHeader(HttpHeaders.SET_COOKIE, b.build());
     }
 
@@ -237,6 +247,7 @@ public class AdminCookieAuthController {
         private boolean secure;
         private String sameSite;
         private String path;
+        private String domain;
         private int maxAge;
 
         private ResponseCookieBuilder(String name, String value) {
@@ -252,6 +263,7 @@ public class AdminCookieAuthController {
         ResponseCookieBuilder secure(boolean v) { this.secure = v; return this; }
         ResponseCookieBuilder sameSite(String v) { this.sameSite = v; return this; }
         ResponseCookieBuilder path(String v) { this.path = v; return this; }
+        ResponseCookieBuilder domain(String v) { this.domain = v; return this; }
         ResponseCookieBuilder maxAge(int v) { this.maxAge = v; return this; }
 
         String build() {
@@ -260,6 +272,7 @@ public class AdminCookieAuthController {
             if (httpOnly) sb.append("; HttpOnly");
             if (secure) sb.append("; Secure");
             if (sameSite != null) sb.append("; SameSite=").append(sameSite);
+            if (domain != null) sb.append("; Domain=").append(domain);
             if (maxAge > 0 || maxAge == 0) sb.append("; Max-Age=").append(maxAge);
             return sb.toString();
         }
