@@ -4,10 +4,10 @@
 
 ## Phase 1: 路线图 review(本 PR)
 
-- [ ] T1 用户 review `proposal.md` + `design.md`,确认 4 个子项目目标/缺口/候选/交付/判据无误
-- [ ] T2 用户确认 Sprint 切分(Sprint 2: D1 + A 后端;Sprint 3: A 续 + B;Sprint 4: D3 + C1 + C3;Sprint 5+: C2/C4/C5)
-- [ ] T3 用户确认验收(数量 / 质量 / 速度 / 可观测 / 可持续 5 类)
-- [ ] T4 路线图 commit + PR(若需要)
+- [x] T1 用户 review `proposal.md` + `design.md`,确认 4 个子项目目标/缺口/候选/交付/判据无误
+- [x] T2 用户确认 Sprint 切分(Sprint 2: D1 + A 后端;Sprint 3: A 续 + B;Sprint 4: D3 + C1 + C3;Sprint 5+: C2/C4/C5)
+- [x] T3 用户确认验收(数量 / 质量 / 速度 / 可观测 / 可持续 5 类)
+- [x] T4 路线图 commit + PR(若需要)— 用户选 commit 不开 PR
 
 ## Phase 2: 子项目启动(后续,各自 PR)
 
