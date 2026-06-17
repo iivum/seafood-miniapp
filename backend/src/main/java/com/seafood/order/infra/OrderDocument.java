@@ -39,6 +39,12 @@ public class OrderDocument {
      */
     private String refundId;
 
+    /**
+     * 预计送达时间(mp-09 4.20 新增,create 时由 Service 算 now+24h 写入)。
+     * null 时 MongoDB 不写字段,旧订单无此字段反序列化为 null — 零迁移,向后兼容。
+     */
+    private Instant estimatedDelivery;
+
     @Indexed(direction = org.springframework.data.mongodb.core.index.IndexDirection.DESCENDING)
     private Instant createdAt;
 
@@ -67,6 +73,9 @@ public class OrderDocument {
 
     public String getRefundId() { return refundId; }
     public void setRefundId(String refundId) { this.refundId = refundId; }
+
+    public Instant getEstimatedDelivery() { return estimatedDelivery; }
+    public void setEstimatedDelivery(Instant estimatedDelivery) { this.estimatedDelivery = estimatedDelivery; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

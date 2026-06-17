@@ -19,7 +19,7 @@ public final class OrderMapper {
                 d.getCancelReason(),
                 d.getTracking(),
                 d.getRefundId(),
-                null, // estimatedDelivery: OrderDocument 未显式声明字段,Spring Data Mongo 写入/读出均不带,这里显式传 null
+                d.getEstimatedDelivery(),
                 d.getCreatedAt(),
                 d.getUpdatedAt());
     }
@@ -34,6 +34,7 @@ public final class OrderMapper {
         d.setCancelReason(o.cancelReason());
         d.setTracking(o.tracking());
         d.setRefundId(o.refundId());
+        d.setEstimatedDelivery(o.estimatedDelivery());
         d.setCreatedAt(o.createdAt());
         d.setUpdatedAt(o.updatedAt());
         return d;

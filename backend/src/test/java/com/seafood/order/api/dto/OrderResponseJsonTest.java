@@ -42,4 +42,24 @@ class OrderResponseJsonTest {
         var back = objectMapper.readValue(json, OrderResponse.class);
         assertThat(back.estimatedDelivery()).isEqualTo(eta);
     }
+
+    /**
+     * T2 concern #1:estimatedDelivery 必须真正通过 Mongo 往返。
+     *
+     * <p>JSON 往返测不到 Mongo 路径 — {@code OrderDocument} 漏字段会导致
+     * {@code OrderMapper.toDocument} 静默丢失,mp-09 状态 banner 永远拿不到 ETA。
+     */
+    @Test
+    void estimatedDeliveryMongoRoundtrip() {
+        var o = new Order(
+            "o1", "u1", List.of(item), new BigDecimal("198.00"),
+            new OrderStatus.Pending(), null, null, null, null, t0, t0);
+        var eta = Instant.parse("2026-06-19T10:00:00Z");
+        var withEstimate = o.withEstimatedDelivery(eta);
+
+        var doc = com.seafood.order.infra.OrderMapper.toDocument(withEstimate);
+        var back = com.seafood.order.infra.OrderMapper.toDomain(doc);
+
+        assertThat(back.estimatedDelivery()).isEqualTo(eta);
+    }
 }
