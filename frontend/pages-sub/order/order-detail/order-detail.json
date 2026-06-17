@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "shared-loading": "@vant/weapp/loading/index",
+    "shared-empty": "@vant/weapp/empty/index"
+  }
+}

@@ -110,7 +110,7 @@ Page({
   onOrderTap: function (e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
-      url: '/pages-sub/order/order-confirm/order-confirm?id=' + encodeURIComponent(id),
+      url: '/pages-sub/order/order-detail/order-detail?id=' + encodeURIComponent(id),
     });
   },
 
