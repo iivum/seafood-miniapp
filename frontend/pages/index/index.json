@@ -1,6 +1,9 @@
 {
   "navigationBarTitleText": "海鲜生鲜商城",
-  "usingComponents": {},
+  "usingComponents": {
+    "shared-empty": "@vant/weapp/empty/index",
+    "shared-loading": "@vant/weapp/loading/index"
+  },
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark",
   "renderer": "skyline",

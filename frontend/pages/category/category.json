@@ -1,5 +1,9 @@
 {
   "navigationBarTitleText": "商品分类",
+  "usingComponents": {
+    "shared-empty": "@vant/weapp/empty/index",
+    "shared-loading": "@vant/weapp/loading/index"
+  },
   "renderer": "skyline",
   "navigationStyle": "custom"
 }

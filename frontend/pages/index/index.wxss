@@ -68,6 +68,12 @@
   white-space: nowrap;
   padding: 24rpx 24rpx 8rpx;
   background: var(--bg, #fffbf8);
+  /* v2.1 signoff 修:Skyline 渲染下 scroll-view scroll-x 默认 overflow:hidden,
+     需显式设 overflow-x:auto + 不收缩,否则 inline-flex chips 仍会按 block 排
+     版重叠(用 white-space:nowrap 单独不够,scroll-view 不是 inline container) */
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .home-chip {

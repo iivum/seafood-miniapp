@@ -29,10 +29,20 @@ const request = (options) => {
       requestHeader['Authorization'] = `Bearer ${app.globalData.token}`;
     }
 
+    // v2.1 signoff 修:GET 请求过滤 undefined / null / 空字符串字段。
+    // wx.request GET 模式会把 data 拼到 URL query,未过滤的 undefined
+    // 会变成 ?category=undefined 字面量 → backend 找不到匹配 → 返空。
+    // v2.1 home page 6 卡瀑布空白 / order-list 0 单的根因。
+    // POST 保持原样(后端走 Jackson @RequestBody,会忽略 null)。
+    const isGet = String(method).toUpperCase() === 'GET';
+    const cleanedData = isGet && data && typeof data === 'object'
+      ? Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined && v !== null && v !== ''))
+      : data;
+
     wx.request({
       url: baseUrl + url,
       method,
-      data,
+      data: cleanedData,
       header: requestHeader,
       success: (res) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
