@@ -6,17 +6,32 @@
  *   - 同一份代码每次跑 outerWxml 100% 一致,数据断言直击"前端是否真接了后端"
  *   - console 错误作 fail 条件(回应"console 错误需认真排查")
  *
+ * ## 4 层断言(对齐 visual-verification-patterns.md)
+ *  1. 结构 — outerWxml 节点 / class / 文案
+ *  2. 数据 — page.data 字段 + 来自后端的字段
+ *  3. 行为 — exception + console error/warning = 0
+ *  4. 颜色 — token-parity.test.ts 单独跑
+ *
+ * ## 稳定性(Sprint 1 closure)
+ *  按 `~/.claude/skills/wechat-miniprogram-e2e/references/stability.md` 模板 A+B:
+ *  - 每个 it 独立 connect(connectWithRetry),不共享 beforeAll
+ *  - listener 在 beforeEach 内 attach(不累积)
+ *  - 失败隔离:单个 it 失败不影响其他 it
+ *
  * 前置:
  *   1. DevTools 在跑(wechatwebdevtools),CLI 启动:`cli auto --auto-port 9420`
  *   2. 后端在 8080 跑(本仓库单进程 + GraalVM Native binary / JVM)
  *   3. 跑命令:TZ=UTC WS_ENDPOINT=ws://127.0.0.1:9420 npx jest e2e/mp-3layer.test.ts --runInBand
  */
-// @ts-ignore — CommonJS only
+// @ts-nocheck — CommonJS only,jest globals 由 jest runtime 注入
 const automator = require('miniprogram-automator');
-const path = require('node:path');
+
+// 抑制 EventEmitter MaxListenersExceededWarning(治标,见 troubleshooting §10.1 根因 2)
+require('node:events').defaultMaxListeners = 50;
 
 const WS = process.env.WS_ENDPOINT || 'ws://127.0.0.1:9420';
-const BACKEND = process.env.BACKEND_URL || 'http://localhost:8080';
+const RETRY = 3;
+const RETRY_DELAY_MS = 2000;
 
 interface PageSpec {
   name: string;
@@ -88,70 +103,82 @@ const PAGES: PageSpec[] = [
     dataMust: ['addresses', 'selectMode'],
     fromBackend: { path: 'addresses.0', fields: ['name', 'phone', 'detail', 'isDefault'] },
   },
-  // ⚠️ mp-05 订单详情 — 页面在 frontend/pages-sub/order/ 不存在(v2 路线图 S-1 应在 Sprint 2 实现)
-  // v2.1 signoff 标 known gap,不入 e2e
+  // ⚠️ mp-05 / mp-09 订单详情 — v2.1 后由独立 TDD test 覆盖
+  //   (mp-od-design.test.ts 含 mp-09 spec;mp-05 spec 待 OD 设计稿)
 ];
+
+/** connect + 重试 3 次 — 见 stability.md 模板 A */
+async function connectWithRetry() {
+  let lastErr;
+  for (let i = 0; i < RETRY; i++) {
+    try {
+      return await automator.connect({ wsEndpoint: WS });
+    } catch (e: any) {
+      lastErr = e;
+      console.warn(`[connect] retry ${i + 1}/${RETRY} failed: ${e.message?.slice(0, 100)}`);
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    }
+  }
+  throw lastErr;
+}
 
 function getByPath(obj: any, p: string): any {
   return p.split('.').reduce((acc, k) => (acc == null ? acc : acc[k]), obj);
 }
 
-describe('mp 3-layer 视觉验证 (outerWxml + page.data + console)', () => {
-  let miniProgram: any;
+/** 失败隔离:某个 spec 抛错(WS stall / timeout / Mock 失败)只让单 spec fail,不影响其他 */
+function describeOrSkip(name: string, fn: () => void) {
+  describe(name, fn);
+}
 
-  beforeAll(async () => {
-    miniProgram = await automator.connect({ wsEndpoint: WS });
-  }, 60000);
-
-  afterAll(() => {
-    if (miniProgram) miniProgram.disconnect();
-  });
-
+describeOrSkip('mp 3-layer 视觉验证 (每 spec 独立连接 + 失败隔离)', () => {
   describe.each(PAGES)('$name', (spec: PageSpec) => {
-    const consoleErrs: string[] = [];
-    const exceptions: string[] = [];
+    let mp: any;
+    let page: any;
+    let consoleErrs: string[] = [];
+    let exceptions: string[] = [];
 
-    beforeAll(() => {
-      const onConsole = (m: any) => {
-        if (m.type === 'error' || m.type === 'warn') consoleErrs.push(`[${m.type}] ${m.message}`);
-      };
-      const onException = (e: any) => exceptions.push(e.message || String(e));
-      miniProgram.on('console', onConsole);
-      miniProgram.on('exception', onException);
-    });
-
-    it('结构:outerWxml 包含期望节点 / 文案', async () => {
+    beforeEach(async () => {
+      mp = await connectWithRetry();
+      // listeners 在 beforeEach 内 attach,旧的随旧连接被 close
+      consoleErrs = [];
+      exceptions = [];
+      mp.on('console', (m: any) => {
+        if (m.type === 'error' || m.type === 'warn') {
+          consoleErrs.push(`[${m.type}] ${m.message}`);
+        }
+      });
+      mp.on('exception', (e: any) => exceptions.push(e.message || String(e)));
       if (spec.storage) {
-        await miniProgram.evaluate((s: any) => {
+        await mp.evaluate((s: any) => {
           for (const [k, v] of Object.entries(s)) wx.setStorageSync(k, v);
         }, spec.storage);
       }
       if (spec.tab) {
-        await miniProgram.switchTab(spec.tab);
+        await mp.switchTab(spec.tab);
       } else {
-        await miniProgram.navigateTo(spec.url!);
+        await mp.navigateTo(spec.url!);
       }
+      // 4s 等首屏 + 数据加载
       await new Promise((r) => setTimeout(r, 4000));
-      const page = await miniProgram.currentPage();
+      page = await mp.currentPage();
+    }, 60000);
+
+    afterEach(async () => {
+      if (mp) {
+        try { await mp.close(); } catch { /* ignore */ }
+        mp = null;
+      }
+    });
+
+    it('L1 结构:outerWxml 包含期望节点 / 文案', async () => {
       const wxml = await page.outerWxml();
       for (const pat of spec.wxmlMust) {
         expect(wxml).toMatch(pat);
       }
     }, 30000);
 
-    it('数据:page.data 包含期望字段 + 来自后端', async () => {
-      if (spec.storage) {
-        await miniProgram.evaluate((s: any) => {
-          for (const [k, v] of Object.entries(s)) wx.setStorageSync(k, v);
-        }, spec.storage);
-      }
-      if (spec.tab) {
-        await miniProgram.switchTab(spec.tab);
-      } else {
-        await miniProgram.navigateTo(spec.url!);
-      }
-      await new Promise((r) => setTimeout(r, 4000));
-      const page = await miniProgram.currentPage();
+    it('L2 数据:page.data 包含期望字段 + 来自后端', async () => {
       const data = await page.data();
       for (const p of spec.dataMust || []) {
         expect(getByPath(data, p)).toBeDefined();
@@ -168,16 +195,12 @@ describe('mp 3-layer 视觉验证 (outerWxml + page.data + console)', () => {
       }
     }, 30000);
 
-    it('行为:无 exception + 无 console error/warning', async () => {
-      if (spec.tab) {
-        await miniProgram.switchTab(spec.tab);
-      } else {
-        await miniProgram.navigateTo(spec.url!);
+    it('L3 行为:无 exception + 无 console error/warning', async () => {
+      if (consoleErrs.length) {
+        console.log(`[${spec.name}] console issues:\n  ${consoleErrs.join('\n  ')}`);
       }
-      await new Promise((r) => setTimeout(r, 5000));
-      if (consoleErrs.length) console.log(`[${spec.name}] console:\n  ${consoleErrs.join('\n  ')}`);
-      expect(exceptions).toEqual([]);
       // 用户显式要求:console 不应抛任何 error / warning
+      expect(exceptions).toEqual([]);
       expect(consoleErrs).toEqual([]);
     }, 30000);
   });
