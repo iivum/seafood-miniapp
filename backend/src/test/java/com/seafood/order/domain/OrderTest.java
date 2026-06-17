@@ -17,7 +17,7 @@ class OrderTest {
 
     private Order sample() {
         return new Order("o1", "u1", List.of(item), new BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, null, null, t0, t0);
+                new OrderStatus.Pending(), null, null, null, null, t0, t0);
     }
 
     @Test
@@ -117,7 +117,7 @@ class OrderTest {
         DomainException ex = null;
         try {
             new Order("o1", "u1", List.of(), new BigDecimal("1"),
-                    new OrderStatus.Pending(), null, null, null, t0, t0);
+                    new OrderStatus.Pending(), null, null, null, null, t0, t0);
         } catch (DomainException e) {
             ex = e;
         }
@@ -128,7 +128,7 @@ class OrderTest {
     @Test
     void constructor_rejectsNonPositiveTotal() {
         assertThatThrownBy(() -> new Order("o1", "u1", List.of(item), BigDecimal.ZERO,
-                new OrderStatus.Pending(), null, null, null, t0, t0))
+                new OrderStatus.Pending(), null, null, null, null, t0, t0))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("金额");
     }

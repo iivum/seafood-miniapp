@@ -33,6 +33,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -161,7 +162,11 @@ public class OrderService {
 
         // 3) 持久化订单
         Instant now = Instant.now();
-        Order order = new Order(null, userId, items, total, new OrderStatus.Pending(), null, null, null, now, now);
+        // mp-09 路线图 4.20:预计送达时间 = now + 24h。海鲜商品配送时效约定(本仓库仅单卖家内部运营,
+        // 无外部承运商,delivery SLA 由 admin 配置后此处读配置,先写死 24h)。
+        Instant estimatedDelivery = now.plus(Duration.ofHours(24));
+        Order order = new Order(null, userId, items, total, new OrderStatus.Pending(),
+                null, null, null, estimatedDelivery, now, now);
         OrderDocument saved = orders.save(OrderMapper.toDocument(order));
 
         // 4) 清空 cart

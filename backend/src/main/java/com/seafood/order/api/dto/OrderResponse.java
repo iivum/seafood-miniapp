@@ -28,6 +28,7 @@ public record OrderResponse(
         String cancelReason,
         OrderTracking tracking,
         String refundId,
+        Instant estimatedDelivery,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -36,6 +37,7 @@ public record OrderResponse(
                 o.id(), o.userId(), o.items(), o.totalAmount(),
                 o.status().code(), o.cancelReason(),
                 o.tracking(), o.refundId(),
+                o.estimatedDelivery(),
                 o.createdAt(), o.updatedAt());
     }
 }

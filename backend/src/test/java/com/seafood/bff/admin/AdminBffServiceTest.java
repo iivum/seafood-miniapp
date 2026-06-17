@@ -47,7 +47,7 @@ class AdminBffServiceTest {
     }
 
     private OrderResponse sampleOrder(String id, String userId, List<OrderItem> items, BigDecimal total) {
-        return new OrderResponse(id, userId, items, total, "PENDING", null, null, null,
+        return new OrderResponse(id, userId, items, total, "PENDING", null, null, null, null,
                 Instant.parse("2026-06-03T00:00:00Z"), Instant.parse("2026-06-03T00:00:00Z"));
     }
 
