@@ -53,6 +53,9 @@ const OD_SPECS: OdSpec[] = [
     required: [
       { selector: 'home-address|home-search|location|search-bar', label: '顶部地址 + 搜索框' },
       { selector: 'home-banner|home-banner__item', label: 'Hero banner 红色卡片' },
+      { selector: 'home-banner__title', label: 'banner title 文案字段' },
+      { selector: 'home-banner__subtitle', label: 'banner subtitle 文案字段' },
+      { selector: 'banners', label: 'banners data 字段(数组)' },
       { selector: 'home-chip', label: '分类 chip(5 个)' },
       { selector: 'home-tag|home-filter|tag-tab', label: '时令/上新/促销 标签' },
       { selector: 'home-card|product-card|recommend-card', label: '推荐商品大卡(2 列)' },

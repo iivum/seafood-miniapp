@@ -16,6 +16,32 @@ const HOT_SEARCH_KEYWORDS = [
   { id: 8, keyword: '扇贝', count: 2600 }
 ];
 
+// Banner 轮播数据(Sprint 2 修:banner 字段缺失 → swiper 渲染 0 张)
+// 对照 OD 设计稿,3 张 hook banner + 暖橘色 gradient
+const BANNERS = [
+  {
+    id: 'b-001',
+    tone: 'accent',
+    emoji: '🦞',
+    title: '波龙季 返场',
+    subtitle: '鲜活到岸 · 满 1 只减 30',
+  },
+  {
+    id: 'b-002',
+    tone: 'soft',
+    emoji: '🐟',
+    title: '冰鲜直发',
+    subtitle: '大黄鱼 · 9.8 折 · 当日达',
+  },
+  {
+    id: 'b-003',
+    tone: 'accent',
+    emoji: '🦀',
+    title: '大闸蟹 旺季',
+    subtitle: '公 4 两 · 整 8 只装',
+  },
+];
+
 Page({
   data: {
     categories: [
@@ -25,6 +51,8 @@ Page({
         {id: 'live', name: '活鲜', icon: '🦞'}
     ],
     products: [],
+    // Sprint 2 修:banner 轮播数据(对应 wxml swiper wx:for="{{banners}}")
+    banners: BANNERS,
     // Loading states
     isLoading: false,
     isLoadingMore: false,
