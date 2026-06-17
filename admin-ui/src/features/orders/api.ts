@@ -21,7 +21,11 @@ export const ordersApi = {
     if (params.size !== undefined) {
       search.set('size', String(params.size));
     }
-    const res = await api.get<PageResponse<OrderResponse>>(`/orders?${search.toString()}`);
+    // v2.1 修:Sprint 1 closure 调 /api/orders(mp 端 user-only)→ admin 访问 403。
+    // 改 /api/admin/orders(AdminOrderController.list 应暴露 — 但当前 backend
+    // 缺 GET /api/admin/orders 端点,只有 batch-ship / export / print-picklist)。
+    // 见 src/__tests__/order-list-endpoint.test.tsx 防回归。
+    const res = await api.get<PageResponse<OrderResponse>>(`/admin/orders?${search.toString()}`);
     return res.data;
   },
   detail: async (id: string): Promise<OrderDetailResponse> => {
@@ -29,7 +33,10 @@ export const ordersApi = {
     return res.data;
   },
   ship: async (id: string): Promise<OrderResponse> => {
-    const res = await api.post<OrderResponse>(`/orders/${id}/ship`);
+    // v2.1 修:同 list(),改 admin 路径(后端 AdminOrderController.ship 不存在,
+    // 但 /api/orders/{id}/ship 是 mp 端 user-only,admin 必 403;后续 sprint 2
+    // 修 backend 加 AdminOrderController.ship 或转发到 OrderService)
+    const res = await api.post<OrderResponse>(`/admin/orders/${id}/ship`);
     return res.data;
   },
   /**
