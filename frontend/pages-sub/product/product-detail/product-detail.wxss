@@ -290,9 +290,11 @@
 }
 
 .detail-footer__btn--buy {
-  background: var(--accent, #db633c);
+  /* sprint 2 WCAG 修:fg=surface(#fff) 在 accent(#db633c) ratio=3.58 失败。
+     改用 accent-strong(#b83300) → ratio 5.98,达 AA 4.5+ */
+  background: var(--accent-strong, #b83300);
   color: var(--surface, #fff);
-  box-shadow: 0 4rpx 12rpx rgba(219, 99, 60, 0.32);
+  box-shadow: 0 4rpx 12rpx rgba(184, 51, 0, 0.32);
 }
 
 .detail-footer__btn--hover {

@@ -44,25 +44,32 @@ describe('mp token parity (Node 端 chroma.js 静态校验)', () => {
     });
   });
 
-  describe('CTA WCAG AA contrast', () => {
-    const CTAS = [
-      { name: 'detail-footer__btn--buy(立即购买)', fg: '#ffffff', bg: '#db633c' },
-      { name: 'detail-footer__btn--cart(加入购物车)', fg: '#b83300', bg: '#ffe7d9' },
-      { name: 'order-list__status PENDING', fg: '#df911a', bg: '#ffe9cb' },
-      { name: 'order-list__status PAID', fg: '#1988a3', bg: '#d2f5ff' },
-      { name: 'order-list__status COMPLETED', fg: '#318f5a', bg: '#d5f9e0' },
-      { name: 'order-list__status REFUNDING', fg: '#b9003d', bg: '#ffe2e4' },
+  describe('CTA WCAG AA contrast(Sprint 2 — hard fail)', () => {
+    // 6 个 CTA:fg/bg pair 取自 wxml 实际使用(改 wxml 后,这里同步改 fgToken/bgToken)
+    // 这样 test 跟页面实际渲染的 pair 同步。
+    const CTAS: { name: string; fgToken: string; bgToken: string }[] = [
+      // detail-footer btn:
+      //   --buy:fg=surface, bg=accent-strong(WCAG 修后)
+      //   --cart:fg=accent-strong, bg=accent-soft
+      { name: 'detail-footer__btn--buy(立即购买)', fgToken: 'surface', bgToken: 'accent-strong' },
+      { name: 'detail-footer__btn--cart(加入购物车)', fgToken: 'accent-strong', bgToken: 'accent-soft' },
+      // 4 个 order status badge(WCAG 修后)
+      { name: 'order-list__status PENDING', fgToken: 'warning', bgToken: 'warning-soft' },
+      { name: 'order-list__status PAID', fgToken: 'info', bgToken: 'info-soft' },
+      { name: 'order-list__status COMPLETED', fgToken: 'success', bgToken: 'success-soft' },
+      { name: 'order-list__status REFUNDING', fgToken: 'error', bgToken: 'error-soft' },
     ];
 
-    it.each(CTAS)('$name: contrast ratio (Sprint 1 末仅 log 报告,不 hard fail)', (cta) => {
-      const ratio = chroma.contrast(cta.fg, cta.bg);
-      const status = ratio >= 4.5 ? 'AA-PASS' : ratio >= 3.0 ? 'AA-FAIL-但可见' : 'CRITICAL';
-      console.log(`  [${status}] ${cta.name}: fg=${cta.fg} bg=${cta.bg} ratio=${ratio.toFixed(2)}`);
-      if (ratio < 4.5) {
-        console.warn(`  ⚠️  ${cta.name} ratio ${ratio.toFixed(2)} < WCAG AA 4.5 — Sprint 2 需修`);
+    it.each(CTAS)('$name: contrast ratio >= 4.5 (WCAG AA)', (cta) => {
+      const fg = ACTUAL_TOKENS.get(cta.fgToken);
+      const bg = ACTUAL_TOKENS.get(cta.bgToken);
+      if (!fg || !bg) {
+        throw new Error(`token 缺失: fg=${cta.fgToken}=${fg} bg=${cta.bgToken}=${bg}`);
       }
-      // Sprint 1 末已知 design 限制,本测试只 report,不 hard fail
-      // Sprint 2 应修:warning / warning-soft / error-soft / info-soft 配 各自 fg contrast < 4.5
+      const ratio = chroma.contrast(fg, bg);
+      const status = ratio >= 4.5 ? 'AA-PASS' : ratio >= 3.0 ? 'AA-FAIL-但可见' : 'CRITICAL';
+      console.log(`  [${status}] ${cta.name}: fg=${cta.fgToken}(${fg}) bg=${cta.bgToken}(${bg}) ratio=${ratio.toFixed(2)}`);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
   });
 });
