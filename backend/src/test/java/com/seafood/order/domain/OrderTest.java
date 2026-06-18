@@ -1,6 +1,7 @@
 package com.seafood.order.domain;
 
 import com.seafood.shared.error.DomainException;
+import com.seafood.testsupport.builders.OrderBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -16,8 +17,12 @@ class OrderTest {
     private final OrderItem item = new OrderItem("p1", "三文鱼", new BigDecimal("99.00"), 2);
 
     private Order sample() {
-        return new Order("o1", "u1", List.of(item), new BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, null, null, null, t0, t0);
+        return OrderBuilder.anOrder()
+                .withId("o1")
+                .withUserId("u1")
+                .withItems(List.of(item))
+                .withTotalAmount(new BigDecimal("198.00"))
+                .build();
     }
 
     @Test
