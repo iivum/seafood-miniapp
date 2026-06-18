@@ -66,18 +66,18 @@ jobs:
           java-version: '25'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cache Gradle
-        uses: actions/cache@v5
+      # Sprint 3 B: gradle/actions/setup-gradle@v3 替代 actions/cache@v5 —
+      # remote build cache + 自动 gradle.properties 的 org.gradle.caching=true。
+      # cache-read-only: PR 只读不写,防 cache 投毒;push to main 走 read+write。
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: ${{ runner.os }}-gradle-
+          cache-disabled: false
+          cache-read-only: ${{ github.event_name != 'pull_request' }}
+          gradle-home-cache-cleanup: true
 
       - name: Compile
         working-directory: backend
-        # Sprint 2 CI 加速 (2026-06-07):--build-cache 复用 actions/cache 持久化的 task output
         run: ./gradlew --no-daemon --build-cache --parallel compileJava
 
       - name: Test + check (含 @RefreshScope 扫描)
