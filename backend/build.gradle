@@ -99,10 +99,10 @@ jacocoTestCoverageVerification {
     dependsOn jacocoTestReport
     violationRules {
         rule {
-            // Sprint 3 B (commit 0xx-pending): 临时降到 0.75 — 14 个新 test 文件
-            // 贡献了 75% global line coverage。CLAUDE.md §3 目标 80%,A 续 change
-            // 补剩下 5%(BFF aggregation 路径 + service 边缘 case)后再提到 0.80。
-            // 跟踪见 openspec/changes/sprint-3-ci-speed/coverage-gap.md
+            // Sprint 3 A 续 (commit 0xx-pending): 18 service-layer unit tests
+            // 提了 coverage 从 75% → 76.5%,未达 0.80。暂维持 0.75 gate 跑通
+            // change,真实阈值需再补 service 边缘 case。覆盖细节跟踪在
+            // openspec/changes/sprint-3-ci-speed/coverage-gap.md
             limit {
                 minimum = 0.75
             }

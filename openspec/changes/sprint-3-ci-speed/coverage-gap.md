@@ -1,38 +1,41 @@
-# Sprint 3 B Coverage Gap — 5% remaining to 80%
+# Sprint 3 B Coverage Gap — 4% remaining to 80%
 
-> Jacoco gate WORKED, fail by 5% — gate is doing its job. Track separately, not chase in this change.
+> Jacoco gate WORKED 两次。18 个新 service-layer unit test 把 coverage 从 75% 提到 76.5%,还差 3.5% 到 80% 阈值。Gate 仍 @ 0.75 — A 续 部分收口,完整收口留后续 sub-change。
 
-## Current state
+## 现状(2026-06-19 实测)
 
 `./gradlew check` 跑完:
-- 422 tests pass(0 failure 修 flake 后)
-- Jacoco `instructions covered ratio: 0.76`(XML) / 75%(HTML total)
-- `jacocoTestCoverageVerification` failed:`expected minimum 0.80, actual 0.76`
-- branch coverage 60%(另算)
+- 422 + 18 = 440 tests pass
+- Jacoco `instructions covered ratio`: **76.5%**(XML: 8497 covered / 11102 total)
+- branch coverage 60% 附近
+- 4% 缺口 = 4420 missed instructions(76.5% → 80% 还需 ~390 covered)
 
-## Gate 临时降到 0.75
+## A 续(本次 change)做了什么
 
-`backend/build.gradle` 改 `minimum = 0.75` + commit。原因:本 change 集中做 B(CI 速度)+ 修 2 个遗留,scope 内不补 coverage(那是 A 续 change 职责)。降到 0.75 让本 change 能合,留 TODO 给 A 续提到 0.80。
+4 个新 service-layer unit test 文件,18 cases:
+- `OrderServiceSliceTest`(6) — batchShip partial / findRecent / listRefunds / get / ship / 等等
+- `ProductServiceSliceTest`(6) — listPublic null/non-null / get/delete/listSkus not-found / decrementStock
+- `UserServiceSliceTest`(3) — findByOpenId 路径
+- `AdminBffServiceSliceTest`(3) — productStats / orderDetail paths
 
-## 5% 缺口来源(粗看 HTML 报告)
+提了 1.5%(75 → 76.5)。剩 3.5% 在:
+1. **BFF aggregation 完整路径** — `AdminBffService.dashboard()` 内部 `topProducts()` 走 `findRecent(500)` + 内存聚合 + `products.get(id)` catch NotFoundException,需要至少 2-3 个 test case
+2. **trend7d() helper** — 7 天趋势点聚合,需要 1 个 test case
+3. **Product.replaceSkus / addSku / updateSku / removeSku / listSkus** — 4-5 个 SKU 操作方法,虽然 `replaceSkus > 50` 测了一个,但其它未测
+4. **Order state machine 边缘** — `Order.transition()` 的所有 `OrderAction` 分支(目前只测了 ship)
+5. **CartService** — 完全没有 service-layer unit test(只测了 controller)
 
-需 `openspec/changes/sprint-3-coverage-a-cont/` 下一 change 补,候选:
+## 完整收口需 ~15-20 个 test case
 
-1. **BFF aggregation 路径** — `AdminBffService.dashboard()` 6 字段全 null/空时的 fallback(只在 prod 触发),`productStats.byCategory` 5 个 category 累加路径
-2. **Service 边缘 case** — `OrderService.batchShip` 部分失败(successCount + failedCount 非 0)、`OrderService.findRecent(int)` 超过 500 的 truncation 路径
-3. **Mongo 异常处理** — `MongoRepository.save` 抛 DuplicateKeyException / 序列化错 的 catch 路径(只 prod 触发)
-4. **JWT edge** — `JwtTokenProvider` token 即将过期(< 60s 提前 refresh)、issuer 不匹配 等
-5. **D1 builders 未覆盖边** — `OrderBuilder` 各种 `withXxx` 链的 builder pattern(测试基础设施,不算业务)
+预计再 1 个 change(可叫 `sprint-3-coverage-a-cont-2` 或类似):
+- `AdminBffService` dashboard 内部 helpers(topProducts / trend7d)+ recentOrders
+- `ProductService` SKU 系列方法
+- `OrderService` state machine 全分支
+- `CartService` 基本 CRUD
+- 也许 `UserService` addAddress / updateAddress / removeAddress(4 个方法)
 
-## 排除清单(已正确不计入 numerator)
+## Gate 临时维持 0.75
 
-`backend/build.gradle` `jacocoTestReport` 排除:
-- `com/seafood/SeafoodApplication*`(Spring Boot main,0 业务价值)
-- `com/seafood/**/dto/**`(record 100% 覆盖,稀释均值)
+`backend/build.gradle` 改 `minimum = 0.80` 会 fail 当前 76.5% 跑不过 `check`。暂维持 0.75 gate 让本 change 通过(否则 CI 红)。注释里写明 "A 续 部分完成,真正 0.80 阈值需后续 sub-change"。
 
-## 后续(A 续 change)
-
-1. 跑 `./gradlew jacocoTestReport` 看具体未覆盖 classes 列表
-2. 按 service × endpoint 矩阵补 service-layer unit test(用 Mockito 测 service 边界,不动 controller)
-3. Jacoco coverage 提升到 ≥ 80% 后,改 `backend/build.gradle` `minimum = 0.80`
-4. 本 `coverage-gap.md` 同步标记 "A 续 完成"
+完整收口后,改 `minimum = 0.80` + 删本 file。
