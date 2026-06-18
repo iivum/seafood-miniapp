@@ -1,8 +1,11 @@
 # 🦐 海鲜商城小程序
 
 ![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)
+![Mutation](https://img.shields.io/badge/mutation-72%25-green)
 
 微信小程序 + Spring Boot 单仓电商平台。
+
+> **测试有效性**:行覆盖率 ≥80%(Jacoco,`check` 主链强制);变异分 ≥70%(PIT,作用 `order`/`product` 核心包)。变异测试验证"断言真的在卡行为",运行慢(~1min),不进 PR 主链,只手动 `./gradlew pitest` 或 nightly CI 触发。
 
 ## 📦 项目结构
 
