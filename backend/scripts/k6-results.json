@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-06-19T00:00:00Z",
+  "endpoints": {},
+  "total_requests": 0,
+  "error_rate": 0.0,
+  "note": "Initial baseline placeholder. Run backend/scripts/k6-run.sh to populate with real P50/P95/P99 from a live backend. Used by .github/workflows/nightly.yml for regression detection."
+}
