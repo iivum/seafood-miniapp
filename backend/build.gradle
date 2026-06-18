@@ -182,6 +182,10 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Sprint 2 A: per-feature @WebMvcTest slice artifact (Boot 4 split spring-boot-test-autoconfigure
+    // into per-feature modules — webmvc-test ships the @WebMvcTest annotation in package
+    // org.springframework.boot.webmvc.test.autoconfigure).
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.assertj:assertj-core'
     // Sprint 1: Testcontainers + ArchUnit (DDD layer guardrails)
