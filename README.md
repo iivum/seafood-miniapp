@@ -1,5 +1,7 @@
 # 🦐 海鲜商城小程序
 
+![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)
+
 微信小程序 + Spring Boot 单仓电商平台。
 
 ## 📦 项目结构

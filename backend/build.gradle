@@ -99,12 +99,10 @@ jacocoTestCoverageVerification {
     dependsOn jacocoTestReport
     violationRules {
         rule {
-            // Sprint 3 A 续-2 (commit 0xx-pending): 4 个新 service test 文件
-            // 提了 coverage 从 76.5% → 79.3%,差 0.7pp 到 0.80。先升到 0.79
-            // (实际 ≥ 0.793, 留 0.7pp 缓冲);完全 0.80 留后续 sub-change。
-            // 覆盖细节跟踪在 openspec/changes/sprint-3-coverage-a-cont-2/coverage-gap.md
+            // Sprint 4 coverage closure: CartControllerSliceTest + AdminProductControllerSliceTest
+            // + OrderServiceRequestRefundTest 将 coverage 从 79.3% 提至 80%(2195 missed / 11102 total).
             limit {
-                minimum = 0.79
+                minimum = 0.80
             }
         }
     }

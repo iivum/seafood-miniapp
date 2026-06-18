@@ -118,4 +118,37 @@ class AdminProductControllerSliceTest {
             .assertThat()
             .hasStatus(404);
     }
+
+    @Test
+    void export_asAdmin_returnsCsvBytes() {
+        when(productService.exportRecentProductsAsCsv()).thenReturn("id,name\np-1,三文鱼\n");
+
+        mvc.get().uri("/api/admin/products/export")
+            .exchange()
+            .assertThat()
+            .hasStatusOk()
+            .hasHeader("Content-Type", "text/csv;charset=UTF-8");
+    }
+
+    @Test
+    void batchStatus_success_returnsSuccessCount() {
+        mvc.post().uri("/api/admin/products/batch-status")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .content("{\"ids\":[\"p-1\",\"p-2\"],\"status\":\"ACTIVE\"}")
+            .exchange()
+            .assertThat()
+            .hasStatusOk()
+            .bodyJson()
+            .hasPathSatisfying("$.successCount", v -> v.assertThat().isEqualTo(2));
+    }
+
+    @Test
+    void batchStatus_emptyIds_returns409() {
+        mvc.post().uri("/api/admin/products/batch-status")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .content("{\"ids\":[],\"status\":\"ACTIVE\"}")
+            .exchange()
+            .assertThat()
+            .hasStatus(409);
+    }
 }
