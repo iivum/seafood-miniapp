@@ -25,12 +25,16 @@
 
 ## 4. CI 接入 + 文档(对应 spec:不进 PR 主链 / nightly 留存)
 
-- [ ] 4.1 在 `.github/workflows/nightly.yml` 新增 pitest job/step:`./gradlew pitest`
-- [ ] 4.2 上传 `backend/build/reports/pitest/` 为 artifact,`retention-days: 30`,`if: always()`
-- [ ] 4.3 README 在 coverage badge 旁加 mutation score 一行说明(手动/nightly 触发、作用核心包)
-- [ ] 4.4 commit:`build(pitest): C1 变异测试接入 + nightly job + <实测>% gate`
+- [x] 4.1 `.github/workflows/nightly.yml` 新增 `pitest-mutation` job:`./gradlew pitest -PexcludeTags=docker`(无需 MongoDB)
+- [x] 4.2 上传 `backend/build/reports/pitest/` 为 artifact,`retention-days: 30`,`if: always()`
+- [x] 4.3 README 加 mutation badge(72%)+ 测试有效性一行说明
+- [x] 4.4 commit 45fc32c:`build(pitest): C1 变异测试接入 + nightly job + 70% gate(基线 72%)`
 
 ## 5. 收尾
 
-- [ ] 5.1 回填 `openspec/changes/test-suite-roadmap/tasks.md`:C1 PIT 由 deferred 改为 done,更新 §5 验收对应条目
+- [x] 5.1 回填 `openspec/changes/test-suite-roadmap/tasks.md` T10:C1 PIT 由 deferred 改为 done(commit 45fc32c)
 - [ ] 5.2 `/opsx:archive sprint-4-pit-mutation` 归档并 sync `mutation-testing` spec 到 `openspec/specs/`
+
+> **分歧待用户定夺**:roadmap `test-roadmap` spec 写 PIT "gates PR merge",本 change(design D4)
+> 选 nightly-only(PR CI 速度预算)。plan.md Task 10 原规划的 ci.yml PR-scoped changed-module
+> PIT 未做。若需 PR 级 PIT,可后续加 `-Dpit.target.tests=com.seafood.<changed>.*` 增量跑。

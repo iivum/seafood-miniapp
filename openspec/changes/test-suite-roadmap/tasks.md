@@ -20,5 +20,7 @@
 ## Phase 3: 整体验收(6 个月末)
 
 - [x] T10 4 个 Sprint 全部归档(D1/A/B/A续/A续-2/Sprint4 changes 均已 archive);
-      C1 PIT 未启动,留 sprint-5-pit-mutation 独立 change
+      C1 PIT 已通过 sprint-4-pit-mutation 完成(commit 45fc32c):PIT 1.22.1 在
+      JDK 25 + Gradle 9 + Jupiter 6 跑通,核心包基线变异分 72%,gate 70%,
+      nightly job 留存报告 —— C1 推迟的工具链兼容性疑虑解除
 - [ ] T11 整体验收清单(本路线图 §5)全部勾完
