@@ -19,5 +19,6 @@
 
 ## Phase 3: 整体验收(6 个月末)
 
-- [ ] T10 4 个子项目全部归档
+- [x] T10 4 个 Sprint 全部归档(D1/A/B/A续/A续-2/Sprint4 changes 均已 archive);
+      C1 PIT 未启动,留 sprint-5-pit-mutation 独立 change
 - [ ] T11 整体验收清单(本路线图 §5)全部勾完
