@@ -12,10 +12,10 @@
 ## Phase 2: 子项目启动(后续,各自 PR)
 
 - [x] T5 用户挑 1 个子项目(推荐先 D1 或 A 后端)— 选 D1: test data builder
-- [ ] T6 创建 `openspec/changes/sprint-N-<sub-project>/`,走标准 proposal → design → specs → tasks 流程
-- [ ] T7 实施子项目 PR(对照本路线图 §2 完成判据)
-- [ ] T8 归档 sub-change
-- [ ] T9 回到本路线图 §5 验收勾选对应条目
+- [x] T6 创建 `openspec/changes/sprint-N-<sub-project>/`,走标准 proposal → design → specs → tasks 流程
+- [x] T7 实施子项目 PR(对照本路线图 §2 完成判据)
+- [x] T8 归档 sub-change
+- [x] T9 回到本路线图 §5 验收勾选对应条目
 
 ## Phase 3: 整体验收(6 个月末)
 
