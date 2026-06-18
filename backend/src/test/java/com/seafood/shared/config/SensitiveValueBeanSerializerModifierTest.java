@@ -79,9 +79,15 @@ class SensitiveValueBeanSerializerModifierTest {
 
     @Test
     void masksFieldNamedToken() {
-        record Bean(String accessToken) {}
-        String json = objectMapper().writeValueAsString(new Bean("eyJhbGciOi"));
-        assertThat(json).contains("\"accessToken\":\"eyJh***\"");
+        // Use `privateToken` (not `accessToken` / `refreshToken`) — those two
+        // are on the explicit whitelist in SensitiveValueBeanSerializerModifier#shouldMask
+        // because TokenResponse / UserResponse are API DTOs that must return
+        // tokens un-masked to the client (otherwise every admin call gets 403).
+        // A non-whitelisted "Token"-suffixed field is what exercises the regex
+        // branch without colliding with the API-凭据 carve-out.
+        record Bean(String privateToken) {}
+        String json = objectMapper().writeValueAsString(new Bean("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0.signature"));
+        assertThat(json).contains("\"privateToken\":\"eyJh***\"");
     }
 
     @Test
