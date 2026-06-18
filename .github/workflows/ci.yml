@@ -80,9 +80,19 @@ jobs:
         working-directory: backend
         run: ./gradlew --no-daemon --build-cache --parallel compileJava
 
-      - name: Test + check (含 @RefreshScope 扫描)
+      - name: Test + check (含 @RefreshScope 扫描 + Jacoco coverage gate)
         working-directory: backend
         run: ./gradlew --no-daemon --build-cache --parallel check
+
+      # Sprint 3 B coverage-gate: 上传 Jacoco HTML/XML report 作为 CI artifact,
+      # retention 7 days,供 PR review 查 per-file coverage(Sprint 4 D3 落 Codecov)。
+      - name: Upload Jacoco coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage
+          path: backend/build/reports/jacoco/test/**
+          retention-days: 7
 
       - name: Native compile (best-effort,design §10 风险 #1)
         working-directory: backend
