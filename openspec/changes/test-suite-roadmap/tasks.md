@@ -23,4 +23,8 @@
       C1 PIT 已通过 sprint-4-pit-mutation 完成(commit 45fc32c):PIT 1.22.1 在
       JDK 25 + Gradle 9 + Jupiter 6 跑通,核心包基线变异分 72%,gate 70%,
       nightly job 留存报告 —— C1 推迟的工具链兼容性疑虑解除
+- [x] T12 C2 契约测试已通过 sprint-5-c2-openapi-contract 完成(commits e27fb9b/53b069d/cd1da39):
+      **形态改为 OpenAPI schema 契约**(非 SCC —— SCC 对「1 JVM + 2 TS 前端」拓扑是错工具,
+      生成的 stub JAR 前端消费不了)。springdoc 3.0.3 生成 OpenAPI SoT(test-scope 不进 native)+
+      漂移门 + swagger-request-validator 响应一致校验(4 端点接入)。触发条件「BFF 复杂」已成立(7 Controller/15 端点)
 - [ ] T11 整体验收清单(本路线图 §5)全部勾完

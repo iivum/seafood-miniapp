@@ -51,6 +51,18 @@ npm test
 npm test -- --coverage
 ```
 
+### API 契约(OpenAPI,Sprint 5 C2)
+
+后端 HTTP API 的 **OpenAPI 3 spec 是后端↔前端契约的 SoT**:`backend/src/test/resources/contract/openapi.json`(由 springdoc 从真实 Controller 生成,**仅测试期**,不进 native 运行时、不在 8080 暴露)。两道闸:
+
+- **漂移门** `OpenApiContractIT`:改了 API 但没更新契约即 fail。有意变更后重生成:
+  ```bash
+  CONTRACT_UPDATE=true ./gradlew test --tests "*OpenApiContractIT"   # 需 Docker(全上下文 + Mongo)
+  ```
+- **响应一致校验**:slice 测试用 `OpenApiContractAssert` 校验响应真符合契约声明的 schema。
+
+前端可直接用 `openapi.json` 跑 `openapi-typescript` 生成 client(mp / admin-ui),契约双向消费。
+
 ## 🛠️ 技术栈
 
 版本与依赖以仓库内 SOT 文件为准,本 README 不重复:
