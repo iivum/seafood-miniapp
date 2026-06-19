@@ -43,6 +43,8 @@ cd backend
 ./gradlew test -PexcludeTags=docker   # 无 Docker 环境跳过 Testcontainers IT
 ```
 
+测试分层:example-based(JUnit 5)+ **property-based**(jqwik,Sprint 5 C4)。后者对核心 domain 不变量跑随机样本逼反例:`Product.decrementStock` 数值边界、`OrderStatus` 状态机(round-trip / 终态不可流出 / 无自环)、`Sku`/`Product` 构造校验。jqwik 引擎与 junit-platform 6 并存(spike 验证兼容)。
+
 ### 前端测试
 
 ```bash

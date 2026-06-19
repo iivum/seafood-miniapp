@@ -315,6 +315,9 @@ dependencies {
     // Sprint 5 C2 — 响应一致校验:用 core API(OpenApiInteractionValidator)对 slice 测试
     // 响应做 schema 校验,从 MockMvcTester 结果取 status/body 手接,不依赖 mockmvc adapter。
     testImplementation 'com.atlassian.oai:swagger-request-validator-core:2.46.1'
+    // Sprint 5 C4 — property-based testing(domain 不变量)。jqwik 1.10.1 引擎绑 junit-platform
+    // 1.14.x,项目在 6.0.3 —— 兼容性由 §1 spike 验证;不兼容则回退 QuickTheories(design D1)。
+    testImplementation 'net.jqwik:jqwik:1.10.1'
     testRuntimeOnly   'org.junit.platform:junit-platform-launcher'
 }
 
