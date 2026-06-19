@@ -33,7 +33,7 @@
 ## 5. 收尾
 
 - [x] 5.1 回填 `openspec/changes/test-suite-roadmap/tasks.md` T10:C1 PIT 由 deferred 改为 done(commit 45fc32c)
-- [ ] 5.2 `/opsx:archive sprint-4-pit-mutation` 归档并 sync `mutation-testing` spec 到 `openspec/specs/`
+- [x] 5.2 归档:`mutation-testing` spec 已 sync 到 `openspec/specs/mutation-testing/`,change 移入 `openspec/changes/archive/2026-06-19-sprint-4-pit-mutation/`
 
 ## 6. PR-scoped 增量 gate(用户选 option 2:对齐 roadmap "gates PR merge")
 
@@ -44,4 +44,4 @@
 - [x] 6.2 实测验证:`-PpitScope=order` → 83% 过 80 ✓;`-PpitScope=product` → 43% 过 40 ✓
 - [x] 6.3 ci.yml 新增 `pitest-incremental` job(仅 PR):git diff 检测改动核心模块 → scoped 跑 → 按 floor 卡门;无核心改动则跳过。bash 检测逻辑 + YAML 已本地验证
 - [x] 6.4 mutation-testing spec:拆"全量不进 check / nightly 全量 gate" + 新增"PR 增量 gate(per-module floor)"requirement
-- [ ] 6.5 **测试债跟踪**:`product.application` 变异分 32%(50% 行覆盖,50/74 变异无覆盖)→ 子项目 A 续:补 product ApplicationService 测试到 ≥70%,然后把 ci.yml/build.gradle 的 product floor 由 40 提至 70
+- [x] 6.5 **测试债已清**:新增 `ProductServiceMutationGapTest`(22 例,瞄准 CSV/SKU/not-found/updateStatus 存活变异)→ `product.application` 32% → ~97%,**product 模块整体 43% → 83%**;build.gradle/spec 的 product floor 由 40 提至 70(13pt 余量)

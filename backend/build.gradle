@@ -148,9 +148,9 @@ configurations.matching { it.name in ['testRuntimeClasspath', 'pitest'] }.config
 //   · 不传 / -PpitScope=all → 全核心包(nightly + 手动),gate 70(实测基线 72%)
 //   · -PpitScope=order      → 只 order 域,PR 内 ci.yml 检测到 order 改动时跑,floor 80
 //   · -PpitScope=product    → 只 product 域,floor 40
-// 各模块 floor 按当前基线 grandfather、只防回退(design D4 反"不可达 gate"):
-//   order ≈83%(domain 90 + app 80)→ 80;product ≈43%(domain 73 + app 32)→ 40。
-//   ⚠️ product.application 仅 32% 变异覆盖 = 已知测试债,待子项目 A 补测后把 product floor 提至 70。
+// 各模块 floor 按当前基线、防回退(design D4 反"不可达 gate"):
+//   order ≈83%(domain 90 + app 80)→ 80;product ≈83%(domain 73 + app 97,经
+//   ProductServiceMutationGapTest 补测后从 43% 升至 83%)→ 70(13pt 余量护残余 6 无覆盖变异)。
 def pitScope = (findProperty('pitScope') ?: 'all').toString()
 def pitMap = [
     order  : [classes  : ['com.seafood.order.domain.*', 'com.seafood.order.application.*'],
@@ -158,7 +158,7 @@ def pitMap = [
               threshold: 80],
     product: [classes  : ['com.seafood.product.domain.*', 'com.seafood.product.application.*'],
               tests    : ['com.seafood.product.*'],
-              threshold: 40],
+              threshold: 70],
     all    : [classes  : ['com.seafood.order.domain.*', 'com.seafood.product.domain.*',
                           'com.seafood.order.application.*', 'com.seafood.product.application.*'],
               tests    : ['com.seafood.order.*', 'com.seafood.product.*'],

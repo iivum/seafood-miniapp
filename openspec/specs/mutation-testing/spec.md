@@ -65,7 +65,7 @@ PIT 的 `targetClasses` SHALL 限定为核心领域逻辑(`order` 与 `product` 
 
 ### Requirement: PR 内对改动核心模块跑增量变异 gate
 
-PR CI SHALL 检测本 PR 改动了哪些核心模块(`order` / `product`),仅对改动模块跑 scoped PIT 并按该模块基线 floor 卡门;未改动核心模块的 PR 不触发变异分析。各模块 floor 按当前基线 grandfather、只防回退(`order` 80% / `product` 40%),不强求统一 70%——避免对当前测试债(`product.application` 32%)设不可达 gate。
+PR CI SHALL 检测本 PR 改动了哪些核心模块(`order` / `product`),仅对改动模块跑 scoped PIT 并按该模块基线 floor 卡门;未改动核心模块的 PR 不触发变异分析。各模块 floor 按当前基线、防回退(`order` 80% / `product` 70%,二者实测均 ≈83%)。
 
 #### Scenario: PR 改动 order 模块时按 order floor 卡门
 
