@@ -27,4 +27,8 @@
       **形态改为 OpenAPI schema 契约**(非 SCC —— SCC 对「1 JVM + 2 TS 前端」拓扑是错工具,
       生成的 stub JAR 前端消费不了)。springdoc 3.0.3 生成 OpenAPI SoT(test-scope 不进 native)+
       漂移门 + swagger-request-validator 响应一致校验(4 端点接入)。触发条件「BFF 复杂」已成立(7 Controller/15 端点)
+- [x] T13 C4 property-based testing 已通过 sprint-5-c4-property-testing 完成(commit 7367e5c):
+      **jqwik 1.10.1**(平台兼容性 spike 通过:引擎绑 junit-platform 1.14.x 但在项目 6.0.3 上
+      正常发现执行,不需 QuickTheories 回退)。13 个 domain property 覆盖 decrementStock 数值边界 /
+      OrderStatus 状态机(round-trip+终态+无自环)/ Sku·Product 构造校验
 - [ ] T11 整体验收清单(本路线图 §5)全部勾完
