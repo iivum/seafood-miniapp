@@ -144,27 +144,40 @@ configurations.matching { it.name in ['testRuntimeClasspath', 'pitest'] }.config
     }
 }
 
+// 作用域参数化(roadmap PR-gating):
+//   · 不传 / -PpitScope=all → 全核心包(nightly + 手动),gate 70(实测基线 72%)
+//   · -PpitScope=order      → 只 order 域,PR 内 ci.yml 检测到 order 改动时跑,floor 80
+//   · -PpitScope=product    → 只 product 域,floor 40
+// 各模块 floor 按当前基线 grandfather、只防回退(design D4 反"不可达 gate"):
+//   order ≈83%(domain 90 + app 80)→ 80;product ≈43%(domain 73 + app 32)→ 40。
+//   ⚠️ product.application 仅 32% 变异覆盖 = 已知测试债,待子项目 A 补测后把 product floor 提至 70。
+def pitScope = (findProperty('pitScope') ?: 'all').toString()
+def pitMap = [
+    order  : [classes  : ['com.seafood.order.domain.*', 'com.seafood.order.application.*'],
+              tests    : ['com.seafood.order.*'],
+              threshold: 80],
+    product: [classes  : ['com.seafood.product.domain.*', 'com.seafood.product.application.*'],
+              tests    : ['com.seafood.product.*'],
+              threshold: 40],
+    all    : [classes  : ['com.seafood.order.domain.*', 'com.seafood.product.domain.*',
+                          'com.seafood.order.application.*', 'com.seafood.product.application.*'],
+              tests    : ['com.seafood.order.*', 'com.seafood.product.*'],
+              threshold: 70],
+]
+def pitCfg = pitMap[pitScope] ?: pitMap['all']
+
 pitest {
     junit5PluginVersion = '1.2.3'
     // 作用域白名单(design D3):只变异核心领域 + 应用逻辑,不碰 DTO/Document/配置/BFF 装配。
-    targetClasses = [
-        'com.seafood.order.domain.*',
-        'com.seafood.product.domain.*',
-        'com.seafood.order.application.*',
-        'com.seafood.product.application.*',
-    ]
+    targetClasses = pitCfg.classes
     excludedClasses = [
         'com.seafood.**.dto.*',
         'com.seafood.**.*Document',
         'com.seafood.SeafoodApplication*',
     ]
-    targetTests = [
-        'com.seafood.order.*',
-        'com.seafood.product.*',
-    ]
-    // gate(design D4):实测核心包基线变异分 = 72%(357 变异 / 杀 257),≥ 70% 直接设 70。
-    // 低于阈值 pitest 任务失败,使"清空方法体仍全绿"的无效测试无法蒙混过关。
-    mutationThreshold = 70
+    targetTests = pitCfg.tests
+    // gate(design D4):低于阈值 pitest 失败,使"清空方法体仍全绿"的无效测试无法蒙混过关。
+    mutationThreshold = pitCfg.threshold
     outputFormats = ['HTML', 'XML']
     timestampedReports = false
 }

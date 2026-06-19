@@ -142,6 +142,68 @@ jobs:
         continue-on-error: true
         run: ./gradlew --no-daemon --build-cache --parallel nativeCompile
 
+  # Sprint 4 C1 — PR-scoped 增量变异测试(roadmap test-roadmap spec "gates PR merge")。
+  # 只对本 PR 改动的核心模块(order / product)跑 PIT,按各模块基线 floor 卡门(order 80 /
+  # product 40,见 build.gradle pitMap)。不碰核心模块的 PR 直接跳过 → 不拖慢无关 PR。
+  # 全量 70% gate 仍在 nightly.yml(慢,~1min/模块)。独立 job 与 backend 并行,不进其临界路径。
+  # 安全:run 块用内置 env $GITHUB_BASE_REF,不做 ${{ github.event.* }} 插值。
+  pitest-incremental:
+    name: PIT Mutation (PR-scoped changed modules)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 20
+    env:
+      JWT_SECRET: ci-test-secret-must-be-at-least-32-bytes-long-AAAA
+      JWT_ADMIN_SECRET: ci-test-admin-secret-must-be-at-least-32-bytes-BBBB
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # 需历史以 diff PR base
+
+      - name: Set up GraalVM JDK 25
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'graalvm-community'
+          java-version: '25'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-disabled: false
+          cache-read-only: true
+
+      - name: Detect changed core modules & run scoped PIT
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin \
+            "+refs/heads/$GITHUB_BASE_REF:refs/remotes/origin/$GITHUB_BASE_REF"
+          changed=$(git diff --name-only "origin/$GITHUB_BASE_REF...HEAD" -- \
+            src/main/java/com/seafood/order src/main/java/com/seafood/product \
+            src/test/java/com/seafood/order src/test/java/com/seafood/product || true)
+          echo "Changed core files:"; echo "$changed"
+          scopes=""
+          echo "$changed" | grep -q "com/seafood/order/"   && scopes="order"
+          echo "$changed" | grep -q "com/seafood/product/" && scopes="${scopes:+$scopes }product"
+          if [ -z "$scopes" ]; then
+            echo "本 PR 未改 order/product 核心代码 — 跳过增量变异 gate。"
+            exit 0
+          fi
+          for s in $scopes; do
+            echo "::group::PIT mutation — scope=$s"
+            ./gradlew --no-daemon --build-cache pitest -PpitScope="$s" -PexcludeTags=docker
+            echo "::endgroup::"
+          done
+
+      - name: Upload PIT report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pitest-pr-report
+          path: backend/build/reports/pitest/**
+          retention-days: 7
+
   frontend:
     name: Mini-Program (Jest)
     runs-on: ubuntu-latest

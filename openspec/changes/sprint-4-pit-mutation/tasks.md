@@ -35,6 +35,13 @@
 - [x] 5.1 回填 `openspec/changes/test-suite-roadmap/tasks.md` T10:C1 PIT 由 deferred 改为 done(commit 45fc32c)
 - [ ] 5.2 `/opsx:archive sprint-4-pit-mutation` 归档并 sync `mutation-testing` spec 到 `openspec/specs/`
 
-> **分歧待用户定夺**:roadmap `test-roadmap` spec 写 PIT "gates PR merge",本 change(design D4)
-> 选 nightly-only(PR CI 速度预算)。plan.md Task 10 原规划的 ci.yml PR-scoped changed-module
-> PIT 未做。若需 PR 级 PIT,可后续加 `-Dpit.target.tests=com.seafood.<changed>.*` 增量跑。
+## 6. PR-scoped 增量 gate(用户选 option 2:对齐 roadmap "gates PR merge")
+
+> 实施前发现每模块基线严重不均(order 83% / product 43%,product.application 仅 32% 变异覆盖),
+> 统一 70% PR gate 对 product 不可达。用户定:**按模块基线 floor**(order 80 / product 40,grandfather)。
+
+- [x] 6.1 build.gradle 参数化:`-PpitScope=order|product|all`,map 驱动 classes/tests/threshold(order 80 / product 40 / all 70)
+- [x] 6.2 实测验证:`-PpitScope=order` → 83% 过 80 ✓;`-PpitScope=product` → 43% 过 40 ✓
+- [x] 6.3 ci.yml 新增 `pitest-incremental` job(仅 PR):git diff 检测改动核心模块 → scoped 跑 → 按 floor 卡门;无核心改动则跳过。bash 检测逻辑 + YAML 已本地验证
+- [x] 6.4 mutation-testing spec:拆"全量不进 check / nightly 全量 gate" + 新增"PR 增量 gate(per-module floor)"requirement
+- [ ] 6.5 **测试债跟踪**:`product.application` 变异分 32%(50% 行覆盖,50/74 变异无覆盖)→ 子项目 A 续:补 product ApplicationService 测试到 ≥70%,然后把 ci.yml/build.gradle 的 product floor 由 40 提至 70

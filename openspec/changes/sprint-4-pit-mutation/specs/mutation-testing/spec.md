@@ -43,16 +43,35 @@ PIT 的 `targetClasses` SHALL 限定为核心领域逻辑(`order` 与 `product` 
 - **WHEN** 核心包变异分 < 70%
 - **THEN** `pitest` 任务以非零退出码失败,并在报告中标出存活变异(surviving mutants)
 
-### Requirement: 变异测试不进入 PR 主链
+### Requirement: 全量变异测试不进入 `check` 主链
 
-`pitest` 任务 SHALL NOT 被链入 `check`,以免拖慢 PR CI;它只通过手动调用或 nightly CI 触发,报告作为 artifact 留存。
+全量 `pitest` 任务 SHALL NOT 被链入 `check`,以免拖慢本地 / PR CI;它通过手动调用或 nightly CI 触发,报告作为 artifact 留存。
 
 #### Scenario: check 主链不触发 pitest
 
 - **WHEN** 开发者执行 `./gradlew check`
-- **THEN** pitest 任务不被执行,PR CI 时长不受变异分析影响
+- **THEN** pitest 任务不被执行,`check` 时长不受变异分析影响
 
-#### Scenario: nightly 触发并留存报告
+#### Scenario: nightly 触发全量 gate 并留存报告
 
 - **WHEN** nightly CI 运行
-- **THEN** 执行 `./gradlew pitest` 并将 `build/reports/pitest/` 上传为构建 artifact(保留期 ≥ 30 天)
+- **THEN** 执行 `./gradlew pitest`(全核心包,gate 70%)并将 `build/reports/pitest/` 上传为构建 artifact(保留期 ≥ 30 天)
+
+### Requirement: PR 内对改动核心模块跑增量变异 gate
+
+PR CI SHALL 检测本 PR 改动了哪些核心模块(`order` / `product`),仅对改动模块跑 scoped PIT 并按该模块基线 floor 卡门;未改动核心模块的 PR 不触发变异分析。各模块 floor 按当前基线 grandfather、只防回退(`order` 80% / `product` 40%),不强求统一 70%——避免对当前测试债(`product.application` 32%)设不可达 gate。
+
+#### Scenario: PR 改动 order 模块时按 order floor 卡门
+
+- **WHEN** PR 改动了 `com/seafood/order/**` 下的代码,PR CI 运行
+- **THEN** 执行 `./gradlew pitest -PpitScope=order`,变异分 < 80% 时 job 非零退出、PR 不可合并
+
+#### Scenario: PR 改动 product 模块时按 product floor 卡门
+
+- **WHEN** PR 改动了 `com/seafood/product/**` 下的代码,PR CI 运行
+- **THEN** 执行 `./gradlew pitest -PpitScope=product`,变异分 < 40% 时 job 非零退出
+
+#### Scenario: PR 未改动核心模块时跳过
+
+- **WHEN** PR 只改动了非 `order`/`product` 核心代码(如 docs、前端、配置)
+- **THEN** 增量变异 job 直接以 exit 0 跳过,不跑 PIT,不拖慢无关 PR
