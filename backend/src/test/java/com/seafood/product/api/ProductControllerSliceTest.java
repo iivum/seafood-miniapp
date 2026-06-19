@@ -8,6 +8,7 @@ import com.seafood.shared.security.AdminRateLimiter;
 import com.seafood.shared.security.JwtTokenProvider;
 import com.seafood.shared.security.SecurityHeadersProperties;
 import com.seafood.testsupport.builders.ProductBuilder;
+import com.seafood.testsupport.contract.OpenApiContractAssert;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -45,12 +46,28 @@ class ProductControllerSliceTest {
             PageRequest.of(0, 20), 1);
         when(productService.listPublic(eq(null), any())).thenReturn(page);
 
-        mvc.get().uri("/api/products")
-            .exchange()
-            .assertThat()
+        var result = mvc.get().uri("/api/products").exchange();
+        result.assertThat()
             .hasStatusOk()
             .bodyJson()
             .hasPath("$.content[0].id");
+        // C2 响应一致校验:响应真符合 committed OpenAPI 中 GET /api/products 声明的 schema
+        OpenApiContractAssert.assertGetConformsToContract("/api/products", result);
+    }
+
+    @Test
+    void conformance_rejectsResponseViolatingSchema() {
+        // 把"商品列表"(Page)响应拿去比对"单商品 detail"(GET /api/products/{id})的 schema —
+        // Page 顶层缺 ProductResponse 必填字段 → 契约校验必须失败,证明响应一致校验有牙。
+        Product product = ProductBuilder.aProduct().withId("p-test").build();
+        Page<ProductResponse> page = new PageImpl<>(List.of(toResponse("p-test", product)),
+            PageRequest.of(0, 20), 1);
+        when(productService.listPublic(eq(null), any())).thenReturn(page);
+
+        var result = mvc.get().uri("/api/products").exchange();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                OpenApiContractAssert.assertGetConformsToContract("/api/products/{id}", result))
+            .isInstanceOf(AssertionError.class);
     }
 
     @Test

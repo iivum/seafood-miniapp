@@ -18,10 +18,10 @@
 
 ## 3. 响应一致校验 spike + 封装(对应 spec:响应一致校验)
 
-- [ ] 3.1 加 `testImplementation 'com.atlassian.oai:swagger-request-validator-core'`(版本 spike 定)
-- [ ] 3.2 spike:试 `swagger-request-validator-mockmvc` 是否兼容 MockMvcTester;不兼容则用 core `OpenApiInteractionValidator` 手接(从 MockMvcTester 结果取 status/path/body 构 `SimpleResponse`)
-- [ ] 3.3 封装 `OpenApiContractAssert` 测试辅助:一行校验「某响应符合 committed OpenAPI 中该端点 schema」
-- [ ] 3.4 接 1 个 slice 测试(如 `ProductControllerSliceTest`)验证打通:符合 schema 通过、故意造偏离 → 失败,然后还原
+- [x] 3.1 加 `swagger-request-validator-core:2.46.1`(2.44.0 不存在;3.0.0 跳过避 major API 风险;2.x 用 Jackson 2,项目有 2.21.2 满足)
+- [x] 3.2 **spike:core 路线直接可行**——不用 mockmvc adapter,`OpenApiInteractionValidator` + 从 MvcTestResult 取 status/contentType/body 构 `SimpleResponse` 手接(MockMvcTester 无官方 adapter,core 路线绕过该问题)
+- [x] 3.3 `OpenApiContractAssert`(testsupport/contract):加载 classpath `/contract/openapi.json` + get/post 便捷方法,slice 测试一行调用、不泄漏 com.atlassian import
+- [x] 3.4 接入 `ProductControllerSliceTest`:正向 GET /api/products 符合 schema 通过;**永久负向** `conformance_rejectsResponseViolatingSchema`(Page 响应比对单商品 schema → AssertionError)证明有牙
 
 ## 4. 铺开 + 守护(对应 spec:不污染 native)
 
