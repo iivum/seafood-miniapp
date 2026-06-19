@@ -308,6 +308,10 @@ dependencies {
     testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
     testImplementation 'org.testcontainers:mongodb:1.20.4'
     testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.1'
+    // Sprint 5 C2 — OpenAPI 契约。springdoc 3.0.3 兼容 Spring Boot 4.0.x;
+    // **严格 testImplementation,绝不进 implementation/runtimeClasspath**(design D1):
+    // 不进 GraalVM native image、不在业务端口 8080 暴露 /v3/api-docs。
+    testImplementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:3.0.3'
     testRuntimeOnly   'org.junit.platform:junit-platform-launcher'
 }
 
