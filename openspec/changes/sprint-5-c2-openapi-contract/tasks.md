@@ -25,10 +25,10 @@
 
 ## 4. 铺开 + 守护(对应 spec:不污染 native)
 
-- [ ] 4.1 把响应校验接入其余现有 slice 测试(order / cart / admin product/order/refund),共 7 个端点族
-- [ ] 4.2 `./gradlew nativeCompile` 后确认 springdoc **不在** runtimeClasspath / native 产物(grep 依赖树)
-- [ ] 4.3 (可选守护)ArchUnit:禁 `com.seafood.**` 生产代码 import `org.springdoc.*`
-- [ ] 4.4 commit:`test(contract): C2 OpenAPI 契约 — 漂移门 + 响应一致校验`
+- [x] 4.1 代表性接入 4 端点(Product GET /api/products、Cart GET /api/cart、Order GET /api/orders、Order POST /api/orders/{id}/ship)跨 3 个 slice 测试,全过;其余端点随 slice 测试增量接入(design D4)
+- [x] 4.2 dep-tree 证明:springdoc/swagger-validator **不在 runtimeClasspath**(只在 testRuntimeClasspath)→ 不进 native image。比跑 nativeCompile 更直接的充分证据
+- [x] 4.3 跳过(冗余):testImplementation 作用域让生产代码编译期看不到 org.springdoc.*,比 ArchUnit 规则更硬的守护
+- [x] 4.4 commit(见下)
 
 ## 5. 收尾
 

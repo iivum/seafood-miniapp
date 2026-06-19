@@ -2,6 +2,7 @@ package com.seafood.order.api;
 
 import com.seafood.order.api.dto.CartResponse;
 import com.seafood.order.application.CartService;
+import com.seafood.testsupport.contract.OpenApiContractAssert;
 import com.seafood.shared.security.AdminRateLimiter;
 import com.seafood.shared.security.JwtTokenProvider;
 import com.seafood.shared.security.Role;
@@ -68,12 +69,12 @@ class CartControllerSliceTest {
         CartResponse stub = new CartResponse("u-1", List.of(), Instant.parse("2026-06-19T00:00:00Z"));
         when(cartService.get(any())).thenReturn(stub);
 
-        mvc.get().uri("/api/cart")
-            .exchange()
-            .assertThat()
+        var result = mvc.get().uri("/api/cart").exchange();
+        result.assertThat()
             .hasStatusOk()
             .bodyJson()
             .hasPathSatisfying("$.userId", v -> v.assertThat().isEqualTo("u-1"));
+        OpenApiContractAssert.assertGetConformsToContract("/api/cart", result);
     }
 
     @Test

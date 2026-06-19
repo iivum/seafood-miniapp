@@ -1,6 +1,7 @@
 package com.seafood.order.api;
 
 import com.seafood.order.api.dto.OrderResponse;
+import com.seafood.testsupport.contract.OpenApiContractAssert;
 import com.seafood.order.application.OrderService;
 import com.seafood.shared.security.AdminRateLimiter;
 import com.seafood.shared.security.JwtTokenProvider;
@@ -119,12 +120,12 @@ class OrderControllerSliceTest {
         Page<OrderResponse> page = new PageImpl<>(List.of(stub), PageRequest.of(0, 20), 1);
         when(orderService.list(any(), any())).thenReturn(page);
 
-        mvc.get().uri("/api/orders")
-            .exchange()
-            .assertThat()
+        var result = mvc.get().uri("/api/orders").exchange();
+        result.assertThat()
             .hasStatusOk()
             .bodyJson()
             .hasPathSatisfying("$.content[0].id", v -> v.assertThat().isEqualTo("o-1"));
+        OpenApiContractAssert.assertGetConformsToContract("/api/orders", result);
     }
 
     /**
@@ -179,11 +180,11 @@ class OrderControllerSliceTest {
         ctx.setAuthentication(authOf("admin-1", Role.ADMIN));
         SecurityContextHolder.setContext(ctx);
 
-        mvc.post().uri("/api/orders/o-1/ship")
-            .exchange()
-            .assertThat()
+        var result = mvc.post().uri("/api/orders/o-1/ship").exchange();
+        result.assertThat()
             .hasStatusOk()
             .bodyJson()
             .hasPathSatisfying("$.id", v -> v.assertThat().isEqualTo("o-1"));
+        OpenApiContractAssert.assertPostConformsToContract("/api/orders/{id}/ship", result);
     }
 }
