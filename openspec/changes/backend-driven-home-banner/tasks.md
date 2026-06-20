@@ -33,16 +33,16 @@
 
 ## 5. seed
 
-- [ ] 5.1 `backend/seed/fixtures/banners.json`(3 条:旧静态 tone/emoji/title/subtitle + 合理 targetProductId + status=ACTIVE + sortOrder)
-- [ ] 5.2 `seed.sh` 导入 banners 集合
-- [ ] 5.3 `frontend/e2e/tools/run-visual.sh` seed 步骤纳入 banners(与 products 同批)
+- [x] 5.1 `backend/seed/fixtures/banners.json`(3 条:旧静态 tone/emoji/title/subtitle + 合理 targetProductId + status=ACTIVE + sortOrder)
+- [x] 5.2 `seed.sh` 导入 banners 集合
+- [x] 5.3 `frontend/e2e/tools/run-visual.sh` seed 步骤纳入 banners(与 products 同批)
 
 ## 6. mp 接线
 
-- [ ] 6.1 `src/api/banner.js` `loadBanners()` → `GET /api/banners`(复用 request 封装)
-- [ ] 6.2 `pages/index/index.js`:onShow 拉 banners → setData;新增 `onBannerTap(e)` 读 data-banner-id → 查 targetProductId → navigateTo product-detail(无则 noop)
-- [ ] 6.3 几何验证:起后端+seed,`npm run test:geometry mp-01-home` → `banner [present]` GREEN
-- [ ] 6.4 感知复跑 `npm run test:visual mp-01-home`:记录 diff% 下降(banner 出现)
+- [x] 6.1 `src/api/banner.js` `loadBanners()` → `GET /api/banners`(复用 request 封装)
+- [x] 6.2 `pages/index/index.js`:onShow 拉 banners → setData;新增 `onBannerTap(e)` 读 data-banner-id → 查 targetProductId → navigateTo product-detail(无则 noop)
+- [x] 6.3 几何验证:起后端+seed,`npm run test:geometry mp-01-home` → `banner [present]` GREEN
+- [x] 6.4 感知复跑 `npm run test:visual mp-01-home`:记录 diff% 下降(banner 出现)
 
 ## 7. admin-ui
 

@@ -15,6 +15,7 @@ echo "[seed] target=$MONGO_URI db=$DB"
 mongosh "$MONGO_URI" --quiet --eval '
   db.products.deleteMany({});
   db.users.deleteMany({});
+  db.banners.deleteMany({});
 ' >/dev/null
 
 # 2. 导入分类
@@ -48,8 +49,22 @@ jq -c '.[]' "$SEED_DIR/users.json" | while read -r doc; do
   " >/dev/null
 done
 
+# 5. 导入 banner(home hero 轮播,后端驱动)
+echo "[seed] import banners.json"
+jq -c '.[]' "$SEED_DIR/banners.json" | while read -r doc; do
+  echo "$doc" | mongosh "$MONGO_URI" --quiet --eval "
+    db.banners.insertOne($doc);
+  " >/dev/null
+done
+# banner 时间字段字符串 → ISODate(BannerDocument.createdAt 是 Instant,避免反序列化失败)
+mongosh "$MONGO_URI" --quiet --eval '
+  db.banners.updateMany({ title: { $exists: true } },
+    [{ $set: { createdAt: { $toDate: "$createdAt" }, updatedAt: { $toDate: "$updatedAt" } } }]);
+' >/dev/null
+
 echo "[seed] done. counts:"
 mongosh "$MONGO_URI" --quiet --eval '
   print("  products: " + db.products.countDocuments());
   print("  users:    " + db.users.countDocuments());
+  print("  banners:  " + db.banners.countDocuments());
 '

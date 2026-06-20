@@ -69,7 +69,9 @@ async function measureAll(mp, checks) {
 
 function metricOf(check, rects) {
   if (check.metric === 'present') {
-    const actual = rects.length > 0 && (rects[0].h || 0) > 0;
+    // carousel-aware:swiper 非激活 slide 的 boundingClientRect 高度为 0,
+    // 故判「任一匹配元素有高度」而非只看首个(否则轮播首图离屏会误报缺失)。
+    const actual = rects.length > 0 && rects.some((r) => (r.h || 0) > 0);
     return { actual, extra: `n=${rects.length}` };
   }
   if (check.metric === 'count') {

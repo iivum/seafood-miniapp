@@ -64,9 +64,12 @@ if [ "${RESEED:-0}" = "1" ] || [ "$PRODUCTS" -eq 0 ]; then
   cat "$FX/products.json"   | docker exec -i "$MONGO_CT" mongoimport --db seafood --collection products --jsonArray --drop --quiet
   cat "$FX/categories.json" | docker exec -i "$MONGO_CT" mongoimport --db seafood --collection products --jsonArray --quiet
   cat "$FX/users.json"      | docker exec -i "$MONGO_CT" mongoimport --db seafood --collection users --jsonArray --drop --quiet
+  cat "$FX/banners.json"    | docker exec -i "$MONGO_CT" mongoimport --db seafood --collection banners --jsonArray --drop --quiet
   # fixtures stale:缺 status 字段 + 时间是字符串 → 必须修,否则 listPublic 返 0 条
+  # banner 时间同样字符串 → ISODate(BannerDocument.createdAt 是 Instant)
   docker exec "$MONGO_CT" mongosh seafood --quiet --eval \
-    'db.products.updateMany({name:{$exists:true}},[{$set:{status:"ACTIVE",createdAt:{$toDate:"$createdAt"},updatedAt:{$toDate:"$updatedAt"}}}])' >/dev/null
+    'db.products.updateMany({name:{$exists:true}},[{$set:{status:"ACTIVE",createdAt:{$toDate:"$createdAt"},updatedAt:{$toDate:"$updatedAt"}}}]);
+     db.banners.updateMany({title:{$exists:true}},[{$set:{createdAt:{$toDate:"$createdAt"},updatedAt:{$toDate:"$updatedAt"}}}]);' >/dev/null
   say "seed 完成 ✓"
 else
   say "MongoDB 已 seed(products=$PRODUCTS)✓"
