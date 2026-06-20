@@ -28,7 +28,7 @@
 ## 4. 铺开 + 取代 + 文档
 
 - [x] 4.1 **4 个 tab 页全接入**(SCREENS 参数化):mp-01-home / mp-02-category / mp-04-cart / mp-05-profile。golden 经 Playwright 渲 OD mockup(390×762)提交 `od-golden/`。全 RED:home 60.28% / category 66.38% / cart 53.29% / profile 70.13% —— 4 tab 页全部显著偏离 OD,印证「多屏不可用」。**harness 加固**:① per-screen try/catch(单屏失败不致命)② reLaunch best-effort(cart 等 tabBar 页 reLaunch promise 不 resolve 但页面实已加载 → catch 超时后照常截图)。**余 5 分包带参页**(mp-03 detail / 06 confirm / 07 address / 08 list / 09 detail)需 product/order id + 登录态 + 可复现夹具,留下游 4.1b
-- [ ] 4.2 删除/取代 `mp-od-design.test.ts` 静态 grep(下游,待感知/几何铺满)
+- [x] 4.2 **删除 `mp-od-design.test.ts` 静态 grep**:该文件两段均已被取代——L1 结构段 = `.wxml` 源码 `content.includes(class名)` 假信号(只证字符串在,抓不住 home grid 1 列/banner 缺这类真实渲染崩坏),由几何层(渲染态、设备框免疫)+ `mp-3layer.test.ts`(渲染后 outerWxml 正则,8 屏)取代;L4 token 段与 `token-parity.test.ts` 重复且后者更严(真 CTA 配对算 ΔE/contrast 4.5 vs 硬编码 hex 正则自检 + contrast>2.0 弱断言)。删后单跑 `token-parity.test.ts` 8 例全 PASS,token 覆盖完整保留
 - [x] 4.3 **改 CLAUDE.md**:已废弃「像素 diff 太脆」旧说法 → 「感知 diff 主门 + 4 层辅」;`e2e/tools/README.md` 记跑法/golden 配方
 - [x] 4.4 commit(见下;本 slice)
 
@@ -37,7 +37,7 @@
 - [ ] 5.1 回填 roadmap(待 C5 全量完成)
 - [ ] 5.2 归档(待几何 + 全 9 屏 + 删旧 test 完成)
 
-> **下游 backlog**:① 几何层 ✅ **完成**(home+category 两屏,mp.evaluate 原生查询)② 4 tab 页感知 ✅ + 余 5 分包带参页留下游 4.1b ③ 删 `mp-od-design.test.ts`(待)④ ✅ 后端 seed 真信号
+> **下游 backlog**:① 几何层 ✅ **完成**(home+category 两屏,mp.evaluate 原生查询)② 4 tab 页感知 ✅ + 余 5 分包带参页留下游 4.1b ③ 删 `mp-od-design.test.ts` ✅ **完成**(取代理由见 4.2)④ ✅ 后端 seed 真信号
 >
 > **逐屏修复(RED→GREEN)进展**:几何层驱动修复已让 **home 全 GREEN**:
 > - grid 实际 1 列(应 2)→ 改 flex-wrap(`a7abec7`,根因:WeChat mp 不生效 display:grid)
