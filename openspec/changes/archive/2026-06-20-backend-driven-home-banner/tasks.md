@@ -57,4 +57,4 @@
 - [~] 8.1 **CI 责任**:`BannerDocumentRepositoryIT` 已挂 `@Tag("native")`,nativeTest agent 在 native.yml CI 收 banners 集合 codec/枚举反射 metadata(CLAUDE.md「别手编」—— 不本地手写 `META-INF/native-image/`)
 - [x] 8.2 全量绿:`./gradlew check`(ArchUnit + checkNoRefreshScope + jacoco ≥80% 门)BUILD SUCCESSFUL;admin-ui vitest 23/24 文件过(剩 1 是 pre-existing ad-od-design RED,与 banner 无关)
 - [x] 8.3 回填:CLAUDE.md 架构图加 banner 模块;home banner 几何 RED→GREEN(见 C5 change `sprint-5-c5-visual-verification` tasks 下游注记)
-- [ ] 8.4 归档本 change(specs sync 到 openspec/specs/)— 走 `/opsx:archive`
+- [x] 8.4 归档本 change(banner-management spec 已 sync 到 openspec/specs/;走 /opsx:archive)

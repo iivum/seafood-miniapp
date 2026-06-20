@@ -32,6 +32,6 @@
 
 ## 5. 收尾
 
-- [ ] 5.1 README 加一段:OpenAPI 契约 SoT 位置 + 漂移门 + 前端可 `openapi-typescript` 消费
-- [ ] 5.2 回填 `openspec/changes/test-suite-roadmap/tasks.md`:C2 由备选改为 done(形态 = OpenAPI 而非 SCC,记原因)
-- [ ] 5.3 `/opsx:archive sprint-5-c2-openapi-contract` 归档并 sync `api-contract` spec 到 `openspec/specs/`
+- [x] 5.1 README 加「API 契约(OpenAPI)」段:SoT 位置 + 漂移门重生成命令 + 响应校验 + 前端 openapi-typescript 消费
+- [x] 5.2 回填 roadmap tasks T12:C2 done(形态 OpenAPI 非 SCC,记拓扑原因 + 触发条件已成立)
+- [x] 5.3 `api-contract` spec sync 到 `openspec/specs/`,change 移入 archive/2026-06-19-sprint-5-c2-openapi-contract/
