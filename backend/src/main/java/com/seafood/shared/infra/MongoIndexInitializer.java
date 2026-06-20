@@ -16,6 +16,7 @@ import com.seafood.product.infra.ProductDocument;
 import com.seafood.order.infra.OrderDocument;
 import com.seafood.user.infra.UserDocument;
 import com.seafood.user.infra.LoginAttemptDocument;
+import com.seafood.banner.infra.BannerDocument;
 
 /**
  * 启动时建索引(design §6.2,specs/backend-api §Native Image safety)。
@@ -71,6 +72,8 @@ public class MongoIndexInitializer {
         // sprint-1-closure 2.1 — login_attempts 的 @CompoundIndex 注解(无 TTL,
         // TTL 走下面的 critical TTL index)
         ensureAnnotationDerived(LoginAttemptDocument.class);
+        // banner sortOrder + status 索引(performance-only:公共列表按 sortOrder 升序)
+        ensureAnnotationDerived(BannerDocument.class);
 
         // text index:performance-only,失败仅 warn
         ensureOptional("products",
