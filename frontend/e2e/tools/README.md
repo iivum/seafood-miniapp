@@ -20,8 +20,22 @@ automator 0.12.1 的元素句柄 API(`page.$` / `page.$$` / `element.size()` / `
 
 ## 跑
 
+### 一键(推荐)
+
 ```bash
-# 1) 起微信 DevTools 自动化端口(脚本可自起,无需手动开 IDE)
+cd frontend
+bash e2e/tools/run-visual.sh              # 起齐依赖(幂等,已就绪自动跳过)+ 感知 + 几何
+bash e2e/tools/run-visual.sh visual       # 只感知
+bash e2e/tools/run-visual.sh geometry mp-01-home   # 几何单屏
+RESEED=1 bash e2e/tools/run-visual.sh     # 强制重灌 seed
+```
+脚本自动:① 起 DevTools 自动化端口(若未监听)② 起 mongodb + seed(若空,含 stale fixtures 的 status 修复)③ 起后端 jvm 镜像(若 8080 未 200)④ 跑测。
+前置仍需:微信 DevTools 已装 + 已登录 + 项目已导入(GUI 应用,脚本代办不了)。
+
+### 手动分步
+
+```bash
+# 1) 起微信 DevTools 自动化端口
 /Applications/wechatwebdevtools.app/Contents/MacOS/cli auto \
   --project "$(pwd)" --auto-port 9420        # 在 frontend/ 下
 
