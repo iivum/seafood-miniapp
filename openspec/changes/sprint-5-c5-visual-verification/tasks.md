@@ -27,7 +27,7 @@
 
 ## 4. 铺开 + 取代 + 文档
 
-- [ ] 4.1 扩到余 8 mp 屏(参数化 SCREENS 已就绪,加条目 + 各屏 golden)(下游)
+- [x] 4.1 **4 个 tab 页全接入**(SCREENS 参数化):mp-01-home / mp-02-category / mp-04-cart / mp-05-profile。golden 经 Playwright 渲 OD mockup(390×762)提交 `od-golden/`。全 RED:home 60.28% / category 66.38% / cart 53.29% / profile 70.13% —— 4 tab 页全部显著偏离 OD,印证「多屏不可用」。**harness 加固**:① per-screen try/catch(单屏失败不致命)② reLaunch best-effort(cart 等 tabBar 页 reLaunch promise 不 resolve 但页面实已加载 → catch 超时后照常截图)。**余 5 分包带参页**(mp-03 detail / 06 confirm / 07 address / 08 list / 09 detail)需 product/order id + 登录态 + 可复现夹具,留下游 4.1b
 - [ ] 4.2 删除/取代 `mp-od-design.test.ts` 静态 grep(下游,待感知/几何铺满)
 - [x] 4.3 **改 CLAUDE.md**:已废弃「像素 diff 太脆」旧说法 → 「感知 diff 主门 + 4 层辅」;`e2e/tools/README.md` 记跑法/golden 配方
 - [x] 4.4 commit(见下;本 slice)

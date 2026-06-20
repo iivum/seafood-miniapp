@@ -29,6 +29,11 @@ const GOLD = path.resolve(__dirname, '../od-golden');
 // switchTab 到「已激活的 tabBar 页」不会重跑 onLoad,会截到上次的陈旧渲染(空态)。
 const SCREENS = [
   { name: 'mp-01-home', path: '/pages/index/index' },
+  { name: 'mp-02-category', path: '/pages/category/category' },
+  { name: 'mp-04-cart', path: '/pages/cart/cart' },
+  { name: 'mp-05-profile', path: '/pages/profile/profile' },
+  // 分包带参页(mp-03 detail / mp-06 confirm / mp-07 address / mp-08 list / mp-09 detail)
+  // 需 product/order id + 登录态,留下游(需先建可复现的 seed 订单/地址夹具)。
 ];
 
 const race = (p, ms, l) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('TIMEOUT@' + l)), ms))]);
@@ -49,7 +54,9 @@ function dims(png) {
 async function captureActual(mp, screen) {
   const out = path.join(SHOTS, `${screen.name}-actual.png`);
   // reLaunch 保证 onLoad 重跑 → 反映当前后端状态(非陈旧空态)。tab/普通页通吃。
-  await race(mp.reLaunch(screen.path), 15000, 'reLaunch');
+  // best-effort:部分 tabBar 页(如 cart)reLaunch 的 promise 不 resolve(automator
+  // 已知怪癖),但页面实际已导航完成。故超时不致命,catch 后照常 wait+screenshot。
+  await race(mp.reLaunch(screen.path), 6000, 'reLaunch').catch(() => {});
   await new Promise((r) => setTimeout(r, 4000)); // 留足后端往返 + 列表渲染
   await race(mp.screenshot({ path: out }), 15000, 'screenshot');
   return out;
@@ -65,14 +72,18 @@ async function captureActual(mp, screen) {
   for (const s of screens) {
     const golden = path.join(GOLD, `${s.name}.png`);
     if (!fs.existsSync(golden)) { results.push({ name: s.name, err: 'golden 缺失:' + golden }); continue; }
-    const actual = await captureActual(mp, s);
-    const g = dims(golden);
-    const norm = path.join(SHOTS, `${s.name}-actual-norm.png`);
-    normalize(actual, g.w, g.h, norm); // 归一化到 golden 尺寸
-    const diff = path.join(SHOTS, `${s.name}-diff.png`);
-    const res = await compare(golden, norm, diff, { antialiasing: true, outputDiffMask: false });
-    const pct = res.match ? 0 : Number((res.diffPercentage || 0).toFixed(2));
-    results.push({ name: s.name, pct, diff: res.match ? null : diff });
+    try {
+      const actual = await captureActual(mp, s);
+      const g = dims(golden);
+      const norm = path.join(SHOTS, `${s.name}-actual-norm.png`);
+      normalize(actual, g.w, g.h, norm); // 归一化到 golden 尺寸
+      const diff = path.join(SHOTS, `${s.name}-diff.png`);
+      const res = await compare(golden, norm, diff, { antialiasing: true, outputDiffMask: false });
+      const pct = res.match ? 0 : Number((res.diffPercentage || 0).toFixed(2));
+      results.push({ name: s.name, pct, diff: res.match ? null : diff });
+    } catch (e) {
+      results.push({ name: s.name, err: (e && e.message) || String(e) }); // 单屏失败不致命,继续下一屏
+    }
   }
   await mp.disconnect();
 
