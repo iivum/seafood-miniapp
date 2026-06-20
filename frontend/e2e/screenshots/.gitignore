@@ -1,0 +1,3 @@
+# C5 视觉验证运行产物(每次跑生成,不入库;OD golden 在 ../od-golden/ 才提交)
+*-actual-norm.png
+*-diff.png

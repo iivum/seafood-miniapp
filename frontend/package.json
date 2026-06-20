@@ -10,6 +10,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:visual": "node e2e/tools/visual-diff.cjs",
     "lint": "eslint . --ext .js,.ts",
     "type-check": "tsc --noEmit"
   },
@@ -28,6 +29,7 @@
     "jest-environment-jsdom": "^30.3.0",
     "miniprogram-api-typings": "^5.1.2",
     "miniprogram-automator": "^0.12.1",
+    "odiff-bin": "^4.3.8",
     "ts-jest": "^29.1.5",
     "typescript": "^5.4.2"
   },
