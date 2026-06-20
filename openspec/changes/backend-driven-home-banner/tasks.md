@@ -46,11 +46,11 @@
 
 ## 7. admin-ui
 
-- [ ] 7.1 先读 `admin-ui/src/features/refunds/api.ts` 复用 admin 请求封装/JWT 接法
-- [ ] 7.2 `features/banners/api.ts`:listAll/create/update/delete via `/api/banners`
-- [ ] 7.3 banner 管理页(shadcn Table 列全部 + Dialog 表单:tone/emoji/title/subtitle/targetProductId/sortOrder/active + 删除确认)
-- [ ] 7.4 路由 + 侧栏导航项
-- [ ] 7.5 admin-ui 测试(api + 页面渲染/交互)+ feature ≥80% 覆盖
+- [x] 7.1 先读 `admin-ui/src/features/refunds/api.ts` 复用 admin 请求封装/JWT 接法
+- [x] 7.2 `features/banners/api.ts`:listAll/create/update/delete via `/api/banners`
+- [x] 7.3 banner 管理页(shadcn Table 列全部 + Dialog 表单:tone/emoji/title/subtitle/targetProductId/sortOrder/active + 删除确认)
+- [x] 7.4 路由 + 侧栏导航项
+- [x] 7.5 admin-ui 测试(api + 页面渲染/交互)+ feature ≥80% 覆盖
 
 ## 8. native + 收尾
 

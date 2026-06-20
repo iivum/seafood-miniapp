@@ -7,6 +7,7 @@ import ProductListPage from './features/products/ProductListPage';
 import OrderListPage from './features/orders/OrderListPage';
 import OrderDetailPage from './features/orders/OrderDetailPage';
 import RefundReviewPage from './features/refunds/RefundReviewPage';
+import BannerListPage from './features/banners/BannerListPage';
 import Sprint0TokenShowcase from './features/spike/Sprint0TokenShowcase';
 import { Toaster } from './components/ui/toaster';
 
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
           { path: 'orders', element: <OrderListPage /> },
           { path: 'orders/:id', element: <OrderDetailPage /> },
           { path: 'refunds', element: <RefundReviewPage /> },
+          { path: 'banners', element: <BannerListPage /> },
           // 1.24 Sprint 0 末 spike — token 切流验证页(不进生产,Sprint 1 起删)
           { path: '_spike', element: <Sprint0TokenShowcase /> },
         ],

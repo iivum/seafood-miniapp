@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, LogOut, Fish, Undo2 } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, LogOut, Fish, Undo2, Images } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/admin/products', label: '商品', icon: Package },
   { to: '/admin/orders', label: '订单', icon: ShoppingCart },
   { to: '/admin/refunds', label: '退款审核', icon: Undo2 },
+  { to: '/admin/banners', label: 'Banner', icon: Images },
 ] as const;
 
 export function AppShell() {
