@@ -120,11 +120,18 @@ seafood-miniapp/
 > 4 层断言验"元素/数据/token 在不在",**抓不住"渲染出来是不是坏的/偏离 OD"** —— 这是它的盲区,
 > 感知 diff 正补这一层。两者互补:感知 diff 为主门抓视觉偏离,4 层为辅验结构/数据/token。
 
-**感知层(C5,已落地 home 一屏)** — mp 实截图 vs OD 设计 golden 的 odiff 比对,抓"现状偏离 OD/不可用":
+**感知层(C5,已落地 4 tab 页)** — mp 实截图 vs OD 设计 golden 的 odiff 比对,抓"现状偏离 OD/不可用":
 - SoT = Open Design 项目 `686e3434` 的 9 张 mp HTML mockup → 渲染成 `frontend/e2e/od-golden/<screen>.png`
-- 跑:`cd frontend && npm run test:visual`(脚本自起 DevTools;详见 `frontend/e2e/tools/README.md`)
+- 跑:`cd frontend && npm run test:visual`(详见 `frontend/e2e/tools/README.md`)
 - diff% > 阈值 → RED(驱动逐屏修);产 `<screen>-diff.png` 定位偏离
-- 几何层 + 全 9 屏 + 取代旧静态 `mp-od-design.test.ts` 留下游
+- ⚠️ 截图捕获必须 `reLaunch`(非 switchTab):switchTab 到已激活 tab 不重跑 onLoad → 截陈旧空态假信号
+- ⚠️ 有意义信号需后端起 + seed:native 镜像 arm64 不匹配本机用 `seafood-backend:jvm`;fixtures stale 缺 `status` 字段须 `updateMany` 补 ACTIVE(否则 `listPublic` 返 0 条)
+
+**几何层(C5,已落地 home/category)** — 量 mp 实际渲染结构不变量(present/count/columns),**AA/DPR/设备框完全免疫**,剥离感知层的框/图片噪声、锁定"布局崩没崩":
+- SoT = `frontend/e2e/od-geometry/<screen>.json`(OD 期望不变量);跑 `npm run test:geometry`
+- ⚠️ automator 0.12.1 元素句柄(`page.$`/`$$`/`element.size()/offset()`)在本环境**超时挂死**,`page.outerWxml` undefined → **唯一可行** = mp 原生 `wx.createSelectorQuery().boundingClientRect()` 经 `mp.evaluate` 在 mp 运行时内跑
+- 例:home 几何锁定 `grid 实际 1 列(应 2)+ banner 缺失`,chips/header 正常
+- 余 5 分包带参页几何 + 取代旧静态 `mp-od-design.test.ts` 留下游
 
 **4 层断言(辅,`frontend/e2e/`)**:
 1. **结构** — `page.outerWxml()` 抓节点/class/文案
