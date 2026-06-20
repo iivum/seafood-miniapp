@@ -129,14 +129,18 @@
 
 /* ===== 商品 2 列 grid ===== */
 
+/* 2 列瀑布:WeChat mp(libVersion 3.15.1)不生效 display:grid → 退化单列,
+   改 flex wrap(mp 惯用 2 列模式)。列间距 16rpx,cell 各占半宽减半个 gap。 */
 .home-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
   padding: 0 16rpx;
 }
 
 .home-grid__cell {
+  width: calc(50% - 8rpx);
+  margin-bottom: 16rpx;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
   overflow: hidden;
