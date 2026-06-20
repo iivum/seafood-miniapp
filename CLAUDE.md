@@ -88,6 +88,7 @@ seafood-miniapp/
 │       ├── product/{api,application,domain,infra}/     # DDD 四层
 │       ├── order/{api,application,domain,infra}/
 │       ├── user/{api,application,domain,infra}/
+│       ├── banner/{api,application,domain,infra}/       # home hero 轮播;/api/banners 公共读 + ADMIN CRUD;targetProductId 经 ProductService 跨模块校验
 │       └── bff/admin/         # /api/admin/** 第 5 层:只调 ApplicationService 跨模块组合
 └── openspec/changes/<name>/   # proposal/design/specs/tasks
 ```

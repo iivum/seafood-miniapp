@@ -39,6 +39,12 @@
 
 > **下游 backlog**:① 几何层 ✅ **完成**(home+category 两屏,mp.evaluate 原生查询)② 4 tab 页感知 ✅ + 余 5 分包带参页留下游 4.1b ③ 删 `mp-od-design.test.ts`(待)④ ✅ 后端 seed 真信号
 >
+> **逐屏修复(RED→GREEN)进展**:几何层驱动修复已让 **home 全 GREEN**:
+> - grid 实际 1 列(应 2)→ 改 flex-wrap(`a7abec7`,根因:WeChat mp 不生效 display:grid)
+> - banner 缺失 → 后端驱动 banner(change `backend-driven-home-banner`:新 DDD 模块 + admin CRUD + mp 接线 + seed),几何 `banner [present]` GREEN
+> - category grid 同改 flex(`f334346`);几何 present 改 carousel-aware(swiper 非激活 slide bbox 高 0)
+> - 现状:`npm run test:geometry mp-01-home` 4 项全 GREEN(banner/category-row/section-header/grid-columns)
+>
 > **起后端复现**(下游/CI 复跑用):
 > ```bash
 > # mongo 已在 seafood-mongodb;native 镜像 arm64 不匹配本机 → 用 jvm 镜像
