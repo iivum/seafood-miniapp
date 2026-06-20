@@ -24,9 +24,11 @@ const THRESHOLD_PCT = Number(process.env.VISUAL_THRESHOLD || 5);
 const SHOTS = path.resolve(__dirname, '../screenshots');
 const GOLD = path.resolve(__dirname, '../od-golden');
 
-// 屏清单(参数化,后续扩到 9 屏只加条目)。tabBar 用 tab,普通页用 url。
+// 屏清单(参数化,后续扩到 9 屏只加条目)。
+// 一律用 reLaunch(path):关闭页栈重开目标页 → onLoad 必触发 → 重新拉后端数据。
+// switchTab 到「已激活的 tabBar 页」不会重跑 onLoad,会截到上次的陈旧渲染(空态)。
 const SCREENS = [
-  { name: 'mp-01-home', tab: '/pages/index/index' },
+  { name: 'mp-01-home', path: '/pages/index/index' },
 ];
 
 const race = (p, ms, l) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('TIMEOUT@' + l)), ms))]);
@@ -46,12 +48,9 @@ function dims(png) {
 
 async function captureActual(mp, screen) {
   const out = path.join(SHOTS, `${screen.name}-actual.png`);
-  if (screen.tab) {
-    await race(mp.switchTab(screen.tab), 15000, 'switchTab').catch(() => race(mp.reLaunch(screen.tab), 15000, 'reLaunch'));
-  } else {
-    await race(mp.navigateTo(screen.url), 15000, 'navigateTo').catch(() => race(mp.reLaunch(screen.url), 15000, 'reLaunch'));
-  }
-  await new Promise((r) => setTimeout(r, 2500));
+  // reLaunch 保证 onLoad 重跑 → 反映当前后端状态(非陈旧空态)。tab/普通页通吃。
+  await race(mp.reLaunch(screen.path), 15000, 'reLaunch');
+  await new Promise((r) => setTimeout(r, 4000)); // 留足后端往返 + 列表渲染
   await race(mp.screenshot({ path: out }), 15000, 'screenshot');
   return out;
 }

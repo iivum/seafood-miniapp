@@ -22,7 +22,8 @@
 - [ ] 3.1 几何主门(下游)
 - [x] 3.2 感知层 `visual-diff.cjs`:automator 截 mp 实图 → sips 归一化到 golden 尺寸 → `odiff-bin`(AA-tolerant)→ 阈值 gate + 产 diff 图。masking 留下游(home 暂无需)
 - [x] 3.3 `npm run test:visual` 入口;DevTools 自起(`cli auto`)已验
-- [x] 3.4 接 `mp-01-home` 跑通:**RED 46.47%**(现状无后端=loading 态 vs OD 满内容设计,真实偏离信号),产 `mp-01-home-diff.png`
+- [x] 3.4 接 `mp-01-home` 跑通。**修正捕获 bug**:原 `switchTab` 到已激活 tabBar 页不重跑 `onLoad` → 永远截到陈旧空态(假信号 46.47% 恒定)。改 `reLaunch(path)` 关栈重开 → `onLoad` 必触发重新拉后端数据。**后端起 + seed 后真信号 = RED 60.28%**(带真实 55 商品的 home vs OD golden)。产 `mp-01-home-diff.png`
+- [x] 3.5 **后端 seed 真信号(下游 ④ 完成)**:`seafood-backend:jvm`(native 镜像 arm64 不匹配本机,exec format error → 换 JVM 镜像)接 `seafood-mongodb` 起;mongoimport 灌 50 商品 + 5 分类 + 2 用户;**修 stale fixtures**(缺 `status` 字段 → `listPublic` 只返 ACTIVE → API 0 条;补 `status="ACTIVE"` + 字符串时间转 ISODate)→ `/api/products` 返 55;mp reLaunch 后 `page.data()` 实测 `categories[4] products[20]` 渲染成功。**结构性偏离实录**(驱动逐屏修):1 列全宽 vs OD 2 列栅格 / 缺 hero banner / 缺品类图标行 / 缺定位头 / 搜索框样式差 / 区块头无 filter tab
 
 ## 4. 铺开 + 取代 + 文档
 
@@ -36,4 +37,16 @@
 - [ ] 5.1 回填 roadmap(待 C5 全量完成)
 - [ ] 5.2 归档(待几何 + 全 9 屏 + 删旧 test 完成)
 
-> **下游 backlog**:① 几何层(od-geometry + bbox 比对,需后端渲染内容)② 余 8 屏 golden + 接入 ③ 删 `mp-od-design.test.ts` ④ 有意义信号需后端 seed(本 slice 无后端=loading 态,信号偏大但 pipeline 已验)
+> **下游 backlog**:① 几何层(od-geometry + bbox 比对,**已解锁** — 后端起+seed 后 mp 渲染真实内容,元素查询不再挂)② 余 8 屏 golden + 接入 ③ 删 `mp-od-design.test.ts` ④ ✅ **完成** — 后端 seed 出真信号(home 60.28%,捕获 reLaunch bug 已修)
+>
+> **起后端复现**(下游/CI 复跑用):
+> ```bash
+> # mongo 已在 seafood-mongodb;native 镜像 arm64 不匹配本机 → 用 jvm 镜像
+> docker run -d --name seafood-backend --network seafood-miniapp_seafood-network -p 8080:8080 \
+>   -e JWT_SECRET=$(openssl rand -base64 48|tr -d '\n'|head -c44) \
+>   -e JWT_ADMIN_SECRET=$(openssl rand -base64 48|tr -d '\n'|head -c44|rev) \
+>   -e ADMIN_BOOTSTRAP_PASSWORD='SeafoodAdmin#2026' \
+>   -e MONGODB_URI=mongodb://mongodb:27017/seafood -e SPRING_MONGODB_URI=mongodb://mongodb:27017/seafood \
+>   -e SPRING_PROFILES_ACTIVE=docker seafood-backend:jvm
+> # seed(fixtures 缺 status,需补):mongoimport 后 updateMany 置 status=ACTIVE + 时间转 ISODate
+> ```

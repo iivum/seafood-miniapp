@@ -10,8 +10,14 @@ mp 实截图 vs OD 设计 golden 的 odiff 感知比对,抓"现状偏离 OD / �
 /Applications/wechatwebdevtools.app/Contents/MacOS/cli auto \
   --project "$(pwd)" --auto-port 9420        # 在 frontend/ 下
 
-# 2)(可选)起后端 + seed —— 让 mp 渲染真实内容,否则是 loading/空态(diff 必然很大)
+# 2)(强烈建议)起后端 + seed —— 让 mp 渲染真实内容,否则截到 loading/空态(假信号)
 #    见根 README「后端 + MongoDB」+ backend/seed/
+#    gotcha-A:本机 Apple Silicon,CI 产的 seafood-backend:native 是 linux/amd64 ELF
+#             → exec format error 崩溃。用 seafood-backend:jvm(arm64,JAR 架构无关)。
+#    gotcha-B:backend/seed/fixtures 是 stale 的(只有旧字段 onSale,缺 status)。
+#             listPublic 只返 status==ACTIVE → API 返 0 条。seed 后须:
+#             db.products.updateMany({}, [{$set:{status:"ACTIVE",
+#               createdAt:{$toDate:"$createdAt"}, updatedAt:{$toDate:"$updatedAt"}}}])
 
 # 3) 跑感知比对
 cd frontend
