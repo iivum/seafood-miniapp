@@ -1,0 +1,11 @@
+{
+  "screen": "mp-01-home",
+  "note": "OD 期望结构不变量(从 mp-01-home.html 量出)。几何层验渲染现实是否匹配设计意图,AA/DPR/设备框全免疫。",
+  "viewport": { "w": 390, "h": 762 },
+  "checks": [
+    { "key": "banner",        "selector": ".home-banner__item", "metric": "present", "expected": true,  "desc": "顶部 hero/banner(OD .hero)" },
+    { "key": "category-row",  "selector": ".home-chip",          "metric": "present", "expected": true,  "desc": "分类入口行(OD .cats 5 项)" },
+    { "key": "section-header","selector": ".home-section-title", "metric": "present", "expected": true,  "desc": "今日推荐区块头(OD .sec-head)" },
+    { "key": "grid-columns",  "selector": ".home-grid__cell",    "metric": "columns","expected": 2,     "desc": "商品栅格列数(OD .grid = 1fr 1fr = 2 列)" }
+  ]
+}

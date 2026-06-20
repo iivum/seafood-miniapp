@@ -17,9 +17,9 @@
 - [ ] 2.2 `od-geometry/<screen>.json`(几何层,下游)
 - [x] 2.3 home golden 提交
 
-## 3. 验证 harness(感知已落地,几何下游)
+## 3. 验证 harness(感知 + 几何均落地)
 
-- [ ] 3.1 几何主门(下游)
+- [x] 3.1 **几何层落地**(`geometry-diff.cjs` + `od-geometry/<screen>.json`)。**关键踩坑**:automator 0.12.1 元素句柄 API(`page.$`/`$$`/`element.size()/offset()`)在本环境直接超时挂死,`page.outerWxml` undefined(现有 `mp-3layer.test.ts` 用它,实则不绿 → 印证 C5 动机)。**唯一可行路线** = mp 原生 `wx.createSelectorQuery().boundingClientRect()` 经 `mp.evaluate` 在 mp 运行时内跑。metric:present/count/columns(left 聚类)。**AA/DPR/设备框全免疫**。已接 home + category 两屏:**home 锁定 grid 实际 1 列(应 2,20 cell 全宽 373px)+ banner 缺失(banners 数据空),chips/header 正常** —— 精确剥离感知 60% 里的噪声;category 锁定 grid 初始 0 商品(需选中分类)+ header 折叠。`npm run test:geometry` 入口
 - [x] 3.2 感知层 `visual-diff.cjs`:automator 截 mp 实图 → sips 归一化到 golden 尺寸 → `odiff-bin`(AA-tolerant)→ 阈值 gate + 产 diff 图。masking 留下游(home 暂无需)
 - [x] 3.3 `npm run test:visual` 入口;DevTools 自起(`cli auto`)已验
 - [x] 3.4 接 `mp-01-home` 跑通。**修正捕获 bug**:原 `switchTab` 到已激活 tabBar 页不重跑 `onLoad` → 永远截到陈旧空态(假信号 46.47% 恒定)。改 `reLaunch(path)` 关栈重开 → `onLoad` 必触发重新拉后端数据。**后端起 + seed 后真信号 = RED 60.28%**(带真实 55 商品的 home vs OD golden)。产 `mp-01-home-diff.png`
@@ -37,7 +37,7 @@
 - [ ] 5.1 回填 roadmap(待 C5 全量完成)
 - [ ] 5.2 归档(待几何 + 全 9 屏 + 删旧 test 完成)
 
-> **下游 backlog**:① 几何层(od-geometry + bbox 比对,**已解锁** — 后端起+seed 后 mp 渲染真实内容,元素查询不再挂)② 余 8 屏 golden + 接入 ③ 删 `mp-od-design.test.ts` ④ ✅ **完成** — 后端 seed 出真信号(home 60.28%,捕获 reLaunch bug 已修)
+> **下游 backlog**:① 几何层 ✅ **完成**(home+category 两屏,mp.evaluate 原生查询)② 4 tab 页感知 ✅ + 余 5 分包带参页留下游 4.1b ③ 删 `mp-od-design.test.ts`(待)④ ✅ 后端 seed 真信号
 >
 > **起后端复现**(下游/CI 复跑用):
 > ```bash

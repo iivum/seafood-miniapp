@@ -1,0 +1,129 @@
+/*
+ * C5 — mp 视觉验证(几何层):结构不变量比对,AA/DPR/设备框「完全免疫」。
+ *
+ * 与感知层(visual-diff.cjs)互补:
+ *   - 感知层(odiff 像素)抓「外观偏离」,但掺设备框/状态栏/图片噪声;
+ *   - 几何层量 mp 实际渲染的结构不变量(区域存在性、栅格列数),剥离噪声,
+ *     精确回答「布局崩没崩」——非 flaky,直接驱动 TDD 修复。
+ *
+ * 关键实现:automator 的元素句柄 API(page.$ / page.$$ / element.size)在本
+ * 环境直接超时挂死,page.outerWxml 在 automator 0.12.1 不存在。改用 mp 原生
+ * 布局查询 `wx.createSelectorQuery().boundingClientRect()`,经 mp.evaluate 在
+ * mp 运行时内执行 —— 稳定返回真实 rect(left/top/width/height),绕开句柄路线。
+ *
+ * SoT = 提交的 `od-geometry/<screen>.json`(从 OD mockup 量出的期望不变量)。
+ *
+ * metric:
+ *   - present  : 选择器匹配 ≥1 且首元素 height>0(区域真渲染,非空 wx:for 折叠)
+ *   - count    : 匹配元素数(可带 tol)
+ *   - columns  : 把所有匹配元素的 left 按 ~12px 容差聚类,簇数 = 列数
+ *
+ * 跑法:cd frontend && node e2e/tools/geometry-diff.cjs            # 全部屏
+ *      node e2e/tools/geometry-diff.cjs mp-01-home               # 单屏
+ * 退出码:任一 check 不符 → 非零(RED);全符 → 0(GREEN)。
+ */
+const automator = require('miniprogram-automator');
+const path = require('node:path');
+const fs = require('node:fs');
+
+const WS = process.env.WS_ENDPOINT || 'ws://127.0.0.1:9420';
+const GEOM = path.resolve(__dirname, '../od-geometry');
+const COL_TOL_PX = 12; // 列聚类容差(同列元素 left 抖动)
+
+// 屏 → mp 路由(与 visual-diff.cjs 对齐)。
+const ROUTES = {
+  'mp-01-home': '/pages/index/index',
+  'mp-02-category': '/pages/category/category',
+  'mp-04-cart': '/pages/cart/cart',
+  'mp-05-profile': '/pages/profile/profile',
+};
+
+const race = (p, ms, l) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('TIMEOUT@' + l)), ms))]);
+
+/** left 值按容差聚类,返回簇数(= 列数)。 */
+function countColumns(lefts) {
+  const sorted = [...lefts].sort((a, b) => a - b);
+  let cols = 0;
+  let anchor = -Infinity;
+  for (const x of sorted) {
+    if (x - anchor > COL_TOL_PX) { cols++; anchor = x; }
+  }
+  return cols;
+}
+
+/** 在 mp 运行时内一次性批量量出所有 check 选择器的 boundingClientRect。 */
+async function measureAll(mp, checks) {
+  const selectors = checks.map((c) => c.selector);
+  const raw = await race(mp.evaluate((sels) => new Promise((resolve) => {
+    const q = wx.createSelectorQuery();
+    sels.forEach((s) => q.selectAll(s).boundingClientRect());
+    q.exec((res) => resolve(
+      res.map((arr) => (arr || []).map((r) => ({
+        left: Math.round(r.left), top: Math.round(r.top),
+        w: Math.round(r.width), h: Math.round(r.height),
+      })))
+    ));
+  }), selectors), 12000, 'evaluate');
+  return raw; // raw[i] = check[i] 的 rect 数组
+}
+
+function metricOf(check, rects) {
+  if (check.metric === 'present') {
+    const actual = rects.length > 0 && (rects[0].h || 0) > 0;
+    return { actual, extra: `n=${rects.length}` };
+  }
+  if (check.metric === 'count') {
+    return { actual: rects.length, extra: '' };
+  }
+  if (check.metric === 'columns') {
+    const cols = rects.length ? countColumns(rects.map((r) => r.left)) : 0;
+    return { actual: cols, extra: `cells=${rects.length} w=${rects[0] ? rects[0].w : '-'}` };
+  }
+  return { actual: null, extra: '' };
+}
+
+function ok(check, actual) {
+  if (check.metric === 'present') return actual === check.expected;
+  if (check.metric === 'count') return Math.abs(actual - check.expected) <= (check.tol || 0);
+  if (check.metric === 'columns') return actual === check.expected;
+  return false;
+}
+
+(async () => {
+  const only = process.argv[2];
+  const files = fs.readdirSync(GEOM).filter((f) => f.endsWith('.json') && (!only || f === only + '.json'));
+  if (!files.length) { console.error('no geometry spec', only || ''); process.exit(2); }
+
+  const mp = await race(automator.connect({ wsEndpoint: WS }), 20000, 'connect');
+  const out = [];
+  for (const f of files) {
+    const spec = JSON.parse(fs.readFileSync(path.join(GEOM, f), 'utf8'));
+    const route = ROUTES[spec.screen];
+    const rec = { screen: spec.screen, checks: [] };
+    if (!route) { rec.err = 'no route for ' + spec.screen; out.push(rec); continue; }
+    try {
+      // best-effort reLaunch(部分 tabBar 页 promise 不 resolve,但页面已加载)
+      await race(mp.reLaunch(route), 6000, 'reLaunch').catch(() => {});
+      await new Promise((r) => setTimeout(r, 4000));
+      const raw = await measureAll(mp, spec.checks);
+      spec.checks.forEach((c, i) => {
+        const m = metricOf(c, raw[i] || []);
+        rec.checks.push({ key: c.key, metric: c.metric, expected: c.expected, actual: m.actual, pass: ok(c, m.actual), extra: m.extra });
+      });
+    } catch (e) { rec.err = (e && e.message) || String(e); }
+    out.push(rec);
+  }
+  await mp.disconnect();
+
+  let failed = false;
+  console.log('\n=== C5 视觉验证(几何层:结构不变量,框/AA/DPR 免疫)===');
+  for (const r of out) {
+    if (r.err) { console.log(`  ✖ ${r.screen}: ${r.err}`); failed = true; continue; }
+    console.log(`  ${r.screen}:`);
+    for (const c of r.checks) {
+      if (!c.pass) failed = true;
+      console.log(`    ${c.pass ? '✓ GREEN' : '✖ RED  '} ${c.key} [${c.metric}] 期望=${c.expected} 实际=${c.actual}  ${c.extra}`);
+    }
+  }
+  process.exit(failed ? 1 : 0);
+})().catch((e) => { console.error('FAIL', e && e.message ? e.message : e); process.exit(1); });

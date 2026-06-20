@@ -1,7 +1,22 @@
-# C5 — mp 视觉验证(感知层)
+# C5 — mp 视觉验证(感知层 + 几何层)
 
-mp 实截图 vs OD 设计 golden 的 odiff 感知比对,抓"现状偏离 OD / 视觉不可用",驱动 TDD 修复 + 防偏。
-当前已落地 **home 一屏 + 感知层**;几何层 + 全 9 屏 + 取代旧静态验证留下游(见 change `sprint-5-c5-visual-verification`)。
+抓"现状偏离 OD / 视觉不可用",驱动 TDD 修复 + 防偏。两层互补:
+- **感知层**(`visual-diff.cjs`):mp 实截图 vs OD golden 的 odiff 像素比对,抓"外观偏离"。
+  但掺设备框/状态栏/图片噪声(home 实跑 60%,大半是噪声)。
+- **几何层**(`geometry-diff.cjs`):量 mp 实际渲染的**结构不变量**(区域存在性、栅格列数),
+  **AA/DPR/设备框完全免疫**,精确剥离噪声、锁定"布局崩没崩"。非 flaky,直接驱动修复。
+  例:home 几何锁定 `grid 实际 1 列(应 2 列)+ banner 缺失`,而 chips/header 正常。
+
+已落地 **4 tab 页感知 + home/category 几何**;余 5 分包带参页 + 全屏几何留下游
+(见 change `sprint-5-c5-visual-verification`)。
+
+## 几何层关键实现(踩坑)
+
+automator 0.12.1 的元素句柄 API(`page.$` / `page.$$` / `element.size()` / `element.offset()`)
+在本环境**直接超时挂死**,`page.outerWxml` 干脆 undefined。改用 mp **原生布局查询**
+`wx.createSelectorQuery().boundingClientRect()`,经 `mp.evaluate(fn)` 在 mp 运行时内执行 ——
+稳定返回真实 rect。这是几何层唯一可行路线。`od-geometry/<screen>.json` 存 OD 期望不变量
+(`present` / `count` / `columns`),harness 量 mp 实际比对。
 
 ## 跑
 
@@ -19,10 +34,12 @@ mp 实截图 vs OD 设计 golden 的 odiff 感知比对,抓"现状偏离 OD / �
 #             db.products.updateMany({}, [{$set:{status:"ACTIVE",
 #               createdAt:{$toDate:"$createdAt"}, updatedAt:{$toDate:"$updatedAt"}}}])
 
-# 3) 跑感知比对
+# 3) 跑比对
 cd frontend
-npm run test:visual                 # 全部纳入屏
-VISUAL_THRESHOLD=5 npm run test:visual mp-01-home   # 单屏 + 自定阈值(%)
+npm run test:visual                 # 感知层(全部纳入屏)
+VISUAL_THRESHOLD=5 npm run test:visual mp-01-home   # 感知单屏 + 自定阈值(%)
+npm run test:geometry               # 几何层(结构不变量,框/AA/DPR 免疫)
+npm run test:geometry mp-01-home    # 几何单屏
 ```
 
 退出码:任一屏 diff% > 阈值 → 非零(RED,驱动修复);全 ≤ 阈值 → 0(GREEN,防偏)。

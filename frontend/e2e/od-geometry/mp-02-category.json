@@ -1,0 +1,10 @@
+{
+  "screen": "mp-02-category",
+  "note": "OD 期望结构不变量(从 mp-02-category.html 量出)。双栏:左 sidebar + 右 2 列商品 grid。",
+  "viewport": { "w": 390, "h": 762 },
+  "checks": [
+    { "key": "sidebar",      "selector": ".cat-sidebar__item", "metric": "present", "expected": true, "desc": "左侧分类 sidebar 项" },
+    { "key": "header",       "selector": ".cat-header__title",  "metric": "present", "expected": true, "desc": "右侧栏头标题" },
+    { "key": "grid-columns", "selector": ".cat-grid__cell",     "metric": "columns","expected": 2,    "desc": "右侧商品栅格列数(OD 双栏内 2 列)" }
+  ]
+}
