@@ -96,14 +96,18 @@
 
 /* ===== 商品 grid(同 2.1)===== */
 
+/* 2 列瀑布:WeChat mp 不生效 display:grid(同 home),改 flex wrap。
+   右侧 pane 内 2 列,cell 各占半宽减半个 gap(16rpx)。 */
 .cat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
   padding: 0 0;
 }
 
 .cat-grid__cell {
+  width: calc(50% - 8rpx);
+  margin-bottom: 16rpx;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
   overflow: hidden;
