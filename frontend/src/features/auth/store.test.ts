@@ -153,6 +153,7 @@ describe('features/auth/store', () => {
       const store = new AuthStore();
       tokenStorage.setTokens('old', 'old-refresh');
       (wx.request as jest.Mock).mockImplementation((opts: {
+        url: string;
         success: (res: unknown) => void;
       }) => {
         if (opts.url.endsWith('/api/auth/wechat-login')) {
@@ -215,7 +216,8 @@ describe('features/auth/store', () => {
       // Mock login to always fail
       fn.login = jest.fn().mockRejectedValue(new Error('fail'));
       // Run enough times to hit the lock, resetting debounce each time
-      for (let i = 0; i < AuthStore.MAX_CONSECUTIVE_RELOGIN_FAILURES; i++) {
+      const maxFailures = (AuthStore as unknown as { MAX_CONSECUTIVE_RELOGIN_FAILURES: number }).MAX_CONSECUTIVE_RELOGIN_FAILURES;
+      for (let i = 0; i < maxFailures; i++) {
         fn.recentReloginAt = 0; // reset debounce
         await fn.doSilentRelogin();
       }
@@ -234,6 +236,7 @@ describe('features/auth/store', () => {
       // Easier: drive it through `request()` with a TOKEN_REUSED 401.
       tokenStorage.setTokens('old', 'old-refresh');
       (wx.request as jest.Mock).mockImplementation((opts: {
+        url: string;
         success: (res: unknown) => void;
       }) => {
         if (opts.url === '/api/auth/wechat-login' || opts.url.endsWith('/api/auth/wechat-login')) {

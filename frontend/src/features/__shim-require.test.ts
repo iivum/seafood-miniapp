@@ -15,7 +15,7 @@
 
 describe('mp runtime shim require path(2026-06-15 现场修复)', () => {
   it('cart/api.js 不应抛 MODULE_NOT_FOUND(../../shared)', () => {
-    let isolatedRequire: NodeJS.Require;
+    let isolatedRequire: typeof require;
     jest.isolateModules(() => {
       isolatedRequire = require;
     });
@@ -23,7 +23,7 @@ describe('mp runtime shim require path(2026-06-15 现场修复)', () => {
   });
 
   it('order/api.js 不应抛 MODULE_NOT_FOUND(../../shared)', () => {
-    let isolatedRequire: NodeJS.Require;
+    let isolatedRequire: typeof require;
     jest.isolateModules(() => {
       isolatedRequire = require;
     });
@@ -31,7 +31,7 @@ describe('mp runtime shim require path(2026-06-15 现场修复)', () => {
   });
 
   it('product/api.js 不应抛 MODULE_NOT_FOUND(../../shared)', () => {
-    let isolatedRequire: NodeJS.Require;
+    let isolatedRequire: typeof require;
     jest.isolateModules(() => {
       isolatedRequire = require;
     });
@@ -39,7 +39,7 @@ describe('mp runtime shim require path(2026-06-15 现场修复)', () => {
   });
 
   it('auth/api.js(对照组,本来就是 ../../)正常 require', () => {
-    let isolatedRequire: NodeJS.Require;
+    let isolatedRequire: typeof require;
     jest.isolateModules(() => {
       isolatedRequire = require;
     });
@@ -47,7 +47,7 @@ describe('mp runtime shim require path(2026-06-15 现场修复)', () => {
   });
 
   it('pages-sub/user/address/address-list.js 不应抛 MODULE_NOT_FOUND(../../../../utils)', () => {
-    let isolatedRequire: NodeJS.Require;
+    let isolatedRequire: typeof require;
     jest.isolateModules(() => {
       isolatedRequire = require;
     });
@@ -55,7 +55,7 @@ describe('mp runtime shim require path(2026-06-15 现场修复)', () => {
   });
 
   it('pages-sub/user/address/address-edit.js 不应抛 MODULE_NOT_FOUND(../../../../utils)', () => {
-    let isolatedRequire: NodeJS.Require;
+    let isolatedRequire: typeof require;
     jest.isolateModules(() => {
       isolatedRequire = require;
     });

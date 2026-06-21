@@ -194,8 +194,10 @@ function callWx<T>(
       resolve({ errMsg: 'wx.request is not available' });
       return;
     }
+    // wx.request 的 RequestOption.data 限 string|IAnyObject|ArrayBuffer,而本层 options.data
+    // 是泛型请求体(unknown)→ 强转 any 绕开(请求层自管类型,success/fail 回调内已 as 收窄)。
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    wx.request({
+    (wx.request as any)({
       ...options,
       success: (res: unknown) => {
         const r = res as RawSuccess<T>;
