@@ -47,10 +47,11 @@
 > **下游 backlog**:① 几何层 ✅(home+category;余 7 屏待铺,分包页**优先用几何**因感知 reLaunch 不稳)② 9 屏感知 ✅ **完成**(4.1b;4 tab 可靠 + 5 分包带参 flaky)③ 删 `mp-od-design.test.ts` ✅(取代理由见 4.2)④ ✅ 后端 seed 真信号
 >
 > **剩余下游(C5 收尾后续)**:
-> - **a. 分包页捕获稳健化**:automator reLaunch 深层带参页 flaky → 改走 app 真实流转(reLaunch home → navigateTo 子页 + 等元素)或对分包页**只跑几何层**(几何用 mp.evaluate boundingClientRect 不受 reLaunch flaky 影响)。
-> - **b. 几何层铺到 9 屏**:为 mp-03~09 写 `od-geometry/<screen>.json` 结构不变量。
-> - **c. order/address 数据可复现**:run-visual.sh 加「dev-login → 取 sub → 为该 userId seed orders」步;address 待后端补 AddressController(REST 接 domain)。
-> - **d. 逐屏修复(RED→GREEN)**:9 屏 baseline 全 RED,按 diff 图逐屏对齐 OD(home 46%/detail 61% 等)。
+> - **a. 分包页捕获稳健化** ✅ **完成**(commit `c39546d`):reLaunch(home)→注入登录态→navigateTo(子页)→校验 currentPage 落对+重试;落点错抛 err 不产假空白。mp-03/06/07/08/09 全稳定落对页。运行时为当前 dev-login userId seed 订单(_id 漂移,静态 fixture 不可行)。
+> - **过程修的真 bug**(C5 价值兑现):order-detail 3 处(双 /api 前缀 404 / 漏 needAuth 401 / `/confirm`→`/confirm-receive`)→ **mp-09 完整渲染**;OrderAPI.list 解包 Spring Page.content(+修假绿单测);order-list dangling wx require;address-list 未解构 import(+修假绿单测)。
+> - **b. 几何层铺到 9 屏**:为 mp-03~09 写 `od-geometry/<screen>.json`。分包页现已能稳定落页 → 几何层可铺。
+> - **c. 仍存数据加载 bug**:① mp-08 order-list 经 `src/shared/api/request` 取 `/orders` 在 mp 运行时 **NETWORK fail**(raw wx.request 同 url 却 200,utils/request 正常)—— 该请求层独立深层问题;② mp-03 product-detail product null;③ address 待后端补 AddressController。
+> - **d. 逐屏修复(RED→GREEN)**:9 屏 baseline 全 RED,按 diff 图逐屏对齐 OD(home 46%/detail 61% 等);mp-09 已是真数据信号(30%)。
 >
 > **逐屏修复(RED→GREEN)进展**:几何层驱动修复已让 **home 全 GREEN**:
 > - grid 实际 1 列(应 2)→ 改 flex-wrap(`a7abec7`,根因:WeChat mp 不生效 display:grid)
