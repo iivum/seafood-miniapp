@@ -48,10 +48,16 @@
 >
 > **剩余下游(C5 收尾后续)**:
 > - **a. 分包页捕获稳健化** ✅ **完成**(commit `c39546d`):reLaunch(home)→注入登录态→navigateTo(子页)→校验 currentPage 落对+重试;落点错抛 err 不产假空白。mp-03/06/07/08/09 全稳定落对页。运行时为当前 dev-login userId seed 订单(_id 漂移,静态 fixture 不可行)。
-> - **过程修的真 bug**(C5 价值兑现):order-detail 3 处(双 /api 前缀 404 / 漏 needAuth 401 / `/confirm`→`/confirm-receive`)→ **mp-09 完整渲染**;OrderAPI.list 解包 Spring Page.content(+修假绿单测);order-list dangling wx require;address-list 未解构 import(+修假绿单测)。
-> - **b. 几何层铺到 9 屏**:为 mp-03~09 写 `od-geometry/<screen>.json`。分包页现已能稳定落页 → 几何层可铺。
-> - **c. 仍存数据加载 bug**:① mp-08 order-list 经 `src/shared/api/request` 取 `/orders` 在 mp 运行时 **NETWORK fail**(raw wx.request 同 url 却 200,utils/request 正常)—— 该请求层独立深层问题;② mp-03 product-detail product null;③ address 待后端补 AddressController。
-> - **d. 逐屏修复(RED→GREEN)**:9 屏 baseline 全 RED,按 diff 图逐屏对齐 OD(home 46%/detail 61% 等);mp-09 已是真数据信号(30%)。
+> - **过程修的真 bug**(C5 价值兑现,共 6 个 + 3 个假绿单测):
+>   - **`isWxFail` 误判(根因,影响整个 `src/shared/api/request` 层)**:mp wx.request 成功回调 res 也含 `errMsg`("request:ok") → `'errMsg' in x` 把每个成功都判为 NETWORK fail → order/cart/product 所有 feature store 请求在 mp 运行时全废。改用「无 number statusCode」判失败。这一处修复**解锁 mp-08 + mp-03 两屏数据**。
+>   - order-detail 3 处:双 /api 前缀 404 / 漏 needAuth 401 / `/confirm`→`/confirm-receive`
+>   - OrderAPI.list 解包 Spring Page.content;order-list dangling wx require;address-list 未解构 import
+>   - 假绿单测 3 处:address-list mock 裸函数、OrderAPI.list mock 裸数组、request.test makeWxSuccess 缺 errMsg —— 全因 mock 与真实 mp 形态不符
+> - **mp-03/08/09 三个数据屏现完整渲染真实数据**:detail(商品图/价/库存/分类)、order-list(3 单 + tab 计数)、order-detail(状态 banner/物流/商品/action bar)。harness 运行时取 product id(免 reseed 失效)+ 为当前 login userId seed 订单。
+> - **9 屏最终 baseline(全 RED,均可靠渲染)**:home 61% / category 66% / detail 67% / cart 55% / profile 71% / confirm 35% / address 38% / order-list 29% / order-detail 30%。
+> - **b. 几何层铺到 9 屏**(下游):分包页现稳定落页 → 几何可铺;为 mp-03~09 写 `od-geometry/<screen>.json`。
+> - **c. 剩余**:mp-07 address 空态(后端无 AddressController,403);mp-06 confirm 空购物车(从 cart 构建,直达无数据)。
+> - **d. 逐屏修复(RED→GREEN)**:9 屏 baseline 全 RED,按 diff 图逐屏对齐 OD(开放式视觉设计工作)。
 >
 > **逐屏修复(RED→GREEN)进展**:几何层驱动修复已让 **home 全 GREEN**:
 > - grid 实际 1 列(应 2)→ 改 flex-wrap(`a7abec7`,根因:WeChat mp 不生效 display:grid)
