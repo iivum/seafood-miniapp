@@ -27,7 +27,7 @@ const GOLD = path.resolve(__dirname, '../od-golden');
 
 // 鉴权页用:运行时 dev wechat-login 拿一枚新 accessToken(JWT exp ~15min,必须现取)。
 // 同时把 sub(userId)解出来 —— mp-08/09 走 /orders 由 JWT principal 强制 own,
-// mp-07 address-list url 含 userInfo.id,二者都要这个 id 与 seed 的订单/地址对齐。
+// mp-07 经 self-scoped /api/addresses 门面读该 userId 的内嵌地址 → seed 须挂到同一 userId 文档。
 const API_HOST = process.env.API_HOST || '127.0.0.1';
 const API_PORT = Number(process.env.API_PORT || 8080);
 const DEV_CODE = process.env.DEV_LOGIN_CODE || 'dev-visual-001';
@@ -55,6 +55,28 @@ db.orders.insertMany([
     console.log(`  [seed] 已为当前 userId=${userId} seed ${SEED_ORDER_IDS.length} 单`);
   } catch (e) {
     console.warn(`  [seed] order seed 跳过(docker/mongo 不可达,mp-08/09 将空态):${String(e.message).slice(0, 80)}`);
+  }
+}
+
+// mp-07 address-list 经 self-scoped 门面 GET /api/addresses → users.get(me.id).addresses()。
+// 地址内嵌在用户文档(UserDocument.addresses: List<Address>,字段 id/name/phone/province/city/detail/isDefault),
+// 且随 dev-login 重建用户 _id 漂移 → 必须为当前 userId 运行时 seed,否则 mp-07 渲空态。best-effort。
+function seedAddressesFor(userId) {
+  // 用户文档 _id 是 ObjectId(Spring Data 把 24-hex String @Id 持久化为 ObjectId)→
+  // 字符串 _id 匹配 0 条。按 hex 形态选 ObjectId / 原值匹配。
+  const js = `const uid=${JSON.stringify(userId)};
+const q=/^[0-9a-fA-F]{24}$/.test(uid)?{_id:ObjectId(uid)}:{_id:uid};
+// 嵌入地址用 _id(Spring Data 把 Address.id 映射成嵌入文档 _id;写 id 字段读回为 null)。
+db.users.updateOne(q,{$set:{addresses:[
+ {_id:"addr-001",name:"张伟",phone:"13800138001",province:"广东省",city:"深圳市",detail:"南山区科技园路 1 号海王大厦 12 楼",isDefault:true},
+ {_id:"addr-002",name:"李娜",phone:"13900139002",province:"上海市",city:"上海市",detail:"浦东新区世纪大道 100 号环球金融中心 30 层",isDefault:false},
+ {_id:"addr-003",name:"王芳",phone:"13700137003",province:"北京市",city:"北京市",detail:"朝阳区建国路 88 号 SOHO 现代城 B 座 1801",isDefault:false}
+]}});`;
+  try {
+    execFileSync('docker', ['exec', '-i', 'seafood-mongodb', 'mongosh', 'seafood', '--quiet', '--eval', js], { stdio: 'ignore' });
+    console.log(`  [seed] 已为当前 userId=${userId} seed 3 条地址`);
+  } catch (e) {
+    console.warn(`  [seed] address seed 跳过(docker/mongo 不可达,mp-07 将空态):${String(e.message).slice(0, 80)}`);
   }
 }
 
@@ -200,7 +222,8 @@ async function captureActual(mp, screen, auth) {
     try {
       auth = await devLogin();
       console.log(`  [auth] dev 登录 ok,userId=${auth.userId}`);
-      seedOrdersFor(auth.userId); // 为当前 login 用户 seed 订单(否则 _id 漂移导致空态)
+      seedOrdersFor(auth.userId);    // mp-08/09:为当前 login 用户 seed 订单(_id 漂移否则空态)
+      seedAddressesFor(auth.userId); // mp-07:为当前 login 用户 seed 地址(经 /api/addresses 门面渲染)
     } catch (e) { console.warn(`  [auth] dev 登录失败(鉴权屏将渲染未登录态):${e.message}`); }
   }
 

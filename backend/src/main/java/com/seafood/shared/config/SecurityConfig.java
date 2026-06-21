@@ -96,6 +96,8 @@ public class SecurityConfig {
                 // 购物车/订单:粗粒度放行(CUSTOMER/ADMIN),细粒度在方法 @PreAuthorize
                 .requestMatchers("/api/cart/**", "/api/orders/**").authenticated()
                 .requestMatchers("/api/users/**").authenticated()
+                // 地址 self-scoped 门面(身份取自 JWT principal,细粒度在 @PreAuthorize)
+                .requestMatchers("/api/addresses/**").authenticated()
                 // 兜底
                 .anyRequest().denyAll()
             )
