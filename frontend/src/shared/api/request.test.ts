@@ -16,6 +16,7 @@ import { tokenStorage } from './storage';
 interface WxSuccess<T> {
   statusCode: number;
   data: T;
+  errMsg?: string;
 }
 interface WxFail {
   errMsg: string;
@@ -23,7 +24,9 @@ interface WxFail {
 type WxResponse<T> = WxSuccess<T> | WxFail;
 
 function makeWxSuccess<T>(data: T, statusCode = 200): WxSuccess<T> {
-  return { statusCode, data };
+  // mp 真实成功回调 res 含 errMsg "request:ok" —— 必须带上,否则测试无法守卫
+  // isWxFail 退回 `'errMsg' in x`(那会把每个成功误判为 NETWORK fail,见 isWxFail 注释)。
+  return { statusCode, data, errMsg: 'request:ok' };
 }
 function makeWxFail(msg = 'network:fail'): WxFail {
   return { errMsg: msg };

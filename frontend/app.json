@@ -78,6 +78,7 @@
       "root": "pages-sub/order",
       "pages": [
         "order-list/order-list",
+        "order-detail/order-detail",
         "order-confirm/order-confirm"
       ]
     },

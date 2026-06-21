@@ -1,28 +1,126 @@
-<view class="order-list-container">
-  <view class="empty" wx:if="{{orders.length === 0}}">
-    <icon type="info" size="64"></icon>
-    <text>还没有相关订单哦</text>
+<!--
+  sprint-1-closure 7.4 — mp-08 订单列表 OD v2 视觉重写。
+  布局对齐 docs/redesign/mp-screenshots/design-ref/mp-08-order-list.png:
+    - 顶部 sticky header(返回 / 我的订单 / 搜索)
+    - Tab pill row(全部 / 待付款 / 待发货 / 待收货 / 已完成 / 已取消)
+    - 卡片:商家名 + 状态徽标 / 商品行 / 订单号 + 合计 / 操作行(用 OrderActionRow 组件)
+    - 空 / 加载 / 错误 状态走 shared-empty / shared-loading
+  tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+-->
+<view class="order-list">
+  <!-- sticky 顶部 header -->
+  <view class="order-list__header">
+    <view class="order-list__back" bindtap="onBack" hover-class="order-list__back--hover">
+      <text class="order-list__back-icon">‹</text>
+    </view>
+    <text class="order-list__title">我的订单</text>
+    <view class="order-list__search" bindtap="onSearch" hover-class="order-list__search--hover">
+      <text class="order-list__search-icon">⌕</text>
+    </view>
   </view>
 
-  <view class="order-card card" wx:for="{{orders}}" wx:key="id">
-    <view class="order-header">
-      <text class="order-id">订单号：{{item.orderNumber}}</text>
-      <text class="order-status status-{{item.status}}">{{statusTextMap[item.status]}}</text>
+  <!-- Tab pill row(横向 scroll,active 用 accent pill) -->
+  <scroll-view scroll-x="true" class="order-list__tabs" enhanced="true" show-scrollbar="{{false}}">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="order-list__tab {{activeTab === item.key ? 'order-list__tab--active' : ''}}"
+      bindtap="onTabTap"
+      data-tab="{{item.key}}"
+    >
+      <text class="order-list__tab-label">{{item.label}}</text>
+      <text wx:if="{{item.count > 0}}" class="order-list__tab-count">{{item.count}}</text>
     </view>
+  </scroll-view>
 
-    <view class="order-items">
-      <view class="item" wx:for="{{item.items}}" wx:for-item="p" wx:key="productId">
-        <text class="item-name">{{p.name}}</text>
-        <text class="item-qty">x{{p.quantity}}</text>
-        <text class="item-price">￥{{p.price}}</text>
+  <!-- 加载中(首屏) -->
+  <view class="order-list__state" wx:if="{{isLoading && orders.length === 0}}">
+    <shared-loading message="加载中..."></shared-loading>
+  </view>
+
+  <!-- 错误状态 -->
+  <view class="order-list__state" wx:elif="{{isError}}">
+    <shared-empty
+      icon="⚠️"
+      message="{{errorMessage || '加载失败'}}"
+      retry-text="重新加载"
+      bind:retry="onRetry"
+    ></shared-empty>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="order-list__state" wx:elif="{{filteredOrders.length === 0}}">
+    <shared-empty
+      icon="📦"
+      message="还没有相关订单哦"
+      retry-text="去逛逛"
+      bind:retry="onGoShopping"
+    ></shared-empty>
+  </view>
+
+  <!-- 订单卡片列表 -->
+  <view class="order-list__list" wx:else>
+    <view
+      wx:for="{{filteredOrders}}"
+      wx:key="id"
+      class="order-card"
+      data-id="{{item.id}}"
+      bindtap="onOrderTap"
+    >
+      <!-- 商家行 + 状态徽标 -->
+      <view class="order-card__top">
+        <view class="order-card__shop">
+          <text class="order-card__shop-icon">⌂</text>
+          <text class="order-card__shop-name">海鲜商城</text>
+        </view>
+        <text class="order-card__status order-card__status--{{item.status}}">{{statusTextMap[item.status]}}</text>
       </view>
-    </view>
 
-    <view class="order-footer">
-      <text class="total">合计：￥{{item.totalPrice}}</text>
-      <view class="actions">
-        <button class="btn btn-pay" wx:if="{{item.status === 'PENDING_PAYMENT'}}" bindtap="onPay" data-id="{{item.id}}">去支付</button>
-        <button class="btn btn-cancel" wx:if="{{item.status === 'PENDING_PAYMENT'}}" bindtap="onCancel" data-id="{{item.id}}">取消</button>
+      <!-- 商品行(展示前 2 个,余下折叠) -->
+      <view class="order-card__items">
+        <view
+          wx:for="{{item.items}}"
+          wx:for-item="p"
+          wx:key="productId"
+          wx:if="{{index < 2}}"
+          class="order-card__item"
+        >
+          <image
+            class="order-card__item-img"
+            src="{{p.imageUrl}}"
+            mode="aspectFill"
+            lazy-load="true"
+          ></image>
+          <view class="order-card__item-body">
+            <text class="order-card__item-name">{{p.productName}}</text>
+            <text wx:if="{{p.imageUrl == '' || p.imageUrl == null}}" class="order-card__item-spec">默认规格</text>
+            <view class="order-card__item-foot">
+              <text class="order-card__item-price">¥ {{p.unitPrice}}</text>
+              <text class="order-card__item-qty">x {{p.quantity}}</text>
+            </view>
+          </view>
+        </view>
+        <view wx:if="{{item.items.length > 2}}" class="order-card__more">
+          <text>等 {{item.items.length}} 件商品</text>
+        </view>
+      </view>
+
+      <!-- 订单号 + 合计 -->
+      <view class="order-card__summary">
+        <text class="order-card__order-no">订单号：#{{item.id}}</text>
+        <view class="order-card__total-row">
+          <text class="order-card__total-label">合计</text>
+          <text class="order-card__total-price">¥ {{item.totalAmount}}</text>
+        </view>
+      </view>
+
+      <!-- 操作行(7x6 matrix via OrderActionRow 组件) -->
+      <view class="order-card__actions" catchtap="noop">
+        <order-action-row
+          status="{{item.status}}"
+          bind:action="onActionTap"
+          data-id="{{item.id}}"
+        ></order-action-row>
       </view>
     </view>
   </view>

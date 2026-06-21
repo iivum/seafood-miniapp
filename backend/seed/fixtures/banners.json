@@ -1,0 +1,35 @@
+[
+  {
+    "tone": "ACCENT",
+    "emoji": "🦞",
+    "title": "波龙季 返场",
+    "subtitle": "鲜活到岸 · 满 1 只减 30",
+    "targetProductId": null,
+    "sortOrder": 0,
+    "status": "ACTIVE",
+    "createdAt": "2026-06-03T00:00:00Z",
+    "updatedAt": "2026-06-03T00:00:00Z"
+  },
+  {
+    "tone": "SOFT",
+    "emoji": "🐟",
+    "title": "冰鲜直发",
+    "subtitle": "大黄鱼 · 9.8 折 · 当日达",
+    "targetProductId": null,
+    "sortOrder": 1,
+    "status": "ACTIVE",
+    "createdAt": "2026-06-03T00:00:00Z",
+    "updatedAt": "2026-06-03T00:00:00Z"
+  },
+  {
+    "tone": "ACCENT",
+    "emoji": "🦀",
+    "title": "大闸蟹 旺季",
+    "subtitle": "公 4 两 · 整 8 只装",
+    "targetProductId": null,
+    "sortOrder": 2,
+    "status": "ACTIVE",
+    "createdAt": "2026-06-03T00:00:00Z",
+    "updatedAt": "2026-06-03T00:00:00Z"
+  }
+]

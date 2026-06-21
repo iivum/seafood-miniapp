@@ -18,8 +18,9 @@ describe('features/order/api', () => {
     tokenStorage.setTokens('a', 'r');
   });
 
-  it('list(): GET /api/orders', async () => {
-    setWxResponse([]);
+  it('list(): GET /api/orders 解包 Page.content', async () => {
+    // 后端真实返 Spring Page { content[] };list() 须解包成数组(原 mock 裸数组 = 假绿)
+    setWxResponse({ content: [], totalElements: 0, number: 0, size: 20 });
     const orders = await OrderAPI.list();
     expect(orders).toEqual([]);
     const call = (wx.request as jest.Mock).mock.calls[0][0];

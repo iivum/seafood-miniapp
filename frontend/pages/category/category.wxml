@@ -23,8 +23,8 @@
   <view class="cat-main">
     <!-- sticky 分类名头 -->
     <view class="cat-header">
-      <text class="cat-header__title">{{activeCategoryName}}</text>
-      <text class="cat-header__subtitle">{{activeCategoryDesc || '每日新鲜直送'}}</text>
+      <text class="cat-header__title">{{selectedCategoryName}}</text>
+      <text class="cat-header__subtitle">{{selectedCategoryDesc || '每日新鲜直送'}}</text>
     </view>
 
     <!-- 加载中 -->

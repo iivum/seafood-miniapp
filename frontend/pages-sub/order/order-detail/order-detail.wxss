@@ -1,0 +1,99 @@
+/*
+ * sprint-1-closure mp-09 订单详情页 OD v2 视觉。
+ * tokens 单一源 docs/redesign/tokens.json。
+ */
+
+.order-detail {
+  min-height: 100vh;
+  background: var(--bg, #fffbf8);
+  padding-bottom: 200rpx;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background: var(--surface, #ffffff);
+  border-bottom: 1rpx solid var(--border, #e6e0dd);
+}
+.topbar .back { font-size: 48rpx; line-height: 1; padding: 8rpx 16rpx; }
+.topbar .title { font-size: 32rpx; font-weight: 600; }
+.topbar .placeholder { width: 64rpx; }
+
+.loading, .error, .empty {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 400rpx; padding: 48rpx;
+}
+.error-msg { color: var(--error, #b9003d); font-size: 28rpx; margin-bottom: 24rpx; }
+.retry-btn {
+  background: var(--accent, #db633c); color: var(--shell, #ffffff);
+  border: 0; border-radius: 12rpx; padding: 16rpx 48rpx; font-size: 28rpx;
+}
+
+.status-banner {
+  margin: 24rpx 32rpx 0; padding: 32rpx;
+  border-radius: 20rpx;
+}
+.status-banner--success { background: var(--success-soft, #d5f9e0); }
+.status-banner--info    { background: var(--info-soft, #d2f5ff); }
+.status-banner--warning { background: var(--warning-soft, #ffe9cb); }
+.status-banner--error   { background: var(--error-soft, #ffe2e4); }
+.status-banner--neutral { background: var(--bg, #f5efe8); }
+.status-eyebrow { font-size: 22rpx; color: var(--muted, #6b615d); margin-bottom: 8rpx; }
+.status-h { font-size: 40rpx; font-weight: 600; margin-bottom: 8rpx; }
+.status-sub { font-size: 26rpx; color: var(--muted, #6b615d); }
+
+.card { margin: 24rpx 32rpx 0; background: var(--surface, #ffffff); border: 1rpx solid var(--border, #e6e0dd); border-radius: 20rpx; padding: 32rpx; }
+.card-title { font-size: 24rpx; font-weight: 600; color: var(--muted, #6b615d); margin-bottom: 16rpx; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.timeline { padding: 8rpx 0; }
+.tl-node { display: flex; gap: 24rpx; padding: 16rpx 0; }
+.tl-node .dot {
+  width: 16rpx; height: 16rpx; border-radius: 50%;
+  background: var(--border, #e6e0dd); margin-top: 12rpx; flex-shrink: 0;
+}
+.tl-node--done .dot { background: var(--success, #318f5a); }
+.tl-node--current .dot { background: var(--success, #318f5a); box-shadow: 0 0 0 8rpx var(--success-soft, #d5f9e0); }
+.tl-node .content { flex: 1; }
+.tl-node .row1 { display: flex; justify-content: space-between; margin-bottom: 4rpx; }
+.tl-node .label { font-size: 28rpx; font-weight: 500; }
+.tl-node--future .label { color: var(--muted, #6b615d); }
+.tl-node .time { font-size: 22rpx; color: var(--muted, #6b615d); }
+.tl-node .desc { font-size: 24rpx; color: var(--muted, #6b615d); }
+
+.addr-card .row1 { display: flex; gap: 16rpx; margin-bottom: 12rpx; }
+.addr-card .nm { font-size: 30rpx; font-weight: 600; }
+.addr-card .addr { font-size: 28rpx; line-height: 1.5; }
+
+.items-card .item { display: flex; gap: 24rpx; padding: 16rpx 0; border-bottom: 1rpx solid var(--border, #e6e0dd); }
+.items-card .item:last-child { border-bottom: 0; }
+.items-card .pic { width: 120rpx; height: 120rpx; background: var(--bg, #f5efe8); border-radius: 12rpx; flex-shrink: 0; }
+.items-card .info { flex: 1; }
+.items-card .nm { font-size: 28rpx; font-weight: 500; }
+.items-card .spec { font-size: 24rpx; color: var(--muted, #6b615d); margin-top: 4rpx; }
+.items-card .pr { text-align: right; }
+.items-card .p { font-size: 28rpx; font-weight: 600; }
+
+.price-card .row { display: flex; justify-content: space-between; padding: 8rpx 0; }
+.price-card .lbl { font-size: 28rpx; color: var(--muted, #6b615d); }
+.price-card .val { font-size: 28rpx; }
+
+.info-card .row { display: flex; justify-content: space-between; padding: 8rpx 0; }
+.info-card .lbl { font-size: 26rpx; color: var(--muted, #6b615d); }
+.info-card .val { font-size: 26rpx; font-family: var(--font-mono, monospace); }
+
+.bottom-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: flex; gap: 16rpx;
+  padding: 24rpx 32rpx 48rpx;
+  background: var(--surface, #ffffff);
+  border-top: 1rpx solid var(--border, #e6e0dd);
+}
+.bottom-bar .act {
+  flex: 1; height: 80rpx; border-radius: 16rpx; font-size: 28rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg, #f5efe8); color: var(--fg, #231814);
+  border: 1rpx solid var(--border, #e6e0dd);
+}
+.bottom-bar .act.primary { background: var(--accent, #db633c); color: var(--shell, #ffffff); border: 0; }

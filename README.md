@@ -1,6 +1,11 @@
 # 🦐 海鲜商城小程序
 
+![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)
+![Mutation](https://img.shields.io/badge/mutation-72%25-green)
+
 微信小程序 + Spring Boot 单仓电商平台。
+
+> **测试有效性**:行覆盖率 ≥80%(Jacoco,`check` 主链强制);变异分 ≥70%(PIT,作用 `order`/`product` 核心包)。变异测试验证"断言真的在卡行为",运行慢(~1min),不进 PR 主链,只手动 `./gradlew pitest` 或 nightly CI 触发。
 
 ## 📦 项目结构
 
@@ -38,6 +43,8 @@ cd backend
 ./gradlew test -PexcludeTags=docker   # 无 Docker 环境跳过 Testcontainers IT
 ```
 
+测试分层:example-based(JUnit 5)+ **property-based**(jqwik,Sprint 5 C4)。后者对核心 domain 不变量跑随机样本逼反例:`Product.decrementStock` 数值边界、`OrderStatus` 状态机(round-trip / 终态不可流出 / 无自环)、`Sku`/`Product` 构造校验。jqwik 引擎与 junit-platform 6 并存(spike 验证兼容)。
+
 ### 前端测试
 
 ```bash
@@ -45,6 +52,18 @@ cd frontend
 npm test
 npm test -- --coverage
 ```
+
+### API 契约(OpenAPI,Sprint 5 C2)
+
+后端 HTTP API 的 **OpenAPI 3 spec 是后端↔前端契约的 SoT**:`backend/src/test/resources/contract/openapi.json`(由 springdoc 从真实 Controller 生成,**仅测试期**,不进 native 运行时、不在 8080 暴露)。两道闸:
+
+- **漂移门** `OpenApiContractIT`:改了 API 但没更新契约即 fail。有意变更后重生成:
+  ```bash
+  CONTRACT_UPDATE=true ./gradlew test --tests "*OpenApiContractIT"   # 需 Docker(全上下文 + Mongo)
+  ```
+- **响应一致校验**:slice 测试用 `OpenApiContractAssert` 校验响应真符合契约声明的 schema。
+
+前端可直接用 `openapi.json` 跑 `openapi-typescript` 生成 client(mp / admin-ui),契约双向消费。
 
 ## 🛠️ 技术栈
 

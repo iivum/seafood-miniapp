@@ -6,10 +6,13 @@ import com.seafood.shared.security.AdminRateLimiter;
 import com.seafood.shared.security.JwtAuthenticationFilter;
 import com.seafood.shared.security.JwtProperties;
 import com.seafood.shared.security.JwtTokenProvider;
+import com.seafood.shared.security.Role;
 import com.seafood.shared.security.SecurityHeadersFilter;
 import com.seafood.shared.security.SecurityHeadersProperties;
 import com.seafood.user.application.TokenRevocationService;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +28,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Sprint 2 PR review #21 — {@code SecurityConfig} 装配的 filter chain 顺序契约。
@@ -107,6 +113,27 @@ class SecurityFilterChainOrderIT {
         assertThat(idxJwt)
                 .as("JwtAuthenticationFilter must come BEFORE AdminRateLimitFilter")
                 .isLessThan(idxRateLimit);
+    }
+
+    /**
+     * 回归:{@code /api/addresses/**} 必须在 SecurityConfig 白名单(authenticated),
+     * 不能落到 {@code anyRequest().denyAll()} 兜底。带合法 user token 走整链 → 过授权层
+     * (TestApp 无该 handler → 404);若漏配白名单则 denyAll 返 403。无 token → 403(授权拒)。
+     *
+     * <p>self-scoped 门面 {@code AddressController} 的单元测试绕过 filter chain,抓不到
+     * 这条 matcher 漏配 —— 此处用真 SecurityConfig 钉死(live 验证 2026-06-21 实证漏配 403)。
+     */
+    @Test
+    void addressesEndpoint_isAuthenticated_notDenyAll() throws Exception {
+        JwtTokenProvider tokens = ctx.getBean(JwtTokenProvider.class);
+        String token = tokens.issueAccessToken("u-1", Role.CUSTOMER).token();
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(ctx).apply(springSecurity()).build();
+
+        mvc.perform(get("/api/addresses").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());   // 过授权层(白名单),TestApp 无 handler
+
+        mvc.perform(get("/api/addresses"))
+                .andExpect(status().isForbidden());  // 无 token → 授权层拒
     }
 
     /**

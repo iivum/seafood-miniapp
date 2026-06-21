@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,6 +22,16 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 /** 本地"记住我"持久化 key。存用户名(非密码!)— 重新打开浏览器时自动填回。 */
 const REMEMBER_KEY = 'seafood-admin-ui:remember-username';
 
+/** sprint-1-closure 8.3 — 锁定状态 sessionStorage 持久化 key(会话内 refresh 不丢倒计时) */
+const LOCKOUT_KEY = 'seafood-admin-ui:login-lockout';
+
+interface LockoutState {
+  /** 锁定到期时间戳(ms)。null = 未锁。 */
+  until: number | null;
+  /** 锁定来源:IP(429) 或 ACCOUNT(423) */
+  scope: 'IP' | 'ACCOUNT' | 'NONE';
+}
+
 export function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
   const hydrated = useAuthStore((s) => s.hydrated);
@@ -39,6 +49,24 @@ export function LoginPage() {
   const location = useLocation();
   const login = useLogin();
   const remember = watch('remember');
+
+  // sprint-1-closure 8.2 / 8.3 — 锁定状态 + 倒计时
+  const [lockout, setLockout] = useState<LockoutState>(readLockout());
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (lockout.until == null) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [lockout.until]);
+  useEffect(() => {
+    // 倒计时归零时自动清除锁定 + 持久化
+    if (lockout.until != null && now >= lockout.until) {
+      setLockout({ until: null, scope: 'NONE' });
+      clearLockout();
+    }
+  }, [now, lockout.until]);
+  const secondsLeft = lockout.until == null ? 0 : Math.max(0, Math.ceil((lockout.until - now) / 1000));
+  const isLocked = secondsLeft > 0;
 
   /**
    * Validate the `from` redirect target against an allowlist of safe
@@ -76,8 +104,35 @@ export function LoginPage() {
         clearRememberedUsername();
       }
       await login.mutateAsync({ username: values.username, password: values.password });
+      // 成功登录 → 清锁定状态
+      setLockout({ until: null, scope: 'NONE' });
+      clearLockout();
       navigate(from, { replace: true });
     } catch (err) {
+      // sprint-1-closure 8.2 / 8.3 — 423 / 429 → 锁定 + 倒计时
+      // useLogin 包装错误时会透传 status/code,这里用宽松的 duck-typing 兼容
+      // (useLogin 抛出 LoginError 仍可能含 status;非 AxiosError 路径下不影响)
+      const status =
+        (err as { status?: number; response?: { status?: number } })?.status ??
+        (err as { response?: { status?: number } })?.response?.status;
+      const code = (err as { code?: string })?.code;
+      if (status === 429 || code === 'AUTH_LOCKED') {
+        // IP 锁:15 分钟倒计时
+        const until = Date.now() + 15 * 60 * 1000;
+        const next: LockoutState = { until, scope: 'IP' };
+        setLockout(next);
+        writeLockout(next);
+        setError('root.serverError', { message: '登录尝试次数过多,请 15 分钟后再试' });
+        return;
+      }
+      if (status === 423 || code === 'ACCOUNT_LOCKED') {
+        const until = Date.now() + 15 * 60 * 1000;
+        const next: LockoutState = { until, scope: 'ACCOUNT' };
+        setLockout(next);
+        writeLockout(next);
+        setError('root.serverError', { message: '账户已被锁定,请 15 分钟后再试' });
+        return;
+      }
       const message = err instanceof Error ? err.message : '登录失败';
       setError('root.serverError', { message });
     }
@@ -98,6 +153,7 @@ export function LoginPage() {
                 id="username"
                 type="text"
                 autoComplete="username"
+                disabled={isLocked}
                 aria-invalid={Boolean(formState.errors.username)}
                 {...register('username')}
               />
@@ -113,6 +169,7 @@ export function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
+                disabled={isLocked}
                 aria-invalid={Boolean(formState.errors.password)}
                 {...register('password')}
               />
@@ -128,6 +185,7 @@ export function LoginPage() {
                 id="remember"
                 checked={Boolean(remember)}
                 onCheckedChange={(v) => setValue('remember', Boolean(v))}
+                disabled={isLocked}
               />
               <Label
                 htmlFor="remember"
@@ -141,8 +199,18 @@ export function LoginPage() {
                 {formState.errors.root.serverError.message}
               </p>
             ) : null}
-            <Button type="submit" className="w-full" disabled={login.isPending}>
-              {login.isPending ? '登录中…' : '登录'}
+            {isLocked ? (
+              <p className="text-sm text-error" role="status" aria-live="polite">
+                {lockout.scope === 'IP' ? '当前 IP 已被锁定,' : '当前账户已被锁定,'}
+                剩余 {Math.floor(secondsLeft / 60)} 分 {secondsLeft % 60} 秒
+              </p>
+            ) : null}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={login.isPending || isLocked}
+            >
+              {login.isPending ? '登录中…' : isLocked ? `锁定中 (${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')})` : '登录'}
             </Button>
           </form>
         </CardContent>
@@ -170,6 +238,38 @@ function writeRememberedUsername(username: string) {
 function clearRememberedUsername() {
   try {
     localStorage.removeItem(REMEMBER_KEY);
+  } catch {
+    /* silently skip */
+  }
+}
+
+// sprint-1-closure 8.3 — 锁定状态 sessionStorage helpers(会话内 refresh 保留)
+
+function readLockout(): LockoutState {
+  try {
+    const raw = sessionStorage.getItem(LOCKOUT_KEY);
+    if (!raw) return { until: null, scope: 'NONE' };
+    const parsed = JSON.parse(raw) as LockoutState;
+    if (parsed.until != null && parsed.until > Date.now()) {
+      return parsed;
+    }
+    return { until: null, scope: 'NONE' };
+  } catch {
+    return { until: null, scope: 'NONE' };
+  }
+}
+
+function writeLockout(s: LockoutState) {
+  try {
+    sessionStorage.setItem(LOCKOUT_KEY, JSON.stringify(s));
+  } catch {
+    /* silently skip */
+  }
+}
+
+function clearLockout() {
+  try {
+    sessionStorage.removeItem(LOCKOUT_KEY);
   } catch {
     /* silently skip */
   }

@@ -1,0 +1,13 @@
+{
+  "screen": "mp-07-address",
+  "route": "/pages-sub/user/address/address-list",
+  "auth": true,
+  "seed": ["addresses"],
+  "waitForSelector": ".address-card",
+  "note": "OD 地址列表(分包鉴权页)。经 self-scoped /api/addresses 门面读当前 userId 内嵌地址 → harness seedAddressesFor 挂 3 条(_id 漂移否则空态)。AA/DPR/设备框免疫。",
+  "viewport": { "w": 390, "h": 762 },
+  "checks": [
+    { "key": "address-cards", "selector": ".address-card", "metric": "count",   "expected": 3,    "desc": "地址卡列表(seed 3 条:默认+2)" },
+    { "key": "add-btn",       "selector": ".add-btn",      "metric": "present", "expected": true, "desc": "新增地址按钮(OD 底部 add-bar)" }
+  ]
+}

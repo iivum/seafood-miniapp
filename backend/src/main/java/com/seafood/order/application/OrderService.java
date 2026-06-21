@@ -1,10 +1,12 @@
 package com.seafood.order.application;
 
+import com.seafood.order.api.dto.CartItemResponse;
 import com.seafood.order.api.dto.OrderResponse;
 import com.seafood.order.api.dto.RefundResponse;
 import com.seafood.order.domain.Cart;
 import com.seafood.order.domain.CartItem;
 import com.seafood.order.domain.Order;
+import com.seafood.order.domain.OrderAction;
 import com.seafood.order.domain.OrderItem;
 import com.seafood.order.domain.OrderStatus;
 import com.seafood.order.domain.Refund;
@@ -31,6 +33,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -159,7 +162,11 @@ public class OrderService {
 
         // 3) 持久化订单
         Instant now = Instant.now();
-        Order order = new Order(null, userId, items, total, new OrderStatus.Pending(), null, null, null, now, now);
+        // mp-09 路线图 4.20:预计送达时间 = now + 24h。海鲜商品配送时效约定(本仓库仅单卖家内部运营,
+        // 无外部承运商,delivery SLA 由 admin 配置后此处读配置,先写死 24h)。
+        Instant estimatedDelivery = now.plus(Duration.ofHours(24));
+        Order order = new Order(null, userId, items, total, new OrderStatus.Pending(),
+                null, null, null, estimatedDelivery, now, now);
         OrderDocument saved = orders.save(OrderMapper.toDocument(order));
 
         // 4) 清空 cart
@@ -307,6 +314,93 @@ public class OrderService {
                         "amountBucket", amountBucket)
                 .increment();
         return resp;
+    }
+
+    // ----- 1.4 / 1.5 sprint-1-closure: 3 新增 customer-side 状态机操作 -----
+
+    /**
+     * sprint-1-closure 1.4 — 客户确认收货(SHIPPED → COMPLETED)。
+     * 状态机检查见 {@link OrderAction#CONFIRM_RECEIVE};埋点 {@code orders.completed}。
+     */
+    public OrderResponse confirmReceive(String orderId) {
+        Order o = load(orderId);
+        if (!OrderAction.CONFIRM_RECEIVE.isAllowedFrom(o.status())) {
+            throw new DomainException("Only SHIPPED orders can be confirmed received: current "
+                    + o.status().code());
+        }
+        Order next = o.markCompleted(Instant.now());
+        OrderResponse resp = OrderResponse.from(persistAndReturn(next));
+        meterRegistry.counter("orders.completed").increment();
+        return resp;
+    }
+
+    /**
+     * sprint-1-closure 1.4 — 客户再次购买(从终态订单重建 cart items)。无状态变更,
+     * 仅返回一组 {@code CartItem} 给前端用,前端自己 addToCart。埋点 {@code orders.rebuy}。
+     */
+    public List<CartItemResponse> rebuy(String orderId) {
+        Order o = load(orderId);
+        if (!OrderAction.REBUY.isAllowedFrom(o.status())) {
+            throw new DomainException("Cannot rebuy order in status " + o.status().code());
+        }
+        meterRegistry.counter("orders.rebuy").increment();
+        return o.items().stream()
+                .map(it -> new CartItemResponse(
+                        it.productId(), it.quantity(), true, Instant.now()))
+                .toList();
+    }
+
+    /**
+     * sprint-1-closure 1.5 — 提醒发货(PAID 状态发通知,无状态变更)。本期 stub:
+     * 调一个 todo-stub,后续接 push 平台。埋点 {@code orders.remind_ship}。
+     */
+    public void remindShip(String orderId) {
+        Order o = load(orderId);
+        if (!OrderAction.REMIND_SHIP.isAllowedFrom(o.status())) {
+            throw new DomainException("Only PAID orders can be reminded to ship: current "
+                    + o.status().code());
+        }
+        // TODO(sprint-3): call WeChat subscribe-message API
+        meterRegistry.counter("orders.remind_ship").increment();
+    }
+
+    /**
+     * sprint-1-closure 1.3 — 统一的 customer-side 状态机入口。检查 ownership /
+     * 当前状态合法性 → 路由到对应业务方法 → 埋点。Controller 后续可以全部改用本方法
+     * 取代 4 个分散调用;现存 cancel/markPaid/getTracking 仍保留向后兼容。
+     */
+    public OrderResponse transition(String orderId, OrderAction action) {
+        // 1) 鉴权 + 加载(防 enumeration:非主且非 admin 返 404)
+        Order o = load(orderId);
+        boolean isAdmin = currentRole() == Role.ADMIN;
+        if (!isAdmin && !o.userId().equals(currentUserId())) {
+            throw new NotFoundException("订单不存在:" + orderId);
+        }
+        // 2) 状态机检查
+        if (!action.isAllowedFrom(o.status())) {
+            throw new DomainException("Action " + action + " not allowed from status "
+                    + o.status().code());
+        }
+        // 3) 路由
+        return switch (action) {
+            case CANCEL -> cancel(orderId, "user");
+            case PAY -> markPaid(orderId);
+            case CONFIRM_RECEIVE -> confirmReceive(orderId);
+            case REBUY -> {
+                rebuy(orderId);
+                // REBUY 不改 state,返当前 order
+                yield OrderResponse.from(load(orderId));
+            }
+            case REFUND -> {
+                // 复用 requestRefund(amount, reason) 路径,reason 用 action 标签
+                RefundResponse rr = requestRefund(orderId, o.totalAmount(), "customer:" + action);
+                yield OrderResponse.from(load(orderId));
+            }
+            case REMIND_SHIP -> {
+                remindShip(orderId);
+                yield OrderResponse.from(load(orderId));
+            }
+        };
     }
 
     /**

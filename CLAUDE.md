@@ -1,352 +1,228 @@
 # CLAUDE.md
 
-本文件为 Claude Code 等 AI 编程工具提供项目开发指导。
+本文件为 Claude Code 等 AI 编程工具提供项目开发指导。每行都要 earn its place — 通用模式 Claude 已掌握,本文档只记**本项目独有**。
+
+---
+
+## 会话开始必读(违反即返工)
+
+### 流程:每个任务 30 秒必查 skill
+
+**黄金规则** — 任何动作前,只要 1% 概率某个 skill 适用 → **必须**先用 Skill 工具 invoke。
+
+| 场景 | 必查 skill |
+|---|---|
+| 建 / 加 / 改功能 | `superpowers:brainstorming` |
+| 多步任务 | `superpowers:writing-plans` |
+| 执行 plan(独立 session + review checkpoint) | `superpowers:executing-plans` |
+| 执行 plan(当前 session 派 subagent 跑独立 task) | `superpowers:subagent-driven-development` |
+| 需要工作空间隔离 / 执行 plan 前 | `superpowers:using-git-worktrees` |
+| 写实现代码 | `superpowers:test-driven-development` |
+| Bug / 测试失败 | `superpowers:systematic-debugging` |
+| 声称完成 / commit / PR 前 | `superpowers:verification-before-completion`(跑命令看输出,不靠"应该") |
+| 全部完成、决定 merge / PR / 清理 | `superpowers:finishing-a-development-branch` |
+| 提 PR 前 / 收 review | `superpowers:requesting-code-review` / `superpowers:receiving-code-review` |
+| Java 代码 / Java PR | `iivum-java-style`(必查 `ddd-review-checklist.md`) |
+| CI 报错 | `seafood-ci-hardening` |
+| mp E2E 静默失败 | `seafood-mp-e2e-debug` |
+| 2+ 独立并行 | `superpowers:dispatching-parallel-agents` |
+| 创建 / 编辑 / 验证 skill | `superpowers:writing-skills` |
+
+**反模式(出现立即停下)**: "简单跳过" / "我熟悉" / "先收集上下文" / "不算 task"
+
+### 本仓硬规则
+
+1. **DDD 分层不可越**:`api → application → domain → infra` 四层 + `bff` 第 5 层(只调 ApplicationService 跨模块组合,不可触 `infra`)。ArchUnit `ArchitectureTest` 守 4 条:① `api↛infra` ② `bff↛infra` ③ `domain↛org.springframework.*`(JVM-pure,除 `@Document`/`@Id` mapping) ④ controllers 不可持 `*Repository` 字段/构造器参数
+2. **跨模块只走 ApplicationService**:不可直调 Repository(design §1.3)
+3. **TDD 优先 + 严禁 `any`(测试除外)+ strict mode**;覆盖率全局 ≥80%,核心 ≥90%
+4. **`@RefreshScope` 禁**:GraalVM Native 不兼容,`./gradlew check` 拦截;改用 `EnvironmentChangeEvent`
+5. **JWT_SECRET ≥32B + JWT_ADMIN_SECRET 同长且不同**(Sprint 2 BREAKING,`@AssertTrue` 启动期 fail-fast)
+6. **MONGODB_URI 必须 `mongodb://` 或 `mongodb+srv://` 开头**(`@Validated`)
+7. **无硬编码密钥, 无 console.log**(日志走 SLF4J)
+8. **BFF 当前不缓存**:P99 > 500ms 时再加 Caffeine(design §5.2)
+9. **文件**:多小优于少大(200-400 行,≤800);高内聚按领域组织,非按类型
 
 ---
 
 ## 项目概述
 
-**海鲜商城小程序** - 微信小程序 + Spring Boot 单仓电商平台(由原 7 模块 Spring Cloud 收敛而来)
+**海鲜商城** - 微信小程序 + Spring Boot 4.0.6 + GraalVM Native 单仓电商。原 7 模块 Spring Cloud 已于 `feature/refactor` 分支收敛到单仓并合并到 main(`archive/backend-multi-module-2026-06/` 留底);单仓重构已完成,当前开发在 `feat/sprint-1-closure` 活跃分支上进行 Sprint 1 闭合
 
-- **前端**：微信小程序 (TypeScript 5.x, Jest 29.x, ESLint 8.x)
-- **管理后台**：**Sprint 1+ 启动**(单卖家内部运营,**不**做外部商家入驻/多 seller/自助门户/结算分账)。技术栈 React 18 + shadcn/ui + Vite,代码在 `admin-ui/`;与小程序共享同一份 `docs/redesign/tokens.json` 派生设计 token。详见 `docs/redesign-requirements.md` § 3 + `05-moscow-roadmap.md` § 3
-- **后端**：Java 25, Spring Boot 4.0.6, GraalVM Native, Gradle 9.x
-- **数据库**：MongoDB 7.x(单库,不分微服务)
-- **服务发现/配置**：已砍(单进程不需要)
-- **部署**：2 服务 docker-compose(backend Native binary + mongodb)
-- **测试覆盖率**：前端 ≥88%, 后端 ≥80%
-- **当前分支**:`main`(生产中 7 模块已归档) ↔ `feature/refactor`(单仓,推送待 PR)
+- 前端:微信小程序(TS 5.x / Jest 29.x)+ 管理后台(React 18 + shadcn/ui + Vite,`admin-ui/`,**单卖家内部运营不做外部入驻**)
+- 后端:Java 25 + Spring Boot 4.0.6 + GraalVM Native + Gradle 9.x,MongoDB 7.x 单库
+- 部署:2 服务 docker-compose(backend Native + mongodb);`admin-ui/` 部署方式 Sprint 1 末决策
 
 ---
 
 ## 运行测试
 
 ```bash
-# 前端测试(小程序)
-cd frontend
-npm test                                    # 运行所有测试
-npm test -- --coverage                      # 带覆盖率
-
-# 后端测试(单 Spring Boot 模块,77 例)
+# 后端 — Spring Boot 4 + Gradle 9,77 例
 cd backend
 ./gradlew test                              # 全部 + 报告 build/test-results/
-./gradlew check                             # 含 checkNoRefreshScope 静态扫描 + ArchUnit
-./gradlew compileJava                       # 仅编译,快速语法校验
-./gradlew :test --tests "*ProductTest"      # 单类测试
-./gradlew test -PexcludeTags=docker         # 跳过 Testcontainers IT(无 Docker 环境)
-./gradlew :test --tests "*ArchitectureTest" # 仅 DDD 分层规则,毫秒级
-./gradlew nativeTest                        # @Tag("native") 切片,带 GraalVM agent 收集 metadata
-./gradlew nativeCompile                     # 用 agent 产出的 metadata 编译 native binary
+./gradlew check                             # + ArchUnit + checkNoRefreshScope
+./gradlew :test --tests "*ProductTest"      # 单类
+./gradlew nativeTest                        # @Tag("native") 切片 + GraalVM agent 收 metadata
+./gradlew nativeCompile                     # 用 agent 产出 metadata 编 native binary
+./gradlew test -PexcludeTags=docker         # 无 Docker 环境跳过 IT
+
+# 前端
+cd frontend && npm test                     # 全部
 ```
 
-> **nativeTest 切片(Sprint 2 C5 §5.2)**:以下 IT 已打 `@Tag("native")` — 它们是
-> `nativeTest` 阶段让 GraalVM tracing agent 收集反射/资源/代理 metadata 的最小
-> 代表集:1 个 controller IT (`AdminRateLimitIT`)、1 个 repository IT
-> (`ProductDocumentRepositoryIT`)、1 个 security filter IT (`SecurityHeadersIT`)。
-> 加新代码路径时,在对应测试上加 `@Tag("native")` 或扩展这 3 个用例之一,再跑
-> `./gradlew nativeTest` 让 agent 把新 metadata 写入
-> `build/native/agent-output/test/`,然后 commit
-> `src/main/resources/META-INF/native-image/` 的更新。
+> 本机无 GraalVM CE 25+ 时 `./gradlew test` 直接失败(JDK 25 toolchain 锁版本);`gradle.properties` 已配 `org.gradle.java.installations.paths` 指向 Homebrew GraalVM。
 
-> **JDK 25 toolchain**:`gradle.properties` 已配 `org.gradle.java.installations.paths` 指向 GraalVM Homebrew。本机无 JDK 25 时,`./gradlew test` 直接失败 — 装 GraalVM CE 25+。
+> **nativeTest 切片**:8 个 IT 打 `@Tag("native")`,作为 GraalVM tracing agent 收集反射/资源/代理 metadata 的代表集 — **security** (`AdminRateLimitIT` / `SecurityHeadersIT`)、**product infra** (`ProductDocumentRepositoryIT`)、**observability** (`MetricsEndpointIT` / `StructuredLoggingDevIT` / `StructuredLoggingProdIT` / `StructuredLoggingLogFormatJsonIT` / `RequestIdFilterOrderIT`)。新增 native 关键路径要在这 8 个用例之一上加 `@Tag("native")` 或扩写,然后 commit `src/main/resources/META-INF/native-image/` 更新。
 
 ---
 
-## 项目架构
+## 架构
 
 ```
 seafood-miniapp/
-├── frontend/                           # 微信小程序
-│   ├── src/
-│   │   ├── shared/                   # 跨 feature(api/components/hooks/tokens)
-│   │   ├── features/{product,cart,order,user}/
-│   │   └── pages/                    # WXML/WXSS/.ts 路由入口
-│   └── pages/                        # 原生 app.json 路由
-│
-├── backend/                           # 单 Spring Boot 模块(端口 8080)
-│   ├── build.gradle / settings.gradle
-│   ├── Dockerfile                     # 多阶段 GraalVM → distroless
-│   ├── src/main/java/com/seafood/
-│   │   ├── SeafoodApplication.java
-│   │   ├── shared/                   # config/security/error/dto/infra
-│   │   ├── product/{api,application,domain,infra}/
-│   │   ├── order/{api,application,domain,infra}/
-│   │   ├── user/{api,application,domain,infra}/
-│   │   └── bff/admin/                # /api/admin/** 端点(由 admin-ui 消费:Sprint 1+ 启用 ad-01/02/03,Sprint 2+ 启用 ad-04/05/06,详见 docs/redesign/)
-│   ├── src/main/resources/
-│   │   ├── application.yml           # JWT fail-fast、虚拟线程
-│   │   └── META-INF/native-image/    # 反射/资源/代理 JSON 占位
-│   ├── seed/                         # 50 商品 / 5 分类 / 2 用户 fixtures
-│   └── scripts/check-no-refresh-scope.sh
-│
-├── openspec/changes/<name>/           # OpenSpec proposal/design/specs/tasks
-└── archive/backend-multi-module-2026-06/  # .gitignore'd;旧 7 模块源备份
+├── frontend/                  # 微信小程序 (TS strict)
+├── admin-ui/                  # React 18 + shadcn/ui (Sprint 1+)
+├── backend/                   # 单 Spring Boot 模块(端口 8080)
+│   └── src/main/java/com/seafood/
+│       ├── shared/            # config/security/error
+│       ├── product/{api,application,domain,infra}/     # DDD 四层
+│       ├── order/{api,application,domain,infra}/
+│       ├── user/{api,application,domain,infra}/
+│       ├── banner/{api,application,domain,infra}/       # home hero 轮播;/api/banners 公共读 + ADMIN CRUD;targetProductId 经 ProductService 跨模块校验
+│       └── bff/admin/         # /api/admin/** 第 5 层:只调 ApplicationService 跨模块组合
+└── openspec/changes/<name>/   # proposal/design/specs/tasks
 ```
 
-**包内分层**(每个 bounded context):
-```
-api         →  Controller + Request/Response DTO (record)
-application →  Service + UseCase + 跨模块入口
-domain      →  Aggregate Root + Entity + Value Object + Domain Event
-infra       →  Repository 实现 + MongoDB Document
-```
-
-**跨模块约束**(design §1.3):模块间只通过 ApplicationService 调用,绝不跨过 Repository。
-
-服务依赖关系(单进程):
-```
-HTTP → [ JwtAuthenticationFilter → @PreAuthorize → Controller
-       → ApplicationService(跨模块只调 ApplicationService,不是 Repository)
-       → MongoDB ]
-```
-
-**管理后台架构**(2026-06-13 决策启动):**单卖家内部运营**,**不**做外部商家接入(无入驻/多 seller/自助门户/结算分账)。`admin-ui/`(React 18 + shadcn/ui + Vite)→ 同进程内 `/api/admin/**` → `ApplicationService` → MongoDB。设计上与小程序共享同一份 `docs/redesign/tokens.json`(Sprint 0 落地)。6 屏 4 个 Sprint 切分:ad-01/02/03 在 Sprint 1,ad-04/05 在 Sprint 2-3,ad-06 在 Sprint 3;详细见 `docs/redesign-requirements.md` + `docs/redesign/05-moscow-roadmap.md`。
+**包内分层**: api(Controller+DTO record) / application(Service+UseCase) / domain(Aggregate+VO+Event) / infra(Repository+Document)
+**跨模块**: ApplicationService → ApplicationService,**绝不**跨 Repository(design §1.3,便于将来回拆)
 
 ---
 
-## 关键规则
+## DDD 项目自动加载(强制)
 
-### 代码组织
-- 多小文件优于少大文件：单文件 200-400 行，≤800 行
-- 高内聚低耦合：按功能/领域组织，而非按类型
-- 前后端分离：前端 `frontend/`，后端 `backend/`
+**写代码 / 重构**:立刻 Skill 工具调 `iivum-java-style` → 加载 `references/ddd-patterns.md` → 方案前过 §5 自检清单(实体行为内聚?值对象不可变?聚合边界合理?)→ 写完回复**显式列出**适用原则(简短一行)。
 
-### 代码风格
-- **前端**：TypeScript strict mode，禁止 `any`（测试文件除外）
-- **后端**：Google Java Format，行宽 120 字符
-- 无 `console.log` 在生产代码中
+**Code review / review PR**:立刻 `iivum-java-style` + 加载 `references/ddd-review-checklist.md` → 按 §0 15 分钟扫描法(分层污染 → 聚合红旗 → 应用服务过厚 → 事件命名 → 行为方法 vs setter)→ 反馈按严重度分组 🚨 Blocker(架构腐败根源) / ⚠️ Major(长期债务) / 💡 Suggestion / ❓ Question → Blocker/Major 必含**四要素**(问题行号 / 影响 / 建议 / 参考章节)→ 与通用 review 一起跑时 DDD 项**独立成段**(架构反馈需单独被看见)→ 遵守 §15 自查(不甩黑话、不教条化、Blocker > 5 条时建议同步设计讨论)。
 
-### 测试要求
-- **TDD 优先**：先写测试 → 实现 → 重构
-- 覆盖率：全局 ≥80%，核心模块 ≥90%，关键功能 100%
-
-### 安全要求
-- 禁止硬编码密钥，使用环境变量
-- 所有用户输入验证和过滤
-- XSS 防护，JWT Token 认证
-- Admin UI 使用 httpOnly Cookie 存储 JWT
-
-### 设计准则
-- **微信小程序**：颜色变量在 `app.wxss`，安全区域 `padding-bottom: var(--safe-area-bottom)`
-- 详细规范见 [`DESIGN.md`](./docs/DESIGN.md)
+**反向例外**:简单 CRUD / 用户明示"不用 DDD" / 非 Java-Kotlin → 跳过 checklist 或只取严重度框架。
 
 ---
 
-## 核心模式
+## API 响应格式
 
-### API 响应格式
+成功直接返 record;失败统一 `{ code, message, fieldErrors? }`,`code ∈ {NOT_FOUND, VALIDATION, DOMAIN, TOKEN_*}`(HTTP `404/400/409/401`),`fieldErrors` 仅 `VALIDATION` 填。详细见 `backend/shared/error/ErrorResponse.java`。
 
-```typescript
-// 成功:直接返 record(不是 {success, data})
-// 失败:统一 ErrorResponse 形态(参见 shared/error/ErrorResponse.java)
-{
-  code: "NOT_FOUND" | "VALIDATION" | "DOMAIN" | "TOKEN_EXPIRED" | "TOKEN_INVALID" | "TOKEN_REUSED",
-  message: "人类可读描述",
-  fieldErrors: { fieldName: "msg" }  // 仅 VALIDATION 时填充
-}
+---
+
+## 视觉验证(感知 diff 主 + 4 层辅;C5 sprint-5-c5-visual-verification)
+
+> **更新(C5)**:旧说法「像素 diff 对抗锯齿/DPR 极度敏感,故只用 4 层、不截图对图」**已废弃**。
+> 实测现代做法可解 AA/DPR 敏感:**归一化尺寸(sips)+ AA-tolerant 感知 diff(odiff)+ 阈值容差**。
+> 4 层断言验"元素/数据/token 在不在",**抓不住"渲染出来是不是坏的/偏离 OD"** —— 这是它的盲区,
+> 感知 diff 正补这一层。两者互补:感知 diff 为主门抓视觉偏离,4 层为辅验结构/数据/token。
+
+**感知层(C5,已落地 4 tab 页)** — mp 实截图 vs OD 设计 golden 的 odiff 比对,抓"现状偏离 OD/不可用":
+- SoT = Open Design 项目 `686e3434` 的 9 张 mp HTML mockup → 渲染成 `frontend/e2e/od-golden/<screen>.png`
+- 跑:`cd frontend && npm run test:visual`(详见 `frontend/e2e/tools/README.md`)
+- diff% > 阈值 → RED(驱动逐屏修);产 `<screen>-diff.png` 定位偏离
+- ⚠️ 截图捕获必须 `reLaunch`(非 switchTab):switchTab 到已激活 tab 不重跑 onLoad → 截陈旧空态假信号
+- ⚠️ 有意义信号需后端起 + seed:native 镜像 arm64 不匹配本机用 `seafood-backend:jvm`;fixtures stale 缺 `status` 字段须 `updateMany` 补 ACTIVE(否则 `listPublic` 返 0 条)
+
+**几何层(C5,已落地 home/category)** — 量 mp 实际渲染结构不变量(present/count/columns),**AA/DPR/设备框完全免疫**,剥离感知层的框/图片噪声、锁定"布局崩没崩":
+- SoT = `frontend/e2e/od-geometry/<screen>.json`(OD 期望不变量);跑 `npm run test:geometry`
+- ⚠️ automator 0.12.1 元素句柄(`page.$`/`$$`/`element.size()/offset()`)在本环境**超时挂死**,`page.outerWxml` undefined → **唯一可行** = mp 原生 `wx.createSelectorQuery().boundingClientRect()` 经 `mp.evaluate` 在 mp 运行时内跑
+- 例:home 几何锁定 `grid 实际 1 列(应 2)+ banner 缺失`,chips/header 正常
+- 余 5 分包带参页几何 + 取代旧静态 `mp-od-design.test.ts` 留下游
+
+**4 层断言(辅,`frontend/e2e/`)**:
+1. **结构** — `page.outerWxml()` 抓节点/class/文案
+2. **数据** — `page.data()` + `fromBackend: { path, fields: [...] }` 直击后端字段
+3. **行为** — `miniProgram.on('console'|'exception')`,`expect(exceptions).toEqual([])`
+4. **颜色** — chroma.js `deltaE()` 验 token parity + `chroma.contrast()` 验 WCAG AA
+
+**mp 前置**:`cli auto --project frontend --auto-port 9420` 起 DevTools 自动化端口(感知层脚本可自起),跑:
+```bash
+TZ=UTC WS_ENDPOINT=ws://127.0.0.1:9420 npx jest e2e/ --runInBand   # 4 层
+cd frontend && npm run test:visual                                 # 感知 diff
 ```
+> 有意义的逐屏信号需后端起着 + seed(否则 mp 渲染 loading/空态,diff 必然很大)。
 
-HTTP 状态映射:`NOT_FOUND → 404` / `VALIDATION → 400` / `DOMAIN → 409` / `TOKEN_* → 401`
-
-### 数据模型(摘要,详见后端 domain)
-
-```typescript
-// 后端 Java record,前端用相同 shape
-interface Product {
-  id: string; name: string; description: string;
-  price: number; stock: number;
-  category: "鱼类" | "虾蟹" | "贝类" | "软体" | "海藻";   // sealed interface
-  imageUrl: string;
-  status: "ACTIVE" | "OUT_OF_STOCK" | "DISCONTINUED";
-  createdAt: string; updatedAt: string;
-}
-
-interface CartItem {
-  productId: string; quantity: number; selected: boolean; addedAt: string;
-}
-
-interface Order {
-  id: string; userId: string;
-  items: Array<{ productId: string; productName: string; unitPrice: number; quantity: number }>;
-  totalAmount: number;
-  status: "PENDING" | "PAID" | "SHIPPED" | "COMPLETED" | "CANCELLED";
-  cancelReason?: string; createdAt: string; updatedAt: string;
-}
-```
+**gotcha**:
+- mp `getApp()` 模块加载返 undefined → `utils/request.js` 用 `getAppSafe()` 延迟
+- mp API 返 `Page<T> { content[] }` → `src/api/product.js` 加 converter
+- WCAG AA = 4.5:1,`sprint-1-closure` commit `273763b` 已修 status badge + 立即购买按钮 ratio
 
 ---
 
-## 可用命令
+## 可观测性(端口物理隔离,design §D2)
 
-| 命令 | 说明 |
-|------|------|
-| `/plan` | 创建实施计划 |
-| `/tdd` | 测试驱动开发工作流 |
-| `/code-review` | 代码质量审查 |
-| `/security-scan` | 安全漏洞扫描 |
-| `/build-fix` | 修复构建错误 |
-| `/learn` | 从会话中提取模式 |
-| `/skill-create` | 从 Git 历史生成 Skills |
+- 业务端口 **8080** — 对外暴露 `/api/**`,**不**注册 `/actuator/**`
+- 管理端口 **9090** — `management.server.port: 9090`,**仅容器内可达**;docker-compose 不映射 9090
+- 5 counter(埋点在 ApplicationService 边界):`orders.created` / `orders.cancelled` / `orders.paid` / `products.queried` / `users.login.attempts`
+- `MetricsCardinalityTest`(ArchUnit)禁高基数 tag:`userId` / `orderId` / `productId` / `email` + 动态拼字符串
+- 日志:dev 人类可读 + requestId;prod `LOG_FORMAT=json` 切 logstash JSON
 
 ---
 
-## 可观测性(OpenSpec setup-observability-stack PR #1+#2+#3)
+## 安全架构(Sprint 2 §2.1-2.3)
 
-### 端口拓扑(物理隔离,design §D2)
-
-- **业务端口 8080** — `server.port`,对外暴露 `/api/**`,**不**注册任何 `/actuator/**` 路由(management context 与 main context 完全分离)。
-- **管理端口 9090** — `management.server.port: 9090`,`management.server.address: 0.0.0.0`,**仅**容器内可达(cluster-internal 隔离);`docker-compose.yml` 不映射 `9090:9090`,Prometheus scrape 走 k8s sidecar / cluster-internal service。
-- **业务端口 8080 上 `/actuator/**`** — `permitAll` 让 Security 不挡,8080 context 不注册 actuator handler → NoHandlerFoundException → **404**(MetricsEndpointIT 8/8 守契约)。
-
-### 5 个业务 counter(ApplicationService 边界埋点)
-
-| Counter | Tags | Increment site | 限制 |
-|---|---|---|---|
-| `orders.created` | `paymentMethod` ∈ {`wechat`} | `OrderService.create()` 成功路径 | paymentMethod 暂硬编码 "wechat" 单渠道,Sprint 3 接入真实支付再加 |
-| `orders.cancelled` | `reason` ∈ {`user`,`timeout`,`admin`,`other`} | `OrderService.cancel()` 成功路径 | reason 规范化到 4 档白名单,防高基数字符串污染 PromQL series |
-| `orders.paid` | `paymentMethod`,`amountBucket` ∈ {`lt100`,`100to500`,`500to2000`,`gte2000`} | `OrderService.markPaid()` 成功路径 | amountBucket 由 `OrderMetrics.bucketize(BigDecimal)` 几何 4 档计算 |
-| `products.queried` | `category` ∈ {`鱼类`,`虾蟹`,`贝类`,`软体`,`海藻`} | `ProductService.listPublic()` 每个结果 +1 | sealed interface 5 档 displayName,低基数 |
-| `users.login.attempts` | `result` ∈ {`success`,`failed`,`locked`} | `AuthService.wechatLogin/adminLogin` 3 个返回路径 | 3 档白名单 |
-
-`application=seafood-backend` 通用 common tag 通过 `application.yml` 注入。
-
-### Tag cardinality 静态约束(ArchUnit 守)
-
-`MetricsCardinalityTest`(ArchUnit 1.4 + SourceCodeLocation + 源码行扫描)禁止:
-- `userId`,`orderId`,`productId`,`email` 4 个高基数 / PII tag key
-- 动态拼字符串(ArchUnit 看不到,留 code review 兜底)
-
-违规埋点 → 编译期测红 → 阻止合并。故意造违规测试见 3.7.3。
-
-### 日志格式(StructuredLogging)
-
-- **dev profile**:`%d{HH:mm:ss.SSS} %-5level [%X{requestId}] %logger{36} - %msg%n`,人类可读 + requestId
-- **prod profile**:`logging.structured.format.console: logstash`,Spring Boot 4 内置 JSON 单行,字段含 `@timestamp` / `@version` / `message` / `logger_name` / `thread_name` / `level` / `level_value` + MDC(`requestId`)
-- **环境变量 override**:`LOG_FORMAT=json` 在任意 profile 下覆盖为 JSON(Spring Boot 3.4+ 原生支持,ConfigDataEnvironmentPostProcessor 阶段映射到 `logging.structured.format.console=logstash`)
-
-### 与 Task #7 (Prometheus/Grafana) / Task #8 (Sentry) 衔接
-
-- **Task #7 部署 Prometheus + Grafana** 时,scrape `backend:9090/actuator/prometheus`(容器内 DNS)。本文档已就位,Task #7 实施者只需配 `prometheus.yml` scrape job + Grafana datasource,无需改 backend 代码。
-- **Task #8 接入 Sentry / GlitchTip** 时,Sentry SDK 自行管理采样,`requestId` MDC 可在 Sentry 上下文显示("breadcrumb" pattern)。当前 backend 不依赖 Sentry,本节作为衔接说明。
-
-### 性能预算
-
-- RSS < 200 MB(`./gradlew nativeCompile` + docker smoke 验证 ~84 MiB,远低于 budget)
-- p50 overhead(结构化日志 + RequestIdFilter)< 2 ms(spec 契约)
-- 启动 < 2 s(design §3.1;实测 ~0.3s native / ~1s JVM)
+- **6 个基线安全响应头**集中 `backend/shared/security/SecurityHeadersProperties.java`(`@ConfigurationProperties("security.headers")`):HSTS / X-Content-Type-Options / X-Frame-Options / Referrer-Policy / Permissions-Policy / CSP
+- **唯一写入点** = `SecurityHeadersFilter`;ArchUnit `SecurityHeaderArchitectureTest` 强制白名单外任何类不可调 `HttpServletResponse#setHeader`(白名单还含 `AdminRateLimitFilter` 写 `Retry-After`、`RequestIdFilter` 写 `X-Request-Id`)
+- **新响应头** → 加进 `SecurityHeadersProperties` 字段,不要在业务代码里 setHeader
 
 ---
 
-## 开发说明
-
-### 环境变量(必填,启动时 fail-fast)
+## 环境变量 + 部署
 
 ```bash
-# 后端 — Sprint 2 起 @Validated 在 binding 阶段 fail-fast(早于 @PostConstruct)
-JWT_SECRET=<≥32 字节随机串>           # 缺失/<32B 即 fail-fast。生成:openssl rand -base64 48
-JWT_ADMIN_SECRET=<≥32 字节随机串>      # admin-ui 独立签名密钥;MUST 与 JWT_SECRET 不同(@AssertTrue 校验)。Sprint 1+ admin-ui 启用此密钥;token 先存 localStorage,Sprint 1 末迁 httpOnly Cookie(需后端 cookie auth 端点)
-MONGODB_URI=mongodb://localhost:27017/seafood   # 必须以 mongodb:// 或 mongodb+srv:// 开头
-WECHAT_ENABLED=false                    # dev 期可保持 false,wechat.login code 必须以 dev- 开头
-WECHAT_APPID=...                        # WECHAT_ENABLED=true 时必填(@AssertTrue 跨字段校验)
-WECHAT_SECRET=...                       # WECHAT_ENABLED=true 时必填
+# 后端 — @Validated 启动期 fail-fast
+JWT_SECRET=<≥32B>          # 缺失/<32B 即失败;openssl rand -base64 48
+JWT_ADMIN_SECRET=<≥32B>    # 必须不同于 JWT_SECRET(Sprint 2 BREAKING)
+MONGODB_URI=mongodb://localhost:27017/seafood
+WECHAT_ENABLED=false       # dev 期可 false,但 wechat login code 必须以 dev- 开头
+WECHAT_APPID=...           # WECHAT_ENABLED=true 时必填
+WECHAT_SECRET=...          # WECHAT_ENABLED=true 时必填
 
-# 前端(微信小程序)
+# 前端
 API_BASE_URL=http://localhost:8080
+
+# 部署
+docker-compose up -d       # 2 服务:backend (seafood-backend:native, distroless nonroot) + mongodb:7
+docker-compose down -v     # 清 mongodb_data volume
 ```
 
-> **Sprint 2 BREAKING**:`JWT_ADMIN_SECRET` 现在强制要求 ≥32 字节且不同于 `JWT_SECRET`;
-> 此前共用同一密钥的部署会被拒绝启动。两个密钥独立生成:
-> ```bash
-> openssl rand -base64 48      # → JWT_SECRET
-> openssl rand -base64 48      # → JWT_ADMIN_SECRET(再跑一次取不同值)
-> ```
-
-### Docker 部署
-
-> **Sprint 2 C5 §5.9**:2 服务 — `backend`(GraalVM Native binary, image
-> `seafood-backend:native`,基于 `gcr.io/distroless/base-debian12:nonroot`,**无 JRE**)
-> + `mongodb:7`。`mongodb` 与 `backend` 都带 healthcheck,backend 通过
-> `depends_on: mongodb: { condition: service_healthy }` 串行启动。
->
-> **Sprint 1 末决策待办**:admin-ui 部署方式 — 第 3 个独立 image / 与 backend 同进程静态服务 / 走 k8s。当前 docker-compose 仍为 2 服务;`admin-ui/` 启动时按决策修改 `docker-compose.yml`。详见 `docs/redesign-requirements.md` § 5 未决问题 7。
-
-```bash
-docker-compose up -d              # 启动所有服务(backend 需先 docker build)
-docker-compose logs -f            # 查看日志
-docker-compose down               # 停止服务
-docker-compose down -v            # 停止 + 清 mongodb_data volume
-```
-
-> 启动后 backend RSS 验收 < 200 MB(design §3.1);`/actuator/health` 应在 30 s 内 200;
-> `curl http://localhost:8080/api/products?page=0&size=10` 应返回 200 且
-> `totalElements > 0`(需先跑 `backend/seed/seed.sh`)。完整冒烟见
-> `backend/scripts/native-smoke.sh`。
-
-### Git 工作流
-- **提交格式**:`feat(<scope>):` `fix:` `refactor:` `docs:` `test:` `chore:`
-- **分支策略**:`main`(生产 7 模块已归档) → `feature/refactor`(单仓改造,5 commits 待 PR) → `feat/*` / `fix/*`
-- **PR 要求**:代码审查 + 测试通过 + ESLint 通过 + @RefreshScope 静态扫描通过
-- **本地归档**:`archive/backend-multi-module-2026-06/`(已 .gitignore'd,git history 仍保留)
+启动验收:`/actuator/health` 30s 内 200;`curl /api/products?page=0&size=10` 返 200 且 `totalElements > 0`(需先跑 `backend/seed/seed.sh`)。完整冒烟见 `backend/scripts/native-smoke.sh`。
 
 ---
 
-## 性能要求
+## Git 工作流
 
-- 首屏加载 < 2秒
-- 页面切换 < 300ms
-- API 响应 < 500ms
-
----
-
-## 重要提示
-
-1. **TDD 优先**:所有新功能必须先写测试
-2. **类型安全**:严禁 `any`(测试文件除外)
-3. **安全审查**:所有代码需通过安全检查
-4. **`@RefreshScope` 禁**:GraalVM Native 不兼容,`./gradlew check` 任务拦截;引入 Spring Cloud Config 时尤其注意
-5. **跨模块只走 ApplicationService**:绝不跨过 Service 直接调 Repository(design §1.3,便于将来回拆)
-6. **JWT_SECRET 必须 ≥32 字节**:HS256 强需求;开发可用 `openssl rand -base64 48`
-7. **BFF 当前不缓存**:P99 > 500ms 时再加 Caffeine(design §5.2)
+- **提交**: `feat(<scope>):` / `fix:` / `refactor:` / `docs:` / `test:` / `chore:`
+- **分支**: `main`(单仓 + Sprint 0/1 v2-visual 已合 PR #17-#25)→ 当前活跃 `feat/sprint-1-closure`→ `feat/*` / `fix/*` 后续 Sprint 切分
+- **PR**:code review + tests + ESLint + `checkNoRefreshScope`
+- **历史归档**: 原 7 模块代码 `archive/backend-multi-module-2026-06/`(.gitignore'd,git history 保留)
+- 本地归档: `archive/backend-multi-module-2026-06/`(.gitignore'd)
 
 ---
 
-## 单仓常见坑(从本次重构沉淀)
+## 单仓常见坑
 
-| 坑 | 触发 | 解 |
-|---|---|---|
-| `MongoIndexInitializer` 启动失败 | `auto-index-creation: false` 但 docs 无显式建索引 | 显式用 `MongoPersistentEntityIndexResolver` 启动时建 |
-| `assertThatThrownBy(...).hasMessageContaining(...)` 在 record + List.of() 上误判 | 异常 msg 含子串但 assertj 比对方式不同 | 改用 `catch + assertThat(getMessage()).isEqualTo(...)` |
-| `findAll(any())` 编译歧义 | `MongoRepository.findAll()` 与 `findAll(Pageable)` 重载 | 用 `any(Pageable.class)` 显式 |
-| `bson 5.6 + GraalVM Native` 反射 | `--no-fallback` 下 bson codec 注册失败 | CI 跑 `nativeTest` agent 捕获生成 META-INF/native-image/,别手编 |
-| `Order.byCreatedAt` 单分页查全表 | top10 销量聚合 | 暂时 `findTop500ByOrderByCreatedAtDesc`,生产换 Mongo aggregation pipeline |
-| `@WebMvcTest` + `@MockBean` 在 Spring Boot 4 不可用 | 包路径变更 | 改用 plain JUnit + Mockito 直接测 Service |
+| 坑 | 解 |
+|---|---|
+| `MongoIndexInitializer` 启动失败 | `auto-index-creation: false` + 显式 `MongoPersistentEntityIndexResolver` |
+| `findAll(any())` 编译歧义 | 用 `any(Pageable.class)` 显式 |
+| `bson 5.6 + GraalVM Native` 反射 | CI 跑 `nativeTest` agent 收 `META-INF/native-image/`,别手编 |
+
+---
+
+## 性能预算
+
+RSS < 200 MB(`nativeCompile` 实测 ~84 MiB);启动 < 2 s(native ~0.3s / JVM ~1s);p50 日志开销 < 2 ms;API < 500ms。
 
 ---
 
 ## 相关文档
 
-- `openspec/changes/refactor-rust-rebuild-frontend/` - **本次重构的 OpenSpec change**(proposal/design/4 specs/63 tasks)
-- `docs/DESIGN.md` - 设计系统规范(待按新单仓重写)
-- `docs/redesign/` - **本仓库 OD 重设计审计 + 路线图**(6 份 .md:索引 `redesign-requirements.md` + `01-functional-mp.md` + `02-functional-ad.md` + `03-design-system.md` + `04-gap-analysis.md` + `05-moscow-roadmap.md`,含 mp + ad 14 屏功能拆解 + MoSCoW + Sprint 0/1/2/3 切分)。原 `frontend/admin-design/` 已被 `docs/redesign/03-design-system.md` § 8 替代
-- `backend/seed/seed.sh` - MongoDB 种子数据(50 商品 / 5 分类 / 2 用户)
-- `backend/scripts/check-no-refresh-scope.sh` - GraalVM Native 兼容性扫描
-- `https://github.com/yfmeii/weapp-dev-mcp` - weapp-dev-mcp 的官方文档
-- context7 插件
-
----
-
-*本文件为 AI 开发辅助文档，具体实现请参考代码注释和测试用例。*
-
----
-
-## CI/CD
-
-Sprint 2 起拆为 3 个独立 workflow,按需并行触发:
-
-| Workflow | 触发 | 职责 |
-|---|---|---|
-| `.github/workflows/ci.yml` (jvm-check) | PR + push to main/develop | `./gradlew check`(含 ArchUnit、`checkNoRefreshScope`、JVM 测试);frontend `npm test`;best-effort `nativeCompile` |
-| `.github/workflows/native.yml` (native) | PR 改 `backend/**` / `Dockerfile` / `docker-compose.yml`;push to main | GraalVM `nativeTest` → `nativeCompile` → docker build → Trivy 扫 `seafood-backend:native` |
-| `.github/workflows/security.yml` (security) | PR + push to main / `feat/**` / `fix/**` | OWASP Dep-Check(SCA)+ TruffleHog(secret scan PR diff) |
-
-**SARIF 报告**:Trivy 和 OWASP Dep-Check 都通过 `github/codeql-action/upload-sarif@v3` 上传,在 GitHub 仓库 **Security → Code scanning** 标签页查看历史告警与去重结果。Dependabot 每周一凌晨扫一次,安全更新即时触发(不受周计划约束),分组 PR(`spring-boot` / `testcontainers`)降低噪声。
+- `openspec/changes/refactor-rust-rebuild-frontend/` — 本次重构 OpenSpec change
+- `docs/redesign/` — 设计审计 + 路线图(6 份 .md,含 14 屏拆解 + MoSCoW + Sprint 切分)
+- CI: `ci.yml`(jvm-check)/ `native.yml`(native+Trivy)/ `security.yml`(Dep-Check+TruffleHog)→ SARIF 上传 GitHub Security tab

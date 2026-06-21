@@ -918,4 +918,132 @@ class OrderServiceTest {
         assertThatThrownBy(() -> service.renderPicklistHtml("o-missing"))
                 .isInstanceOf(NotFoundException.class);
     }
+
+    // === sprint-1-closure 1.6 / 1.7:transition() + 3 新增 customer action ===
+
+    private OrderDocument shippedOrderFor(String orderId, String userId) {
+        OrderDocument doc = new OrderDocument();
+        doc.setId(orderId);
+        doc.setUserId(userId);
+        doc.setItems(List.of(new com.seafood.order.domain.OrderItem(
+                "p1", "三文鱼", new BigDecimal("50.00"), 1)));
+        doc.setTotalAmount(new BigDecimal("50.00"));
+        doc.setStatus("SHIPPED");
+        doc.setCreatedAt(Instant.now());
+        doc.setUpdatedAt(Instant.now());
+        return doc;
+    }
+
+    @Test
+    void transition_confirmReceive_onShippedOrder_flipsToCompletedAndIncrementsCounter() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(shippedOrderFor("o1", "u1")));
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderResponse resp = service.transition("o1", com.seafood.order.domain.OrderAction.CONFIRM_RECEIVE);
+
+        assertThat(resp.status()).isEqualTo("COMPLETED");
+        assertThat(meterRegistry.counter("orders.completed").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void transition_confirmReceive_onPendingOrder_rejectedAsInvalidState() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(pendingOrder("o1", "u1", new BigDecimal("50"))));
+
+        assertThatThrownBy(() -> service.transition("o1", com.seafood.order.domain.OrderAction.CONFIRM_RECEIVE))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("CONFIRM_RECEIVE not allowed");
+    }
+
+    @Test
+    void rebuy_fromCompletedOrder_returnsCartItemsAndIncrementsCounter() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(completedOrder("o1", "u1", new BigDecimal("50"))));
+
+        List<com.seafood.order.api.dto.CartItemResponse> items = service.rebuy("o1");
+
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).productId()).isEqualTo("p1");
+        assertThat(items.get(0).quantity()).isEqualTo(1);
+        assertThat(meterRegistry.counter("orders.rebuy").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void rebuy_fromPendingOrder_rejected() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(pendingOrder("o1", "u1", new BigDecimal("50"))));
+
+        assertThatThrownBy(() -> service.rebuy("o1"))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("Cannot rebuy order in status PENDING");
+    }
+
+    @Test
+    void remindShip_onPaidOrder_incrementsCounter() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(paidOrderWithCreatedAt("o1", "u1", new BigDecimal("50"), Instant.now())));
+
+        service.remindShip("o1");
+
+        assertThat(meterRegistry.counter("orders.remind_ship").count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void remindShip_onPendingOrder_rejected() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(pendingOrder("o1", "u1", new BigDecimal("50"))));
+
+        assertThatThrownBy(() -> service.remindShip("o1"))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void transition_otherCustomerCannotCancel() {
+        loginAs("u2", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(pendingOrder("o1", "u1", new BigDecimal("50"))));
+
+        assertThatThrownBy(() -> service.transition("o1", com.seafood.order.domain.OrderAction.CANCEL))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    // === sprint-1-closure 1.7:happy path PENDING → PAID → SHIPPED → COMPLETED ===
+    // 单测走完 4 状态,每步验证:
+    //   - Order.status 转移正确
+    //   - 对应 counter 增量
+    //   - 不变量(订单金额、customer 一致)保留
+    // 端到端覆盖 sprint-1-closure D2「状态转移表驱动」的核心 happy path,
+    // 5 个非法转移单测 + 1 个 happy path 合起来保证 OrderAction 矩阵没有 off-by-one。
+
+    @Test
+    void transition_happyPath_pendingToCompleted_incrementsAllCounters() {
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        // PENDING 起点
+        OrderDocument doc = pendingOrder("o1", "u1", new BigDecimal("200.00"));
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(doc));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // 1. PENDING → PAID(pay action)
+        OrderResponse paid = service.transition("o1", com.seafood.order.domain.OrderAction.PAY);
+        assertThat(paid.status()).isEqualTo("PAID");
+        // amountBucket=100to500(总金额 200)
+        assertThat(meterRegistry.counter("orders.paid", "paymentMethod", "wechat", "amountBucket", "100to500").count())
+                .as("pay 应增量 orders.paid paymentMethod=wechat amountBucket=100to500")
+                .isEqualTo(1.0);
+
+        // 2. PAID → SHIPPED(走 service.ship,admin 调;ship 本身无独立 counter)
+        loginAs("admin-bootstrap", com.seafood.shared.security.Role.ADMIN);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(paidOrder("o1", "u1")));
+        OrderResponse shipped = service.ship("o1");
+        assertThat(shipped.status()).isEqualTo("SHIPPED");
+
+        // 3. SHIPPED → COMPLETED(confirmReceive action)
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(orderRepo.findById("o1")).thenReturn(Optional.of(shippedOrderFor("o1", "u1")));
+        OrderResponse completed = service.transition("o1", com.seafood.order.domain.OrderAction.CONFIRM_RECEIVE);
+        assertThat(completed.status()).isEqualTo("COMPLETED");
+        assertThat(meterRegistry.counter("orders.completed").count())
+                .as("confirmReceive 应增量 orders.completed")
+                .isEqualTo(1.0);
+    }
 }

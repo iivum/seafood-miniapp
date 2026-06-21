@@ -66,28 +66,143 @@ jobs:
           java-version: '25'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cache Gradle
-        uses: actions/cache@v5
+      # Sprint 3 B: gradle/actions/setup-gradle@v3 替代 actions/cache@v5 —
+      # remote build cache + 自动 gradle.properties 的 org.gradle.caching=true。
+      # cache-read-only: PR 只读不写,防 cache 投毒;push to main 走 read+write。
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: ${{ runner.os }}-gradle-
+          cache-disabled: false
+          cache-read-only: ${{ github.event_name != 'pull_request' }}
+          gradle-home-cache-cleanup: true
 
       - name: Compile
         working-directory: backend
-        # Sprint 2 CI 加速 (2026-06-07):--build-cache 复用 actions/cache 持久化的 task output
         run: ./gradlew --no-daemon --build-cache --parallel compileJava
 
-      - name: Test + check (含 @RefreshScope 扫描)
+      - name: Test + check (含 @RefreshScope 扫描 + Jacoco coverage gate)
         working-directory: backend
         run: ./gradlew --no-daemon --build-cache --parallel check
+
+      # Sprint 3 B coverage-gate: 上传 Jacoco HTML/XML report 作为 CI artifact,
+      # retention 7 days,供 PR review 查 per-file coverage(Sprint 4 D3 落 Codecov)。
+      - name: Upload Jacoco coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage
+          path: backend/build/reports/jacoco/test/**
+          retention-days: 7
+
+      # Sprint 4 D3: PR comment with per-file coverage diff (self-hosted,
+      # no Codecov external service). Reads Jacoco XML and posts a single
+      # comment per PR; survives force-pushes (uses comment_id marker).
+      - name: PR coverage comment
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'backend/build/reports/jacoco/test/jacocoTestReport.xml';
+            if (!fs.existsSync(path)) { console.log('No Jacoco XML, skipping'); return; }
+            const xml = fs.readFileSync(path, 'utf8');
+            // Parse <counter type="INSTRUCTION" ...> aggregate + <package> children
+            const totalMissed = (xml.match(/<counter type="INSTRUCTION" missed="(\d+)" covered="(\d+)"\/>/g) || [])
+              .reduce((acc, m) => {
+                const [, missed, covered] = m.match(/missed="(\d+)" covered="(\d+)"/);
+                return { missed: acc.missed + +missed, covered: acc.covered + +covered };
+              }, { missed: 0, covered: 0 });
+            const total = totalMissed.missed + totalMissed.covered;
+            const pct = total === 0 ? 0 : (totalMissed.covered / total * 100).toFixed(1);
+            const banner = +pct < 80
+              ? `❌ Coverage ${pct}% (gate 80% failed)\n\n`
+              : `✅ Coverage ${pct}%\n\n`;
+            const body = banner + 'See `jacoco-coverage` artifact for per-file breakdown.';
+            // Find existing comment (idempotent across force-pushes)
+            const marker = '<!-- jacoco-coverage-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body: marker + '\n' + body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body: marker + '\n' + body,
+              });
+            }
 
       - name: Native compile (best-effort,design §10 风险 #1)
         working-directory: backend
         continue-on-error: true
         run: ./gradlew --no-daemon --build-cache --parallel nativeCompile
+
+  # Sprint 4 C1 — PR-scoped 增量变异测试(roadmap test-roadmap spec "gates PR merge")。
+  # 只对本 PR 改动的核心模块(order / product)跑 PIT,按各模块基线 floor 卡门(order 80 /
+  # product 40,见 build.gradle pitMap)。不碰核心模块的 PR 直接跳过 → 不拖慢无关 PR。
+  # 全量 70% gate 仍在 nightly.yml(慢,~1min/模块)。独立 job 与 backend 并行,不进其临界路径。
+  # 安全:run 块用内置 env $GITHUB_BASE_REF,不做 ${{ github.event.* }} 插值。
+  pitest-incremental:
+    name: PIT Mutation (PR-scoped changed modules)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 20
+    env:
+      JWT_SECRET: ci-test-secret-must-be-at-least-32-bytes-long-AAAA
+      JWT_ADMIN_SECRET: ci-test-admin-secret-must-be-at-least-32-bytes-BBBB
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # 需历史以 diff PR base
+
+      - name: Set up GraalVM JDK 25
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'graalvm-community'
+          java-version: '25'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-disabled: false
+          cache-read-only: true
+
+      - name: Detect changed core modules & run scoped PIT
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin \
+            "+refs/heads/$GITHUB_BASE_REF:refs/remotes/origin/$GITHUB_BASE_REF"
+          changed=$(git diff --name-only "origin/$GITHUB_BASE_REF...HEAD" -- \
+            src/main/java/com/seafood/order src/main/java/com/seafood/product \
+            src/test/java/com/seafood/order src/test/java/com/seafood/product || true)
+          echo "Changed core files:"; echo "$changed"
+          scopes=""
+          echo "$changed" | grep -q "com/seafood/order/"   && scopes="order"
+          echo "$changed" | grep -q "com/seafood/product/" && scopes="${scopes:+$scopes }product"
+          if [ -z "$scopes" ]; then
+            echo "本 PR 未改 order/product 核心代码 — 跳过增量变异 gate。"
+            exit 0
+          fi
+          for s in $scopes; do
+            echo "::group::PIT mutation — scope=$s"
+            ./gradlew --no-daemon --build-cache pitest -PpitScope="$s" -PexcludeTags=docker
+            echo "::endgroup::"
+          done
+
+      - name: Upload PIT report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pitest-pr-report
+          path: backend/build/reports/pitest/**
+          retention-days: 7
 
   frontend:
     name: Mini-Program (Jest)

@@ -4,6 +4,7 @@ import com.seafood.shared.security.JwtTokenProvider;
 import com.seafood.user.api.dto.AdminLoginRequest;
 import com.seafood.user.api.dto.TokenResponse;
 import com.seafood.user.application.AuthService;
+import com.seafood.user.application.LoginLockoutService;
 import com.seafood.user.application.TokenRevocationService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.SecureRandom;
@@ -52,17 +54,28 @@ public class AdminCookieAuthController {
     private final AuthService auth;
     private final TokenRevocationService revocation;
     private final JwtTokenProvider tokens;
+    private final LoginLockoutService lockout;
 
     /** 部署在 HTTPS 时设 true;dev 本机 HTTP 下设 false 让浏览器保留 cookie。 */
     @Value("${admin.cookie.secure:false}")
     private boolean cookieSecure;
 
+    /**
+     * sprint-1-closure 验证发现:dev 下 admin-ui (5173) 与 backend (8080) 端口不同,
+     * Set-Cookie 默认绑在 8080,浏览器访问 5173 不带 cookie → 403。
+     * 修:可配 cookie Domain,dev 设 "localhost" 让两端口共享;prod 留空(按请求 host 绑)。
+     */
+    @Value("${admin.cookie.domain:}")
+    private String cookieDomain;
+
     public AdminCookieAuthController(AuthService auth,
                                      TokenRevocationService revocation,
-                                     JwtTokenProvider tokens) {
+                                     JwtTokenProvider tokens,
+                                     LoginLockoutService lockout) {
         this.auth = auth;
         this.revocation = revocation;
         this.tokens = tokens;
+        this.lockout = lockout;
     }
 
     // ----- POST /api/admin/auth/cookie-login -----
@@ -78,14 +91,72 @@ public class AdminCookieAuthController {
      * 调 {@code GET /api/admin/auth/csrf} 获取(详见 2.15 admin-ui 拦截器)。
      */
     @PostMapping("/cookie-login")
-    public ResponseEntity<Void> cookieLogin(@Valid @RequestBody AdminLoginRequest req,
+    public ResponseEntity<?> cookieLogin(@Valid @RequestBody AdminLoginRequest req,
                                             HttpServletRequest httpReq,
                                             HttpServletResponse httpRes) {
-        // 复用 AuthService.adminLogin 的 IP 锁 + 用户名锁 + 凭据校验 + access/refresh 签发
-        // 但本期 admin 路径下 cookie-only 即可,refresh 暂由前端走 /api/admin/auth/refresh
-        TokenResponse body = auth.adminLogin(req, httpReq.getRemoteAddr());
-        writeAdminCookie(httpRes, body.accessToken());
-        return ResponseEntity.noContent().build();
+        String ip = httpReq.getRemoteAddr();
+
+        // sprint-1-closure 2.4:IP 锁先于账户锁(防 admin 拿同一个错误密码扫 100 个账号)
+        if (lockout.isIpLocked(ip)) {
+            return ResponseEntity.status(429)
+                    .header("Retry-After", "900")
+                    .body(Map.of(
+                            "code", "AUTH_LOCKED",
+                            "message", "登录尝试次数过多,请 15 分钟后再试",
+                            "retryAfterSeconds", 900));
+        }
+        if (lockout.isAccountLocked(req.username())) {
+            return ResponseEntity.status(423)
+                    .body(Map.of(
+                            "code", "ACCOUNT_LOCKED",
+                            "message", "账户已被锁定,请 15 分钟后再试",
+                            "retryAfterSeconds", 900));
+        }
+
+        try {
+            // 复用 AuthService.adminLogin 的凭据校验 + access/refresh 签发
+            TokenResponse body = auth.adminLogin(req, ip);
+            lockout.recordSuccess(ip, req.username());
+            writeAdminCookie(httpRes, body.accessToken());
+            return ResponseEntity.noContent().build();
+        } catch (com.seafood.shared.error.DomainException e) {
+            // 业务失败 → 记一次失败;若本次失败触发 lock,直接返 423/429
+            // 避免下轮 request 的"先 isXLocked 后 recordFailure"read-after-write
+            // 竞态(否则第 4 次失败仍走 catch DomainException 路径 → 409)
+            if (lockout.recordFailure(ip, req.username())) {
+                if (lockout.isIpLocked(ip)) {
+                    return ResponseEntity.status(429)
+                            .header("Retry-After", "900")
+                            .body(Map.of(
+                                    "code", "AUTH_LOCKED",
+                                    "message", "登录尝试次数过多,请 15 分钟后再试",
+                                    "retryAfterSeconds", 900));
+                }
+                if (lockout.isAccountLocked(req.username())) {
+                    return ResponseEntity.status(423)
+                            .body(Map.of(
+                                    "code", "ACCOUNT_LOCKED",
+                                    "message", "账户已被锁定,请 15 分钟后再试",
+                                    "retryAfterSeconds", 900));
+                }
+            }
+            throw e;  // GlobalExceptionHandler 翻译 401/AccountLockedException
+        }
+    }
+
+    /**
+     * sprint-1-closure 2.6 — 查询锁状态(只读,公开)。前端在登录页 mount 时
+     * 调一次,看是否需要进入倒计时。
+     */
+    @GetMapping("/login-lock")
+    public Map<String, Object> loginLock(
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String ip) {
+        LoginLockoutService.LockoutState s = lockout.getLockoutState(ip, phone);
+        return Map.of(
+                "locked", s.locked(),
+                "until", s.until() == null ? "" : s.until().toString(),
+                "scope", s.scope());
     }
 
     // ----- POST /api/admin/auth/logout -----
@@ -138,6 +209,7 @@ public class AdminCookieAuthController {
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(COOKIE_MAX_AGE_SECONDS);
+        if (cookieDomain != null && !cookieDomain.isEmpty()) b.domain(cookieDomain);
         res.addHeader(HttpHeaders.SET_COOKIE, b.build());
     }
 
@@ -148,6 +220,7 @@ public class AdminCookieAuthController {
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(0);
+        if (cookieDomain != null && !cookieDomain.isEmpty()) b.domain(cookieDomain);
         res.addHeader(HttpHeaders.SET_COOKIE, b.build());
     }
 
@@ -174,6 +247,7 @@ public class AdminCookieAuthController {
         private boolean secure;
         private String sameSite;
         private String path;
+        private String domain;
         private int maxAge;
 
         private ResponseCookieBuilder(String name, String value) {
@@ -189,6 +263,7 @@ public class AdminCookieAuthController {
         ResponseCookieBuilder secure(boolean v) { this.secure = v; return this; }
         ResponseCookieBuilder sameSite(String v) { this.sameSite = v; return this; }
         ResponseCookieBuilder path(String v) { this.path = v; return this; }
+        ResponseCookieBuilder domain(String v) { this.domain = v; return this; }
         ResponseCookieBuilder maxAge(int v) { this.maxAge = v; return this; }
 
         String build() {
@@ -197,6 +272,7 @@ public class AdminCookieAuthController {
             if (httpOnly) sb.append("; HttpOnly");
             if (secure) sb.append("; Secure");
             if (sameSite != null) sb.append("; SameSite=").append(sameSite);
+            if (domain != null) sb.append("; Domain=").append(domain);
             if (maxAge > 0 || maxAge == 0) sb.append("; Max-Age=").append(maxAge);
             return sb.toString();
         }

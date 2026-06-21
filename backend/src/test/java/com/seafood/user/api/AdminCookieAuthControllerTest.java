@@ -6,6 +6,7 @@ import com.seafood.shared.security.Role;
 import com.seafood.user.api.dto.AdminLoginRequest;
 import com.seafood.user.api.dto.TokenResponse;
 import com.seafood.user.application.AuthService;
+import com.seafood.user.application.LoginLockoutService;
 import com.seafood.user.application.TokenRevocationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -18,6 +19,7 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -38,6 +40,7 @@ class AdminCookieAuthControllerTest {
 
     private final AuthService auth = mock(AuthService.class);
     private final TokenRevocationService revocations = mock(TokenRevocationService.class);
+    private final LoginLockoutService lockout = mock(LoginLockoutService.class);
     private JwtTokenProvider tokens;
     private AdminCookieAuthController controller;
 
@@ -50,7 +53,10 @@ class AdminCookieAuthControllerTest {
         p.setRefreshTokenTtl(java.time.Duration.ofDays(1));
         tokens = new JwtTokenProvider(p);
         tokens.init();
-        controller = new AdminCookieAuthController(auth, revocations, tokens);
+        // sprint-1-closure 2.4:默认 IP/account 未锁
+        when(lockout.isIpLocked(anyString())).thenReturn(false);
+        when(lockout.isAccountLocked(anyString())).thenReturn(false);
+        controller = new AdminCookieAuthController(auth, revocations, tokens, lockout);
     }
 
     @Test
@@ -64,7 +70,7 @@ class AdminCookieAuthControllerTest {
         httpReq.setRemoteAddr("127.0.0.1");
         MockHttpServletResponse httpRes = new MockHttpServletResponse();
 
-        ResponseEntity<Void> resp = controller.cookieLogin(req, httpReq, httpRes);
+        ResponseEntity<?> resp = controller.cookieLogin(req, httpReq, httpRes);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         String setCookie = httpRes.getHeader(HttpHeaders.SET_COOKIE);
@@ -125,5 +131,75 @@ class AdminCookieAuthControllerTest {
         assertThat(csrfToken).isNotNull();
         assertThat(csrfToken).hasSize(32);
         assertThat(csrfToken).matches("[0-9a-f]{32}");
+    }
+
+    // === sprint-1-closure 2.8:LoginLockout HTTP 形状契约 ===
+    // 2.4 已加 controller 内 `isIpLocked` 短路返 429;本组断言:
+    //   - 429 响应:Retry-After=900 头 + body code=AUTH_LOCKED + retryAfterSeconds=900
+    //   - 423 响应:body code=ACCOUNT_LOCKED + retryAfterSeconds=900
+    //   - GET /login-lock 返回 { locked, until, scope } 正确 shape
+
+    @Test
+    void cookieLogin_ipLocked_returns429WithRetryAfter() {
+        when(lockout.isIpLocked(anyString())).thenReturn(true);
+        AdminLoginRequest req = new AdminLoginRequest("admin", "secret");
+        MockHttpServletRequest httpReq = new MockHttpServletRequest("POST", "/api/admin/auth/cookie-login");
+        httpReq.setRemoteAddr("10.20.30.40");
+        MockHttpServletResponse httpRes = new MockHttpServletResponse();
+
+        ResponseEntity<?> resp = controller.cookieLogin(req, httpReq, httpRes);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(resp.getHeaders().getFirst("Retry-After")).isEqualTo("900");
+        assertThat(resp.getBody()).isInstanceOf(java.util.Map.class);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> body = (java.util.Map<String, Object>) resp.getBody();
+        assertThat(body.get("code")).isEqualTo("AUTH_LOCKED");
+        assertThat(body.get("retryAfterSeconds")).isEqualTo(900);
+        // 不应调 auth(短路)
+        verify(auth, never()).adminLogin(any(), anyString());
+    }
+
+    @Test
+    void cookieLogin_accountLocked_returns423Shape() {
+        when(lockout.isIpLocked(anyString())).thenReturn(false);
+        when(lockout.isAccountLocked(anyString())).thenReturn(true);
+        AdminLoginRequest req = new AdminLoginRequest("admin", "secret");
+        MockHttpServletRequest httpReq = new MockHttpServletRequest("POST", "/api/admin/auth/cookie-login");
+        httpReq.setRemoteAddr("10.20.30.40");
+        MockHttpServletResponse httpRes = new MockHttpServletResponse();
+
+        ResponseEntity<?> resp = controller.cookieLogin(req, httpReq, httpRes);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.LOCKED);
+        assertThat(resp.getBody()).isInstanceOf(java.util.Map.class);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> body = (java.util.Map<String, Object>) resp.getBody();
+        assertThat(body.get("code")).isEqualTo("ACCOUNT_LOCKED");
+        assertThat(body.get("retryAfterSeconds")).isEqualTo(900);
+        verify(auth, never()).adminLogin(any(), anyString());
+    }
+
+    @Test
+    void loginLock_queryReturnsScopeIpShape() {
+        Instant until = Instant.parse("2026-06-16T01:00:00Z");
+        when(lockout.getLockoutState(anyString(), anyString()))
+                .thenReturn(new com.seafood.user.application.LoginLockoutService.LockoutState(
+                        true, until, "IP"));
+        java.util.Map<String, Object> resp = controller.loginLock("u1", "10.20.30.40");
+        assertThat(resp.get("locked")).isEqualTo(true);
+        assertThat(resp.get("scope")).isEqualTo("IP");
+        assertThat(resp.get("until").toString()).contains("2026-06-16T01:00:00");
+    }
+
+    @Test
+    void loginLock_queryReturnsScopeNoneWhenNotLocked() {
+        when(lockout.getLockoutState(anyString(), anyString()))
+                .thenReturn(new com.seafood.user.application.LoginLockoutService.LockoutState(
+                        false, null, "NONE"));
+        java.util.Map<String, Object> resp = controller.loginLock("u1", "10.20.30.40");
+        assertThat(resp.get("locked")).isEqualTo(false);
+        assertThat(resp.get("scope")).isEqualTo("NONE");
+        assertThat(resp.get("until")).isEqualTo("");
     }
 }

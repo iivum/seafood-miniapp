@@ -10,6 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:visual": "node e2e/tools/visual-diff.cjs",
+    "test:geometry": "node e2e/tools/geometry-diff.cjs",
     "lint": "eslint . --ext .js,.ts",
     "type-check": "tsc --noEmit"
   },
@@ -22,11 +24,13 @@
     "@types/jest": "^29.5.12",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "chroma-js": "^3.2.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^30.3.0",
     "miniprogram-api-typings": "^5.1.2",
     "miniprogram-automator": "^0.12.1",
+    "odiff-bin": "^4.3.8",
     "ts-jest": "^29.1.5",
     "typescript": "^5.4.2"
   },

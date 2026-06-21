@@ -151,8 +151,8 @@ class MongoIndexInitializerTest {
         // 不应抛:annotation + text 失败都属"可选"分支
         initializer.init();
 
-        // 三个 collection-level 索引(2 critical + 1 text)都应被调用
-        verify(collectionOps, times(3)).ensureIndex(any(IndexDefinition.class));
+        // 4 个 collection-level 索引(3 critical + 1 text)都应被调用
+        verify(collectionOps, times(4)).ensureIndex(any(IndexDefinition.class));
     }
 
     private static <T> T argThat(java.util.function.Predicate<T> predicate) {

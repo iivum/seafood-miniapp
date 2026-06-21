@@ -52,6 +52,12 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.springframework.boot' version '4.0.6'
     id 'org.graalvm.buildtools.native' version '0.11.5'
+    // Sprint 3 B coverage-gate: Jacoco 0.8.13 (JDK 25 + Spring Boot 4 兼容)
+    id 'jacoco'
+    // Sprint 4 C1 — PIT 变异测试(行覆盖率看不见的断言有效性闸)。
+    // 1.19.0(2026-03)默认捆绑 PIT 1.22.1,声明支持 JDK 24 + 初步 Gradle 9;
+    // JDK 25(class file v69)兼容性由 §1 spike 实测验证,失败即止损(design D2)。
+    id 'info.solidsoft.pitest' version '1.19.0'
     // Sprint 2 §4.1 — OWASP Dependency-Check(CI-only;本地跳过避免 10min NVD 下载)
     // OWASP plugin 通过 buildscript classpath legacy pattern 加载(见上),
     // 不在 plugins DSL 块声明,避免 Gradle 9 plugin marker resolution 间歇性
@@ -65,6 +71,116 @@ plugins {
 }
 
 apply plugin: 'org.owasp.dependencycheck'
+
+// Sprint 3 B coverage-gate: Jacoco 配置(0.8.13 = JDK 25 + Spring Boot 4 兼容,
+// 之前 0.8.10/0.8.11 在 JDK 17+ ASM 9 反射上偶发 IllegalArgumentException)。
+// 排除 SeafoodApplication main class + dto/** record 100% 覆盖稀释
+// (record 自动生成 equals/hashCode,naive cover 全绿,无业务价值)。
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true    // CI artifact 上传
+        html.required = true   // 本地查阅
+        csv.required = false
+    }
+    afterEvaluate {
+        classDirectories.setFrom(
+            files(classDirectories.files.collect {
+                fileTree(dir: it, exclude: [
+                    'com/seafood/SeafoodApplication*',
+                    'com/seafood/**/dto/**',
+                ])
+            })
+        )
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            // Sprint 4 coverage closure: CartControllerSliceTest + AdminProductControllerSliceTest
+            // + OrderServiceRequestRefundTest 将 coverage 从 79.3% 提至 80%(2195 missed / 11102 total).
+            limit {
+                minimum = 0.80
+            }
+        }
+    }
+}
+
+// ./gradlew check 链入 coverage verification — gate 失败时 exit non-zero
+check.dependsOn jacocoTestCoverageVerification
+
+// Sprint 4 C1 — PIT 变异测试配置(design D2/D3/D4)。
+// §1 spike 阶段:只对单类 OrderStatus 跑,验证 JDK 25 字节码 + Jupiter 6 桥接;
+// 跑通后 §2 扩到核心包白名单、§3 设 mutationThreshold。
+// 注意:**不** check.dependsOn pitest —— 运行慢,只手动/nightly 触发(spec §不进 PR 主链)。
+// 本项目 processTestAot(Spring Boot JVM AOT 测试处理)因 junit-platform-engine /
+// launcher 版本错位无法运行 —— 常规 ./gradlew test 一律 `-x processTestAot` 跳过。
+// pitest 的 classpath provider 会拉 test runtime classpath,从而触发该任务:
+//   · 带 -x → "Querying mapped value before task completed" provider 错误
+//   · 不带 -x → processTestAot 自身 JUnitException 失败
+// pitest 在 JVM 字节码层做变异,根本不需要 AOT 测试产物,直接禁用切断这条边。
+tasks.named('processTestAot') { enabled = false }
+
+// Spring Boot 4.0.6 的依赖管理把 junit-platform-launcher 钉在 1.12.2,而 junit-platform-engine
+// 已是 6.0.3 —— 二者错位(launcher 缺 OutputDirectoryCreator)是 processTestAot 失败、
+// 以及 pitest coverage minion(裸 forked JVM,吃 testRuntimeClasspath 上的 launcher)崩溃的
+// 同一根因。dependencyInsight 显示 launcher 的 selection reason 是 "Selected by rule",即
+// io.spring.dependency-management 的 eachDependency rule —— 它会反盖 resolutionStrategy.force,
+// 因此必须在依赖管理层覆盖 Spring 的托管版本,把 launcher 对齐到 engine 6.0.3。
+// (./gradlew test 本就无碍:Gradle test task 注入自己的 launcher;此处修的是裸 minion 那条路径。)
+// **需随 Spring Boot 管理的 junit-bom 版本同步升级。**
+// resolutionStrategy.force 与 dependencyManagement 覆盖均被 Spring 的 eachDependency rule
+// 反盖,唯有 dependencySubstitution 在版本选择规则之上无条件替换选中模块,确保生效。
+configurations.matching { it.name in ['testRuntimeClasspath', 'pitest'] }.configureEach {
+    resolutionStrategy.dependencySubstitution {
+        substitute module('org.junit.platform:junit-platform-launcher') \
+            using module('org.junit.platform:junit-platform-launcher:6.0.3')
+    }
+}
+
+// 作用域参数化(roadmap PR-gating):
+//   · 不传 / -PpitScope=all → 全核心包(nightly + 手动),gate 70(实测基线 72%)
+//   · -PpitScope=order      → 只 order 域,PR 内 ci.yml 检测到 order 改动时跑,floor 80
+//   · -PpitScope=product    → 只 product 域,floor 40
+// 各模块 floor 按当前基线、防回退(design D4 反"不可达 gate"):
+//   order ≈83%(domain 90 + app 80)→ 80;product ≈83%(domain 73 + app 97,经
+//   ProductServiceMutationGapTest 补测后从 43% 升至 83%)→ 70(13pt 余量护残余 6 无覆盖变异)。
+def pitScope = (findProperty('pitScope') ?: 'all').toString()
+def pitMap = [
+    order  : [classes  : ['com.seafood.order.domain.*', 'com.seafood.order.application.*'],
+              tests    : ['com.seafood.order.*'],
+              threshold: 80],
+    product: [classes  : ['com.seafood.product.domain.*', 'com.seafood.product.application.*'],
+              tests    : ['com.seafood.product.*'],
+              threshold: 70],
+    all    : [classes  : ['com.seafood.order.domain.*', 'com.seafood.product.domain.*',
+                          'com.seafood.order.application.*', 'com.seafood.product.application.*'],
+              tests    : ['com.seafood.order.*', 'com.seafood.product.*'],
+              threshold: 70],
+]
+def pitCfg = pitMap[pitScope] ?: pitMap['all']
+
+pitest {
+    junit5PluginVersion = '1.2.3'
+    // 作用域白名单(design D3):只变异核心领域 + 应用逻辑,不碰 DTO/Document/配置/BFF 装配。
+    targetClasses = pitCfg.classes
+    excludedClasses = [
+        'com.seafood.**.dto.*',
+        'com.seafood.**.*Document',
+        'com.seafood.SeafoodApplication*',
+    ]
+    targetTests = pitCfg.tests
+    // gate(design D4):低于阈值 pitest 失败,使"清空方法体仍全绿"的无效测试无法蒙混过关。
+    mutationThreshold = pitCfg.threshold
+    outputFormats = ['HTML', 'XML']
+    timestampedReports = false
+}
 
 // Sprint 2 §4.1 — OWASP Dep-Check 配置
 // CVSS >= 7.0 = High/Critical → fail build;NVD datafeed 走官方默认,CI 注 NVD_API_KEY 提速
@@ -182,12 +298,26 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // Sprint 2 A: per-feature @WebMvcTest slice artifact (Boot 4 split spring-boot-test-autoconfigure
+    // into per-feature modules — webmvc-test ships the @WebMvcTest annotation in package
+    // org.springframework.boot.webmvc.test.autoconfigure).
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.assertj:assertj-core'
     // Sprint 1: Testcontainers + ArchUnit (DDD layer guardrails)
     testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
     testImplementation 'org.testcontainers:mongodb:1.20.4'
     testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.1'
+    // Sprint 5 C2 — OpenAPI 契约。springdoc 3.0.3 兼容 Spring Boot 4.0.x;
+    // **严格 testImplementation,绝不进 implementation/runtimeClasspath**(design D1):
+    // 不进 GraalVM native image、不在业务端口 8080 暴露 /v3/api-docs。
+    testImplementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:3.0.3'
+    // Sprint 5 C2 — 响应一致校验:用 core API(OpenApiInteractionValidator)对 slice 测试
+    // 响应做 schema 校验,从 MockMvcTester 结果取 status/body 手接,不依赖 mockmvc adapter。
+    testImplementation 'com.atlassian.oai:swagger-request-validator-core:2.46.1'
+    // Sprint 5 C4 — property-based testing(domain 不变量)。jqwik 1.10.1 引擎绑 junit-platform
+    // 1.14.x,项目在 6.0.3 —— 兼容性由 §1 spike 验证;不兼容则回退 QuickTheories(design D1)。
+    testImplementation 'net.jqwik:jqwik:1.10.1'
     testRuntimeOnly   'org.junit.platform:junit-platform-launcher'
 }
 

@@ -23,6 +23,7 @@ public record Order(
         String cancelReason,
         OrderTracking tracking,
         String refundId,
+        Instant estimatedDelivery,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -151,6 +152,21 @@ public record Order(
         return mutate(status, cancelReason, tracking, null, Instant.now());
     }
 
+    /**
+     * mp-09 路线图 4.20:挂载预计送达时间(Estimated Time of Arrival)。
+     *
+     * <p>约定:{@code estimatedDelivery} 在 create 时由 Service 层计算为 {@code now + 24h};
+     * 后续状态机(markPaid / markShipped / markCompleted)保持不变 — ETA 一次写入,持久跟随订单。
+     * 显式传 {@code null} 表示清空(异常路径,本期未使用,先留入口)。
+     *
+     * <p>record 不可变,本方法返回新实例;{@code createdAt} 保持不变(不视为订单修改),
+     * {@code updatedAt} 写为当前时刻。
+     */
+    public Order withEstimatedDelivery(Instant newEstimated) {
+        return new Order(id, userId, items, totalAmount, status,
+                cancelReason, tracking, refundId, newEstimated, createdAt, Instant.now());
+    }
+
     private void requireTransition(Class<? extends OrderStatus> target) {
         OrderStatus t = switch (target.getSimpleName()) {
             case "Paid"      -> new OrderStatus.Paid();
@@ -167,7 +183,7 @@ public record Order(
 
     private Order mutate(OrderStatus newStatus, String reason, OrderTracking newTracking, String newRefundId, Instant when) {
         return new Order(id, userId, items, totalAmount, newStatus, reason,
-                newTracking, newRefundId,
+                newTracking, newRefundId, estimatedDelivery,
                 createdAt, when == null ? Instant.now() : when);
     }
 }

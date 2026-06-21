@@ -1,0 +1,2319 @@
+{
+  "components" : {
+    "schemas" : {
+      "AddAddressRequest" : {
+        "properties" : {
+          "city" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "detail" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "isDefault" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "phone" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "province" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "city", "detail", "name", "phone", "province" ],
+        "type" : "object"
+      },
+      "Address" : {
+        "properties" : {
+          "city" : {
+            "type" : "string"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "isDefault" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "province" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AdminLoginRequest" : {
+        "properties" : {
+          "password" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "username" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "password", "username" ],
+        "type" : "object"
+      },
+      "BatchShipRequest" : {
+        "properties" : {
+          "carrier" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "orderIds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
+          },
+          "trackingNumber" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "orderIds" ],
+        "type" : "object"
+      },
+      "BatchShipResponse" : {
+        "properties" : {
+          "failed" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FailedItem"
+            },
+            "type" : "array"
+          },
+          "failedCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "successCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "successIds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "total" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "BatchStatusRequest" : {
+        "properties" : {
+          "ids" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "enum" : [ "ACTIVE", "OUT_OF_STOCK", "DISCONTINUED" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "BatchStatusResponse" : {
+        "properties" : {
+          "failed" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FailedItem"
+            },
+            "type" : "array"
+          },
+          "failedCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "successCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "successIds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "total" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "CartItem" : {
+        "properties" : {
+          "addedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "selected" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "CartItemRequest" : {
+        "properties" : {
+          "productId" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "productId" ],
+        "type" : "object"
+      },
+      "CartItemResponse" : {
+        "properties" : {
+          "addedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "selected" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "CartResponse" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CartItem"
+            },
+            "type" : "array"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userId" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "DashboardResponse" : {
+        "properties" : {
+          "lowStock" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProductResponse"
+            },
+            "type" : "array"
+          },
+          "orderStats" : {
+            "$ref" : "#/components/schemas/OrderStatsResponse"
+          },
+          "productStats" : {
+            "$ref" : "#/components/schemas/ProductStatsResponse"
+          },
+          "recentOrders" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OrderResponse"
+            },
+            "type" : "array"
+          },
+          "topProducts" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TopProductResponse"
+            },
+            "type" : "array"
+          },
+          "trend7d" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TrendPointResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "FailedItem" : {
+        "properties" : {
+          "productId" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ItemWithProduct" : {
+        "properties" : {
+          "product" : {
+            "$ref" : "#/components/schemas/ProductResponse"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "unitPrice" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "OrderDetailResponse" : {
+        "properties" : {
+          "customer" : {
+            "$ref" : "#/components/schemas/UserResponse"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ItemWithProduct"
+            },
+            "type" : "array"
+          },
+          "order" : {
+            "$ref" : "#/components/schemas/OrderResponse"
+          }
+        },
+        "type" : "object"
+      },
+      "OrderItem" : {
+        "properties" : {
+          "productId" : {
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "unitPrice" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "OrderResponse" : {
+        "properties" : {
+          "cancelReason" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "estimatedDelivery" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OrderItem"
+            },
+            "type" : "array"
+          },
+          "refundId" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "totalAmount" : {
+            "type" : "number"
+          },
+          "tracking" : {
+            "$ref" : "#/components/schemas/OrderTracking"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userId" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "OrderStatsResponse" : {
+        "properties" : {
+          "month" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "today" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "week" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "OrderTracking" : {
+        "properties" : {
+          "carrier" : {
+            "type" : "string"
+          },
+          "events" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TrackingEvent"
+            },
+            "type" : "array"
+          },
+          "trackingNumber" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PageOrderResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/OrderResponse"
+            },
+            "type" : "array"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "numberOfElements" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageProductResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProductResponse"
+            },
+            "type" : "array"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "numberOfElements" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageRefundResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RefundResponse"
+            },
+            "type" : "array"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "numberOfElements" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageUserResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UserResponse"
+            },
+            "type" : "array"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "numberOfElements" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "Pageable" : {
+        "properties" : {
+          "page" : {
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "sort" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "PageableObject" : {
+        "properties" : {
+          "offset" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "pageNumber" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageSize" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "paged" : {
+            "type" : "boolean"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "unpaged" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductRequest" : {
+        "properties" : {
+          "category" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "imageUrl" : {
+            "type" : "string"
+          },
+          "name" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "stock" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "category", "name", "price" ],
+        "type" : "object"
+      },
+      "ProductResponse" : {
+        "properties" : {
+          "category" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "imageUrl" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "status" : {
+            "enum" : [ "ACTIVE", "OUT_OF_STOCK", "DISCONTINUED" ],
+            "type" : "string"
+          },
+          "stock" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductStatsResponse" : {
+        "properties" : {
+          "byCategory" : {
+            "additionalProperties" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "object"
+          },
+          "onSale" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "outOfStock" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "RefreshRequest" : {
+        "properties" : {
+          "refreshToken" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "refreshToken" ],
+        "type" : "object"
+      },
+      "RefundRequest" : {
+        "properties" : {
+          "amount" : {
+            "minimum" : 0.01,
+            "type" : "number"
+          },
+          "reason" : {
+            "maxLength" : 200,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "reason" ],
+        "type" : "object"
+      },
+      "RefundResponse" : {
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "orderId" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userId" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SortObject" : {
+        "properties" : {
+          "empty" : {
+            "type" : "boolean"
+          },
+          "sorted" : {
+            "type" : "boolean"
+          },
+          "unsorted" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "TokenResponse" : {
+        "properties" : {
+          "accessToken" : {
+            "type" : "string"
+          },
+          "accessTokenExpiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "refreshToken" : {
+            "type" : "string"
+          },
+          "refreshTokenExpiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TopProductResponse" : {
+        "properties" : {
+          "product" : {
+            "$ref" : "#/components/schemas/ProductResponse"
+          },
+          "totalQuantitySold" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "TrackingEvent" : {
+        "properties" : {
+          "at" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "location" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TrendPointResponse" : {
+        "properties" : {
+          "count" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UpdateAddressRequest" : {
+        "properties" : {
+          "city" : {
+            "type" : "string"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "isDefault" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "province" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UploadResponse" : {
+        "properties" : {
+          "files" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UploadedFile"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "UploadedFile" : {
+        "properties" : {
+          "mime" : {
+            "type" : "string"
+          },
+          "size" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "url" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UserResponse" : {
+        "properties" : {
+          "addresses" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Address"
+            },
+            "type" : "array"
+          },
+          "avatarUrl" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "nickname" : {
+            "type" : "string"
+          },
+          "openId" : {
+            "type" : "string"
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "WechatLoginRequest" : {
+        "properties" : {
+          "avatarUrl" : {
+            "type" : "string"
+          },
+          "code" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "nickname" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "code" ],
+        "type" : "object"
+      }
+    }
+  },
+  "info" : {
+    "title" : "OpenAPI definition",
+    "version" : "v0"
+  },
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/actuator/health" : {
+      "get" : {
+        "operationId" : "health",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : { },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "biz-health-controller" ]
+      }
+    },
+    "/api/admin/auth/cookie-login" : {
+      "post" : {
+        "operationId" : "cookieLogin",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminLoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-cookie-auth-controller" ]
+      }
+    },
+    "/api/admin/auth/csrf" : {
+      "get" : {
+        "operationId" : "csrf",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "type" : "string"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-cookie-auth-controller" ]
+      }
+    },
+    "/api/admin/auth/login" : {
+      "post" : {
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminLoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-auth-controller" ]
+      }
+    },
+    "/api/admin/auth/login-lock" : {
+      "get" : {
+        "operationId" : "loginLock",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "phone",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "ip",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : { },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-cookie-auth-controller" ]
+      }
+    },
+    "/api/admin/auth/logout" : {
+      "post" : {
+        "operationId" : "logout_1",
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-cookie-auth-controller" ]
+      }
+    },
+    "/api/admin/auth/refresh" : {
+      "post" : {
+        "operationId" : "refresh_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-auth-controller" ]
+      }
+    },
+    "/api/admin/dashboard" : {
+      "get" : {
+        "operationId" : "dashboard",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DashboardResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-bff-controller" ]
+      }
+    },
+    "/api/admin/orders/batch-ship" : {
+      "post" : {
+        "operationId" : "batchShip",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BatchShipRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BatchShipResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-order-controller" ]
+      }
+    },
+    "/api/admin/orders/export" : {
+      "get" : {
+        "operationId" : "exportCsv",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-order-controller" ]
+      }
+    },
+    "/api/admin/orders/{id}/detail" : {
+      "get" : {
+        "operationId" : "orderDetail",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-bff-controller" ]
+      }
+    },
+    "/api/admin/orders/{id}/print-picklist" : {
+      "get" : {
+        "operationId" : "printPicklist",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-order-controller" ]
+      }
+    },
+    "/api/admin/products/batch-status" : {
+      "post" : {
+        "operationId" : "batchStatus",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BatchStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BatchStatusResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      }
+    },
+    "/api/admin/products/export" : {
+      "get" : {
+        "operationId" : "export",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "format" : "byte",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      }
+    },
+    "/api/admin/products/stats" : {
+      "get" : {
+        "operationId" : "productStats",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductStatsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-bff-controller" ]
+      }
+    },
+    "/api/admin/products/{id}/duplicate" : {
+      "post" : {
+        "operationId" : "duplicate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      }
+    },
+    "/api/admin/refunds" : {
+      "get" : {
+        "operationId" : "listByStatus",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageRefundResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-refund-controller" ]
+      }
+    },
+    "/api/admin/refunds/{id}/approve" : {
+      "post" : {
+        "operationId" : "approve",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RefundResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-refund-controller" ]
+      }
+    },
+    "/api/admin/refunds/{id}/reject" : {
+      "post" : {
+        "operationId" : "reject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "reason",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RefundResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-refund-controller" ]
+      }
+    },
+    "/api/admin/uploads" : {
+      "post" : {
+        "operationId" : "upload",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "files",
+          "required" : true,
+          "schema" : {
+            "items" : {
+              "format" : "binary",
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UploadResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-upload-controller" ]
+      }
+    },
+    "/api/admin/users/{id}/revoke-tokens" : {
+      "post" : {
+        "operationId" : "revokeTokens",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-user-controller" ]
+      }
+    },
+    "/api/auth/logout" : {
+      "post" : {
+        "operationId" : "logout",
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/auth/refresh" : {
+      "post" : {
+        "operationId" : "refresh",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/auth/wechat-login" : {
+      "post" : {
+        "operationId" : "wechatLogin",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/WechatLoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/cart" : {
+      "delete" : {
+        "operationId" : "clear",
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cart-controller" ]
+      },
+      "get" : {
+        "operationId" : "get_3",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CartResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cart-controller" ]
+      }
+    },
+    "/api/cart/items" : {
+      "post" : {
+        "operationId" : "addItem",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CartItemRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CartResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cart-controller" ]
+      }
+    },
+    "/api/cart/items/{productId}" : {
+      "delete" : {
+        "operationId" : "removeItem",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CartResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cart-controller" ]
+      }
+    },
+    "/api/orders" : {
+      "get" : {
+        "operationId" : "list_1",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "userId",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageOrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      },
+      "post" : {
+        "operationId" : "create_1",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}" : {
+      "get" : {
+        "operationId" : "get_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}/cancel" : {
+      "post" : {
+        "operationId" : "cancel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "reason",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}/confirm-receive" : {
+      "post" : {
+        "operationId" : "confirmReceive",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}/pay" : {
+      "post" : {
+        "operationId" : "pay",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}/rebuy" : {
+      "post" : {
+        "operationId" : "rebuy",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CartItemResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}/refund" : {
+      "post" : {
+        "operationId" : "requestRefund",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefundRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RefundResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}/remind-ship" : {
+      "post" : {
+        "operationId" : "remindShip",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}/ship" : {
+      "post" : {
+        "operationId" : "ship",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/orders/{id}/tracking" : {
+      "get" : {
+        "operationId" : "getTracking",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderTracking"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "order-controller" ]
+      }
+    },
+    "/api/products" : {
+      "get" : {
+        "operationId" : "list",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "category",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageProductResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      },
+      "post" : {
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/products/{id}" : {
+      "delete" : {
+        "operationId" : "delete",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      },
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      },
+      "put" : {
+        "operationId" : "update",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProductRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/products/{id}/discontinue" : {
+      "post" : {
+        "operationId" : "discontinue",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-controller" ]
+      }
+    },
+    "/api/users" : {
+      "get" : {
+        "operationId" : "list_2",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageUserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/me" : {
+      "get" : {
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/{userId}" : {
+      "get" : {
+        "operationId" : "get_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/{userId}/addresses" : {
+      "post" : {
+        "operationId" : "addAddress",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddAddressRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/{userId}/addresses/{addressId}" : {
+      "delete" : {
+        "operationId" : "removeAddress",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "addressId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateAddress",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "addressId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateAddressRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/{userId}/addresses/{addressId}/default" : {
+      "post" : {
+        "operationId" : "setDefault",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "addressId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    }
+  }
+}

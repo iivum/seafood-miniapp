@@ -1,6 +1,7 @@
 package com.seafood.order.domain;
 
 import com.seafood.shared.error.DomainException;
+import com.seafood.testsupport.builders.OrderBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -16,8 +17,12 @@ class OrderTest {
     private final OrderItem item = new OrderItem("p1", "三文鱼", new BigDecimal("99.00"), 2);
 
     private Order sample() {
-        return new Order("o1", "u1", List.of(item), new BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, null, null, t0, t0);
+        return OrderBuilder.anOrder()
+                .withId("o1")
+                .withUserId("u1")
+                .withItems(List.of(item))
+                .withTotalAmount(new BigDecimal("198.00"))
+                .build();
     }
 
     @Test
@@ -117,7 +122,7 @@ class OrderTest {
         DomainException ex = null;
         try {
             new Order("o1", "u1", List.of(), new BigDecimal("1"),
-                    new OrderStatus.Pending(), null, null, null, t0, t0);
+                    new OrderStatus.Pending(), null, null, null, null, t0, t0);
         } catch (DomainException e) {
             ex = e;
         }
@@ -128,7 +133,7 @@ class OrderTest {
     @Test
     void constructor_rejectsNonPositiveTotal() {
         assertThatThrownBy(() -> new Order("o1", "u1", List.of(item), BigDecimal.ZERO,
-                new OrderStatus.Pending(), null, null, null, t0, t0))
+                new OrderStatus.Pending(), null, null, null, null, t0, t0))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("金额");
     }

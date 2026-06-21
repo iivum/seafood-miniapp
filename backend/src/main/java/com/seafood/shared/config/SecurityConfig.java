@@ -56,6 +56,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 公共读
                 .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                // banner:admin 全量列表必须排在公共 GET 之前(first-match 生效)
+                .requestMatchers(HttpMethod.GET, "/api/banners/all").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/banners", "/api/banners/*").permitAll()
                 // 鉴权端点
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/wechat-login").permitAll()
                 .requestMatchers("/api/admin/auth/login", "/api/admin/auth/refresh", "/api/admin/auth/cookie-login", "/api/admin/auth/csrf").permitAll()
@@ -79,16 +82,22 @@ public class SecurityConfig {
                 // 不是 403。`permitAll` 让 Security 不挡,交给 Spring 路由
                 // 层报 404。MetricsEndpointIT .prometheusEndpointAbsentFromBusinessPort
                 // + businessPortHasNoActuatorRoutes 期望 404 守此契约。
-                .requestMatchers("/admin/**", "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                .requestMatchers("/admin/**", "/assets/**", "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                 // 写商品 = ADMIN
                 .requestMatchers(HttpMethod.POST, "/api/products", "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
+                // 写 banner = ADMIN(读已在上面公共放行 / all 已 ADMIN)
+                .requestMatchers(HttpMethod.POST, "/api/banners", "/api/banners/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/banners/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/banners/**").hasRole("ADMIN")
                 // 管理后台聚合 = ADMIN
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // 购物车/订单:粗粒度放行(CUSTOMER/ADMIN),细粒度在方法 @PreAuthorize
                 .requestMatchers("/api/cart/**", "/api/orders/**").authenticated()
                 .requestMatchers("/api/users/**").authenticated()
+                // 地址 self-scoped 门面(身份取自 JWT principal,细粒度在 @PreAuthorize)
+                .requestMatchers("/api/addresses/**").authenticated()
                 // 兜底
                 .anyRequest().denyAll()
             )

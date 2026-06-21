@@ -46,6 +46,34 @@ export interface ProductStatsResponse {
   byCategory: Record<string, number>;
 }
 
+// ----- Banner(banner.api.dto)-----
+export type BannerTone = 'ACCENT' | 'SOFT';
+export const BANNER_TONES = ['ACCENT', 'SOFT'] as const;
+export type BannerStatus = 'ACTIVE' | 'INACTIVE';
+
+export interface BannerResponse {
+  id: string;
+  tone: BannerTone;
+  emoji: string;
+  title: string;
+  subtitle: string;
+  targetProductId: string | null;
+  sortOrder: number;
+  status: BannerStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BannerRequest {
+  tone: BannerTone;
+  emoji: string;
+  title: string;
+  subtitle: string;
+  targetProductId: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface PageResponse<T> {
   content: T[];
   totalElements: number;

@@ -62,6 +62,20 @@ public class SensitiveValueBeanSerializerModifier extends ValueSerializerModifie
         if (writer.getType().getRawClass() != String.class) {
             return false;
         }
-        return SENSITIVE_FIELD_PATTERN.matcher(writer.getName()).matches();
+        String name = writer.getName();
+        // v2.1 signoff 修复:TokenResponse / UserResponse 是 API 响应 DTO,字段
+        // accessToken / refreshToken 必须以原值返回给客户端(否则前端拿到的 token 是
+        // "eyJh***",后续所有 admin API 必 403)。脱敏目标对象是 internal config
+        // 类(JwtProperties.adminSecret / password 等),不是 API 凭据。
+        // 字段名 accessToken / refreshToken 命中 token 子串导致无差别被 mask,
+        // 是设计 bug —— 用字段名白名单修补(Pattern 是 substring 匹配,精确白名单
+        // 4 个 API 凭据字段即可,不影响 password/secret/appid 脱敏)。
+        if (name.equals("accessToken")
+                || name.equals("refreshToken")
+                || name.equals("role")
+                || name.equals("username")) {
+            return false;
+        }
+        return SENSITIVE_FIELD_PATTERN.matcher(name).matches();
     }
 }

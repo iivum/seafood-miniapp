@@ -1,4 +1,5 @@
 const { ProductListModule } = require('../../src/modules/productList/productList.js');
+const { BannerAPI } = require('../../src/api/banner.js');
 const cartUtil = require('../../utils/cart.js');
 
 // Initialize product list module
@@ -25,6 +26,8 @@ Page({
         {id: 'live', name: '活鲜', icon: '🦞'}
     ],
     products: [],
+    // home hero 轮播(后端驱动,GET /api/banners;空则 swiper 不渲染)
+    banners: [],
     // Loading states
     isLoading: false,
     isLoadingMore: false,
@@ -47,9 +50,32 @@ Page({
 
   onLoad: function () {
     this.initProductList();
+    this.loadBanners();
   },
 
   onShow: function () {
+  },
+
+  /** 拉取后端 banner → setData;失败降级空列表(swiper wx:for 兜底)。 */
+  async loadBanners() {
+    try {
+      const banners = await BannerAPI.getBanners();
+      this.setData({ banners });
+    } catch (err) {
+      console.warn('Failed to load banners', err);
+      this.setData({ banners: [] });
+    }
+  },
+
+  /** 点击 banner:有 targetProductId 跳商品详情,无则纯展示不跳转。 */
+  onBannerTap(e) {
+    const bannerId = e.currentTarget.dataset.bannerId;
+    const banner = (this.data.banners || []).find((b) => b.id === bannerId);
+    if (banner && banner.targetProductId) {
+      wx.navigateTo({
+        url: `/pages-sub/product/product-detail/product-detail?id=${banner.targetProductId}`,
+      });
+    }
   },
 
   /**

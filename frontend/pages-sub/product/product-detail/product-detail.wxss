@@ -208,7 +208,7 @@
   text-align: center;
 }
 
-/* ===== 底部 sticky 主按钮 ===== */
+/* ===== 底部 sticky 3-button bar ===== */
 
 .detail-footer {
   position: fixed;
@@ -216,11 +216,87 @@
   right: 0;
   bottom: 0;
   z-index: 100;
+  display: flex;
+  align-items: stretch;
+  gap: 16rpx;
   background: var(--surface, #fff);
-  padding: 20rpx 32rpx;
-  box-shadow: 0 -2rpx 12rpx #231814;
+  padding: 16rpx 24rpx;
+  box-shadow: 0 -2rpx 12rpx rgba(35, 24, 20, 0.08);
+}
+
+.detail-footer__side {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+
+.detail-footer__side-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rpx;
+  width: 96rpx;
+  height: 80rpx;
+  border-radius: var(--radius-md, 6px);
+  transition: background 0.18s ease;
+}
+
+.detail-footer__side-btn--hover {
+  background: var(--bg, #fffbf8);
+}
+
+.detail-footer__side-icon {
+  font-size: 32rpx;
+  line-height: 1;
+  color: var(--muted, #6b615d);
+}
+
+.detail-footer__side-btn.is-fav .detail-footer__side-icon {
+  color: var(--accent, #db633c);
+}
+
+.detail-footer__side-label {
+  font-size: 20rpx;
+  line-height: 1;
+  color: var(--muted, #6b615d);
+  margin-top: 4rpx;
+}
+
+.detail-footer__main {
+  flex: 1;
+  display: flex;
+  gap: 12rpx;
 }
 
 .detail-footer__btn {
-  width: 100%;
+  flex: 1;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: var(--radius-pill, 9999px);
+  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+  line-height: 1;
+}
+
+.detail-footer__btn--cart {
+  background: var(--accent-soft, #ffe7d9);
+  color: var(--accent-strong, #b83300);
+  box-shadow: 0 2rpx 8rpx rgba(219, 99, 60, 0.18);
+}
+
+.detail-footer__btn--buy {
+  /* sprint 2 WCAG 修:fg=surface(#fff) 在 accent(#db633c) ratio=3.58 失败。
+     改用 accent-strong(#b83300) → ratio 5.98,达 AA 4.5+ */
+  background: var(--accent-strong, #b83300);
+  color: var(--surface, #fff);
+  box-shadow: 0 4rpx 12rpx rgba(184, 51, 0, 0.32);
+}
+
+.detail-footer__btn--hover {
+  transform: scale(0.97);
 }

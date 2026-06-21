@@ -1,5 +1,6 @@
 package com.seafood.order.api;
 
+import com.seafood.order.api.dto.CartItemResponse;
 import com.seafood.order.api.dto.OrderResponse;
 import com.seafood.order.api.dto.RefundRequest;
 import com.seafood.order.api.dto.RefundResponse;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.List;
 
 /**
  * 订单 API(参见 specs/backend-api §Order lifecycle + 4.2 tracking)。
@@ -107,5 +109,32 @@ public class OrderController {
         return ResponseEntity
                 .created(URI.create("/api/admin/refunds/" + resp.id()))
                 .body(resp);
+    }
+
+    // ----- sprint-1-closure 1.4 / 1.5 新增 3 个 customer-side 状态机端点 -----
+
+    @PostMapping("/{id}/pay")
+    @PreAuthorize("hasAnyRole('CUSTOMER','ADMIN')")
+    public OrderResponse pay(@PathVariable String id) {
+        return orders.transition(id, com.seafood.order.domain.OrderAction.PAY);
+    }
+
+    @PostMapping("/{id}/confirm-receive")
+    @PreAuthorize("hasAnyRole('CUSTOMER','ADMIN')")
+    public OrderResponse confirmReceive(@PathVariable String id) {
+        return orders.transition(id, com.seafood.order.domain.OrderAction.CONFIRM_RECEIVE);
+    }
+
+    @PostMapping("/{id}/rebuy")
+    @PreAuthorize("hasAnyRole('CUSTOMER','ADMIN')")
+    public List<CartItemResponse> rebuy(@PathVariable String id) {
+        return orders.rebuy(id);
+    }
+
+    @PostMapping("/{id}/remind-ship")
+    @PreAuthorize("hasAnyRole('CUSTOMER','ADMIN')")
+    public ResponseEntity<Void> remindShip(@PathVariable String id) {
+        orders.remindShip(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,5 +1,8 @@
 const app = getApp();
-const request = require('../../../utils/request.js');
+// utils/request.js 导出 { request, authRequest } —— 必须解构。原写法
+// `const request = require(...)` 拿到的是模块对象,调 request({...}) 抛
+// "request is not a function" → 地址页加载即崩(C5 感知层 mp-07 探针实证)。
+const { request } = require('../../../utils/request.js');
 
 Page({
   data: {
@@ -36,7 +39,8 @@ Page({
     }
 
     request({
-      url: `/addresses/user/${userInfo.id}`,
+      // self-scoped:后端 GET /api/addresses 从 JWT 取 userId,URL 不带 id。
+      url: `/addresses`,
       needAuth: true
     })
     .then(res => {

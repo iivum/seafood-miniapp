@@ -1,0 +1,11 @@
+{
+  "screen": "mp-05-profile",
+  "note": "OD 期望结构不变量(从 mp-05-profile OD mockup + 路线图 3.13 量出)。profile 三段结构完全数据无关(用户卡有 fallback、4 状态卡为静态 navigator、工具列表静态),故几何层零鉴权零 seed 可量,AA/DPR/设备框全免疫。",
+  "viewport": { "w": 390, "h": 762 },
+  "checks": [
+    { "key": "user-card",     "selector": ".user-card",          "metric": "present", "expected": true, "desc": "用户卡:头像+昵称+角色徽章(OD 段1)" },
+    { "key": "status-grid",   "selector": ".status-item",        "metric": "count",   "expected": 4,    "desc": "4 状态卡:待付款/待发货/待收货/已完成(OD 段2,接 2.6 OrderStatus 4 档)" },
+    { "key": "status-cols",   "selector": ".status-item",        "metric": "columns", "expected": 4,    "desc": "4 状态卡横排一行 = 4 列(OD .status-grid)" },
+    { "key": "tools-list",    "selector": ".tool-item",          "metric": "present", "expected": true, "desc": "工具列表:地址管理/联系客服/关于我们(OD 段3)" }
+  ]
+}

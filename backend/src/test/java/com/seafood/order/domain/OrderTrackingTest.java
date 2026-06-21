@@ -27,7 +27,7 @@ class OrderTrackingTest {
 
     private Order ship() {
         return new Order("o1", "u1", List.of(item), new java.math.BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, null, null, t0, t0)
+                new OrderStatus.Pending(), null, null, null, null, t0, t0)
                 .markPaid(t0)
                 .markShipped(t0);
     }
@@ -90,7 +90,7 @@ class OrderTrackingTest {
     @Test
     void order_attachTracking_onPending_throws() {
         Order pending = new Order("o1", "u1", List.of(item), new java.math.BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, null, null, t0, t0);
+                new OrderStatus.Pending(), null, null, null, null, t0, t0);
         OrderTracking tracking = new OrderTracking("顺丰", "SF123",
                 List.of(new TrackingEvent(Instant.now(), "SHIPPED", "上海", "已发货")));
         assertThatThrownBy(() -> pending.attachTracking(tracking))
@@ -104,7 +104,7 @@ class OrderTrackingTest {
                 List.of(new TrackingEvent(Instant.now(), "SHIPPED", "上海", "已发货")));
         assertThatThrownBy(() -> new Order("o1", "u1", List.of(item),
                 new java.math.BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, tracking, null, t0, t0))
+                new OrderStatus.Pending(), null, tracking, null, null, t0, t0))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("仅 SHIPPED");
     }

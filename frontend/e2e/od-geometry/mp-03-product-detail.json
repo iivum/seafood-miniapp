@@ -1,0 +1,14 @@
+{
+  "screen": "mp-03-product-detail",
+  "route": "/pages-sub/product/product-detail/product-detail",
+  "productParam": true,
+  "waitForSelector": ".detail-info__name",
+  "note": "OD 商品详情(分包公共页,无需鉴权)。运行时取真实 product id 拼 ?id=(fixture 无固定 _id,reseed 即变)。结构不变量量商品图/名/价/底部操作 bar,AA/DPR/设备框免疫。",
+  "viewport": { "w": 390, "h": 762 },
+  "checks": [
+    { "key": "product-image", "selector": ".detail-image",        "metric": "present", "expected": true, "desc": "商品大图(OD hero)" },
+    { "key": "product-name",  "selector": ".detail-info__name",   "metric": "present", "expected": true, "desc": "商品名称(OD info)" },
+    { "key": "product-price", "selector": ".detail-info__price",  "metric": "present", "expected": true, "desc": "价格区(OD price)" },
+    { "key": "footer-bar",    "selector": ".detail-footer",       "metric": "present", "expected": true, "desc": "底部操作 bar:加购/立即购买(OD sticky footer)" }
+  ]
+}

@@ -49,17 +49,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.objectMapper = objectMapper;
     }
 
+    /** admin cookie 名(由 AdminCookieAuthController.writeAdminCookie 设置) */
+    private static final String ADMIN_COOKIE = "seafood_admin_token";
+
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
 
-        String header = req.getHeader("Authorization");
-        if (header == null || !header.startsWith(BEARER)) {
-            chain.doFilter(req, res);
-            return;
-        }
-        String token = header.substring(BEARER.length()).trim();
-        if (token.isEmpty()) {
+        // sprint-1-closure 2.x + 验证发现:admin-ui 走 httpOnly cookie,filter 必须能读
+        // 否则登录后 dashboard 拿 403。原实现只读 Authorization header。
+        String token = extractToken(req);
+        if (token == null || token.isEmpty()) {
             chain.doFilter(req, res);
             return;
         }
@@ -101,6 +101,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static boolean isAdminPath(String uri) {
         // PR review I6:集中到 {@link AdminPathMatcher},两 filter 共享。
         return AdminPathMatcher.isAdminPath(uri);
+    }
+
+    /**
+     * 提取 token:优先 Authorization: Bearer,其次 admin path 读 seafood_admin_token cookie。
+     * cookie 仅在 admin 路径读(user 端目前无 cookie auth,只 Bearer)。
+     */
+    private String extractToken(HttpServletRequest req) {
+        String header = req.getHeader("Authorization");
+        if (header != null && header.startsWith(BEARER)) {
+            String t = header.substring(BEARER.length()).trim();
+            if (!t.isEmpty()) return t;
+        }
+        // fallback: admin path 读 httpOnly cookie
+        if (isAdminPath(req.getRequestURI())) {
+            if (req.getCookies() != null) {
+                for (jakarta.servlet.http.Cookie c : req.getCookies()) {
+                    if (ADMIN_COOKIE.equals(c.getName())) {
+                        String v = c.getValue();
+                        if (v != null && !v.isEmpty()) return v;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /** 撤销 token 的 401 响应;与 {@link AdminRateLimitFilter} 同样的"filter 内直写"模式。 */

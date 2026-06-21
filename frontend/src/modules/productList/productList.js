@@ -158,7 +158,7 @@ class ProductListModule {
    */
   getErrorMessage() {
     if (!this.state.error) {
-      return '未知错误';
+      return '';  // v2.1 修:无 error 返空,避免 isError=false 时 UI 误显 '未知错误'
     }
 
     const message = this.state.error.message;
