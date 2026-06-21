@@ -1,6 +1,7 @@
 {
   "screen": "mp-02-category",
-  "note": "OD 期望结构不变量(从 mp-02-category.html 量出)。双栏:左 sidebar + 右 2 列商品 grid。",
+  "waitForSelector": ".cat-grid__cell",
+  "note": "OD 期望结构不变量(从 mp-02-category.html 量出)。双栏:左 sidebar + 右 2 列商品 grid。onLoad 自动选首类(鱼类)异步拉商品 → waitFor grid cell 就绪再量。分类 id = 后端中文 displayName(契约对齐,见 category.js)。",
   "viewport": { "w": 390, "h": 762 },
   "checks": [
     { "key": "sidebar",      "selector": ".cat-sidebar__item", "metric": "present", "expected": true, "desc": "左侧分类 sidebar 项" },

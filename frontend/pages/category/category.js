@@ -3,14 +3,15 @@ const { ProductListModule } = require('../../src/modules/productList/productList
 // Initialize product list module
 const productListModule = new ProductListModule({ pageSize: 20 });
 
-// Category definitions with emoji icons (fallback when images fail)
+// 分类定义。id 必须 = 后端 ProductCategory(sealed interface)的中文 displayName ——
+// repo.findByCategory 精确匹配商品 category 字段,传英文 id 会匹配 0 商品(旧 bug)。
+// 5 类与后端 permits 列表一一对应:鱼类/虾蟹/贝类/软体/海藻。
 const CATEGORIES = [
-  { id: 'fish', name: '鱼类', icon: '🐟', description: '新鲜海鱼' },
-  { id: 'shrimp', name: '虾蟹', icon: '🦐', description: '虾蟹贝类' },
-  { id: 'shell', name: '贝类', icon: '🐚', description: '各类贝壳' },
-  { id: 'live', name: '活鲜', icon: '🦞', description: '鲜活水产' },
-  { id: 'frozen', name: '冷冻', icon: '🧊', description: '冷冻海鲜' },
-  { id: 'dried', name: '干货', icon: '🏺', description: '海鲜干货' }
+  { id: '鱼类', name: '鱼类', icon: '🐟', description: '新鲜海鱼' },
+  { id: '虾蟹', name: '虾蟹', icon: '🦐', description: '鲜活虾蟹' },
+  { id: '贝类', name: '贝类', icon: '🐚', description: '各类贝壳' },
+  { id: '软体', name: '软体', icon: '🦑', description: '鱿鱼章鱼' },
+  { id: '海藻', name: '海藻', icon: '🌿', description: '海带紫菜' }
 ];
 
 Page({
@@ -18,6 +19,7 @@ Page({
     categories: CATEGORIES,
     selectedCategory: null,
     selectedCategoryName: '',
+    selectedCategoryDesc: '',
     products: [],
     isLoading: false,
     isLoadingMore: false,
@@ -38,14 +40,22 @@ Page({
   },
 
   async initCategories() {
-    this.setData({ selectedCategory: null, products: [] });
+    // 自动选中首个分类并加载其商品 —— 避免空载(onLoad 后 grid 直接有内容,
+    // 而非等用户点击;旧逻辑只置空 → 分类页首屏永远空)。
+    const first = CATEGORIES[0];
+    this.setData({ selectedCategory: first.id, selectedCategoryName: first.name, selectedCategoryDesc: first.description });
+    await this.loadCategoryProducts(first.id);
   },
 
   onCategoryTap: function (e) {
     const categoryId = e.currentTarget.dataset.id;
     const category = CATEGORIES.find(c => c.id === categoryId);
 
-    this.setData({ selectedCategory: categoryId, selectedCategoryName: category ? category.name : '' });
+    this.setData({
+      selectedCategory: categoryId,
+      selectedCategoryName: category ? category.name : '',
+      selectedCategoryDesc: category ? category.description : '',
+    });
     this.loadCategoryProducts(categoryId);
   },
 
