@@ -16,114 +16,22 @@
 const automator = require('miniprogram-automator');
 const { compare } = require('odiff-bin');
 const { execFileSync } = require('node:child_process');
-const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
+// 鉴权/seed/导航/轮询共享 harness —— 与 geometry-diff.cjs 同源(单一事实源,见 mp-harness.cjs)。
+const {
+  race, devLogin, fetchFirstProductId, injectAuth, waitForData,
+  seedOrdersFor, seedAddressesFor,
+} = require('./mp-harness.cjs');
 
 const WS = process.env.WS_ENDPOINT || 'ws://127.0.0.1:9420';
 const THRESHOLD_PCT = Number(process.env.VISUAL_THRESHOLD || 5);
 const SHOTS = path.resolve(__dirname, '../screenshots');
 const GOLD = path.resolve(__dirname, '../od-golden');
 
-// 鉴权页用:运行时 dev wechat-login 拿一枚新 accessToken(JWT exp ~15min,必须现取)。
-// 同时把 sub(userId)解出来 —— mp-08/09 走 /orders 由 JWT principal 强制 own,
-// mp-07 经 self-scoped /api/addresses 门面读该 userId 的内嵌地址 → seed 须挂到同一 userId 文档。
-const API_HOST = process.env.API_HOST || '127.0.0.1';
-const API_PORT = Number(process.env.API_PORT || 8080);
-const DEV_CODE = process.env.DEV_LOGIN_CODE || 'dev-visual-001';
-// detail 页商品 id:products fixture 无固定 _id,reseed 即变 → 默认运行时取(见 fetchFirstProductId);
-// 仅当 PRODUCT_ID 环境变量显式给定时才用它。
+// detail 页商品 id 与 order-detail 订单 id 仍可经环境变量覆盖(默认走 harness 运行时取 / 已知 seed id)。
 const PRODUCT_ID = process.env.PRODUCT_ID || null;
-// order-detail 已知订单 id(见 run-visual.sh seed 步,归属 DEV_CODE 对应用户)。
 const ORDER_ID = process.env.ORDER_ID || 'v2.1-closure-order-001';
-
-// dev wechat-login 每次返回的 userId(JWT sub)会漂移 —— 后端按 openId 重建 user、_id 变,
-// 且 GET /api/orders/{id} 强制 own。故静态 seed 的订单对不上当前 login → mp-08/09 空/loading。
-// 唯一可复现做法:登录后**为当前 userId 运行时 seed 订单**。best-effort(docker/mongo 不在则跳过)。
-const SEED_ORDER_IDS = ['v2.1-closure-order-001', 'v2.1-closure-order-002', 'v2.1-closure-order-003'];
-function seedOrdersFor(userId) {
-  const js = `const uid=${JSON.stringify(userId)};
-db.orders.deleteMany({$or:[{userId:uid},{_id:{$in:${JSON.stringify(SEED_ORDER_IDS)}}}]});
-const now=new Date("2026-06-18T08:00:00Z"),eta=new Date("2026-06-21T08:00:00Z");
-db.orders.insertMany([
- {_id:"v2.1-closure-order-001",userId:uid,status:"PENDING",items:[{productId:"p1",productName:"挪威三文鱼刺身",unitPrice:NumberDecimal("128.00"),quantity:2},{productId:"p2",productName:"波士顿龙虾",unitPrice:NumberDecimal("288.00"),quantity:1}],totalAmount:NumberDecimal("544.00"),estimatedDelivery:eta,createdAt:now,updatedAt:now},
- {_id:"v2.1-closure-order-002",userId:uid,status:"PAID",items:[{productId:"p3",productName:"大闸蟹 4 两公",unitPrice:NumberDecimal("88.00"),quantity:4}],totalAmount:NumberDecimal("352.00"),estimatedDelivery:eta,createdAt:now,updatedAt:now},
- {_id:"v2.1-closure-order-003",userId:uid,status:"COMPLETED",items:[{productId:"p4",productName:"冰鲜大黄鱼",unitPrice:NumberDecimal("59.90"),quantity:3}],totalAmount:NumberDecimal("179.70"),estimatedDelivery:eta,createdAt:now,updatedAt:now}
-]);`;
-  try {
-    execFileSync('docker', ['exec', '-i', 'seafood-mongodb', 'mongosh', 'seafood', '--quiet', '--eval', js], { stdio: 'ignore' });
-    console.log(`  [seed] 已为当前 userId=${userId} seed ${SEED_ORDER_IDS.length} 单`);
-  } catch (e) {
-    console.warn(`  [seed] order seed 跳过(docker/mongo 不可达,mp-08/09 将空态):${String(e.message).slice(0, 80)}`);
-  }
-}
-
-// mp-07 address-list 经 self-scoped 门面 GET /api/addresses → users.get(me.id).addresses()。
-// 地址内嵌在用户文档(UserDocument.addresses: List<Address>,字段 id/name/phone/province/city/detail/isDefault),
-// 且随 dev-login 重建用户 _id 漂移 → 必须为当前 userId 运行时 seed,否则 mp-07 渲空态。best-effort。
-function seedAddressesFor(userId) {
-  // 用户文档 _id 是 ObjectId(Spring Data 把 24-hex String @Id 持久化为 ObjectId)→
-  // 字符串 _id 匹配 0 条。按 hex 形态选 ObjectId / 原值匹配。
-  const js = `const uid=${JSON.stringify(userId)};
-const q=/^[0-9a-fA-F]{24}$/.test(uid)?{_id:ObjectId(uid)}:{_id:uid};
-// 嵌入地址用 _id(Spring Data 把 Address.id 映射成嵌入文档 _id;写 id 字段读回为 null)。
-db.users.updateOne(q,{$set:{addresses:[
- {_id:"addr-001",name:"张伟",phone:"13800138001",province:"广东省",city:"深圳市",detail:"南山区科技园路 1 号海王大厦 12 楼",isDefault:true},
- {_id:"addr-002",name:"李娜",phone:"13900139002",province:"上海市",city:"上海市",detail:"浦东新区世纪大道 100 号环球金融中心 30 层",isDefault:false},
- {_id:"addr-003",name:"王芳",phone:"13700137003",province:"北京市",city:"北京市",detail:"朝阳区建国路 88 号 SOHO 现代城 B 座 1801",isDefault:false}
-]}});`;
-  try {
-    execFileSync('docker', ['exec', '-i', 'seafood-mongodb', 'mongosh', 'seafood', '--quiet', '--eval', js], { stdio: 'ignore' });
-    console.log(`  [seed] 已为当前 userId=${userId} seed 3 条地址`);
-  } catch (e) {
-    console.warn(`  [seed] address seed 跳过(docker/mongo 不可达,mp-07 将空态):${String(e.message).slice(0, 80)}`);
-  }
-}
-
-/** GET /api/products 取第一个商品 id。products fixture 无固定 _id,每次 reseed 都变 →
- *  detail 页商品 id 必须运行时取,不能硬编码(否则 reseed 后 404 "商品不存在")。 */
-function fetchFirstProductId() {
-  return new Promise((resolve) => {
-    http.get({ host: API_HOST, port: API_PORT, path: '/api/products?page=0&size=1' }, (res) => {
-      let s = '';
-      res.on('data', (d) => (s += d));
-      res.on('end', () => {
-        try {
-          const o = JSON.parse(s);
-          const list = Array.isArray(o) ? o : o.content;
-          resolve(list && list[0] ? list[0].id : null);
-        } catch (e) { resolve(null); }
-      });
-    }).on('error', () => resolve(null));
-  });
-}
-
-/** POST /api/auth/wechat-login,返回 { token, userId }(失败抛错,鉴权屏据此标 err)。 */
-function devLogin() {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({ code: DEV_CODE });
-    const req = http.request(
-      { host: API_HOST, port: API_PORT, path: '/api/auth/wechat-login', method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } },
-      (res) => {
-        let s = '';
-        res.on('data', (d) => (s += d));
-        res.on('end', () => {
-          try {
-            const o = JSON.parse(s);
-            const token = o.accessToken || o.token;
-            if (!token) return reject(new Error('login 无 accessToken: ' + s.slice(0, 120)));
-            const userId = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString()).sub;
-            resolve({ token, userId });
-          } catch (e) { reject(new Error('login 解析失败: ' + e.message)); }
-        });
-      },
-    );
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
 
 // 屏清单(参数化)。一律用 reLaunch(path):关闭页栈重开目标页 → onLoad 必触发 → 重新拉后端数据。
 // switchTab 到「已激活的 tabBar 页」不会重跑 onLoad,会截到上次的陈旧渲染(空态)。
@@ -146,8 +54,6 @@ const SCREENS = [
     waitFor: (d) => !d.isLoading && !!d.order },
 ];
 
-const race = (p, ms, l) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('TIMEOUT@' + l)), ms))]);
-
 /** 用 macOS 内置 sips 把 src 缩放到 w×h(归一化到 golden 尺寸,消除 DPR 差)。 */
 function normalize(src, w, h, out) {
   execFileSync('sips', ['-z', String(h), String(w), src, '--out', out], { stdio: 'ignore' });
@@ -159,42 +65,6 @@ function dims(png) {
     w: Number((o.match(/pixelWidth:\s*(\d+)/) || [])[1]),
     h: Number((o.match(/pixelHeight:\s*(\d+)/) || [])[1]),
   };
-}
-
-// 注入 dev 登录态。token 写 storage 不够 —— mp 有两套 request 层,取处不同,都喂:
-//  · utils/request.js(order-detail/address-list)读 app.globalData.token + storage 'token'
-//  · src/shared/api/request.js(OrderAPI→order-list)读 storage 'accessToken'/'refreshToken'
-// app onLaunch 只跑一次、reLaunch 不重跑,故同时写 storage 和 globalData。storage 全局
-// 持久、跨 navigateTo 不丢 → 在 home 上注入一次,后续 navigateTo 子页仍带 Authorization。
-async function injectAuth(mp, auth) {
-  await mp.evaluate(
-    (token, userInfo) => {
-      wx.setStorageSync('token', token);
-      wx.setStorageSync('accessToken', token);
-      wx.setStorageSync('refreshToken', token);
-      wx.setStorageSync('userInfo', userInfo);
-      try {
-        const app = getApp();
-        if (app && app.globalData) { app.globalData.token = token; app.globalData.userInfo = userInfo; }
-      } catch (e) { /* getApp 可能未就绪,storage 兜底 */ }
-    },
-    auth.token,
-    { id: auth.userId, openId: 'dev-visual', nickName: '视觉验收' },
-  );
-}
-
-/** 轮询 page.data() 直到 predicate(data) 为真或超时 → 防"异步取数未完成就截图"的空态假信号。 */
-async function waitForData(mp, predicate, maxMs) {
-  const deadline = Date.now() + maxMs;
-  while (Date.now() < deadline) {
-    try {
-      const pg = await mp.currentPage();
-      const data = pg && (await pg.data());
-      if (data && predicate(data)) return true;
-    } catch (e) { /* currentPage/data 偶抛,继续轮询 */ }
-    await new Promise((r) => setTimeout(r, 400));
-  }
-  return false;
 }
 
 async function captureActual(mp, screen, auth) {
