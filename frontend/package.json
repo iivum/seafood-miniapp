@@ -10,6 +10,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:e2e": "jest --testPathIgnorePatterns /node_modules/ e2e/",
     "test:visual": "node e2e/tools/visual-diff.cjs",
     "test:geometry": "node e2e/tools/geometry-diff.cjs",
     "lint": "eslint . --ext .js,.ts",
@@ -39,6 +40,10 @@
     "testMatch": [
       "**/__tests__/**/*.[jt]s?(x)",
       "**/?(*.)+(spec|test).[tj]s?(x)"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/e2e/"
     ],
     "transform": {
       "^.+\\.(ts|tsx)$": "ts-jest"
