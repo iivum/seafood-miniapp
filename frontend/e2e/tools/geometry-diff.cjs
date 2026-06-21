@@ -25,6 +25,7 @@
 const automator = require('miniprogram-automator');
 const path = require('node:path');
 const fs = require('node:fs');
+const { devLogin, injectAuth, seedCartFor, fetchProductIds } = require('./mp-harness.cjs');
 
 const WS = process.env.WS_ENDPOINT || 'ws://127.0.0.1:9420';
 const GEOM = path.resolve(__dirname, '../od-geometry');
@@ -91,22 +92,57 @@ function ok(check, actual) {
   return false;
 }
 
+/** 轮询单 selector 直到 ≥1 匹配且首高>0,或超时 → 防 auth 屏异步取数未完成就量(空态假信号)。 */
+async function waitForSelector(mp, selector, maxMs) {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    try {
+      const raw = await measureAll(mp, [{ selector }]);
+      if (raw[0] && raw[0].some((r) => (r.h || 0) > 0)) return true;
+    } catch (e) { /* 偶抛,继续轮询 */ }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return false;
+}
+
 (async () => {
   const only = process.argv[2];
   const files = fs.readdirSync(GEOM).filter((f) => f.endsWith('.json') && (!only || f === only + '.json'));
   if (!files.length) { console.error('no geometry spec', only || ''); process.exit(2); }
 
+  const specs = files.map((f) => JSON.parse(fs.readFileSync(path.join(GEOM, f), 'utf8')));
+
+  // 任一选中屏标 auth → dev 登录拿 token + 按需 seed(cart)。失败不致命:该屏量到空态、check 红。
+  let auth = null;
+  if (specs.some((s) => s.auth)) {
+    try {
+      auth = await devLogin();
+      console.log(`  [auth] dev 登录 ok,userId=${auth.userId}`);
+      if (specs.some((s) => s.screen === 'mp-04-cart')) {
+        const pids = await fetchProductIds(2);
+        if (pids.length) seedCartFor(auth.userId, pids);
+        else console.warn('  [seed] 取 product id 失败 → cart 将空态');
+      }
+    } catch (e) { console.warn(`  [auth] dev 登录失败(鉴权屏将渲染未登录态):${e.message}`); }
+  }
+
   const mp = await race(automator.connect({ wsEndpoint: WS }), 20000, 'connect');
   const out = [];
-  for (const f of files) {
-    const spec = JSON.parse(fs.readFileSync(path.join(GEOM, f), 'utf8'));
+  for (const spec of specs) {
     const route = ROUTES[spec.screen];
     const rec = { screen: spec.screen, checks: [] };
     if (!route) { rec.err = 'no route for ' + spec.screen; out.push(rec); continue; }
     try {
+      // auth 屏:reLaunch 前注入登录态(globalData 持久、storage 兜底);onShow 据此放行不跳登录。
+      if (spec.auth && auth) await injectAuth(mp, auth);
       // best-effort reLaunch(部分 tabBar 页 promise 不 resolve,但页面已加载)
       await race(mp.reLaunch(route), 6000, 'reLaunch').catch(() => {});
       await new Promise((r) => setTimeout(r, 4000));
+      // 数据屏:固定 sleep 后再轮询关键 selector 就绪,抢不过异步取数时不量空态(最多再等 9s)。
+      if (spec.waitForSelector) {
+        const ready = await waitForSelector(mp, spec.waitForSelector, 9000);
+        if (!ready) console.warn(`    [wait] ${spec.screen} ${spec.waitForSelector} 未就绪(9s)→ 可能量到空态`);
+      }
       const raw = await measureAll(mp, spec.checks);
       spec.checks.forEach((c, i) => {
         const m = metricOf(c, raw[i] || []);
