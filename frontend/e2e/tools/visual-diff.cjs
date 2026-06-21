@@ -16,6 +16,7 @@
 const automator = require('miniprogram-automator');
 const { compare } = require('odiff-bin');
 const { execFileSync } = require('node:child_process');
+const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
 
@@ -24,16 +25,57 @@ const THRESHOLD_PCT = Number(process.env.VISUAL_THRESHOLD || 5);
 const SHOTS = path.resolve(__dirname, '../screenshots');
 const GOLD = path.resolve(__dirname, '../od-golden');
 
-// 屏清单(参数化,后续扩到 9 屏只加条目)。
-// 一律用 reLaunch(path):关闭页栈重开目标页 → onLoad 必触发 → 重新拉后端数据。
+// 鉴权页用:运行时 dev wechat-login 拿一枚新 accessToken(JWT exp ~15min,必须现取)。
+// 同时把 sub(userId)解出来 —— mp-08/09 走 /orders 由 JWT principal 强制 own,
+// mp-07 address-list url 含 userInfo.id,二者都要这个 id 与 seed 的订单/地址对齐。
+const API_HOST = process.env.API_HOST || '127.0.0.1';
+const API_PORT = Number(process.env.API_PORT || 8080);
+const DEV_CODE = process.env.DEV_LOGIN_CODE || 'dev-visual-001';
+// detail 页商品 id:seed 后的真实 ObjectId(默认取 三文鱼;可用 PRODUCT_ID 覆盖)。
+const PRODUCT_ID = process.env.PRODUCT_ID || '6a35ef4910b7ca87d8b3c667';
+// order-detail 已知订单 id(见 run-visual.sh seed 步,归属 DEV_CODE 对应用户)。
+const ORDER_ID = process.env.ORDER_ID || 'v2.1-closure-order-001';
+
+/** POST /api/auth/wechat-login,返回 { token, userId }(失败抛错,鉴权屏据此标 err)。 */
+function devLogin() {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ code: DEV_CODE });
+    const req = http.request(
+      { host: API_HOST, port: API_PORT, path: '/api/auth/wechat-login', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } },
+      (res) => {
+        let s = '';
+        res.on('data', (d) => (s += d));
+        res.on('end', () => {
+          try {
+            const o = JSON.parse(s);
+            const token = o.accessToken || o.token;
+            if (!token) return reject(new Error('login 无 accessToken: ' + s.slice(0, 120)));
+            const userId = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString()).sub;
+            resolve({ token, userId });
+          } catch (e) { reject(new Error('login 解析失败: ' + e.message)); }
+        });
+      },
+    );
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// 屏清单(参数化)。一律用 reLaunch(path):关闭页栈重开目标页 → onLoad 必触发 → 重新拉后端数据。
 // switchTab 到「已激活的 tabBar 页」不会重跑 onLoad,会截到上次的陈旧渲染(空态)。
+// auth:true → 截图前注入 dev 登录态(token 写 storage + app.globalData,见 captureActual)。
 const SCREENS = [
   { name: 'mp-01-home', path: '/pages/index/index' },
   { name: 'mp-02-category', path: '/pages/category/category' },
+  { name: 'mp-03-product-detail', path: `/pages-sub/product/product-detail/product-detail?id=${PRODUCT_ID}` },
   { name: 'mp-04-cart', path: '/pages/cart/cart' },
   { name: 'mp-05-profile', path: '/pages/profile/profile' },
-  // 分包带参页(mp-03 detail / mp-06 confirm / mp-07 address / mp-08 list / mp-09 detail)
-  // 需 product/order id + 登录态,留下游(需先建可复现的 seed 订单/地址夹具)。
+  { name: 'mp-06-order-confirm', path: '/pages-sub/order/order-confirm/order-confirm', auth: true },
+  { name: 'mp-07-address', path: '/pages-sub/user/address/address-list', auth: true },
+  { name: 'mp-08-order-list', path: '/pages-sub/order/order-list/order-list', auth: true },
+  { name: 'mp-09-order-detail', path: `/pages-sub/order/order-detail/order-detail?id=${ORDER_ID}`, auth: true },
 ];
 
 const race = (p, ms, l) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('TIMEOUT@' + l)), ms))]);
@@ -51,8 +93,30 @@ function dims(png) {
   };
 }
 
-async function captureActual(mp, screen) {
+async function captureActual(mp, screen, auth) {
   const out = path.join(SHOTS, `${screen.name}-actual.png`);
+  // 鉴权屏:reLaunch 前注入 dev 登录态。token 写 storage 不够 —— request.js 读
+  // app.globalData.token(line 28),而 app onLaunch 只跑一次、reLaunch 不重跑,
+  // 故同时写 storage 和 globalData,确保 needAuth 请求带上 Authorization。
+  if (screen.auth && auth) {
+    // mp 有两套 request 层,token 取处不同,两套都喂:
+    //  · utils/request.js(order-detail/address-list)读 app.globalData.token + storage 'token'
+    //  · src/shared/api/request.js(OrderAPI→order-list)读 storage 'accessToken'/'refreshToken'
+    await mp.evaluate(
+      (token, userInfo) => {
+        wx.setStorageSync('token', token);
+        wx.setStorageSync('accessToken', token);
+        wx.setStorageSync('refreshToken', token);
+        wx.setStorageSync('userInfo', userInfo);
+        try {
+          const app = getApp();
+          if (app && app.globalData) { app.globalData.token = token; app.globalData.userInfo = userInfo; }
+        } catch (e) { /* getApp 可能未就绪,storage 兜底 */ }
+      },
+      auth.token,
+      { id: auth.userId, openId: 'dev-visual', nickName: '视觉验收' },
+    );
+  }
   // reLaunch 保证 onLoad 重跑 → 反映当前后端状态(非陈旧空态)。tab/普通页通吃。
   // best-effort:部分 tabBar 页(如 cart)reLaunch 的 promise 不 resolve(automator
   // 已知怪癖),但页面实际已导航完成。故超时不致命,catch 后照常 wait+screenshot。
@@ -67,13 +131,20 @@ async function captureActual(mp, screen) {
   const screens = only ? SCREENS.filter((s) => s.name === only) : SCREENS;
   if (!screens.length) { console.error('no such screen:', only); process.exit(2); }
 
+  // 任一选中屏需鉴权 → 先 dev 登录拿一枚新 token(失败不致命:鉴权屏各自标 err)。
+  let auth = null;
+  if (screens.some((s) => s.auth)) {
+    try { auth = await devLogin(); console.log(`  [auth] dev 登录 ok,userId=${auth.userId}`); }
+    catch (e) { console.warn(`  [auth] dev 登录失败(鉴权屏将渲染未登录态):${e.message}`); }
+  }
+
   const mp = await race(automator.connect({ wsEndpoint: WS }), 20000, 'connect');
   const results = [];
   for (const s of screens) {
     const golden = path.join(GOLD, `${s.name}.png`);
     if (!fs.existsSync(golden)) { results.push({ name: s.name, err: 'golden 缺失:' + golden }); continue; }
     try {
-      const actual = await captureActual(mp, s);
+      const actual = await captureActual(mp, s, auth);
       const g = dims(golden);
       const norm = path.join(SHOTS, `${s.name}-actual-norm.png`);
       normalize(actual, g.w, g.h, norm); // 归一化到 golden 尺寸

@@ -24,9 +24,12 @@ global.getCurrentPages = jest.fn(() => [
   { route: 'pages-sub/user/address/address-list' },
 ]);
 
-// Mock request
+// Mock request —— 真实 utils/request.js 导出 { request, authRequest }(对象,非裸函数)。
+// 原 mock 返裸函数,与真实模块形态不符,导致 address-list 误用 `const request = require()`
+// 也能通过测试(假绿),而生产环境拿到对象 → "request is not a function" 崩。
+// 对齐真实导出形态,确保 prod 的 `const { request } = require()` 与测试一致。
 const mockRequest = jest.fn().mockResolvedValue([]);
-jest.mock('../../../../utils/request.js', () => mockRequest);
+jest.mock('../../../../utils/request.js', () => ({ request: mockRequest, authRequest: jest.fn() }));
 
 // Capture Page config
 let pageConfig;

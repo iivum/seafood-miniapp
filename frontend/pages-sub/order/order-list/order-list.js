@@ -11,7 +11,9 @@
 const { orderStore } = require('../../../src/features/order/store');
 const { OrderAPI } = require('../../../src/features/order/api');
 const { cartStore } = require('../../../src/features/cart/store');
-const { wx } = require('../../../src/shared/wx');
+// wx 是 mp 运行时全局,直接用即可。原 `require('../../../src/shared/wx')` 指向不存在的
+// 模块(从未建),导致页面加载即抛 "module 'src/shared/wx.js' is not defined" → 白屏。
+// C5 感知层 mp-08 截到全白即此 bug;删除该 dangling require 修复。
 
 const STATUS_LABEL = {
   PENDING: '待付款',
