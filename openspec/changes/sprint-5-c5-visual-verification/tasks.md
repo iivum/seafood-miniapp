@@ -27,7 +27,14 @@
 
 ## 4. 铺开 + 取代 + 文档
 
-- [x] 4.1 **4 个 tab 页全接入**(SCREENS 参数化):mp-01-home / mp-02-category / mp-04-cart / mp-05-profile。golden 经 Playwright 渲 OD mockup(390×762)提交 `od-golden/`。全 RED:home 60.28% / category 66.38% / cart 53.29% / profile 70.13% —— 4 tab 页全部显著偏离 OD,印证「多屏不可用」。**harness 加固**:① per-screen try/catch(单屏失败不致命)② reLaunch best-effort(cart 等 tabBar 页 reLaunch promise 不 resolve 但页面实已加载 → catch 超时后照常截图)。**余 5 分包带参页**(mp-03 detail / 06 confirm / 07 address / 08 list / 09 detail)需 product/order id + 登录态 + 可复现夹具,留下游 4.1b
+- [x] 4.1 **4 个 tab 页全接入**(SCREENS 参数化):mp-01-home / mp-02-category / mp-04-cart / mp-05-profile。golden 经 Playwright 渲 OD mockup(390×762)提交 `od-golden/`。全 RED:home 60.28% / category 66.38% / cart 53.29% / profile 70.13% —— 4 tab 页全部显著偏离 OD,印证「多屏不可用」。**harness 加固**:① per-screen try/catch(单屏失败不致命)② reLaunch best-effort(cart 等 tabBar 页 reLaunch promise 不 resolve 但页面实已加载 → catch 超时后照常截图)。
+- [x] 4.1b **余 5 分包带参页接入 + 起全栈铺满 9 屏**(commit `e15c92a` 后续):
+  - **全栈起法升级**:旧 `seafood-backend:jvm` 镜像(2026-06-14)早于 banner 提交 → `/api/banners` 403。改 `./gradlew bootRun` 跑**当前源码**(本机 GraalVM 25 toolchain),banner/order/product 全端点反映最新代码;mongo 仍 27017 直连。
+  - **harness 扩展**:visual-diff.cjs 加 mp-03/06/07/08/09(带参 url + `auth:true`);运行时 dev wechat-login 取新 JWT(exp ~15min 必现取)+ 解 sub 作 userId;鉴权屏注入双套 token key(storage `token`+globalData 给 utils/request;`accessToken`/`refreshToken` 给 src/shared/api/request)。9 golden 全渲染提交。
+  - **过程抓出并修 2 个真 bug**(C5 价值兑现):① mp-08 order-list 白屏 = `require('../../../src/shared/wx')` dangling(模块从未建)→ 删(wx 全局);② mp-07 address 崩 = `const request = require('utils/request')` 未解构(模块导出 `{request,authRequest}`)→ 解构 + 修假绿单测(原 mock 裸函数)。
+  - **9 屏 baseline(全 RED,阈值 5%)**:home 46% / category 41% / detail 61% / cart 20% / profile 45% / confirm 31% / address 32% / order-list 27% / order-detail 29%。
+  - **⚠️ 已知局限(下游)**:automator reLaunch 对深层分包带参页 **flaky** —— 捕获偶落回 home(探针那次落对、截图那次落 home),**4 tab 页捕获可靠、5 分包页不稳**;稳健化需走 app 真实流转(reLaunch home → navigateTo 子页)或对分包页只用几何层。
+  - **后端缺口实录**:`/api/addresses` 无 AddressController → 403(domain 层 Address 在,REST 未接);order 数据需为**当前 dev-login 用户**运行时 seed(dev 登录按 code 确定性,但 userId 环境生成,静态 fixture 对不上)。
 - [x] 4.2 **删除 `mp-od-design.test.ts` 静态 grep**:该文件两段均已被取代——L1 结构段 = `.wxml` 源码 `content.includes(class名)` 假信号(只证字符串在,抓不住 home grid 1 列/banner 缺这类真实渲染崩坏),由几何层(渲染态、设备框免疫)+ `mp-3layer.test.ts`(渲染后 outerWxml 正则,8 屏)取代;L4 token 段与 `token-parity.test.ts` 重复且后者更严(真 CTA 配对算 ΔE/contrast 4.5 vs 硬编码 hex 正则自检 + contrast>2.0 弱断言)。删后单跑 `token-parity.test.ts` 8 例全 PASS,token 覆盖完整保留
 - [x] 4.3 **改 CLAUDE.md**:已废弃「像素 diff 太脆」旧说法 → 「感知 diff 主门 + 4 层辅」;`e2e/tools/README.md` 记跑法/golden 配方
 - [x] 4.4 commit(见下;本 slice)
@@ -37,7 +44,13 @@
 - [ ] 5.1 回填 roadmap(待 C5 全量完成)
 - [ ] 5.2 归档(待几何 + 全 9 屏 + 删旧 test 完成)
 
-> **下游 backlog**:① 几何层 ✅ **完成**(home+category 两屏,mp.evaluate 原生查询)② 4 tab 页感知 ✅ + 余 5 分包带参页留下游 4.1b ③ 删 `mp-od-design.test.ts` ✅ **完成**(取代理由见 4.2)④ ✅ 后端 seed 真信号
+> **下游 backlog**:① 几何层 ✅(home+category;余 7 屏待铺,分包页**优先用几何**因感知 reLaunch 不稳)② 9 屏感知 ✅ **完成**(4.1b;4 tab 可靠 + 5 分包带参 flaky)③ 删 `mp-od-design.test.ts` ✅(取代理由见 4.2)④ ✅ 后端 seed 真信号
+>
+> **剩余下游(C5 收尾后续)**:
+> - **a. 分包页捕获稳健化**:automator reLaunch 深层带参页 flaky → 改走 app 真实流转(reLaunch home → navigateTo 子页 + 等元素)或对分包页**只跑几何层**(几何用 mp.evaluate boundingClientRect 不受 reLaunch flaky 影响)。
+> - **b. 几何层铺到 9 屏**:为 mp-03~09 写 `od-geometry/<screen>.json` 结构不变量。
+> - **c. order/address 数据可复现**:run-visual.sh 加「dev-login → 取 sub → 为该 userId seed orders」步;address 待后端补 AddressController(REST 接 domain)。
+> - **d. 逐屏修复(RED→GREEN)**:9 屏 baseline 全 RED,按 diff 图逐屏对齐 OD(home 46%/detail 61% 等)。
 >
 > **逐屏修复(RED→GREEN)进展**:几何层驱动修复已让 **home 全 GREEN**:
 > - grid 实际 1 列(应 2)→ 改 flex-wrap(`a7abec7`,根因:WeChat mp 不生效 display:grid)
