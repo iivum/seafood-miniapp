@@ -31,8 +31,9 @@ const GOLD = path.resolve(__dirname, '../od-golden');
 const API_HOST = process.env.API_HOST || '127.0.0.1';
 const API_PORT = Number(process.env.API_PORT || 8080);
 const DEV_CODE = process.env.DEV_LOGIN_CODE || 'dev-visual-001';
-// detail 页商品 id:seed 后的真实 ObjectId(默认取 三文鱼;可用 PRODUCT_ID 覆盖)。
-const PRODUCT_ID = process.env.PRODUCT_ID || '6a35ef4910b7ca87d8b3c667';
+// detail 页商品 id:products fixture 无固定 _id,reseed 即变 → 默认运行时取(见 fetchFirstProductId);
+// 仅当 PRODUCT_ID 环境变量显式给定时才用它。
+const PRODUCT_ID = process.env.PRODUCT_ID || null;
 // order-detail 已知订单 id(见 run-visual.sh seed 步,归属 DEV_CODE 对应用户)。
 const ORDER_ID = process.env.ORDER_ID || 'v2.1-closure-order-001';
 
@@ -55,6 +56,24 @@ db.orders.insertMany([
   } catch (e) {
     console.warn(`  [seed] order seed 跳过(docker/mongo 不可达,mp-08/09 将空态):${String(e.message).slice(0, 80)}`);
   }
+}
+
+/** GET /api/products 取第一个商品 id。products fixture 无固定 _id,每次 reseed 都变 →
+ *  detail 页商品 id 必须运行时取,不能硬编码(否则 reseed 后 404 "商品不存在")。 */
+function fetchFirstProductId() {
+  return new Promise((resolve) => {
+    http.get({ host: API_HOST, port: API_PORT, path: '/api/products?page=0&size=1' }, (res) => {
+      let s = '';
+      res.on('data', (d) => (s += d));
+      res.on('end', () => {
+        try {
+          const o = JSON.parse(s);
+          const list = Array.isArray(o) ? o : o.content;
+          resolve(list && list[0] ? list[0].id : null);
+        } catch (e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
 }
 
 /** POST /api/auth/wechat-login,返回 { token, userId }(失败抛错,鉴权屏据此标 err)。 */
@@ -90,7 +109,7 @@ function devLogin() {
 const SCREENS = [
   { name: 'mp-01-home', path: '/pages/index/index' },
   { name: 'mp-02-category', path: '/pages/category/category' },
-  { name: 'mp-03-product-detail', path: `/pages-sub/product/product-detail/product-detail?id=${PRODUCT_ID}` },
+  { name: 'mp-03-product-detail', path: '/pages-sub/product/product-detail/product-detail', productDetail: true },
   { name: 'mp-04-cart', path: '/pages/cart/cart' },
   { name: 'mp-05-profile', path: '/pages/profile/profile' },
   { name: 'mp-06-order-confirm', path: '/pages-sub/order/order-confirm/order-confirm', auth: true },
@@ -183,6 +202,14 @@ async function captureActual(mp, screen, auth) {
       console.log(`  [auth] dev 登录 ok,userId=${auth.userId}`);
       seedOrdersFor(auth.userId); // 为当前 login 用户 seed 订单(否则 _id 漂移导致空态)
     } catch (e) { console.warn(`  [auth] dev 登录失败(鉴权屏将渲染未登录态):${e.message}`); }
+  }
+
+  // detail 屏:运行时取真实 product id 拼 url(硬编码会因 reseed 失效 → 404 "商品不存在")。
+  const pd = screens.find((s) => s.productDetail);
+  if (pd) {
+    const pid = PRODUCT_ID || (await fetchFirstProductId());
+    if (pid) { pd.path = `${pd.path}?id=${pid}`; console.log(`  [product] detail 用 product id=${pid}`); }
+    else { console.warn('  [product] 取 product id 失败(后端无商品?)→ mp-03 将渲空'); }
   }
 
   const mp = await race(automator.connect({ wsEndpoint: WS }), 20000, 'connect');
