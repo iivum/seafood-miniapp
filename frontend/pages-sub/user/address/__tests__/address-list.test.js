@@ -83,11 +83,13 @@ describe('address-list', () => {
     appInstance.globalData.userInfo = { id: 'user-1', nickname: 'Test' };
   });
 
-  it('loadAddresses fetches addresses for user', () => {
+  it('loadAddresses fetches self-scoped addresses', () => {
+    // 后端 AddressController 是 self-scoped 门面:GET /api/addresses 从 JWT 取 userId,
+    // 不再在 URL 带 userId(原 /addresses/user/{id} 后端无对应端点)。
     mockRequest.mockResolvedValueOnce([{ id: 'a1' }]);
     ctx.loadAddresses();
     expect(mockRequest).toHaveBeenCalledWith({
-      url: '/addresses/user/user-1',
+      url: '/addresses',
       needAuth: true,
     });
   });

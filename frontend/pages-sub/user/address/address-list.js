@@ -39,7 +39,8 @@ Page({
     }
 
     request({
-      url: `/addresses/user/${userInfo.id}`,
+      // self-scoped:后端 GET /api/addresses 从 JWT 取 userId,URL 不带 id。
+      url: `/addresses`,
       needAuth: true
     })
     .then(res => {
