@@ -74,7 +74,7 @@ describe('features/cart/store', () => {
   it('getItemCount(): returns totalQuantity', () => {
     cartStore['_state' as keyof typeof cartStore]; // satisfy noUnused
     cartStore['_setState' as keyof typeof cartStore];
-    (cartStore as unknown as { state: Cart }).state = {
+    (cartStore as unknown as { state: { cart: Cart; isLoading: boolean; isError: boolean; errorMessage: string | null } }).state = {
       cart: { ...sampleCart },
       isLoading: false,
       isError: false,

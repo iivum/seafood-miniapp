@@ -166,7 +166,7 @@ describe('shared/api/request', () => {
     it('refreshes once, retries the original request, returns the retry result', async () => {
       tokenStorage.setTokens('expired', 'refresh-1');
       // 1) original → 401, 2) refresh → ok, 3) retry → ok
-      setNextWxResponse([
+      setNextWxResponse<unknown>([
         makeWxSuccess({ code: 'TOKEN_EXPIRED', message: 'expired' }, 401),
         makeWxSuccess({ accessToken: 'new-access', refreshToken: 'new-refresh' }),
         makeWxSuccess({ ok: true }),

@@ -33,7 +33,7 @@
     // "types": [],                                      /* Specify type package names to be included without a path. */
     // "allowUmdGlobalAccess": true,                     /* Allow accessing UMD globals from modules. */
     "moduleResolution": "node16",                        /* Enable Node.js style module resolution. */
-    // "resolveJsonModule": true,                        /* Enable importing .json files. */
+    "resolveJsonModule": true,                           /* 允许 import .json(tokens/index.ts 导入 admin-design/tokens.json)。 */
     // "allowArbitraryExtensions": true,                 /* Enable importing files with any extension, provided a declaration file is present. */
     // "resolvePackageJsonExports": true,                /* Turn on imports using the package.json 'exports' field. */
     // "resolvePackageJsonImports": true,                /* Turn on imports using the package.json 'imports' field. */
@@ -104,11 +104,23 @@
     // "allowUnusedLabels": true,                        /* Disable error reporting for unused labels. */
     // "allowUnreachableCode": true,                     /* Disable error reporting for unreachable code. */
 
+    /* JavaScript Support — mp 页(.js)与测试 harness(.cjs)是 CommonJS。纳入 Node16
+       程序后识别为 CJS(package.json 无 "type")→ 消除 tsserver 误报的 80001
+       "File is a CommonJS module; it may be converted to an ES module";checkJs:false
+       不类型检查 JS → 消除 6133 等 JS 侧噪声诊断。 */
+    "allowJs": true,
+    "checkJs": false,
+
+    /* Type packages: Jest + WeChat Mini-Program + Node(.cjs harness 用 require/Buffer/process)。
+       必须在 compilerOptions 内 —— 原 bug:此键放在顶层被 TS 忽略,导致所有 .test.ts 的
+       expect/it/describe/jest 报 TS2304/TS2503(602 错误的主因)。 */
+    "types": ["jest", "miniprogram-api-typings", "node"],
+
     /* Completeness */
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that come from the standard library. */
     "skipLibCheck": true                                 /* Skip type checking of all .d.ts files. */
   },
 
-  /* Type packages: Jest + WeChat Mini-Program types */
-  "types": ["jest", "miniprogram-api-typings"]
+  "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.cjs"],
+  "exclude": ["node_modules", "miniprogram_npm", "dist"]
 }
