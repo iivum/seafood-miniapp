@@ -131,13 +131,19 @@ function devLogin() {
 const SCREENS = [
   { name: 'mp-01-home', path: '/pages/index/index' },
   { name: 'mp-02-category', path: '/pages/category/category' },
-  { name: 'mp-03-product-detail', path: '/pages-sub/product/product-detail/product-detail', productDetail: true },
+  // waitFor:截图前轮询 page.data() 到内容就绪 —— 固定 4s sleep 在多屏顺序跑里偶尔抢不过
+  // 异步取数(order-list 实证),截到空态假信号。数据屏给谓词,非数据屏走固定 sleep。
+  { name: 'mp-03-product-detail', path: '/pages-sub/product/product-detail/product-detail', productDetail: true,
+    waitFor: (d) => !d.isLoading && !!d.product },
   { name: 'mp-04-cart', path: '/pages/cart/cart' },
   { name: 'mp-05-profile', path: '/pages/profile/profile' },
   { name: 'mp-06-order-confirm', path: '/pages-sub/order/order-confirm/order-confirm', auth: true },
-  { name: 'mp-07-address', path: '/pages-sub/user/address/address-list', auth: true },
-  { name: 'mp-08-order-list', path: '/pages-sub/order/order-list/order-list', auth: true },
-  { name: 'mp-09-order-detail', path: `/pages-sub/order/order-detail/order-detail?id=${ORDER_ID}`, auth: true },
+  { name: 'mp-07-address', path: '/pages-sub/user/address/address-list', auth: true,
+    waitFor: (d) => Array.isArray(d.addresses) && d.addresses.length > 0 },
+  { name: 'mp-08-order-list', path: '/pages-sub/order/order-list/order-list', auth: true,
+    waitFor: (d) => Array.isArray(d.orders) && d.orders.length > 0 },
+  { name: 'mp-09-order-detail', path: `/pages-sub/order/order-detail/order-detail?id=${ORDER_ID}`, auth: true,
+    waitFor: (d) => !d.isLoading && !!d.order },
 ];
 
 const race = (p, ms, l) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('TIMEOUT@' + l)), ms))]);
@@ -177,6 +183,20 @@ async function injectAuth(mp, auth) {
   );
 }
 
+/** 轮询 page.data() 直到 predicate(data) 为真或超时 → 防"异步取数未完成就截图"的空态假信号。 */
+async function waitForData(mp, predicate, maxMs) {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    try {
+      const pg = await mp.currentPage();
+      const data = pg && (await pg.data());
+      if (data && predicate(data)) return true;
+    } catch (e) { /* currentPage/data 偶抛,继续轮询 */ }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  return false;
+}
+
 async function captureActual(mp, screen, auth) {
   const out = path.join(SHOTS, `${screen.name}-actual.png`);
   const isSub = screen.path.startsWith('/pages-sub/');
@@ -206,6 +226,11 @@ async function captureActual(mp, screen, auth) {
     if (screen.auth && auth) await injectAuth(mp, auth);
     await race(mp.reLaunch(screen.path), 6000, 'reLaunch').catch(() => {});
     await new Promise((r) => setTimeout(r, 4000));
+  }
+  // 数据屏:固定 sleep 后再轮询内容就绪,抢不过异步取数时不截空态(最多再等 9s)。
+  if (screen.waitFor) {
+    const ready = await waitForData(mp, screen.waitFor, 9000);
+    if (!ready) console.warn(`    [wait] ${screen.name} 内容未就绪(9s 超时)→ 可能截到空态/loading`);
   }
   await race(mp.screenshot({ path: out }), 15000, 'screenshot');
   return out;
