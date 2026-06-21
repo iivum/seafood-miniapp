@@ -95,7 +95,10 @@ function callWx(options) {
 }
 
 function isWxFail(x) {
-  return !!x && typeof x === 'object' && 'errMsg' in x;
+  // mp 的 wx.request 成功回调 res 也含 errMsg("request:ok") → 不能用 `'errMsg' in x` 判失败,
+  // 否则每个成功响应都被误判为 NETWORK fail(C5 mp-08/mp-03 实证:order/product 数据全加载不出)。
+  // 失败结果无 statusCode,成功必有 number statusCode → 以此区分。
+  return !x || typeof x !== 'object' || typeof x.statusCode !== 'number';
 }
 
 function classify401(body) {
