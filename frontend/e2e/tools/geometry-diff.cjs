@@ -25,7 +25,10 @@
 const automator = require('miniprogram-automator');
 const path = require('node:path');
 const fs = require('node:fs');
-const { devLogin, injectAuth, seedCartFor, fetchProductIds } = require('./mp-harness.cjs');
+const {
+  devLogin, injectAuth, seedCartFor, fetchProductIds, fetchFirstProductId,
+  seedOrdersFor, seedAddressesFor, seedBanners,
+} = require('./mp-harness.cjs');
 
 const WS = process.env.WS_ENDPOINT || 'ws://127.0.0.1:9420';
 const GEOM = path.resolve(__dirname, '../od-geometry');
@@ -112,32 +115,75 @@ async function waitForSelector(mp, selector, maxMs) {
 
   const specs = files.map((f) => JSON.parse(fs.readFileSync(path.join(GEOM, f), 'utf8')));
 
-  // 任一选中屏标 auth → dev 登录拿 token + 按需 seed(cart)。失败不致命:该屏量到空态、check 红。
+  // banner seed(全局公共读,无 userId/auth 依赖)→ 任一屏标 seed:["banners"] 即 seed。
+  if (specs.some((s) => (s.seed || []).includes('banners'))) seedBanners();
+
+  // productParam 屏(detail,公共页):运行时取真实 product id(reseed 后硬编码会 404)。
+  let productId = null;
+  if (specs.some((s) => s.productParam)) {
+    productId = await fetchFirstProductId();
+    if (productId) console.log(`  [product] detail 用 product id=${productId}`);
+    else console.warn('  [product] 取 product id 失败 → mp-03 将空');
+  }
+
+  // 任一 auth 屏 → dev 登录 + 按需 seed(cart/orders/addresses)。失败不致命:该屏量空态、check 红。
   let auth = null;
   if (specs.some((s) => s.auth)) {
     try {
       auth = await devLogin();
       console.log(`  [auth] dev 登录 ok,userId=${auth.userId}`);
-      if (specs.some((s) => s.screen === 'mp-04-cart')) {
+      const needSeed = (kind) => specs.some((s) =>
+        (s.seed || []).includes(kind) || (kind === 'cart' && s.screen === 'mp-04-cart'));
+      if (needSeed('cart')) {
         const pids = await fetchProductIds(2);
         if (pids.length) seedCartFor(auth.userId, pids);
         else console.warn('  [seed] 取 product id 失败 → cart 将空态');
       }
+      if (needSeed('orders')) seedOrdersFor(auth.userId);
+      if (needSeed('addresses')) seedAddressesFor(auth.userId);
     } catch (e) { console.warn(`  [auth] dev 登录失败(鉴权屏将渲染未登录态):${e.message}`); }
   }
 
   const mp = await race(automator.connect({ wsEndpoint: WS }), 20000, 'connect');
   const out = [];
   for (const spec of specs) {
-    const route = ROUTES[spec.screen];
+    const baseRoute = spec.route || ROUTES[spec.screen];
     const rec = { screen: spec.screen, checks: [] };
-    if (!route) { rec.err = 'no route for ' + spec.screen; out.push(rec); continue; }
+    if (!baseRoute) { rec.err = 'no route for ' + spec.screen; out.push(rec); continue; }
+    // 拼带参 route:detail 用运行时 product id;order-detail 用已知 order id。
+    let route = baseRoute;
+    if (spec.productParam) {
+      if (!productId) { rec.err = 'productParam 屏但无 product id'; out.push(rec); continue; }
+      route = `${baseRoute}?id=${productId}`;
+    } else if (spec.orderId) {
+      route = `${baseRoute}?id=${spec.orderId}`;
+    }
+    const isSub = baseRoute.startsWith('/pages-sub/');
     try {
-      // auth 屏:reLaunch 前注入登录态(globalData 持久、storage 兜底);onShow 据此放行不跳登录。
-      if (spec.auth && auth) await injectAuth(mp, auth);
-      // best-effort reLaunch(部分 tabBar 页 promise 不 resolve,但页面已加载)
-      await race(mp.reLaunch(route), 6000, 'reLaunch').catch(() => {});
-      await new Promise((r) => setTimeout(r, 4000));
+      if (isSub) {
+        // 分包带参页:reLaunch 直达深层页 flaky(automator 偶落回 home)→ 走 app 真实流转:
+        // reLaunch(home) → 注入登录态 → navigateTo(子页) → 校验 currentPage 落对 → 不对重试。
+        const base = baseRoute.replace(/^\//, '');
+        let landed = false;
+        for (let attempt = 0; attempt < 2 && !landed; attempt++) {
+          await race(mp.reLaunch('/pages/index/index'), 6000, 'reLaunch-home').catch(() => {});
+          await new Promise((r) => setTimeout(r, 1500));
+          if (spec.auth && auth) await injectAuth(mp, auth);
+          await race(mp.navigateTo(route), 6000, 'navigateTo').catch(() => {});
+          await new Promise((r) => setTimeout(r, 4000));
+          try {
+            const pg = await mp.currentPage();
+            landed = !!(pg && pg.path && pg.path.indexOf(base) !== -1);
+          } catch (e) { /* currentPage 偶抛,landed 保持 false 触发重试 */ }
+          if (!landed) console.warn(`    [nav] ${spec.screen} 落点非 ${base}(attempt ${attempt + 1}/2),重试…`);
+        }
+        if (!landed) { rec.err = `navigateTo 未落到 ${base}(分包页 flaky,2 次重试均失败)`; out.push(rec); continue; }
+      } else {
+        // tab/普通页:reLaunch 保证 onLoad 重跑(反映当前后端状态)。auth 屏先注入登录态。
+        if (spec.auth && auth) await injectAuth(mp, auth);
+        await race(mp.reLaunch(route), 6000, 'reLaunch').catch(() => {});
+        await new Promise((r) => setTimeout(r, 4000));
+      }
       // 数据屏:固定 sleep 后再轮询关键 selector 就绪,抢不过异步取数时不量空态(最多再等 9s)。
       if (spec.waitForSelector) {
         const ready = await waitForSelector(mp, spec.waitForSelector, 9000);

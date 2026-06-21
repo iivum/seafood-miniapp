@@ -1,6 +1,8 @@
 {
   "screen": "mp-01-home",
-  "note": "OD 期望结构不变量(从 mp-01-home.html 量出)。几何层验渲染现实是否匹配设计意图,AA/DPR/设备框全免疫。",
+  "seed": ["banners"],
+  "waitForSelector": ".home-banner__item",
+  "note": "OD 期望结构不变量(从 mp-01-home.html 量出)。几何层验渲染现实是否匹配设计意图,AA/DPR/设备框全免疫。banner 后端驱动(/api/banners listActive)→ seed 3 条 ACTIVE banner,否则顶部 swiper 渲 0 项(空 seed,非渲染 bug)。",
   "viewport": { "w": 390, "h": 762 },
   "checks": [
     { "key": "banner",        "selector": ".home-banner__item", "metric": "present", "expected": true,  "desc": "顶部 hero/banner(OD .hero)" },

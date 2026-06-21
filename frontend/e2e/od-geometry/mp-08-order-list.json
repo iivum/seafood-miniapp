@@ -1,0 +1,14 @@
+{
+  "screen": "mp-08-order-list",
+  "route": "/pages-sub/order/order-list/order-list",
+  "auth": true,
+  "seed": ["orders"],
+  "waitForSelector": ".order-card",
+  "note": "OD 订单列表(分包鉴权页)。GET /orders 由 JWT principal 强制 own → harness seedOrdersFor 为当前 userId 挂 3 单(PENDING/PAID/COMPLETED),默认 tab=ALL 全显。AA/DPR/设备框免疫。",
+  "viewport": { "w": 390, "h": 762 },
+  "checks": [
+    { "key": "header",     "selector": ".order-list__header", "metric": "present", "expected": true, "desc": "顶部 header(返回/标题/搜索)" },
+    { "key": "tabs",       "selector": ".order-list__tabs",   "metric": "present", "expected": true, "desc": "状态 tab 行(OD 全部/待付款/…)" },
+    { "key": "order-card", "selector": ".order-card",         "metric": "present", "expected": true, "desc": "订单卡(seed 后非空)" }
+  ]
+}

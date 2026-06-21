@@ -1,0 +1,15 @@
+{
+  "screen": "mp-09-order-detail",
+  "route": "/pages-sub/order/order-detail/order-detail",
+  "auth": true,
+  "seed": ["orders"],
+  "orderId": "v2.1-closure-order-001",
+  "waitForSelector": ".addr",
+  "note": "OD 订单详情(分包鉴权带参页)。?id= 用已知 seed 订单 id(归属当前 userId)。主体在 order 载入后渲染(顶层 isLoading/isError 门控)→ waitFor .addr。AA/DPR/设备框免疫。",
+  "viewport": { "w": 390, "h": 762 },
+  "checks": [
+    { "key": "status-banner", "selector": ".status-banner", "metric": "present", "expected": true, "desc": "状态横幅(OD 顶部 eyebrow+状态)" },
+    { "key": "addr",          "selector": ".addr",          "metric": "present", "expected": true, "desc": "收货地址行(OD)" },
+    { "key": "bottom-bar",    "selector": ".bottom-bar",    "metric": "present", "expected": true, "desc": "底部操作 bar(OD sticky)" }
+  ]
+}

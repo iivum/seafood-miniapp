@@ -1,0 +1,14 @@
+{
+  "screen": "mp-06-order-confirm",
+  "route": "/pages-sub/order/order-confirm/order-confirm",
+  "auth": true,
+  "note": "OD 订单确认(分包鉴权页)。4 张静态卡(地址/配送/汇总/底部 bar)不被数据 wx:if 包 → 仅鉴权即可量,无需 seed items。配送 3 选项静态(FREE/SF/ZTO)。AA/DPR/设备框免疫。",
+  "viewport": { "w": 390, "h": 762 },
+  "checks": [
+    { "key": "address-card",   "selector": ".address-card",     "metric": "present", "expected": true, "desc": "收货地址卡(OD 顶部)" },
+    { "key": "delivery-card",  "selector": ".delivery-card",    "metric": "present", "expected": true, "desc": "配送方式卡(OD)" },
+    { "key": "delivery-opts",  "selector": ".delivery-option",  "metric": "count",   "expected": 3,    "desc": "3 配送选项:免运费/顺丰/中通(OD 静态)" },
+    { "key": "summary-card",   "selector": ".summary-card",     "metric": "present", "expected": true, "desc": "费用汇总卡(OD)" },
+    { "key": "bottom-bar",     "selector": ".bottom-bar",       "metric": "present", "expected": true, "desc": "底部合计 + 提交订单 bar(OD sticky)" }
+  ]
+}

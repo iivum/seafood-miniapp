@@ -128,6 +128,19 @@ db.carts.insertOne({_id:id,items:[${items.join(',')}],updatedAt:now});`;
   if (runMongo(js, 'cart seed')) console.log(`  [seed] 已为当前 userId=${userId} seed 购物车 ${productIds.length} 行`);
 }
 
+/** mp-01 home:seed ACTIVE banner(后端驱动,banners 空则 home 顶部 swiper 渲 0 项)。
+ *  banner 无 userId 归属(全局公共读 listActive) → 不依赖 login。_id 非 hex,存原值。 */
+function seedBanners() {
+  const js = `db.banners.deleteMany({});
+const now=new Date();
+db.banners.insertMany([
+ {_id:"banner-001",tone:"ACCENT",emoji:"🦞",title:"鲜活龙虾季",subtitle:"产地直送 24h 到家",sortOrder:NumberInt(0),status:"ACTIVE",createdAt:now,updatedAt:now},
+ {_id:"banner-002",tone:"SOFT",emoji:"🦀",title:"大闸蟹预售",subtitle:"阳澄湖正宗 现拍现发",sortOrder:NumberInt(1),status:"ACTIVE",createdAt:now,updatedAt:now},
+ {_id:"banner-003",tone:"ACCENT",emoji:"🐟",title:"深海鱼鲜",subtitle:"低温锁鲜 营养不流失",sortOrder:NumberInt(2),status:"ACTIVE",createdAt:now,updatedAt:now}
+]);`;
+  if (runMongo(js, 'banner seed')) console.log('  [seed] 已 seed 3 条 ACTIVE banner');
+}
+
 /** 注入 dev 登录态。token 写 storage(两套 request 层)+ app.globalData(onLaunch 不重跑)。 */
 async function injectAuth(mp, auth) {
   await mp.evaluate(
@@ -163,5 +176,5 @@ async function waitForData(mp, predicate, maxMs) {
 module.exports = {
   API_HOST, API_PORT, DEV_CODE, SEED_ORDER_IDS,
   race, devLogin, fetchProductIds, fetchFirstProductId,
-  seedOrdersFor, seedAddressesFor, seedCartFor, injectAuth, waitForData,
+  seedOrdersFor, seedAddressesFor, seedCartFor, seedBanners, injectAuth, waitForData,
 };
