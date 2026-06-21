@@ -24,7 +24,11 @@ import type { CreateOrderRequest, Order, RefundRequest, RefundResponse } from '.
 
 export const OrderAPI = {
   list(): Promise<Order[]> {
-    return get<Order[]>('/orders', { needAuth: true });
+    // 后端 GET /api/orders 返 Spring Page<Order> { content[] },非裸数组。
+    // 解包 content,否则 orderStore.orders 拿到 Page 对象 → order-list 渲空(C5 mp-08 实证)。
+    return get<Order[] | { content: Order[] }>('/orders', { needAuth: true }).then((res) =>
+      Array.isArray(res) ? res : res.content,
+    );
   },
 
   getById(id: string): Promise<Order> {

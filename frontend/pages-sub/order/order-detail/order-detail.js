@@ -26,7 +26,9 @@ Page({
   async loadOrder(id) {
     this.setData({ isLoading: true, isError: false });
     try {
-      const order = await request({ url: `/api/orders/${id}`, method: 'GET' });
+      // baseUrl 已含 /api(app.globalData.baseUrl=…/api),故 url 不再带 /api 前缀,
+      // 否则双 /api → 404。鉴权端点需 needAuth(否则无 Authorization → 401)。C5 mp-09 实证。
+      const order = await request({ url: `/orders/${id}`, method: 'GET', needAuth: true });
       this.setData({
         order,
         statusBanner: derive.deriveBanner(order),
@@ -86,9 +88,10 @@ Page({
     try {
       wx.showLoading({ title: '提交中...' });
       const newOrder = await request({
-        url: `/api/orders/${order.id}/refund`,
+        url: `/orders/${order.id}/refund`,
         method: 'POST',
         data: { reason: '用户主动申请' },
+        needAuth: true,
       });
       this.setData({
         order: newOrder,
@@ -114,8 +117,9 @@ Page({
     try {
       wx.showLoading({ title: '确认中...' });
       const newOrder = await request({
-        url: `/api/orders/${order.id}/confirm`,
+        url: `/orders/${order.id}/confirm-receive`,
         method: 'POST',
+        needAuth: true,
       });
       this.setData({
         order: newOrder,

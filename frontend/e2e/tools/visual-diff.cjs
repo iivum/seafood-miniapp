@@ -36,6 +36,27 @@ const PRODUCT_ID = process.env.PRODUCT_ID || '6a35ef4910b7ca87d8b3c667';
 // order-detail 已知订单 id(见 run-visual.sh seed 步,归属 DEV_CODE 对应用户)。
 const ORDER_ID = process.env.ORDER_ID || 'v2.1-closure-order-001';
 
+// dev wechat-login 每次返回的 userId(JWT sub)会漂移 —— 后端按 openId 重建 user、_id 变,
+// 且 GET /api/orders/{id} 强制 own。故静态 seed 的订单对不上当前 login → mp-08/09 空/loading。
+// 唯一可复现做法:登录后**为当前 userId 运行时 seed 订单**。best-effort(docker/mongo 不在则跳过)。
+const SEED_ORDER_IDS = ['v2.1-closure-order-001', 'v2.1-closure-order-002', 'v2.1-closure-order-003'];
+function seedOrdersFor(userId) {
+  const js = `const uid=${JSON.stringify(userId)};
+db.orders.deleteMany({$or:[{userId:uid},{_id:{$in:${JSON.stringify(SEED_ORDER_IDS)}}}]});
+const now=new Date("2026-06-18T08:00:00Z"),eta=new Date("2026-06-21T08:00:00Z");
+db.orders.insertMany([
+ {_id:"v2.1-closure-order-001",userId:uid,status:"PENDING",items:[{productId:"p1",productName:"挪威三文鱼刺身",unitPrice:NumberDecimal("128.00"),quantity:2},{productId:"p2",productName:"波士顿龙虾",unitPrice:NumberDecimal("288.00"),quantity:1}],totalAmount:NumberDecimal("544.00"),estimatedDelivery:eta,createdAt:now,updatedAt:now},
+ {_id:"v2.1-closure-order-002",userId:uid,status:"PAID",items:[{productId:"p3",productName:"大闸蟹 4 两公",unitPrice:NumberDecimal("88.00"),quantity:4}],totalAmount:NumberDecimal("352.00"),estimatedDelivery:eta,createdAt:now,updatedAt:now},
+ {_id:"v2.1-closure-order-003",userId:uid,status:"COMPLETED",items:[{productId:"p4",productName:"冰鲜大黄鱼",unitPrice:NumberDecimal("59.90"),quantity:3}],totalAmount:NumberDecimal("179.70"),estimatedDelivery:eta,createdAt:now,updatedAt:now}
+]);`;
+  try {
+    execFileSync('docker', ['exec', '-i', 'seafood-mongodb', 'mongosh', 'seafood', '--quiet', '--eval', js], { stdio: 'ignore' });
+    console.log(`  [seed] 已为当前 userId=${userId} seed ${SEED_ORDER_IDS.length} 单`);
+  } catch (e) {
+    console.warn(`  [seed] order seed 跳过(docker/mongo 不可达,mp-08/09 将空态):${String(e.message).slice(0, 80)}`);
+  }
+}
+
 /** POST /api/auth/wechat-login,返回 { token, userId }(失败抛错,鉴权屏据此标 err)。 */
 function devLogin() {
   return new Promise((resolve, reject) => {
@@ -93,35 +114,58 @@ function dims(png) {
   };
 }
 
+// 注入 dev 登录态。token 写 storage 不够 —— mp 有两套 request 层,取处不同,都喂:
+//  · utils/request.js(order-detail/address-list)读 app.globalData.token + storage 'token'
+//  · src/shared/api/request.js(OrderAPI→order-list)读 storage 'accessToken'/'refreshToken'
+// app onLaunch 只跑一次、reLaunch 不重跑,故同时写 storage 和 globalData。storage 全局
+// 持久、跨 navigateTo 不丢 → 在 home 上注入一次,后续 navigateTo 子页仍带 Authorization。
+async function injectAuth(mp, auth) {
+  await mp.evaluate(
+    (token, userInfo) => {
+      wx.setStorageSync('token', token);
+      wx.setStorageSync('accessToken', token);
+      wx.setStorageSync('refreshToken', token);
+      wx.setStorageSync('userInfo', userInfo);
+      try {
+        const app = getApp();
+        if (app && app.globalData) { app.globalData.token = token; app.globalData.userInfo = userInfo; }
+      } catch (e) { /* getApp 可能未就绪,storage 兜底 */ }
+    },
+    auth.token,
+    { id: auth.userId, openId: 'dev-visual', nickName: '视觉验收' },
+  );
+}
+
 async function captureActual(mp, screen, auth) {
   const out = path.join(SHOTS, `${screen.name}-actual.png`);
-  // 鉴权屏:reLaunch 前注入 dev 登录态。token 写 storage 不够 —— request.js 读
-  // app.globalData.token(line 28),而 app onLaunch 只跑一次、reLaunch 不重跑,
-  // 故同时写 storage 和 globalData,确保 needAuth 请求带上 Authorization。
-  if (screen.auth && auth) {
-    // mp 有两套 request 层,token 取处不同,两套都喂:
-    //  · utils/request.js(order-detail/address-list)读 app.globalData.token + storage 'token'
-    //  · src/shared/api/request.js(OrderAPI→order-list)读 storage 'accessToken'/'refreshToken'
-    await mp.evaluate(
-      (token, userInfo) => {
-        wx.setStorageSync('token', token);
-        wx.setStorageSync('accessToken', token);
-        wx.setStorageSync('refreshToken', token);
-        wx.setStorageSync('userInfo', userInfo);
-        try {
-          const app = getApp();
-          if (app && app.globalData) { app.globalData.token = token; app.globalData.userInfo = userInfo; }
-        } catch (e) { /* getApp 可能未就绪,storage 兜底 */ }
-      },
-      auth.token,
-      { id: auth.userId, openId: 'dev-visual', nickName: '视觉验收' },
-    );
+  const isSub = screen.path.startsWith('/pages-sub/');
+
+  if (isSub) {
+    // 分包带参页:reLaunch 直达深层页 flaky(automator 偶落回 home)。改走 app 真实流转:
+    // reLaunch(home) → 注入登录态 → navigateTo(子页) → 校验 currentPage 落对 → 不对重试。
+    // navigateTo 是到达分包页的规范方式(push 栈),比 reLaunch 清栈重开稳。
+    const base = screen.path.replace(/^\//, '').split('?')[0];
+    let landed = false;
+    for (let attempt = 0; attempt < 2 && !landed; attempt++) {
+      await race(mp.reLaunch('/pages/index/index'), 6000, 'reLaunch-home').catch(() => {});
+      await new Promise((r) => setTimeout(r, 1500));
+      if (screen.auth && auth) await injectAuth(mp, auth);
+      await race(mp.navigateTo(screen.path), 6000, 'navigateTo').catch(() => {});
+      await new Promise((r) => setTimeout(r, 4000)); // 后端往返 + 渲染
+      try {
+        const pg = await mp.currentPage();
+        landed = !!(pg && pg.path && pg.path.indexOf(base) !== -1);
+      } catch (e) { /* currentPage 偶抛,landed 保持 false 触发重试 */ }
+      if (!landed) console.warn(`    [nav] ${screen.name} 落点非 ${base}(attempt ${attempt + 1}/2),重试…`);
+    }
+    if (!landed) throw new Error(`navigateTo 未落到 ${base}(分包页 flaky,2 次重试均失败)`);
+  } else {
+    // tab/普通页:reLaunch 保证 onLoad 重跑 → 反映当前后端状态(非陈旧空态)。
+    // best-effort:部分 tabBar 页 reLaunch promise 不 resolve(automator 怪癖)但页面实已加载。
+    if (screen.auth && auth) await injectAuth(mp, auth);
+    await race(mp.reLaunch(screen.path), 6000, 'reLaunch').catch(() => {});
+    await new Promise((r) => setTimeout(r, 4000));
   }
-  // reLaunch 保证 onLoad 重跑 → 反映当前后端状态(非陈旧空态)。tab/普通页通吃。
-  // best-effort:部分 tabBar 页(如 cart)reLaunch 的 promise 不 resolve(automator
-  // 已知怪癖),但页面实际已导航完成。故超时不致命,catch 后照常 wait+screenshot。
-  await race(mp.reLaunch(screen.path), 6000, 'reLaunch').catch(() => {});
-  await new Promise((r) => setTimeout(r, 4000)); // 留足后端往返 + 列表渲染
   await race(mp.screenshot({ path: out }), 15000, 'screenshot');
   return out;
 }
@@ -134,8 +178,11 @@ async function captureActual(mp, screen, auth) {
   // 任一选中屏需鉴权 → 先 dev 登录拿一枚新 token(失败不致命:鉴权屏各自标 err)。
   let auth = null;
   if (screens.some((s) => s.auth)) {
-    try { auth = await devLogin(); console.log(`  [auth] dev 登录 ok,userId=${auth.userId}`); }
-    catch (e) { console.warn(`  [auth] dev 登录失败(鉴权屏将渲染未登录态):${e.message}`); }
+    try {
+      auth = await devLogin();
+      console.log(`  [auth] dev 登录 ok,userId=${auth.userId}`);
+      seedOrdersFor(auth.userId); // 为当前 login 用户 seed 订单(否则 _id 漂移导致空态)
+    } catch (e) { console.warn(`  [auth] dev 登录失败(鉴权屏将渲染未登录态):${e.message}`); }
   }
 
   const mp = await race(automator.connect({ wsEndpoint: WS }), 20000, 'connect');
