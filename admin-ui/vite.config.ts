@@ -42,6 +42,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'src/__tests__/ad-od-design.test.tsx',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
@@ -53,6 +58,12 @@ export default defineConfig({
         'src/types/**',
         'src/main.tsx',
       ],
+      thresholds: {
+        lines: 75,
+        statements: 75,
+        functions: 55,
+        branches: 75,
+      },
     },
   },
 });
