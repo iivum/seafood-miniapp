@@ -1,9 +1,13 @@
 package com.seafood.bff.admin.dto;
 
-/** 订单数量统计 — 决策 2.A:数量而非金额。 */
+import java.math.BigDecimal;
+
+/** 订单统计 — 今日/本周/本月数量 + 今日 GMV / 客单价。 */
 public record OrderStatsResponse(
         long today,
         long week,
-        long month
+        long month,
+        BigDecimal gmvToday,
+        BigDecimal avgOrderToday
 ) {
 }

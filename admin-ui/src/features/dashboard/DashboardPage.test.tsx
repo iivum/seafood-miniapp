@@ -20,7 +20,7 @@ describe('DashboardPage', () => {
 
   it('renders the dashboard with stats', async () => {
     mockDashboard.get.mockResolvedValueOnce({
-      orderStats: { today: 5, week: 20, month: 100 },
+      orderStats: { today: 5, week: 20, month: 100, gmvToday: 1580, avgOrderToday: 316 },
       productStats: { total: 50, onSale: 45, outOfStock: 5, byCategory: { 鱼类: 12, 虾蟹: 8 } },
       topProducts: [
         {
@@ -82,7 +82,10 @@ describe('DashboardPage', () => {
       expect(screen.getAllByText('大龙虾').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('5')).toBeInTheDocument(); // today orders
-    expect(screen.getByText('45')).toBeInTheDocument(); // onSale
+    expect(screen.getByText('GMV 今日')).toBeInTheDocument(); // OD ad-02 KPI
+    expect(screen.getByText('¥1580.00')).toBeInTheDocument(); // gmvToday formatted
+    expect(screen.getByText('¥316.00')).toBeInTheDocument(); // avgOrderToday formatted
+    expect(screen.getByText('CONVERSION 转化率')).toBeInTheDocument(); // placeholder card
   });
 
   it('shows error state with retry button when request fails', async () => {
@@ -94,7 +97,7 @@ describe('DashboardPage', () => {
     });
     const retry = screen.getByRole('button', { name: /重试/ });
     mockDashboard.get.mockResolvedValueOnce({
-      orderStats: { today: 0, week: 0, month: 0 },
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
       productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
       topProducts: [],
       trend7d: [],

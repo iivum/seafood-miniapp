@@ -142,7 +142,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>海鲜商城管理后台</CardTitle>
+          <CardTitle>欢迎回来</CardTitle>
           <CardDescription>请使用管理员账号登录</CardDescription>
         </CardHeader>
         <CardContent>
@@ -180,19 +180,28 @@ export function LoginPage() {
               ) : null}
             </div>
             {/* 2.14:记住我(checkbox 状态受控 watch,勾选变更触发 username 持久化) */}
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="remember"
-                checked={Boolean(remember)}
-                onCheckedChange={(v) => setValue('remember', Boolean(v))}
-                disabled={isLocked}
-              />
-              <Label
-                htmlFor="remember"
-                className="cursor-pointer text-sm text-muted"
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember"
+                  checked={Boolean(remember)}
+                  onCheckedChange={(v) => setValue('remember', Boolean(v))}
+                  disabled={isLocked}
+                />
+                <Label
+                  htmlFor="remember"
+                  className="cursor-pointer text-sm text-muted"
+                >
+                  7 天内免登录
+                </Label>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-muted underline-offset-2 hover:underline"
+                onClick={() => {/* 忘记密码功能开发中 */}}
               >
-                记住我(下次自动填用户名)
-              </Label>
+                忘记密码？
+              </button>
             </div>
             {formState.errors.root?.serverError ? (
               <p className="text-sm text-error" role="alert">

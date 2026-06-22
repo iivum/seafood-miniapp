@@ -231,24 +231,19 @@ jobs:
         run: npm run build || true   # 微信小程序 CLI 在 CI 跳过
 
   admin-ui:
-    name: Admin UI (Vitest,可选)
+    name: Admin UI (Vitest + coverage gate)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true   # §9 还没落地
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-      - name: Test
+      - name: Test + Coverage Gate
         working-directory: admin-ui
         run: |
-          if [ -f package.json ]; then
-            npm ci || npm install
-            npm test
-          else
-            echo "admin-ui/ not present yet (refactor §9 deferred)"
-          fi
+          npm ci || npm install
+          npm run test:coverage
 
   # Sprint 2 CI 修复 (2026-06-07):删 docker job。
   # 原 job 跑 `docker build -t seafood-backend:ci-test .`,但 Dockerfile 自 P0 #2

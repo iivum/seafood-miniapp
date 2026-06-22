@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# GraalVM plugin 把 native-image-agent 无条件绑定到 :test，非 GraalVM JDK 会报错。
+# Homebrew GraalVM 路径；若安装在其他位置请修改此处。
+GRAALVM_HOME_BREW="/opt/homebrew/opt/graalvm/libexec/graalvm.jdk/Contents/Home"
+if [ -d "$GRAALVM_HOME_BREW" ]; then
+  export JAVA_HOME="$GRAALVM_HOME_BREW"
+fi
+
+REPO=$(git rev-parse --show-toplevel)
+
+echo "▶ pre-commit: 后端 check (excludeTags=docker,native)…"
+cd "$REPO/backend"
+./gradlew --no-daemon check -PexcludeTags=docker,native
+echo "✅ 后端 check 通过"
+
+echo "▶ pre-commit: 前端单测…"
+cd "$REPO/frontend"
+TZ=UTC npm test -- --passWithNoTests
+echo "✅ 前端单测通过"
+
+echo "▶ pre-commit: admin-ui 单测 + 覆盖率门…"
+cd "$REPO/admin-ui"
+TZ=UTC npm run test:coverage
+echo "✅ admin-ui 覆盖率门通过"

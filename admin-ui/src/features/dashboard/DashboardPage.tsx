@@ -28,8 +28,9 @@ import {
   YAxis,
 } from 'recharts';
 import { dashboardApi } from './api';
+import { useToast } from '@/components/ui/toaster';
 
-/* ---- 2.19 4 KPI Card(2.19 任务:今日/本周/本月订单 + 在售商品)---- */
+/* ---- OD ad-02 KPI StatCard ---- */
 function StatCard({
   label,
   value,
@@ -209,6 +210,7 @@ export function DashboardPage() {
     queryKey: ['dashboard'],
     queryFn: dashboardApi.get,
   });
+  const toast = useToast();
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -232,21 +234,26 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">仪表盘</h1>
-        <p className="text-sm text-muted">订单、商品、销量概览</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">仪表盘</h1>
+          <p className="text-sm text-muted">订单、商品、销量概览</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => toast.show('导出报表功能开发中')}
+        >
+          导出报表
+        </Button>
       </div>
 
-      {/* 2.19 4 KPI Card */}
+      {/* OD ad-02: TODAY·GMV / ORDERS / AVG ORDER / CONVERSION */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="今日订单" value={data.orderStats.today} hint="UTC+8 当日 0 点至今" />
-        <StatCard label="本周订单" value={data.orderStats.week} hint="本周一 0 点至今" />
-        <StatCard label="本月订单" value={data.orderStats.month} hint="本月 1 号 0 点至今" />
-        <StatCard
-          label="在售商品"
-          value={data.productStats.onSale}
-          hint={`共 ${data.productStats.total} 款 · 缺货 ${data.productStats.outOfStock}`}
-        />
+        <StatCard label="GMV 今日" value={formatPrice(data.orderStats.gmvToday)} hint="UTC+8 当日销售额" />
+        <StatCard label="ORDERS 今日" value={data.orderStats.today} hint="UTC+8 当日 0 点至今" />
+        <StatCard label="AVG ORDER 客单价" value={formatPrice(data.orderStats.avgOrderToday)} hint="今日 GMV / 今日订单数" />
+        <StatCard label="CONVERSION 转化率" value="—" hint="需访客数据,功能开发中" />
       </div>
 
       {/* 2.20 7 天趋势折线 */}

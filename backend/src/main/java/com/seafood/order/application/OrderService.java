@@ -445,6 +445,14 @@ public class OrderService {
         return orders.countByCreatedAtGreaterThanEqual(from);
     }
 
+    public BigDecimal sumTotalAmountCreatedSince(Instant from) {
+        return orders.findTop500ByOrderByCreatedAtDesc().stream()
+                .takeWhile(doc -> doc.getCreatedAt() != null && !doc.getCreatedAt().isBefore(from))
+                .map(OrderDocument::getTotalAmount)
+                .filter(amount -> amount != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     // ----- 4.7 / 4.8 退款(Refund 生命周期)-----
 
     /**

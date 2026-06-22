@@ -5,6 +5,7 @@
   "description": "Monorepo root for seafood-miniapp (mp + admin-ui + backend). Houses shared scripts (build-tokens, etc.).",
   "scripts": {
     "build:tokens": "node scripts/build-tokens.js",
-    "test:tokens": "node --test scripts/__tests__/build-tokens.test.js"
+    "test:tokens": "node --test scripts/__tests__/build-tokens.test.js",
+    "prepare": "bash scripts/install-hooks.sh || true"
   }
 }

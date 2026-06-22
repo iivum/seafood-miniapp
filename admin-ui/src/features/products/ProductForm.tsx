@@ -62,10 +62,10 @@ interface ProductFormProps {
   onSubmit: (values: ProductFormValues) => Promise<void> | void;
   onCancel: () => void;
   submitting: boolean;
-  submitLabel: string;
+  submitLabel?: string;
 }
 
-export function ProductForm({ defaultValues, onSubmit, onCancel, submitting, submitLabel }: ProductFormProps) {
+export function ProductForm({ defaultValues, onSubmit, onCancel, submitting, submitLabel = '创建' }: ProductFormProps) {
   const { register, handleSubmit, formState, setValue, watch, reset, control } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {

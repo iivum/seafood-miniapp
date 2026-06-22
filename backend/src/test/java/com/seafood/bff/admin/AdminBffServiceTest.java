@@ -146,6 +146,7 @@ class AdminBffServiceTest {
         when(productStats.lowStock(10)).thenReturn(List.of(
                 sampleProduct("p-low-1", 3),
                 sampleProduct("p-low-2", 7)));
+        when(orders.sumTotalAmountCreatedSince(any())).thenReturn(new BigDecimal("990.00"));
         when(orders.findRecent(500)).thenReturn(List.of(
                 sampleOrder("o1", "u1", List.of(item("p1", "三文鱼", 3)), new BigDecimal("297")),
                 sampleOrder("o2", "u1", List.of(item("p1", "三文鱼", 2), item("p2", "金枪鱼", 5)),
@@ -190,6 +191,7 @@ class AdminBffServiceTest {
     @Test
     void dashboard_capsAt10() {
         when(orders.countCreatedSince(any())).thenReturn(0L);
+        when(orders.sumTotalAmountCreatedSince(any())).thenReturn(BigDecimal.ZERO);
         when(productStats.stats()).thenReturn(new ProductStatsResponse(0L, 0L, 0L, Map.of()));
         when(productStats.lowStock(10)).thenReturn(List.of());
         List<OrderResponse> many = java.util.stream.IntStream.range(0, 15)
@@ -209,6 +211,7 @@ class AdminBffServiceTest {
     @Test
     void dashboard_emptyOrders_returnsEmptyTopList() {
         when(orders.countCreatedSince(any())).thenReturn(0L);
+        when(orders.sumTotalAmountCreatedSince(any())).thenReturn(BigDecimal.ZERO);
         when(productStats.stats()).thenReturn(new ProductStatsResponse(0L, 0L, 0L, Map.of()));
         when(productStats.lowStock(10)).thenReturn(List.of());
         when(orders.findRecent(500)).thenReturn(List.of());
@@ -225,6 +228,7 @@ class AdminBffServiceTest {
     void dashboard_lowStock_capsAt10() {
         // 2.18:低库存返回按 stock 升序 top 10
         when(orders.countCreatedSince(any())).thenReturn(0L);
+        when(orders.sumTotalAmountCreatedSince(any())).thenReturn(BigDecimal.ZERO);
         when(productStats.stats()).thenReturn(new ProductStatsResponse(0L, 0L, 0L, Map.of()));
         List<ProductResponse> many = java.util.stream.IntStream.range(0, 15)
                 .mapToObj(i -> sampleProduct("low-" + i, i + 1)) // stock 1..15
