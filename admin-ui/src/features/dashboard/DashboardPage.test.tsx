@@ -20,7 +20,7 @@ describe('DashboardPage', () => {
 
   it('renders the dashboard with stats', async () => {
     mockDashboard.get.mockResolvedValueOnce({
-      orderStats: { today: 5, week: 20, month: 100 },
+      orderStats: { today: 5, week: 20, month: 100, gmvToday: 1580, avgOrderToday: 316 },
       productStats: { total: 50, onSale: 45, outOfStock: 5, byCategory: { 鱼类: 12, 虾蟹: 8 } },
       topProducts: [
         {
@@ -82,7 +82,7 @@ describe('DashboardPage', () => {
       expect(screen.getAllByText('大龙虾').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('5')).toBeInTheDocument(); // today orders
-    expect(screen.getByText('45')).toBeInTheDocument(); // onSale
+    expect(screen.getByText('GMV 今日')).toBeInTheDocument(); // OD ad-02 KPI
   });
 
   it('shows error state with retry button when request fails', async () => {
