@@ -52,7 +52,7 @@ describe('LoginPage', () => {
     renderWithProviders(<LoginPage />);
     expect(screen.getByLabelText('用户名')).toBeInTheDocument();
     expect(screen.getByLabelText('密码')).toBeInTheDocument();
-    expect(screen.getByLabelText(/记住我/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/7 天内免登录/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '登录' })).toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText('用户名'), 'admin');
     await user.type(screen.getByLabelText('密码'), 'secret');
     // remember checkbox 默认为未勾(因 storage 是空的)— 显式勾上
-    await user.click(screen.getByLabelText(/记住我/));
+    await user.click(screen.getByLabelText(/7 天内免登录/));
     await user.click(screen.getByRole('button', { name: '登录' }));
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith({ username: 'admin', password: 'secret' });
@@ -85,7 +85,7 @@ describe('LoginPage', () => {
     const usernameInput = screen.getByLabelText('用户名') as HTMLInputElement;
     expect(usernameInput.value).toBe('admin');
     // remember checkbox 应自动勾上
-    const rememberCheckbox = screen.getByLabelText(/记住我/) as HTMLInputElement;
+    const rememberCheckbox = screen.getByLabelText(/7 天内免登录/) as HTMLInputElement;
     expect(rememberCheckbox.checked).toBe(true);
   });
 
@@ -94,7 +94,7 @@ describe('LoginPage', () => {
     localStorageMock.setItem('seafood-admin-ui:remember-username', 'old-admin');
     renderWithProviders(<LoginPage />);
     // 默认 remember 是勾上的(因 storage 已有)— 取消勾选
-    await user.click(screen.getByLabelText(/记住我/));
+    await user.click(screen.getByLabelText(/7 天内免登录/));
     await user.type(screen.getByLabelText('密码'), 'secret');
     await user.click(screen.getByRole('button', { name: '登录' }));
     await waitFor(() => {

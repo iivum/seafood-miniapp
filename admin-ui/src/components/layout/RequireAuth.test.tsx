@@ -50,7 +50,7 @@ describe('route protection: redirect branches', () => {
       route: '/admin/dashboard',
       authenticated: false,
     });
-    expect(container.textContent).toContain('海鲜商城管理后台');
+    expect(container.textContent).toContain('欢迎回来');
   });
 
   it('redirects anonymous user from /admin/products to login form', () => {
@@ -59,7 +59,7 @@ describe('route protection: redirect branches', () => {
       route: '/admin/products',
       authenticated: false,
     });
-    expect(container.textContent).toContain('海鲜商城管理后台');
+    expect(container.textContent).toContain('欢迎回来');
   });
 
   it('redirects already-authed user away from /admin/login', () => {

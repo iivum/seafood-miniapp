@@ -177,6 +177,8 @@ export interface OrderStatsResponse {
   today: number;
   week: number;
   month: number;
+  gmvToday: number;
+  avgOrderToday: number;
 }
 
 export interface TopProductResponse {
