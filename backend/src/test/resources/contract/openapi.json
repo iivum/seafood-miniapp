@@ -56,6 +56,38 @@
         },
         "type" : "object"
       },
+      "AddressUpsertRequest" : {
+        "properties" : {
+          "city" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "detailAddress" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "district" : {
+            "type" : "string"
+          },
+          "isDefault" : {
+            "type" : "boolean"
+          },
+          "name" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "phone" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "province" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "city", "detailAddress", "name", "phone", "province" ],
+        "type" : "object"
+      },
       "AdminLoginRequest" : {
         "properties" : {
           "password" : {
@@ -68,6 +100,78 @@
           }
         },
         "required" : [ "password", "username" ],
+        "type" : "object"
+      },
+      "BannerRequest" : {
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "emoji" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "sortOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "subtitle" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "targetProductId" : {
+            "type" : "string"
+          },
+          "title" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "tone" : {
+            "enum" : [ "ACCENT", "SOFT" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "emoji", "subtitle", "title", "tone" ],
+        "type" : "object"
+      },
+      "BannerResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "emoji" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "sortOrder" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "ACTIVE", "INACTIVE" ],
+            "type" : "string"
+          },
+          "subtitle" : {
+            "type" : "string"
+          },
+          "targetProductId" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "tone" : {
+            "enum" : [ "ACCENT", "SOFT" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "BatchShipRequest" : {
@@ -998,6 +1102,175 @@
         "tags" : [ "biz-health-controller" ]
       }
     },
+    "/api/addresses" : {
+      "get" : {
+        "operationId" : "list_3",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Address"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "address-controller" ]
+      },
+      "post" : {
+        "operationId" : "add",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddressUpsertRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Address"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "address-controller" ]
+      }
+    },
+    "/api/addresses/{addressId}" : {
+      "delete" : {
+        "operationId" : "remove",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "addressId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Address"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "address-controller" ]
+      },
+      "get" : {
+        "operationId" : "get_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "addressId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Address"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "address-controller" ]
+      },
+      "put" : {
+        "operationId" : "update_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "addressId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AddressUpsertRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Address"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "address-controller" ]
+      }
+    },
+    "/api/addresses/{addressId}/default" : {
+      "put" : {
+        "operationId" : "setDefault",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "addressId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/Address"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "address-controller" ]
+      }
+    },
     "/api/admin/auth/cookie-login" : {
       "post" : {
         "operationId" : "cookieLogin",
@@ -1563,6 +1836,151 @@
         "tags" : [ "auth-controller" ]
       }
     },
+    "/api/banners" : {
+      "get" : {
+        "operationId" : "list_2",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/BannerResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "banner-controller" ]
+      },
+      "post" : {
+        "operationId" : "create_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BannerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BannerResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "banner-controller" ]
+      }
+    },
+    "/api/banners/all" : {
+      "get" : {
+        "operationId" : "listAll",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/BannerResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "banner-controller" ]
+      }
+    },
+    "/api/banners/{id}" : {
+      "delete" : {
+        "operationId" : "delete_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "banner-controller" ]
+      },
+      "get" : {
+        "operationId" : "get_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BannerResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "banner-controller" ]
+      },
+      "put" : {
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/BannerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BannerResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "banner-controller" ]
+      }
+    },
     "/api/cart" : {
       "delete" : {
         "operationId" : "clear",
@@ -1574,7 +1992,7 @@
         "tags" : [ "cart-controller" ]
       },
       "get" : {
-        "operationId" : "get_3",
+        "operationId" : "get_5",
         "responses" : {
           "200" : {
             "content" : {
@@ -1695,7 +2113,7 @@
     },
     "/api/orders/{id}" : {
       "get" : {
-        "operationId" : "get_2",
+        "operationId" : "get_4",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -2104,7 +2522,7 @@
     },
     "/api/users" : {
       "get" : {
-        "operationId" : "list_2",
+        "operationId" : "list_4",
         "parameters" : [ {
           "in" : "query",
           "name" : "pageable",
@@ -2148,7 +2566,7 @@
     },
     "/api/users/{userId}" : {
       "get" : {
-        "operationId" : "get_1",
+        "operationId" : "get_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "userId",
@@ -2284,7 +2702,7 @@
     },
     "/api/users/{userId}/addresses/{addressId}/default" : {
       "post" : {
-        "operationId" : "setDefault",
+        "operationId" : "setDefault_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "userId",
