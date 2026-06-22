@@ -1046,4 +1046,38 @@ class OrderServiceTest {
                 .as("confirmReceive 应增量 orders.completed")
                 .isEqualTo(1.0);
     }
+
+    @Test
+    void sumTotalAmountCreatedSince_returnsZeroWhenNoOrders() {
+        when(orderRepo.findTop500ByOrderByCreatedAtDesc()).thenReturn(List.of());
+
+        BigDecimal result = service.sumTotalAmountCreatedSince(Instant.parse("2026-01-01T11:00:00Z"));
+
+        assertThat(result).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void sumTotalAmountCreatedSince_sumsOnlyOrdersInRange() {
+        Instant base = Instant.parse("2026-01-01T12:00:00Z");
+        Instant from = base.minusSeconds(3600); // 1 h 前
+
+        // findTop500 按 createdAt 降序返回 — 最新在前
+        OrderDocument o1 = new OrderDocument();
+        o1.setCreatedAt(base.minusSeconds(100));
+        o1.setTotalAmount(new BigDecimal("100.00"));
+
+        OrderDocument o2 = new OrderDocument();
+        o2.setCreatedAt(base.minusSeconds(600));
+        o2.setTotalAmount(new BigDecimal("50.00"));
+
+        OrderDocument o3 = new OrderDocument(); // 超出 1h 窗口
+        o3.setCreatedAt(base.minusSeconds(7200));
+        o3.setTotalAmount(new BigDecimal("999.00"));
+
+        when(orderRepo.findTop500ByOrderByCreatedAtDesc()).thenReturn(List.of(o1, o2, o3));
+
+        BigDecimal result = service.sumTotalAmountCreatedSince(from);
+
+        assertThat(result).isEqualByComparingTo("150.00");
+    }
 }
