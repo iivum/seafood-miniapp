@@ -489,6 +489,12 @@
       },
       "OrderStatsResponse" : {
         "properties" : {
+          "avgOrderToday" : {
+            "type" : "number"
+          },
+          "gmvToday" : {
+            "type" : "number"
+          },
           "month" : {
             "format" : "int64",
             "type" : "integer"
