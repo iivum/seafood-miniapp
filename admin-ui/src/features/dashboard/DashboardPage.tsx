@@ -30,7 +30,7 @@ import {
 import { dashboardApi } from './api';
 import { useToast } from '@/components/ui/toaster';
 
-/* ---- 2.19 4 KPI Card(2.19 任务:今日/本周/本月订单 + 在售商品)---- */
+/* ---- OD ad-02 KPI StatCard ---- */
 function StatCard({
   label,
   value,

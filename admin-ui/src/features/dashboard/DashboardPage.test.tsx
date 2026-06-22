@@ -94,7 +94,7 @@ describe('DashboardPage', () => {
     });
     const retry = screen.getByRole('button', { name: /重试/ });
     mockDashboard.get.mockResolvedValueOnce({
-      orderStats: { today: 0, week: 0, month: 0 },
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
       productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
       topProducts: [],
       trend7d: [],
