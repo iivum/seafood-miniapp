@@ -447,7 +447,7 @@ public class OrderService {
 
     public BigDecimal sumTotalAmountCreatedSince(Instant from) {
         return orders.findTop500ByOrderByCreatedAtDesc().stream()
-                .takeWhile(doc -> !doc.getCreatedAt().isBefore(from))
+                .takeWhile(doc -> doc.getCreatedAt() != null && !doc.getCreatedAt().isBefore(from))
                 .map(OrderDocument::getTotalAmount)
                 .filter(amount -> amount != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

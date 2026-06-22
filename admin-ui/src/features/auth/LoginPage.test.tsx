@@ -50,9 +50,11 @@ describe('LoginPage', () => {
 
   it('renders username + password + remember me + login button', () => {
     renderWithProviders(<LoginPage />);
+    expect(screen.getByText('欢迎回来')).toBeInTheDocument();
     expect(screen.getByLabelText('用户名')).toBeInTheDocument();
     expect(screen.getByLabelText('密码')).toBeInTheDocument();
     expect(screen.getByLabelText(/7 天内免登录/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /忘记密码/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '登录' })).toBeInTheDocument();
   });
 

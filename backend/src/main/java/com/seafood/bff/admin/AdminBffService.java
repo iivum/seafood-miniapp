@@ -106,6 +106,7 @@ public class AdminBffService {
                 .withDayOfMonth(1)
                 .atStartOfDay(ZONE).toInstant();
 
+        // countCreatedSince 走 DB 计数,sumTotalAmountCreatedSince 走内存扫描,两次调用非事务一致
         long todayCount = orders.countCreatedSince(startOfToday);
         BigDecimal gmvToday = orders.sumTotalAmountCreatedSince(startOfToday);
         BigDecimal avgOrderToday = todayCount > 0

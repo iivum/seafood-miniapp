@@ -83,6 +83,9 @@ describe('DashboardPage', () => {
     });
     expect(screen.getByText('5')).toBeInTheDocument(); // today orders
     expect(screen.getByText('GMV 今日')).toBeInTheDocument(); // OD ad-02 KPI
+    expect(screen.getByText('¥1580.00')).toBeInTheDocument(); // gmvToday formatted
+    expect(screen.getByText('¥316.00')).toBeInTheDocument(); // avgOrderToday formatted
+    expect(screen.getByText('CONVERSION 转化率')).toBeInTheDocument(); // placeholder card
   });
 
   it('shows error state with retry button when request fails', async () => {

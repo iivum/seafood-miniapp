@@ -117,7 +117,7 @@ class AdminBffDashboardSliceTest {
     void dashboard_orderStats_includesGmvAndAvgOrder() {
         when(orderService.findRecent(500)).thenReturn(List.of());
         when(orderService.findRecent(10)).thenReturn(List.of());
-        when(orderService.countCreatedSince(any())).thenReturn(2L);
+        when(orderService.countCreatedSince(any())).thenReturn(2L, 10L, 40L); // today / week / month
         when(orderService.sumTotalAmountCreatedSince(any())).thenReturn(new BigDecimal("200.00"));
         when(productQueryService.stats()).thenReturn(
             new ProductStatsResponse(0L, 0L, 0L, Map.of()));

@@ -22,5 +22,5 @@ echo "✅ 前端单测通过"
 
 echo "▶ pre-commit: admin-ui 单测 + 覆盖率门…"
 cd "$REPO/admin-ui"
-npm run test:coverage
+TZ=UTC npm run test:coverage
 echo "✅ admin-ui 覆盖率门通过"

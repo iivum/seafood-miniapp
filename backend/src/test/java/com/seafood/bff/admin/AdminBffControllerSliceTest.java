@@ -105,7 +105,7 @@ class AdminBffControllerSliceTest {
     @Test
     void dashboard_asAdmin_returnsAggregatedMetrics() {
         var productStats = new ProductStatsResponse(10L, 7L, 3L, Map.of("鱼类", 5L));
-        var orderStats = new OrderStatsResponse(100L, 50L, 30L, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
+        var orderStats = new OrderStatsResponse(100L, 50L, 30L, BigDecimal.ZERO, BigDecimal.ZERO);
         var top = new TopProductResponse(sampleProduct("p-1"), 50L);
         var trend = new TrendPointResponse(java.time.LocalDate.parse("2026-06-19"), 5L);
         var dashboard = new DashboardResponse(orderStats, productStats, List.of(top), List.of(trend),
