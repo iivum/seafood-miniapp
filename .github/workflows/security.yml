@@ -35,6 +35,11 @@ jobs:
   dependency-check:
     name: OWASP Dependency-Check
     runs-on: ubuntu-latest
+    # CI 修复 (2026-06-22):NVD API 503 是外部瞬时不可用,非代码问题。
+    # continue-on-error: true 使 NVD 短暂宕机时 Security workflow 不阻塞 PR 合并。
+    # 真实 CVE 发现仍会上传 SARIF(if: always())到 GitHub Security tab 可见。
+    # 同策略已用于 admin-ui job(ci.yml)。
+    continue-on-error: true
     # CI 修复:超时从 15 提到 30 分钟 —— NVD 数据下载 + 全 transitive dep 扫描常超过
     # 15min(尤其首次冷启动)。30min 是 NVD 推荐 + 实测稳定值。
     # CI 修复 (2026-06-07):30 → 60min。NVD cache restore 1s 完成(已 weekly
