@@ -8,7 +8,14 @@ if [ -d "$GRAALVM_HOME_BREW" ]; then
   export JAVA_HOME="$GRAALVM_HOME_BREW"
 fi
 
-echo "▶ pre-commit: 后端 check (JAVA_HOME=$JAVA_HOME, excludeTags=docker,native)…"
-cd "$(git rev-parse --show-toplevel)/backend"
+REPO=$(git rev-parse --show-toplevel)
+
+echo "▶ pre-commit: 后端 check (excludeTags=docker,native)…"
+cd "$REPO/backend"
 ./gradlew --no-daemon check -PexcludeTags=docker,native
 echo "✅ 后端 check 通过"
+
+echo "▶ pre-commit: 前端单测…"
+cd "$REPO/frontend"
+TZ=UTC npm test -- --passWithNoTests
+echo "✅ 前端单测通过"
