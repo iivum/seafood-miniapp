@@ -240,7 +240,7 @@ Sprint 1 闭合后,需要一份**测试体系路线图**指导 Sprint 2+ 持续�
 - [x] 4 个子项目全部完成(D1 builder / A coverage / B CI / C1 PIT / C2 OpenAPI契约 / C4 jqwik — T10/T12/T13 均已归档;C3 k6 / D3 dashboard 已明确推迟)
 - [~] **数量**:backend 519 ≥ 120 ✅;mp 14 页面 4 层自动化 ❓(未全量验证);admin-ui 99 tests / 80%+ coverage ✅
 - [x] **质量**:Jacoco 全局 84.7% ≥ 80% ✅;domain/app ≥ 90% 待细化;PIT mutation 72% ≥ 70% ✅ (2026-06-23 实测)
-- [ ] **速度**:PR CI 实测 ~12 min 47 s > 8 min ❌;Backend job 是瓶颈(GraalVM setup + Gradle test ~12min);Gradle check 缓存命中 ~1 min ✅;mp e2e flaky rate 未统计
+- [x] **速度**:PR CI 实测 7m37s < 8min ✅(2026-06-23 feat/pr-tdd-gate CI run #27969620185);nativeCompile PR 跳过节省 ~5min;Gradle cache-read-only bug 已修(PR→只读/main→写);mp e2e flaky rate 未统计
 - [~] **可观测**:coverage trend PR comment ✅(ci.yml jacoco-comment step);GitHub Pages ❌;k6 基线 ❌(C3 推迟)
 - [x] **可持续**:每个新功能 PR 默认 TDD(PR 模板 check);覆盖率 + mutation score 趋势卡点
 - [ ] **文档**:openspec/changes/<sprint-N>-<sub-project>/ 每个子项目 1 份完整流程(proposal → design → specs → tasks → archived)

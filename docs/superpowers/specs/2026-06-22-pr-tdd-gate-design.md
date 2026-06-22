@@ -126,7 +126,7 @@ PR lint job 落地后，需在 GitHub repo Settings 中：
 ## 7. 验收标准
 
 - [ ] 创建改动 `src/` 的 PR，body 无 Test plan → CI job 红
-- [ ] 创建改动 `src/` 的 PR，body 有 ≥ 2 个具体 checkbox → CI job 绿
+- [x] 创建改动 `src/` 的 PR，body 有 ≥ 2 个具体 checkbox → CI job 绿（PR #33 实证，PR Lint pass 3s）
 - [ ] 创建纯文档改动 PR（只改 `docs/`）→ CI job 跳过（neutral）
 - [ ] PR body 只有 1 个 checkbox → CI job 红，错误信息明确
 - [ ] 所有 checkbox 均为 `- [ ] TODO` → CI job 红
