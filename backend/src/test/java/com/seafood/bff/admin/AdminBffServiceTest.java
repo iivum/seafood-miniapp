@@ -146,6 +146,7 @@ class AdminBffServiceTest {
         when(productStats.lowStock(10)).thenReturn(List.of(
                 sampleProduct("p-low-1", 3),
                 sampleProduct("p-low-2", 7)));
+        when(orders.sumTotalAmountCreatedSince(any())).thenReturn(new BigDecimal("990.00"));
         when(orders.findRecent(500)).thenReturn(List.of(
                 sampleOrder("o1", "u1", List.of(item("p1", "三文鱼", 3)), new BigDecimal("297")),
                 sampleOrder("o2", "u1", List.of(item("p1", "三文鱼", 2), item("p2", "金枪鱼", 5)),

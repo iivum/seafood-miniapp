@@ -51,6 +51,7 @@ class AdminBffDashboardSliceTest {
     void dashboard_topProducts_emptyOrders_returnsEmpty() {
         when(orderService.findRecent(500)).thenReturn(List.of());
         when(orderService.countCreatedSince(any())).thenReturn(1L);
+        when(orderService.sumTotalAmountCreatedSince(any())).thenReturn(BigDecimal.ZERO);
         when(productQueryService.stats()).thenReturn(
             new ProductStatsResponse(0L, 0L, 0L, Map.of()));
         when(productQueryService.lowStock(10)).thenReturn(List.of());
@@ -66,6 +67,7 @@ class AdminBffDashboardSliceTest {
         Order order = OrderBuilder.anOrder().withId("o-1").build();
         when(orderService.findRecent(500)).thenReturn(List.of(OrderResponse.from(order)));
         when(orderService.countCreatedSince(any())).thenReturn(1L);
+        when(orderService.sumTotalAmountCreatedSince(any())).thenReturn(BigDecimal.ZERO);
         when(productQueryService.stats()).thenReturn(
             new ProductStatsResponse(1L, 1L, 0L, Map.of()));
         when(productQueryService.lowStock(10)).thenReturn(List.of());
@@ -81,6 +83,7 @@ class AdminBffDashboardSliceTest {
     void dashboard_trend7d_computes7Points() {
         when(orderService.findRecent(anyInt())).thenReturn(List.of());
         when(orderService.countCreatedSince(any())).thenReturn(0L);
+        when(orderService.sumTotalAmountCreatedSince(any())).thenReturn(BigDecimal.ZERO);
         when(productQueryService.stats()).thenReturn(
             new ProductStatsResponse(0L, 0L, 0L, Map.of()));
         when(productQueryService.lowStock(10)).thenReturn(List.of());
@@ -99,6 +102,7 @@ class AdminBffDashboardSliceTest {
 
         when(orderService.findRecent(anyInt())).thenReturn(List.of());
         when(orderService.countCreatedSince(any())).thenReturn(0L);
+        when(orderService.sumTotalAmountCreatedSince(any())).thenReturn(BigDecimal.ZERO);
         when(productQueryService.stats()).thenReturn(
             new ProductStatsResponse(3L, 0L, 3L, Map.of()));
         when(productQueryService.lowStock(10)).thenReturn(List.of(
@@ -107,5 +111,21 @@ class AdminBffDashboardSliceTest {
         DashboardResponse resp = bffService.dashboard();
 
         assertThat(resp.lowStock()).hasSize(3);
+    }
+
+    @Test
+    void dashboard_orderStats_includesGmvAndAvgOrder() {
+        when(orderService.findRecent(500)).thenReturn(List.of());
+        when(orderService.findRecent(10)).thenReturn(List.of());
+        when(orderService.countCreatedSince(any())).thenReturn(2L);
+        when(orderService.sumTotalAmountCreatedSince(any())).thenReturn(new BigDecimal("200.00"));
+        when(productQueryService.stats()).thenReturn(
+            new ProductStatsResponse(0L, 0L, 0L, Map.of()));
+        when(productQueryService.lowStock(10)).thenReturn(List.of());
+
+        DashboardResponse resp = bffService.dashboard();
+
+        assertThat(resp.orderStats().gmvToday()).isEqualByComparingTo("200.00");
+        assertThat(resp.orderStats().avgOrderToday()).isEqualByComparingTo("100.00"); // 200 / 2
     }
 }

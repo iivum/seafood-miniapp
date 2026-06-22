@@ -15,6 +15,8 @@ import com.seafood.user.api.dto.UserResponse;
 import com.seafood.user.application.UserService;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -104,10 +106,18 @@ public class AdminBffService {
                 .withDayOfMonth(1)
                 .atStartOfDay(ZONE).toInstant();
 
+        long todayCount = orders.countCreatedSince(startOfToday);
+        BigDecimal gmvToday = orders.sumTotalAmountCreatedSince(startOfToday);
+        BigDecimal avgOrderToday = todayCount > 0
+                ? gmvToday.divide(BigDecimal.valueOf(todayCount), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
         OrderStatsResponse orderStats = new OrderStatsResponse(
-                orders.countCreatedSince(startOfToday),
+                todayCount,
                 orders.countCreatedSince(startOfWeek),
-                orders.countCreatedSince(startOfMonth));
+                orders.countCreatedSince(startOfMonth),
+                gmvToday,
+                avgOrderToday);
         ProductStatsResponse prodStats = productStats.stats();
         List<TopProductResponse> top = topProducts();
         List<TrendPointResponse> trend7d = trend7d();
