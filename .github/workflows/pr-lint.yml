@@ -1,0 +1,64 @@
+name: PR Lint (Test plan gate)
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  pr-lint:
+    name: PR Lint (Test plan gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Validate Test plan
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // 1. 路径豁免检查
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+            const GUARDED = ['src/', 'frontend/', 'admin-ui/src/'];
+            const touchesCode = files.some(f => GUARDED.some(p => f.filename.startsWith(p)));
+            if (!touchesCode) {
+              console.log('ℹ️  PR lint skipped: 改动不包含 src/、frontend/、admin-ui/src/ 下的文件');
+              return;
+            }
+
+            // 2. 提取 PR body
+            const body = context.payload.pull_request.body || '';
+
+            // 3. ## Test plan 章节必须存在
+            if (!body.includes('## Test plan')) {
+              core.setFailed('❌ PR lint failed: 未找到 ## Test plan 章节\n   提示：使用 PR 模板（创建 PR 时自动填充）');
+              return;
+            }
+
+            // 4. 提取 Test plan 章节（到下一个 ## 或文档末尾）
+            const sections = body.split(/\n(?=## )/);
+            const testPlanSection = sections.find(s => s.startsWith('## Test plan')) || '';
+
+            // 5. checkbox 数量 ≥ 2
+            const checkboxes = (testPlanSection.match(/^- \[[ x]\] .*/gm) || []);
+            if (checkboxes.length < 2) {
+              core.setFailed(`❌ PR lint failed: Test plan 需要 ≥ 2 个 checkbox（当前 ${checkboxes.length} 个）\n   提示：在 ## Test plan 下添加至少 2 条 "- [ ] 具体测试项"`);
+              return;
+            }
+
+            // 6. 不全为空或 TODO
+            const allTodo = checkboxes.every(cb => {
+              const text = cb.replace(/^- \[[ x]\] /, '').trim();
+              return text === '' || /^todo$/i.test(text);
+            });
+            if (allTodo) {
+              core.setFailed('❌ PR lint failed: Test plan 中所有 checkbox 均为空或 TODO\n   提示：填写具体测试步骤，例如 "- [ ] 登录后可见仪表盘"');
+              return;
+            }
+
+            console.log(`✅ PR lint passed: Test plan 包含 ${checkboxes.length} 个具体 checkbox`);
