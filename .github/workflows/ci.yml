@@ -71,6 +71,11 @@ jobs:
       # cache-read-only: PR 只读不写,防 cache 投毒;push to main 走 read+write。
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        # CI 修复 (2026-06-22):Post Setup Gradle 后处理步骤在 GitHub Actions 缓存
+        # 服务瞬时 400 时失败(试图保存 Gradle 9.6.0 发行版缓存),导致所有测试通过后
+        # 整个 Backend job 仍报 failure。continue-on-error 使 post-action 缓存故障
+        # 不阻塞 job;真实 Gradle 安装失败会在 Compile 步骤暴露。
+        continue-on-error: true
         with:
           cache-disabled: false
           cache-read-only: ${{ github.event_name != 'pull_request' }}
