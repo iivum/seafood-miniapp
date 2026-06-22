@@ -143,6 +143,7 @@ jobs:
             }
 
       - name: Native compile (best-effort,design §10 风险 #1)
+        if: github.event_name != 'pull_request'
         working-directory: backend
         continue-on-error: true
         run: ./gradlew --no-daemon --build-cache --parallel nativeCompile
