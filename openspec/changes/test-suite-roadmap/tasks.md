@@ -32,3 +32,5 @@
       正常发现执行,不需 QuickTheories 回退)。13 个 domain property 覆盖 decrementStock 数值边界 /
       OrderStatus 状态机(round-trip+终态+无自环)/ Sku·Product 构造校验
 - [ ] T11 整体验收清单(本路线图 §5)全部勾完
+      **可持续**已完成(feat/pr-tdd-gate PR — PR 模板 + pr-lint.yml workflow，待 merge 后
+      在真实 PR 上完成 CI 验收打勾。§5 其余条目:数量/速度/可观测 待后续 Sprint 实施)

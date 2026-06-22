@@ -242,7 +242,7 @@ Sprint 1 闭合后,需要一份**测试体系路线图**指导 Sprint 2+ 持续�
 - [ ] **质量**:Jacoco 全局 ≥ 80% / domain & application ≥ 90%(CLAUDE.md 硬规则);PIT mutation score ≥ 70%
 - [ ] **速度**:PR CI < 8 min(从估 ~12 min 降);Gradle check 缓存命中 < 2 min;mp e2e flaky rate < 5%
 - [ ] **可观测**:coverage trend 在 PR comment + GitHub Pages;k6 数字入 Grafana / 报告仓
-- [ ] **可持续**:每个新功能 PR 默认 TDD(PR 模板 check);覆盖率 + mutation score 趋势卡点
+- [x] **可持续**:每个新功能 PR 默认 TDD(PR 模板 check);覆盖率 + mutation score 趋势卡点
 - [ ] **文档**:openspec/changes/<sprint-N>-<sub-project>/ 每个子项目 1 份完整流程(proposal → design → specs → tasks → archived)
 
 ---
