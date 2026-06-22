@@ -9,8 +9,8 @@
 ## Test plan
 
 <!-- ≥ 2 个 checkbox，不能全是 TODO -->
-- [ ] 
-- [ ] 
+- [ ] (请填写具体测试步骤)
+- [ ] (请填写具体测试步骤)
 
 ## Screenshots
 
