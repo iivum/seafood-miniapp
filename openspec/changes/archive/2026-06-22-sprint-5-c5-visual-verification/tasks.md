@@ -6,7 +6,7 @@
 
 - [x] 1.1 **自起 DevTools 成功**:`cli auto --project frontend --auto-port 9420` → AppID wx382d7553c29e617c,**9420 LISTENING**,已登录无需 QR。约束①消除
 - [x] 1.2 **connect + 截图链路通**(分步日志):connect 11ms ✅ → switchTab 3s ✅ → **截图 ✅ 780×1524 PNG**(390×762@DPR2 真实 home);`page.$('.home-banner')` 超时——选择器没错(wxml 确有),真因是 **home 内容需后端数据才渲染**(banner/grid 来自 products/categories),后端没跑 → loading 态 → 元素不渲染。几何层前置 = 后端起+seed(同现有 mp e2e fromBackend)
-- [ ] 1.3 OD 侧:`get_artifact` 拉 `mp-01-home.html` → Playwright 渲染 golden + 量 bbox(待 §2)
+- [x] 1.3 OD 侧:`get_artifact` 拉 OD mockup → Playwright 渲染 golden + 量 bbox。9 屏 golden 全在 `e2e/od-golden/`;bbox 量化 = 几何 SoT `od-geometry/<screen>.json`(见 2.2)
 - [x] 1.4 **判定:GO**。三个硬不确定项全证明可行(DevTools 自起 / automator connect / 截图)。感知层 = 截图 pipeline 已通,最具风险的一环反而最稳;几何层需后端渲染内容(编排细节)。**修正 design D1**:感知(截图)证明可端到端,几何需「后端+DevTools+automator」三者就位
 
 > **用户选 option 2:home 一屏 + 感知层先落地,几何 + 全 9 屏 + 取代旧 test 留下游。**
@@ -14,7 +14,7 @@
 ## 2. golden 生成 + 首屏产物
 
 - [x] 2.1(感知 golden 已落地)home golden 经 Playwright MCP 渲 OD `mp-01-home.html`(390×762,scale=css)→ 提交 `e2e/od-golden/mp-01-home.png`。gen-od-golden 脚本化 + 余 8 屏留下游;配方记入 `e2e/tools/README.md`
-- [ ] 2.2 `od-geometry/<screen>.json`(几何层,下游)
+- [x] 2.2 `od-geometry/<screen>.json`(几何层)—— **9/9 屏全覆盖**(mp-01~09,2026-06-21/22 commit `e4d41c8`→`592af86`);抽 `mp-harness.cjs` 共享 + 分包带参导航 + 鉴权/seed。8 屏 GREEN,category 经 RED→GREEN 修复(前后端分类契约 bug)后 32/32 全 GREEN
 - [x] 2.3 home golden 提交
 
 ## 3. 验证 harness(感知 + 几何均落地)
@@ -41,8 +41,8 @@
 
 ## 5. 收尾(slice 不归档,留 change 活跃做下游)
 
-- [ ] 5.1 回填 roadmap(待 C5 全量完成)
-- [ ] 5.2 归档(待几何 + 全 9 屏 + 删旧 test 完成)
+- [x] 5.1 回填 roadmap —— `docs/redesign/05-moscow-roadmap.md` 随 redesign 文档退役(从未记 C5),C5 成果改记于本 tasks.md + `CLAUDE.md`(§视觉验证,4.3 已更)+ runbook memory `c5-visual-test-runbook`,标准 roadmap 回填被取代
+- [x] 5.2 归档 —— 前置全满足:几何 9/9 ✅ + 全 9 屏感知 ✅ + 删旧 `mp-od-design.test.ts` ✅(4.2),2026-06-22 归档
 
 > **下游 backlog**:① 几何层 ✅(home+category;余 7 屏待铺,分包页**优先用几何**因感知 reLaunch 不稳)② 9 屏感知 ✅ **完成**(4.1b;4 tab 可靠 + 5 分包带参 flaky)③ 删 `mp-od-design.test.ts` ✅(取代理由见 4.2)④ ✅ 后端 seed 真信号
 >
