@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProductDocument.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.product.infra</a> &gt; <span class="el_source">ProductDocument.java</span></div><h1>ProductDocument.java</h1><pre class="source lang-java linenums">package com.seafood.product.infra;
+
+import com.seafood.product.domain.ProductStatus;
+import com.seafood.product.domain.Sku;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * products collection(参见 design.md §6.1)。
+ * 文本索引(name+description)在 {@code MongoIndexInitializer} 启动时显式建,
+ * 避免 {@code @TextIndex} 注解在不同 Spring Data MongoDB 版本下位置变化。
+ */
+@Document(collection = &quot;products&quot;)
+<span class="fc" id="L20">public class ProductDocument {</span>
+
+    @Id
+    private String id;
+
+    @Indexed
+    private String name;
+
+    private String description;
+    private BigDecimal price;
+
+    private int stock;
+
+    @Indexed
+    private String category;     // 存 displayName,经 ProductCategory.of 反序列化
+
+    private String imageUrl;
+
+    @Indexed
+    private boolean onSale;      // = status == ACTIVE
+
+    @Field(&quot;status&quot;)
+    private ProductStatus status;
+
+    /**
+     * SKU 列表(3.7 新增,nullable,空 list 等价&quot;只用默认 SKU&quot;)。
+     * MongoDB 缺省不写字段,旧数据反序列化为 null(由 Product 紧凑构造器兜底转空 list)。
+     * 单 SKU ≤ 200B,默认 50 个 SKU 上限远低于 Mongo doc 16MB 限制。
+     */
+    private List&lt;Sku&gt; skus;
+
+    @Indexed(direction = org.springframework.data.mongodb.core.index.IndexDirection.DESCENDING)
+    private Instant createdAt;
+
+    private Instant updatedAt;
+
+<span class="fc" id="L56">    public String getId() { return id; }</span>
+<span class="fc" id="L57">    public void setId(String id) { this.id = id; }</span>
+
+<span class="fc" id="L59">    public String getName() { return name; }</span>
+<span class="fc" id="L60">    public void setName(String name) { this.name = name; }</span>
+
+<span class="fc" id="L62">    public String getDescription() { return description; }</span>
+<span class="fc" id="L63">    public void setDescription(String description) { this.description = description; }</span>
+
+<span class="fc" id="L65">    public BigDecimal getPrice() { return price; }</span>
+<span class="fc" id="L66">    public void setPrice(BigDecimal price) { this.price = price; }</span>
+
+<span class="fc" id="L68">    public int getStock() { return stock; }</span>
+<span class="fc" id="L69">    public void setStock(int stock) { this.stock = stock; }</span>
+
+<span class="fc" id="L71">    public String getCategory() { return category; }</span>
+<span class="fc" id="L72">    public void setCategory(String category) { this.category = category; }</span>
+
+<span class="fc" id="L74">    public String getImageUrl() { return imageUrl; }</span>
+<span class="fc" id="L75">    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }</span>
+
+<span class="fc" id="L77">    public boolean isOnSale() { return onSale; }</span>
+<span class="fc" id="L78">    public void setOnSale(boolean onSale) { this.onSale = onSale; }</span>
+
+<span class="fc" id="L80">    public ProductStatus getStatus() { return status; }</span>
+<span class="fc" id="L81">    public void setStatus(ProductStatus status) { this.status = status; }</span>
+
+<span class="fc" id="L83">    public List&lt;Sku&gt; getSkus() { return skus; }</span>
+<span class="fc" id="L84">    public void setSkus(List&lt;Sku&gt; skus) { this.skus = skus; }</span>
+
+<span class="fc" id="L86">    public Instant getCreatedAt() { return createdAt; }</span>
+<span class="fc" id="L87">    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }</span>
+
+<span class="fc" id="L89">    public Instant getUpdatedAt() { return updatedAt; }</span>
+<span class="fc" id="L90">    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

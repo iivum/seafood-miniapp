@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.security</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package com.seafood.shared.security;
+
+import com.seafood.shared.error.ErrorResponse;
+import com.seafood.user.application.TokenRevocationService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+
+/**
+ * 解析 Authorization: Bearer &amp;lt;token&amp;gt;,按 URL 前缀选 user / admin 密钥,把 UserPrincipal 写入 SecurityContext。
+ *
+ * &lt;p&gt;本 filter 只做&quot;有 token 就解析&quot;,不做&quot;无 token 就 401&quot;:
+ * &lt;ul&gt;
+ *   &lt;li&gt;无 token → 放行,SecurityConfig + @PreAuthorize 决定 401/403&lt;/li&gt;
+ *   &lt;li&gt;有 token 但无效 → 清除 SecurityContext 后放行(同样由后续层拒绝)&lt;/li&gt;
+ * &lt;/ul&gt;
+ * 这样公共读端点(/api/products 等)匿名可访问,写端点和管理端点由授权层拦截。
+ *
+ * &lt;p&gt;Sprint 2 §3.5 — 解析成功后追加撤销检查:若 {@code jti} 在
+ * {@link TokenRevocationService#isRevoked(String, String)} 中命中,直接写
+ * HTTP 401 + {@code code=TOKEN_REVOKED} body,&lt;em&gt;不&lt;/em&gt;再走下游 ——
+ * revoked token 一律就地拒绝,即便签名 + exp 都有效。
+ */
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final String BEARER = &quot;Bearer &quot;;
+    private final JwtTokenProvider tokens;
+    private final TokenRevocationService revocations;
+    private final ObjectMapper objectMapper;
+
+    public JwtAuthenticationFilter(JwtTokenProvider tokens,
+                                   TokenRevocationService revocations,
+<span class="fc" id="L46">                                   ObjectMapper objectMapper) {</span>
+<span class="fc" id="L47">        this.tokens = tokens;</span>
+<span class="fc" id="L48">        this.revocations = revocations;</span>
+<span class="fc" id="L49">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L50">    }</span>
+
+    /** admin cookie 名(由 AdminCookieAuthController.writeAdminCookie 设置) */
+    private static final String ADMIN_COOKIE = &quot;seafood_admin_token&quot;;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+            throws ServletException, IOException {
+
+        // sprint-1-closure 2.x + 验证发现:admin-ui 走 httpOnly cookie,filter 必须能读
+        // 否则登录后 dashboard 拿 403。原实现只读 Authorization header。
+<span class="fc" id="L61">        String token = extractToken(req);</span>
+<span class="pc bpc" id="L62" title="1 of 4 branches missed.">        if (token == null || token.isEmpty()) {</span>
+<span class="fc" id="L63">            chain.doFilter(req, res);</span>
+<span class="fc" id="L64">            return;</span>
+        }
+
+        Claims claims;
+        try {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">            claims = isAdminPath(req.getRequestURI())</span>
+<span class="fc" id="L70">                    ? tokens.parseAdmin(token)</span>
+<span class="fc" id="L71">                    : tokens.parseUser(token);</span>
+<span class="fc" id="L72">        } catch (JwtException e) {</span>
+            // 无效 token:不留 SecurityContext,授权层会拒绝
+<span class="fc" id="L74">            SecurityContextHolder.clearContext();</span>
+<span class="fc" id="L75">            chain.doFilter(req, res);</span>
+<span class="fc" id="L76">            return;</span>
+<span class="fc" id="L77">        }</span>
+
+<span class="fc" id="L79">        String userId = claims.getSubject();</span>
+<span class="fc" id="L80">        String roleStr = claims.get(&quot;role&quot;, String.class);</span>
+<span class="pc bpc" id="L81" title="2 of 4 branches missed.">        if (userId == null || roleStr == null) {</span>
+<span class="nc" id="L82">            chain.doFilter(req, res);</span>
+<span class="nc" id="L83">            return;</span>
+        }
+
+        // Sprint 2 §3.5 — 撤销检查
+<span class="fc" id="L87">        String jti = claims.getId();</span>
+<span class="pc bpc" id="L88" title="1 of 4 branches missed.">        if (jti != null &amp;&amp; revocations.isRevoked(jti, userId)) {</span>
+<span class="fc" id="L89">            writeRevoked(res);</span>
+<span class="fc" id="L90">            return;</span>
+        }
+
+<span class="fc" id="L93">        Role role = Role.valueOf(roleStr);</span>
+<span class="fc" id="L94">        UserPrincipal principal = new UserPrincipal(userId, role);</span>
+<span class="fc" id="L95">        var auth = new UsernamePasswordAuthenticationToken(</span>
+<span class="fc" id="L96">                principal, null, principal.getAuthorities());</span>
+<span class="fc" id="L97">        SecurityContextHolder.getContext().setAuthentication(auth);</span>
+<span class="fc" id="L98">        chain.doFilter(req, res);</span>
+<span class="fc" id="L99">    }</span>
+
+    private static boolean isAdminPath(String uri) {
+        // PR review I6:集中到 {@link AdminPathMatcher},两 filter 共享。
+<span class="fc" id="L103">        return AdminPathMatcher.isAdminPath(uri);</span>
+    }
+
+    /**
+     * 提取 token:优先 Authorization: Bearer,其次 admin path 读 seafood_admin_token cookie。
+     * cookie 仅在 admin 路径读(user 端目前无 cookie auth,只 Bearer)。
+     */
+    private String extractToken(HttpServletRequest req) {
+<span class="fc" id="L111">        String header = req.getHeader(&quot;Authorization&quot;);</span>
+<span class="pc bpc" id="L112" title="1 of 4 branches missed.">        if (header != null &amp;&amp; header.startsWith(BEARER)) {</span>
+<span class="fc" id="L113">            String t = header.substring(BEARER.length()).trim();</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">            if (!t.isEmpty()) return t;</span>
+        }
+        // fallback: admin path 读 httpOnly cookie
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        if (isAdminPath(req.getRequestURI())) {</span>
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">            if (req.getCookies() != null) {</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">                for (jakarta.servlet.http.Cookie c : req.getCookies()) {</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">                    if (ADMIN_COOKIE.equals(c.getName())) {</span>
+<span class="nc" id="L121">                        String v = c.getValue();</span>
+<span class="nc bnc" id="L122" title="All 4 branches missed.">                        if (v != null &amp;&amp; !v.isEmpty()) return v;</span>
+                    }
+                }
+            }
+        }
+<span class="fc" id="L127">        return null;</span>
+    }
+
+    /** 撤销 token 的 401 响应;与 {@link AdminRateLimitFilter} 同样的&quot;filter 内直写&quot;模式。 */
+    private void writeRevoked(HttpServletResponse res) throws IOException {
+<span class="fc" id="L132">        res.setStatus(HttpStatus.UNAUTHORIZED.value());</span>
+<span class="fc" id="L133">        res.setContentType(MediaType.APPLICATION_JSON_VALUE);</span>
+<span class="fc" id="L134">        ErrorResponse body = new ErrorResponse(</span>
+                &quot;TOKEN_REVOKED&quot;,
+                &quot;Token has been revoked; please log in again&quot;,
+                null);
+<span class="fc" id="L138">        objectMapper.writeValue(res.getOutputStream(), body);</span>
+<span class="fc" id="L139">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

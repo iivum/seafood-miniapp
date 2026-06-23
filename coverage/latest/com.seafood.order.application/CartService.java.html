@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CartService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.application</a> &gt; <span class="el_source">CartService.java</span></div><h1>CartService.java</h1><pre class="source lang-java linenums">package com.seafood.order.application;
+
+import com.seafood.order.api.dto.CartItemRequest;
+import com.seafood.order.api.dto.CartResponse;
+import com.seafood.order.domain.Cart;
+import com.seafood.order.infra.CartDocument;
+import com.seafood.order.infra.CartRepository;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+
+/**
+ * 购物车服务(参见 specs/backend-api §Customer cart operations)。
+ * 所有方法都接收 userId 参数(由 Controller 从 SecurityContext 注入),
+ * 不接受 query/path 中的 userId → 防止越权。
+ */
+@Service
+public class CartService {
+
+    private final CartRepository carts;
+
+<span class="fc" id="L22">    public CartService(CartRepository carts) {</span>
+<span class="fc" id="L23">        this.carts = carts;</span>
+<span class="fc" id="L24">    }</span>
+
+    public CartResponse get(String userId) {
+<span class="fc" id="L27">        return CartResponse.from(loadOrEmpty(userId));</span>
+    }
+
+    public CartResponse addItem(String userId, CartItemRequest req) {
+<span class="fc" id="L31">        Cart current = loadOrEmpty(userId);</span>
+<span class="fc" id="L32">        Cart updated = current.addItem(req.productId(), req.quantity());</span>
+<span class="fc" id="L33">        return CartResponse.from(persist(updated));</span>
+    }
+
+    public CartResponse removeItem(String userId, String productId) {
+<span class="fc" id="L37">        Cart current = loadOrEmpty(userId);</span>
+<span class="fc" id="L38">        Cart updated = current.removeItem(productId);</span>
+<span class="fc" id="L39">        return CartResponse.from(persist(updated));</span>
+    }
+
+    public void clear(String userId) {
+<span class="fc" id="L43">        carts.deleteById(userId);</span>
+<span class="fc" id="L44">    }</span>
+
+    // ----- helpers -----
+
+    private Cart loadOrEmpty(String userId) {
+<span class="fc" id="L49">        return carts.findById(userId)</span>
+<span class="fc" id="L50">                .map(d -&gt; new Cart(d.getUserId(), d.getItems(), d.getUpdatedAt()))</span>
+<span class="pc" id="L51">                .orElseGet(() -&gt; Cart.empty(userId));</span>
+    }
+
+    private Cart persist(Cart c) {
+<span class="fc" id="L55">        CartDocument d = new CartDocument();</span>
+<span class="fc" id="L56">        d.setUserId(c.userId());</span>
+<span class="fc" id="L57">        d.setItems(c.items());</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        d.setUpdatedAt(c.updatedAt() == null ? Instant.now() : c.updatedAt());</span>
+<span class="fc" id="L59">        carts.save(d);</span>
+<span class="fc" id="L60">        return c;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

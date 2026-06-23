@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StaticResourceConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.config</a> &gt; <span class="el_source">StaticResourceConfig.java</span></div><h1>StaticResourceConfig.java</h1><pre class="source lang-java linenums">package com.seafood.shared.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.RouterFunctions;
+import org.springframework.web.servlet.function.ServerResponse;
+
+import java.nio.file.Paths;
+import java.util.List;
+
+/**
+ * 管理后台 SPA 静态资源路由(参见 specs/backend-api §Static admin asset hosting,
+ * design §&quot;静态资源服务(托管 admin-ui 构建产物)&quot;)。
+ *
+ * &lt;p&gt;行为:
+ * &lt;ul&gt;
+ *   &lt;li&gt;GET /admin/ → /admin/index.html&lt;/li&gt;
+ *   &lt;li&gt;GET /admin/&amp;lt;existing-asset&amp;gt; → 静态文件(JS/CSS/img)&lt;/li&gt;
+ *   &lt;li&gt;GET /admin/&amp;lt;unknown-route&amp;gt; → /admin/index.html(SPA history-API fallback)&lt;/li&gt;
+ *   &lt;li&gt;GET /admin/missing-asset.(js|css|...) → 404(不 fallback,assets 必须存在)&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;资源全部托管自 {@code classpath:/static/admin/**}(admin-ui 构建产物)。
+ */
+@Configuration
+public class StaticResourceConfig implements WebMvcConfigurer {
+
+    private static final String ADMIN_BASE = &quot;/admin/**&quot;;
+    private static final String ADMIN_LOCATION = &quot;classpath:/static/admin/&quot;;
+    // v2.1 signoff 修:vite 默认 base='/',build 产物 index.html 引用 /assets/...
+    // 根路径,但实际文件在 classpath:/static/admin/assets/。修法:加 /assets/** 资源
+    // 处理器,跟 SPA index.html 同源,SecurityConfig 同时 permitAll(public JS/CSS/font)。
+    private static final String ASSETS_BASE = &quot;/assets/**&quot;;
+    private static final String ASSETS_LOCATION = ADMIN_LOCATION + &quot;assets/&quot;;
+
+    /**
+     * 路线图 3.6 上传图片静态暴露路径(/api/static/uploads/**)。
+     * 注意:必须有 /api 前缀,因 {@code com.seafood.shared.config.WebConfig} 把 /api/**
+     * 路由交给业务 controller(本类扩展 MVC 资源处理器);不带 /api 前缀的 /static/uploads/**
+     * 会与未来 /static/** 其他用途冲突。
+     */
+    private static final String UPLOADS_BASE = &quot;/api/static/uploads/**&quot;;
+
+    /**
+     * v2 视觉 5.15 — 路径同源。读盘(本类)与写盘(AdminUploadController)
+     * 都从 {@code seafood.upload.dir} 注入,容器内 + dev 一致。Spring
+     * ResourceHandler 接受 {@code file:} 前缀定位文件系统位置,故拼一次。
+     * 默认 {@code ./var/seafood/uploads} 由 application.yml 提供,容器
+     * 由 SEAFOOD_UPLOAD_DIR 注入 /app/var/seafood/uploads。
+     */
+    private final String uploadsLocation;
+
+<span class="fc" id="L59">    public StaticResourceConfig(@Value(&quot;${seafood.upload.dir:./var/seafood/uploads}&quot;) String uploadDir) {</span>
+        // ResourceHandler 需要以 &quot;/&quot; 结尾(Spring 内部字符串拼接检查),
+        // 且以 &quot;file:&quot; 前缀标明文件系统源(非 classpath)。
+<span class="fc" id="L62">        String absPath = Paths.get(uploadDir).toAbsolutePath().normalize().toString();</span>
+<span class="fc" id="L63">        this.uploadsLocation = &quot;file:&quot; + absPath + &quot;/&quot;;</span>
+<span class="fc" id="L64">    }</span>
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 标准静态资源:实际文件存在时直接返
+<span class="fc" id="L69">        registry.addResourceHandler(ADMIN_BASE)</span>
+<span class="fc" id="L70">                .addResourceLocations(ADMIN_LOCATION)</span>
+<span class="fc" id="L71">                .setCachePeriod(3600);</span>
+        // v2.1:admin-ui vite 产物的 /assets/** 根路径(JS/CSS/字体)
+<span class="fc" id="L73">        registry.addResourceHandler(ASSETS_BASE)</span>
+<span class="fc" id="L74">                .addResourceLocations(ASSETS_LOCATION)</span>
+<span class="fc" id="L75">                .setCachePeriod(3600);</span>
+        // 3.6 上传文件 + 5.15 路径同源(file: 前缀指向文件系统;与 classpath 不同)
+<span class="fc" id="L77">        registry.addResourceHandler(UPLOADS_BASE)</span>
+<span class="fc" id="L78">                .addResourceLocations(uploadsLocation)</span>
+<span class="fc" id="L79">                .setCachePeriod(86400); // 1 day</span>
+<span class="fc" id="L80">    }</span>
+
+    /**
+     * SPA history-API fallback:任何 GET /admin/{非 .css/.js/.png/... 资产} 都返 index.html。
+     * 资产请求(扩展名)走 addResourceHandlers;命中失败就 404,不 fallback。
+     */
+    @Bean
+    public RouterFunction&lt;ServerResponse&gt; adminSpaFallback() {
+<span class="fc" id="L88">        return RouterFunctions.route()</span>
+<span class="pc" id="L89">                .GET(&quot;/admin&quot;, req -&gt; serveIndex())</span>
+<span class="pc" id="L90">                .GET(&quot;/admin/&quot;, req -&gt; serveIndex())</span>
+<span class="fc" id="L91">                .GET(&quot;/admin/{path:^(?!.*\\.[a-zA-Z0-9]+$).*$}&quot;, req -&gt; {</span>
+<span class="nc" id="L92">                    String subPath = req.pathVariable(&quot;path&quot;);</span>
+                    // 已存在资源(由 addResourceHandlers 处理)不被本规则覆盖;
+                    // 这里只服务&quot;目录式&quot;或&quot;无扩展名&quot;的 SPA 路由
+<span class="nc" id="L95">                    Resource candidate = new ClassPathResource(&quot;static/admin/&quot; + subPath);</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">                    if (candidate.exists()) {</span>
+<span class="nc" id="L97">                        return ServerResponse.ok().body(candidate);</span>
+                    }
+<span class="nc" id="L99">                    return serveIndex();</span>
+                })
+<span class="fc" id="L101">                .build();</span>
+    }
+
+    private static ServerResponse serveIndex() {
+<span class="nc" id="L105">        Resource index = new ClassPathResource(&quot;static/admin/index.html&quot;);</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (!index.exists()) {</span>
+<span class="nc" id="L107">            return ServerResponse.notFound().build();</span>
+        }
+<span class="nc" id="L109">        return ServerResponse.ok()</span>
+<span class="nc" id="L110">                .header(&quot;Content-Type&quot;, &quot;text/html;charset=UTF-8&quot;)</span>
+<span class="nc" id="L111">                .cacheControl(org.springframework.http.CacheControl.noCache())</span>
+<span class="nc" id="L112">                .body(index);</span>
+    }
+
+    /** 测试用,公开基础路径常量。 */
+    public static List&lt;String&gt; adminPaths() {
+<span class="nc" id="L117">        return List.of(&quot;/admin&quot;, &quot;/admin/&quot;, &quot;/admin/dashboard&quot;, &quot;/admin/orders/123&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

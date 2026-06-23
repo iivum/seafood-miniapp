@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UploadWritabilityChecker.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.bff.admin</a> &gt; <span class="el_source">UploadWritabilityChecker.java</span></div><h1>UploadWritabilityChecker.java</h1><pre class="source lang-java linenums">package com.seafood.bff.admin;
+
+import com.seafood.shared.error.DomainException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+/**
+ * v2 视觉 5.16 启动期 fail-fast 校验 — 抽到独立 component,不带
+ * {@code @PreAuthorize}({@code AdminUploadController} 类有
+ * {@code @PreAuthorize(&quot;hasRole('ADMIN')&quot;)},如果
+ * {@link EventListener} 方法留在 controller,启动期 ApplicationReadyEvent
+ * 触发时会因无 SecurityContext 抛 AuthenticationCredentialsNotFoundException,
+ * 整 app crash)。
+ *
+ * &lt;p&gt;职责:确认 {@code seafood.upload.dir} 真实可写。失败抛
+ * {@link IllegalStateException},Spring 不会 emit ready 事件,k8s
+ * readinessProbe 不通过 → pod 不接流量(比&quot;静默到第一次上传才报错&quot;
+ * 安全得多)。
+ */
+@Component
+public class UploadWritabilityChecker {
+
+<span class="fc" id="L32">    private static final Logger log = LoggerFactory.getLogger(UploadWritabilityChecker.class);</span>
+
+    private final Path uploadRoot;
+
+<span class="fc" id="L36">    public UploadWritabilityChecker(@Value(&quot;${seafood.upload.dir:./var/seafood/uploads}&quot;) String uploadDir) {</span>
+<span class="fc" id="L37">        this.uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();</span>
+        try {
+<span class="fc" id="L39">            Files.createDirectories(uploadRoot);</span>
+<span class="nc" id="L40">        } catch (IOException e) {</span>
+<span class="nc" id="L41">            throw new IllegalStateException(&quot;无法创建上传目录: &quot; + uploadRoot, e);</span>
+<span class="fc" id="L42">        }</span>
+<span class="fc" id="L43">    }</span>
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (!Files.isDirectory(uploadRoot)) {</span>
+<span class="fc" id="L48">            throw new IllegalStateException(</span>
+                    &quot;上传根目录不存在: &quot; + uploadRoot + &quot; (检查 docker-compose volume 挂载 / SEAFOOD_UPLOAD_DIR)&quot;);
+        }
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (!Files.isWritable(uploadRoot)) {</span>
+<span class="fc" id="L52">            throw new IllegalStateException(</span>
+                    &quot;上传根目录不可写: &quot; + uploadRoot + &quot; (检查文件系统权限 / 容器用户 UID)&quot;);
+        }
+<span class="fc" id="L55">        log.info(&quot;Upload root verified writable: {}&quot;, uploadRoot);</span>
+<span class="fc" id="L56">    }</span>
+
+    /**
+     * 测试用 accessor(让 AdminUploadControllerTest 可以反射拿 uploadRoot
+     * 做路径同源断言)。
+     */
+    public Path uploadRoot() {
+<span class="fc" id="L63">        return uploadRoot;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

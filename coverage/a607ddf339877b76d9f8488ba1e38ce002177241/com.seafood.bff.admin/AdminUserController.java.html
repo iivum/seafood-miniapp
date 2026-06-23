@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminUserController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.bff.admin</a> &gt; <span class="el_source">AdminUserController.java</span></div><h1>AdminUserController.java</h1><pre class="source lang-java linenums">package com.seafood.bff.admin;
+
+import com.seafood.user.application.TokenRevocationService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Admin 用户管理端点(Sprint 2 §3.7,specs/auth §Admin force-logout user)。
+ *
+ * &lt;p&gt;{@code POST /api/admin/users/{id}/revoke-tokens} 让 admin 把某 user 的
+ * 全部已签发 access token 立即作废 —— 走 {@link TokenRevocationService#revokeAllForUser}
+ * 写一个 sentinel 文档;{@code JwtAuthenticationFilter} 见到该 userId 后续请求
+ * 即返 401 TOKEN_REVOKED。
+ *
+ * &lt;p&gt;约束(对齐 design §3 decision 3 + 跨模块约束):
+ * &lt;ul&gt;
+ *   &lt;li&gt;只通过 ApplicationService 跨模块,绝不直接碰 Repository&lt;/li&gt;
+ *   &lt;li&gt;ADMIN-only(类级 {@code @PreAuthorize} + SecurityConfig URL 规则双重防护)&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;注意:本类不重复实现 {@code AdminBffController} 的&quot;只读 BFF 聚合&quot;职责,
+ * 只放&quot;管理动作&quot;端点(revoke-tokens 是写操作,放这里语义更准)。
+ */
+@RestController
+@RequestMapping(&quot;/api/admin/users&quot;)
+@PreAuthorize(&quot;hasRole('ADMIN')&quot;)
+public class AdminUserController {
+
+    private final TokenRevocationService revocations;
+
+<span class="fc" id="L35">    public AdminUserController(TokenRevocationService revocations) {</span>
+<span class="fc" id="L36">        this.revocations = revocations;</span>
+<span class="fc" id="L37">    }</span>
+
+    /**
+     * 强制登出某 user:把他所有尚未过期的 access token 全部作废。
+     *
+     * &lt;p&gt;实现细节:见 {@link TokenRevocationService#revokeAllForUser(String)}
+     * —— 写一个 {@code _id = &quot;u:USER_ID&quot;} 的 sentinel 文档;{@code isRevoked}
+     * 检测到该前缀即返回 true。该文档 {@code expiresAt} 设为 100 年后,
+     * 实际清理交由 ops job(本次未实现)。
+     */
+    @PostMapping(&quot;/{id}/revoke-tokens&quot;)
+    public ResponseEntity&lt;Void&gt; revokeTokens(@PathVariable(&quot;id&quot;) String userId) {
+<span class="fc" id="L49">        revocations.revokeAllForUser(userId);</span>
+<span class="fc" id="L50">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

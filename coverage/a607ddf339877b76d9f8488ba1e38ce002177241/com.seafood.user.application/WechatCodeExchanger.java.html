@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WechatCodeExchanger.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.application</a> &gt; <span class="el_source">WechatCodeExchanger.java</span></div><h1>WechatCodeExchanger.java</h1><pre class="source lang-java linenums">package com.seafood.user.application;
+
+import com.seafood.shared.error.DomainException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+import java.util.Map;
+
+/**
+ * 微信 code → openId 兑换(对齐 specs/mini-program §Authentication and session)。
+ *
+ * &lt;p&gt;真实实现:调用 https://api.weixin.qq.com/sns/jscode2session。
+ * 这里默认实现:开发期接受 &quot;dev-{any}&quot; 形式,生产期通过 wechat.enabled=true 走真接口。
+ */
+@Component
+<span class="fc" id="L17">public class WechatCodeExchanger {</span>
+
+<span class="fc" id="L19">    private final RestClient http = RestClient.builder()</span>
+<span class="fc" id="L20">            .baseUrl(&quot;https://api.weixin.qq.com&quot;)</span>
+<span class="fc" id="L21">            .build();</span>
+
+    @Value(&quot;${wechat.appid:dummy}&quot;)
+    private String appid;
+    @Value(&quot;${wechat.secret:dummy}&quot;)
+    private String secret;
+    @Value(&quot;${wechat.enabled:false}&quot;)
+    private boolean enabled;
+
+    public String exchange(String code) {
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        if (!enabled) {</span>
+            // 开发期:接受 dev-* 直接当 openId
+<span class="nc bnc" id="L33" title="All 4 branches missed.">            if (code != null &amp;&amp; code.startsWith(&quot;dev-&quot;)) {</span>
+<span class="nc" id="L34">                return code;</span>
+            }
+            // 显式 fail-fast,避免上线时静默放行
+<span class="nc" id="L37">            throw new DomainException(&quot;微信登录未启用(wechat.enabled=false),code 必须以 dev- 开头&quot;);</span>
+        }
+<span class="nc" id="L39">        Map&lt;?,?&gt; body = http.get()</span>
+<span class="nc" id="L40">                .uri(uri -&gt; uri.path(&quot;/sns/jscode2session&quot;)</span>
+<span class="nc" id="L41">                        .queryParam(&quot;appid&quot;, appid)</span>
+<span class="nc" id="L42">                        .queryParam(&quot;secret&quot;, secret)</span>
+<span class="nc" id="L43">                        .queryParam(&quot;js_code&quot;, code)</span>
+<span class="nc" id="L44">                        .queryParam(&quot;grant_type&quot;, &quot;authorization_code&quot;)</span>
+<span class="nc" id="L45">                        .build())</span>
+<span class="nc" id="L46">                .retrieve()</span>
+<span class="nc" id="L47">                .body(Map.class);</span>
+<span class="nc bnc" id="L48" title="All 4 branches missed.">        if (body == null || body.get(&quot;openid&quot;) == null) {</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">            throw new DomainException(&quot;微信 code 兑换失败:&quot; + (body == null ? &quot;empty&quot; : body.get(&quot;errmsg&quot;)));</span>
+        }
+<span class="nc" id="L51">        return (String) body.get(&quot;openid&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

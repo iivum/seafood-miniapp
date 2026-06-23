@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminPathMatcher.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.security</a> &gt; <span class="el_source">AdminPathMatcher.java</span></div><h1>AdminPathMatcher.java</h1><pre class="source lang-java linenums">package com.seafood.shared.security;
+
+/**
+ * PR review I6:admin 路径判定共享工具。
+ *
+ * &lt;p&gt;原 {@link JwtAuthenticationFilter#isAdminPath(String)} 与
+ * {@code AdminRateLimitFilter.shouldNotFilter} 各有一份相同实现 ——
+ * 任何一边改了判定,另一边若不同步会引入安全/性能 bug。本类提供
+ * 唯一权威定义,两边 filter 都调它。
+ *
+ * &lt;p&gt;判定规则:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code /api/admin} — 精确匹配(无尾斜杠)&lt;/li&gt;
+ *   &lt;li&gt;{@code /api/admin/**} — 前缀匹配(必须带尾斜杠)&lt;/li&gt;
+ *   &lt;li&gt;近似前缀(例 {@code /api/adminalice})&lt;em&gt;不&lt;/em&gt;算 admin&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+public final class AdminPathMatcher {
+
+    private static final String ADMIN_PATH_EXACT = &quot;/api/admin&quot;;
+    private static final String ADMIN_PATH_PREFIX = &quot;/api/admin/&quot;;
+
+    private AdminPathMatcher() {
+    }
+
+    public static boolean isAdminPath(String uri) {
+<span class="fc bfc" id="L27" title="All 2 branches covered.">        if (uri == null) {</span>
+<span class="fc" id="L28">            return false;</span>
+        }
+<span class="fc bfc" id="L30" title="All 4 branches covered.">        return ADMIN_PATH_EXACT.equals(uri) || uri.startsWith(ADMIN_PATH_PREFIX);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

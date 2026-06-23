@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.domain</a> &gt; <span class="el_source">OrderAction.java</span></div><h1>OrderAction.java</h1><pre class="source lang-java linenums">package com.seafood.order.domain;
+
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * 客户侧订单状态机操作(sprint-1-closure 1.1-1.3)。
+ *
+ * &lt;p&gt;每个 {@link OrderAction} 关联一个 {@link TransitionRule} 描述:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code allowedFrom}:当前状态必须在该集合中(否则 409 INVALID_STATE)&lt;/li&gt;
+ *   &lt;li&gt;{@code target}:执行成功后订单的新状态(若为 {@code null} 表示无状态变更,如 REMIND_SHIP / REBUY)&lt;/li&gt;
+ *   &lt;li&gt;{@code metricName}:埋点 counter 名(如 {@code orders.cancelled});{@code null} 表示不埋点&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;新增 action 只需:1) 加 enum 常量;2) 在 {@link #RULES} 加一条规则;3) 在
+ * {@link com.seafood.order.application.OrderService#transition} 加 case 分支。
+ */
+<span class="fc" id="L19">public enum OrderAction {</span>
+<span class="fc" id="L20">    CANCEL,</span>
+<span class="fc" id="L21">    PAY,</span>
+<span class="fc" id="L22">    CONFIRM_RECEIVE,</span>
+<span class="fc" id="L23">    REBUY,</span>
+<span class="fc" id="L24">    REFUND,</span>
+<span class="fc" id="L25">    REMIND_SHIP;</span>
+
+    /**
+     * 状态机集中规则表。任何&quot;当前状态能否走 action&quot;的判断都走这里,避免散落。
+     */
+<span class="fc" id="L30">    public record TransitionRule(</span>
+            Set&lt;Class&lt;? extends OrderStatus&gt;&gt; allowedFrom,
+            Class&lt;? extends OrderStatus&gt; target,
+            String metricName) {
+    }
+
+<span class="fc" id="L36">    public static final Map&lt;OrderAction, TransitionRule&gt; RULES = Map.of(</span>
+            CANCEL, new TransitionRule(
+<span class="fc" id="L38">                    Set.of(OrderStatus.Pending.class),</span>
+                    OrderStatus.Cancelled.class,
+                    &quot;orders.cancelled&quot;),
+            PAY, new TransitionRule(
+<span class="fc" id="L42">                    Set.of(OrderStatus.Pending.class),</span>
+                    OrderStatus.Paid.class,
+                    &quot;orders.paid&quot;),
+            CONFIRM_RECEIVE, new TransitionRule(
+<span class="fc" id="L46">                    Set.of(OrderStatus.Shipped.class),</span>
+                    OrderStatus.Completed.class,
+                    &quot;orders.completed&quot;),
+            REBUY, new TransitionRule(
+<span class="fc" id="L50">                    Set.of(OrderStatus.Completed.class, OrderStatus.Cancelled.class, OrderStatus.Refunded.class),</span>
+                    null,  // no state change
+                    &quot;orders.rebuy&quot;),
+            REFUND, new TransitionRule(
+<span class="fc" id="L54">                    Set.of(OrderStatus.Paid.class, OrderStatus.Shipped.class, OrderStatus.Completed.class),</span>
+                    OrderStatus.Refunding.class,
+                    &quot;orders.refunding&quot;),
+            REMIND_SHIP, new TransitionRule(
+<span class="fc" id="L58">                    Set.of(OrderStatus.Paid.class),</span>
+                    null,  // no state change
+                    &quot;orders.remind_ship&quot;)
+    );
+
+    public TransitionRule rule() {
+<span class="fc" id="L64">        return RULES.get(this);</span>
+    }
+
+    public boolean isAllowedFrom(OrderStatus current) {
+<span class="fc" id="L68">        return rule().allowedFrom().stream().anyMatch(c -&gt; c.isInstance(current));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
