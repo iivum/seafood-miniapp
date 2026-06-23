@@ -67,6 +67,8 @@
         class="detail-recommend__item"
         bindtap="goToProductDetail"
         data-id="{{rec.id}}"
+        hover-class="is-clicked"
+        hover-stay-time="100"
       >
         <image class="detail-recommend__img" src="{{rec.imageUrl}}" mode="aspectFill" lazy-load="{{true}}"></image>
         <text class="detail-recommend__name">{{rec.name}}</text>
