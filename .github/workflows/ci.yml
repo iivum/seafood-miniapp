@@ -46,6 +46,9 @@ jobs:
     name: Backend (Java 25 + GraalVM)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       JWT_SECRET: ci-test-secret-must-be-at-least-32-bytes-long-AAAA
       JWT_ADMIN_SECRET: ci-test-admin-secret-must-be-at-least-32-bytes-BBBB
@@ -122,7 +125,10 @@ jobs:
             const banner = +pct < 80
               ? `❌ Coverage ${pct}% (gate 80% failed)\n\n`
               : `✅ Coverage ${pct}%\n\n`;
-            const body = banner + 'See `jacoco-coverage` artifact for per-file breakdown.';
+            const pagesUrl = 'https://iivum.github.io/seafood-miniapp/coverage/latest/';
+            const body = banner
+              + `[查看完整 HTML 报告](${pagesUrl})\n\n`
+              + 'See `jacoco-coverage` artifact for per-file breakdown.';
             // Find existing comment (idempotent across force-pushes)
             const marker = '<!-- jacoco-coverage-comment -->';
             const { data: comments } = await github.rest.issues.listComments({
@@ -147,6 +153,43 @@ jobs:
         working-directory: backend
         continue-on-error: true
         run: ./gradlew --no-daemon --build-cache --parallel nativeCompile
+
+      - name: Prepare coverage directories
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/gh-pages-coverage/coverage/latest
+          mkdir -p /tmp/gh-pages-coverage/coverage/${{ github.sha }}
+          cp -r backend/build/reports/jacoco/test/html/. /tmp/gh-pages-coverage/coverage/latest/
+          cp -r backend/build/reports/jacoco/test/html/. /tmp/gh-pages-coverage/coverage/${{ github.sha }}/
+
+      - name: Deploy coverage to GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: /tmp/gh-pages-coverage
+          destination_dir: .
+          keep_files: true
+          commit_message: "ci: update coverage report [${{ github.sha }}]"
+
+      - name: Prune old coverage archives (keep 20)
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          git fetch origin gh-pages --depth=1 2>/dev/null || exit 0
+          git worktree add /tmp/gh-pages-worktree gh-pages 2>/dev/null || exit 0
+          cd /tmp/gh-pages-worktree
+          dirs=$(ls -dt coverage/????????????????????????????????????????????????/ 2>/dev/null \
+                 | grep -v 'coverage/latest' | tail -n +21 || true)
+          if [ -n "$dirs" ]; then
+            echo "Removing old archives: $dirs"
+            rm -rf $dirs
+            git add -A
+            git diff --cached --quiet || git commit -m "ci: prune old coverage archives"
+            git push origin gh-pages
+          fi
+          cd -
+          git worktree remove /tmp/gh-pages-worktree --force
 
   # Sprint 4 C1 — PR-scoped 增量变异测试(roadmap test-roadmap spec "gates PR merge")。
   # 只对本 PR 改动的核心模块(order / product)跑 PIT,按各模块基线 floor 卡门(order 80 /
