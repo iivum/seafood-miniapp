@@ -17,7 +17,7 @@
 
   <view class="cart-content" wx:else>
     <!-- 收货地址卡(保持数据流,微调视觉) -->
-    <navigator class="cart-address" open-type="navigate" bindtap="selectAddress">
+    <navigator class="cart-address" open-type="navigate" bindtap="selectAddress" hover-class="is-clicked" hover-stay-time="100">
       <view class="cart-address__main" wx:if="{{selectedAddress}}">
         <view class="cart-address__head">
           <text class="cart-address__name">{{selectedAddress.name}}</text>
@@ -35,7 +35,7 @@
 
     <!-- 全选栏 -->
     <view class="cart-bar">
-      <view class="cart-bar__select-all" bindtap="onSelectAllTap">
+      <view class="cart-bar__select-all" bindtap="onSelectAllTap" hover-class="is-clicked" hover-stay-time="100">
         <view class="cart-checkbox {{isAllSelected ? 'cart-checkbox--checked' : ''}}">
           <text wx:if="{{isAllSelected}}" class="cart-checkbox__icon">✓</text>
         </view>
@@ -55,6 +55,8 @@
           class="cart-item__check"
           catchtap="onItemCheckTap"
           data-id="{{item.id}}"
+          hover-class="is-clicked"
+          hover-stay-time="100"
         >
           <view class="cart-checkbox {{isItemSelected(item.id) ? 'cart-checkbox--checked' : ''}}">
             <text wx:if="{{isItemSelected(item.id)}}" class="cart-checkbox__icon">✓</text>
@@ -123,6 +125,8 @@
       <view
         class="cart-footer__checkout {{selectedItems.length === 0 ? 'is-disabled' : ''}}"
         bindtap="onCheckout"
+        hover-class="is-clicked"
+        hover-stay-time="100"
       >去结算 ({{selectedItems.length}})</view>
     </view>
   </view>

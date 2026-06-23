@@ -27,6 +27,8 @@
       class="order-list__tab {{activeTab === item.key ? 'order-list__tab--active' : ''}}"
       bindtap="onTabTap"
       data-tab="{{item.key}}"
+      hover-class="is-clicked"
+      hover-stay-time="100"
     >
       <text class="order-list__tab-label">{{item.label}}</text>
       <text wx:if="{{item.count > 0}}" class="order-list__tab-count">{{item.count}}</text>
@@ -66,6 +68,8 @@
       class="order-card"
       data-id="{{item.id}}"
       bindtap="onOrderTap"
+      hover-class="is-clicked"
+      hover-stay-time="100"
     >
       <!-- 商家行 + 状态徽标 -->
       <view class="order-card__top">
