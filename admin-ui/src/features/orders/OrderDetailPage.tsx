@@ -105,7 +105,9 @@ export function OrderDetailPage() {
             ← 返回订单列表
           </Link>
           <h1 className="text-2xl font-semibold">订单详情</h1>
-          <p className="font-mono text-sm text-muted">{order.id}</p>
+          <p className="text-sm text-muted">
+            订单号：<span className="font-mono">{order.id}</span>
+          </p>
         </div>
         <Badge variant={STATUS_VARIANT[order.status]}>{STATUS_LABEL[order.status]}</Badge>
       </div>
@@ -127,7 +129,6 @@ export function OrderDetailPage() {
                     <TableHead className="text-right">单价</TableHead>
                     <TableHead className="text-right">数量</TableHead>
                     <TableHead className="text-right">小计</TableHead>
-                    <TableHead>状态</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -138,15 +139,6 @@ export function OrderDetailPage() {
                       <TableCell className="text-right">{it.quantity}</TableCell>
                       <TableCell className="text-right">
                         {formatPrice(Number(it.unitPrice) * it.quantity)}
-                      </TableCell>
-                      <TableCell>
-                        {it.product ? (
-                          <Badge variant={it.product.status === 'ACTIVE' ? 'success' : 'secondary'}>
-                            {it.product.status === 'ACTIVE' ? '在售' : it.product.status === 'OUT_OF_STOCK' ? '缺货' : '已下架'}
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">已下架</Badge>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -231,10 +223,7 @@ export function OrderDetailPage() {
         <div className="space-y-4">
           <OrderTrackingTimeline order={order} />
           <Card>
-            <CardHeader>
-              <CardTitle>操作</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2 pt-6">
               {order.status === 'PAID' ? (
                 <Button
                   className="w-full"
@@ -265,15 +254,22 @@ export function OrderDetailPage() {
                   取消订单(未实现)
                 </Button>
               ) : null}
-              {/* 查看退款 — 跳审核页 + 滚到该订单(后续 4.18 增强可挂 query param) */}
-              {order.status === 'REFUNDING' || order.status === 'REFUNDED' ? (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => navigate('/admin/refunds')}
-                >
+              {/* REFUNDING — 退款审核提示区域 */}
+              {order.status === 'REFUNDING' ? (
+                <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
+                  <p className="font-medium text-warning">退款审核中</p>
+                  <p className="mt-1 text-muted">用户已申请退款，请前往退款管理审核</p>
+                  <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => navigate('/admin/refunds')}>
+                    <Undo2 className="mr-1.5 h-4 w-4" />
+                    前往退款管理
+                  </Button>
+                </div>
+              ) : null}
+              {/* REFUNDED — 查看退款记录 */}
+              {order.status === 'REFUNDED' ? (
+                <Button variant="outline" className="w-full" onClick={() => navigate('/admin/refunds')}>
                   <Undo2 className="mr-2 h-4 w-4" />
-                  查看退款
+                  查看退款记录
                 </Button>
               ) : null}
             </CardContent>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Download, Truck } from 'lucide-react';
+import { ChevronRight, Download, Loader2, Package, Truck } from 'lucide-react';
 import { ordersApi } from './api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,12 +38,10 @@ const STATUS_LABEL: Record<OrderStatusCode, string> = {
 type StatusTab = 'ALL' | OrderStatusCode;
 const STATUS_TABS: { value: StatusTab; label: string }[] = [
   { value: 'ALL', label: '全部' },
-  { value: 'PENDING', label: '待支付' },
-  { value: 'PAID', label: '已付款' },
+  { value: 'PENDING', label: '待付款' },
+  { value: 'PAID', label: '待发货' },
   { value: 'SHIPPED', label: '已发货' },
-  { value: 'REFUNDING', label: '退款中' },
   { value: 'COMPLETED', label: '已完成' },
-  { value: 'CANCELLED', label: '已取消' },
 ];
 
 export function OrderListPage() {
@@ -148,7 +146,11 @@ export function OrderListPage() {
             onClick={() => exportCsv.mutate()}
             disabled={exportCsv.isPending}
           >
-            <Download className="mr-1.5 h-4 w-4" />
+            {exportCsv.isPending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-1.5 h-4 w-4" />
+            )}
             导出 CSV
           </Button>
         </div>
@@ -184,8 +186,12 @@ export function OrderListPage() {
                   onClick={() => batchShip.mutate([...selectedIds])}
                   disabled={batchShip.isPending}
                 >
-                  <Truck className="mr-1.5 h-4 w-4" />
-                  {batchShip.isPending ? '发货中...' : '批量发货'}
+                  {batchShip.isPending ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Truck className="mr-1.5 h-4 w-4" />
+                  )}
+                  {batchShip.isPending ? '发货中' : '批量发货'}
                 </Button>
               </div>
             ) : null}
@@ -227,8 +233,12 @@ export function OrderListPage() {
               <TableBody>
                 {filteredContent.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted">
-                      暂无数据
+                    <TableCell colSpan={8}>
+                      <div className="flex flex-col items-center gap-2 py-12 text-muted">
+                        <Package className="h-10 w-10 opacity-40" />
+                        <p className="font-medium">暂无订单</p>
+                        <p className="text-xs">当前筛选条件下没有订单</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
