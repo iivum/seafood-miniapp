@@ -52,9 +52,11 @@ export function OrderTrackingTimeline({ order }: { order: OrderResponse }) {
             return (
               <li key={k} className="flex items-start gap-3">
                 {stage.done ? (
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success">
+                    <Check className="h-3 w-3 text-white" />
+                  </span>
                 ) : (
-                  <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+                  <Circle className="mt-0.5 h-5 w-5 shrink-0 text-muted/40" />
                 )}
                 <div className="flex-1">
                   <div className="text-sm font-medium">
@@ -65,6 +67,9 @@ export function OrderTrackingTimeline({ order }: { order: OrderResponse }) {
                       </span>
                     ) : null}
                   </div>
+                  {k === 'delivered' && !stage.done ? (
+                    <p className="text-xs text-muted">等待签收</p>
+                  ) : null}
                 </div>
               </li>
             );

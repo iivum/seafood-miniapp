@@ -95,4 +95,29 @@ describe('OrderTrackingTimeline component', () => {
     expect(screen.getByText(/完整轨迹\(3 条\)/)).toBeInTheDocument();
     vi.useRealTimers();
   });
+
+  it('OD: tracking=null + SHIPPED → delivered 节点显示"等待签收"副文案', () => {
+    render(<OrderTrackingTimeline order={{
+      ...base,
+      status: 'SHIPPED',
+      tracking: null,
+    }} />);
+    expect(screen.getByText('等待签收')).toBeInTheDocument();
+  });
+
+  it('OD: COMPLETED + 3 events → done 节点有 bg-success class（填充圆）', () => {
+    render(<OrderTrackingTimeline order={{
+      ...base, status: 'COMPLETED',
+      tracking: {
+        carrier: '顺丰', trackingNumber: 'SF123',
+        events: [
+          { at: '2026-06-02T10:00:00Z', status: 'SHIPPED', location: '上海', description: '已发货' },
+          { at: '2026-06-02T18:00:00Z', status: 'IN_TRANSIT', location: '杭州', description: '运输中' },
+          { at: '2026-06-03T10:00:00Z', status: 'DELIVERED', location: '北京', description: '已签收' },
+        ],
+      },
+    }} />);
+    const successNodes = document.querySelectorAll('.bg-success');
+    expect(successNodes.length).toBe(3);
+  });
 });
