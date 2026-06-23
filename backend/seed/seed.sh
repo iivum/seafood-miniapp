@@ -62,9 +62,30 @@ mongosh "$MONGO_URI" --quiet --eval '
     [{ $set: { createdAt: { $toDate: "$createdAt" }, updatedAt: { $toDate: "$updatedAt" } } }]);
 ' >/dev/null
 
+# 6. 导入订单(mp-09 e2e 验收用 fixture)
+if [ -f "$SEED_DIR/orders.json" ]; then
+  echo "[seed] import orders.json"
+  mongosh "$MONGO_URI" --quiet --eval 'db.orders.deleteMany({});' >/dev/null
+  jq -c '.[]' "$SEED_DIR/orders.json" | while read -r doc; do
+    echo "$doc" | mongosh "$MONGO_URI" --quiet --eval "
+      db.orders.insertOne($doc);
+    " >/dev/null
+  done
+  # 时间字段字符串 → ISODate
+  mongosh "$MONGO_URI" --quiet --eval '
+    db.orders.updateMany({},
+      [{ $set: {
+        createdAt: { $toDate: "$createdAt" },
+        updatedAt: { $toDate: "$updatedAt" },
+        estimatedDelivery: { $toDate: "$estimatedDelivery" }
+      } }]);
+  ' >/dev/null
+fi
+
 echo "[seed] done. counts:"
 mongosh "$MONGO_URI" --quiet --eval '
   print("  products: " + db.products.countDocuments());
   print("  users:    " + db.users.countDocuments());
   print("  banners:  " + db.banners.countDocuments());
+  print("  orders:   " + db.orders.countDocuments());
 '
