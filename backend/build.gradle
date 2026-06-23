@@ -29,21 +29,23 @@
 //     dependencies { classpath "org.owasp:dependency-check-gradle:12.2.2" }
 //   }
 //   allprojects { apply plugin: 'org.owasp.dependencycheck' }
+//
+// CI 修复 (2026-06-23):OWASP classpath 只在传 -Powasp 时解析,避免 plugin artifact
+// 解析网络抖动阻断 ci.yml 普通 ./gradlew check(解析发生在 Gradle 配置阶段)。
+// security.yml 的 dependencyCheckAnalyze 透传 -Powasp,ci.yml 不传。
+// buildscript {} 内通过 gradle.startParameter.projectProperties 读 -P 标志
+// (此阶段 project 对象尚未初始化,不可直接调 project.hasProperty)。
 buildscript {
     repositories {
-        // Sprint 2 CI 修复 v5 (2026-06-07):0eac9f7 run Security 48s 失败,
-        // Gradle 拉传递依赖 org.slf4j:slf4j-bom:2.0.17 时
-        // aliyun gradle-plugin 仓库返 502 Bad Gateway,35 more failures 同因。
-        // 修法:把 mavenCentral() 放最优先,slf4j/spring-core/jackson 等 core
-        // Java 库走 mavenCentral 稳拿;aliyun gradle-plugin 保留(放后面)
-        // 给 OWASP plugin marker/主 artifact 备用;Plugin Portal 兜底。
         mavenCentral()
         maven { url 'https://maven.aliyun.com/repository/public' }
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         gradlePluginPortal()
     }
-    dependencies {
-        classpath 'org.owasp:dependency-check-gradle:12.2.2'
+    if (gradle.startParameter.projectProperties.containsKey('owasp')) {
+        dependencies {
+            classpath 'org.owasp:dependency-check-gradle:12.2.2'
+        }
     }
 }
 
@@ -70,7 +72,9 @@ plugins {
     // 超 1000 chars 时抛 DatabaseException 中断 analyze。
 }
 
-apply plugin: 'org.owasp.dependencycheck'
+if (project.hasProperty('owasp')) {
+    apply plugin: 'org.owasp.dependencycheck'
+}
 
 // Sprint 3 B coverage-gate: Jacoco 配置(0.8.13 = JDK 25 + Spring Boot 4 兼容,
 // 之前 0.8.10/0.8.11 在 JDK 17+ ASM 9 反射上偶发 IllegalArgumentException)。
@@ -182,31 +186,15 @@ pitest {
     timestampedReports = false
 }
 
-// Sprint 2 §4.1 — OWASP Dep-Check 配置
-// CVSS >= 7.0 = High/Critical → fail build;NVD datafeed 走官方默认,CI 注 NVD_API_KEY 提速
-// CI 修复 v3 (2026-06-07):**真正接通** NVD_API_KEY ——
-// 之前 workflow 里注了 secrets.NVD_API_KEY 但 plugin 没读它,plugin 用匿名限流
-// (5 req/30s),NVD 全量同步 30min(实测 Run Dependency-Check Analyze: 1809s)。
-// 接上 nvd { apiKey } 后限流升到 50 req/30s(10×),预期 30min → 3-5min。
-// API key 申请:https://nvd.nist.gov/developers/request-an-api-key(免费,邮箱秒到)
-// 注意:plugin v8+ 起 apiKey 嵌套在 nvd { } 块里(早期 nvdApiKey 直挂 dependencyCheck
-// 已不存在)。env var 缺失时 apiKey = null,plugin 退化为匿名(本地开发不阻断)。
-dependencyCheck {
-    failBuildOnCVSS = 7.0
-    // Sprint 2 CI 修复 v4 (2026-06-07):12.2.2 改 suppressionFiles 类型为
-    // List<String>,10.0.4 的 files('...') 返 FileCollection,plugin 12.2.2
-    // 报 "Cannot get the value of a property of type List<String> as the
-    // source value contains an element of type java.io.File"。改直接传
-    // 字符串路径。
-    suppressionFiles = ['dependency-check-suppressions.xml']
-    // Sprint 2 CI 修复 v5 (2026-06-07):12.2.2 默认不输出 SARIF(只 HTML/JSON/
-    // XML),security.yml 的 "Upload SARIF to Code Scanning" step 报
-    // "Path does not exist: dependency-check-report.sarif"。12.x 加
-    // format = 'ALL' 显式开全部格式。Format enum 文档:
-    // https://github.com/dependency-check/dependency-check-gradle#the-extension
-    format = 'ALL'
-    nvd {
-        apiKey = System.getenv('NVD_API_KEY')
+// Sprint 2 §4.1 — OWASP Dep-Check 配置(-Powasp 条件守卫,避免 ci.yml check 时解析插件)
+if (project.hasProperty('owasp')) {
+    dependencyCheck {
+        failBuildOnCVSS = 7.0
+        suppressionFiles = ['dependency-check-suppressions.xml']
+        format = 'ALL'
+        nvd {
+            apiKey = System.getenv('NVD_API_KEY')
+        }
     }
 }
 

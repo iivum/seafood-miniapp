@@ -103,7 +103,7 @@ jobs:
         # CI 修复:用 daemon(默认)替代 --no-daemon —— plugin 解析失败时,daemon
         # 可复用 pluginManagement 缓存 + 减少冷启动网络尖刺。NVD cache 已在前面步骤
         # 暖好,dependencyCheckAnalyze 实际跑 scan 阶段只需 ~5-10min。
-        run: ./gradlew dependencyCheckAnalyze
+        run: ./gradlew dependencyCheckAnalyze -Powasp
 
       - name: Upload SARIF to Code Scanning
         if: always()
