@@ -109,4 +109,90 @@ describe('DashboardPage', () => {
       expect(mockDashboard.get).toHaveBeenCalledTimes(2);
     });
   });
+
+  it('LowStock: stock=0 显示已售罄 badge 而非数字', async () => {
+    mockDashboard.get.mockResolvedValueOnce({
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
+      productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
+      topProducts: [],
+      trend7d: [],
+      recentOrders: [],
+      lowStock: [
+        { id: 'p-sold', name: '蛏子', description: '', price: '25.00', stock: 0,
+          category: '贝类', imageUrl: '', status: 'ACTIVE', createdAt: '', updatedAt: '' },
+      ],
+    });
+    renderWithProviders(<DashboardPage />, { authenticated: true });
+    await waitFor(() => expect(screen.getByText('蛏子')).toBeInTheDocument());
+    expect(screen.getByText('已售罄')).toBeInTheDocument();
+    expect(screen.queryByRole('cell', { name: '0' })).not.toBeInTheDocument();
+  });
+
+  it('LowStock: 1≤stock<5 显示橙色数字', async () => {
+    mockDashboard.get.mockResolvedValueOnce({
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
+      productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
+      topProducts: [],
+      trend7d: [],
+      recentOrders: [],
+      lowStock: [
+        { id: 'p-orange', name: '扇贝', description: '', price: '38.00', stock: 3,
+          category: '贝类', imageUrl: '', status: 'ACTIVE', createdAt: '', updatedAt: '' },
+      ],
+    });
+    renderWithProviders(<DashboardPage />, { authenticated: true });
+    await waitFor(() => expect(screen.getByText('扇贝')).toBeInTheDocument());
+    const stockEl = screen.getByText('3');
+    expect(stockEl).toHaveClass('text-orange-600');
+  });
+
+  it('LowStock: 5≤stock<10 显示黄色数字', async () => {
+    mockDashboard.get.mockResolvedValueOnce({
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
+      productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
+      topProducts: [],
+      trend7d: [],
+      recentOrders: [],
+      lowStock: [
+        { id: 'p-yellow', name: '鲍鱼', description: '', price: '99.00', stock: 7,
+          category: '贝类', imageUrl: '', status: 'ACTIVE', createdAt: '', updatedAt: '' },
+      ],
+    });
+    renderWithProviders(<DashboardPage />, { authenticated: true });
+    await waitFor(() => expect(screen.getByText('鲍鱼')).toBeInTheDocument());
+    const stockEl = screen.getByText('7');
+    expect(stockEl).toHaveClass('text-yellow-600');
+  });
+
+  it('LowStock: 空态显示库存健康图标', async () => {
+    mockDashboard.get.mockResolvedValueOnce({
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
+      productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
+      topProducts: [],
+      trend7d: [],
+      recentOrders: [],
+      lowStock: [],
+    });
+    renderWithProviders(<DashboardPage />, { authenticated: true });
+    await waitFor(() => expect(screen.getByText('库存健康')).toBeInTheDocument());
+    expect(screen.getByText('所有商品库存充足，无需补货')).toBeInTheDocument();
+  });
+
+  it('LowStock: 非零库存商品显示「去补货」链接', async () => {
+    mockDashboard.get.mockResolvedValueOnce({
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
+      productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
+      topProducts: [],
+      trend7d: [],
+      recentOrders: [],
+      lowStock: [
+        { id: 'p-link', name: '海胆', description: '', price: '150.00', stock: 5,
+          category: '海鲜', imageUrl: '', status: 'ACTIVE', createdAt: '', updatedAt: '' },
+      ],
+    });
+    renderWithProviders(<DashboardPage />, { authenticated: true });
+    await waitFor(() => expect(screen.getByText('海胆')).toBeInTheDocument());
+    const link = screen.getByRole('link', { name: '去补货' });
+    expect(link).toHaveAttribute('href', '/admin/products');
+  });
 });

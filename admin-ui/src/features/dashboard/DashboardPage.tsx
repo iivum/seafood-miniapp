@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { CheckCircle2 } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -156,8 +157,23 @@ function LowStockList({
   items: { id: string; name: string; stock: number; category: string }[];
 }) {
   if (items.length === 0) {
-    return <p className="text-sm text-muted">所有商品库存充足</p>;
+    return (
+      <div className="flex flex-col items-center gap-2 py-8 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-50">
+          <CheckCircle2 className="h-5 w-5 text-green-600" />
+        </div>
+        <p className="text-sm font-medium text-fg">库存健康</p>
+        <p className="text-xs text-muted">所有商品库存充足，无需补货</p>
+      </div>
+    );
   }
+
+  function stockColorClass(stock: number): string {
+    if (stock === 0) return '';
+    if (stock < 5) return 'text-orange-600 font-semibold';
+    return 'text-yellow-600 font-medium';
+  }
+
   return (
     <Table>
       <TableHeader>
@@ -165,6 +181,7 @@ function LowStockList({
           <TableHead>商品</TableHead>
           <TableHead>分类</TableHead>
           <TableHead className="text-right">剩余库存</TableHead>
+          <TableHead className="text-right">操作</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -173,17 +190,21 @@ function LowStockList({
             <TableCell className="font-medium">{p.name}</TableCell>
             <TableCell className="text-muted">{p.category}</TableCell>
             <TableCell className="text-right">
-              <span
-                className={
-                  p.stock === 0
-                    ? 'font-semibold text-error'
-                    : p.stock < 5
-                      ? 'font-semibold text-warning'
-                      : 'font-medium'
-                }
+              {p.stock === 0 ? (
+                <span className="inline-flex items-center rounded-sm border border-destructive/20 bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
+                  已售罄
+                </span>
+              ) : (
+                <span className={stockColorClass(p.stock)}>{p.stock}</span>
+              )}
+            </TableCell>
+            <TableCell className="text-right">
+              <Link
+                to="/admin/products"
+                className="text-xs text-accent hover:underline"
               >
-                {p.stock}
-              </span>
+                去补货
+              </Link>
             </TableCell>
           </TableRow>
         ))}
