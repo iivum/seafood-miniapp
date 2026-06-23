@@ -114,14 +114,50 @@ describe('OrderDetailPage 4.18 — 3 列布局契约', () => {
     openSpy.mockRestore();
   });
 
-  it('REFUNDING order: shows 查看退款 button (navigates to /admin/refunds)', async () => {
+  it('REFUNDING order: shows 前往退款管理 button (navigates to /admin/refunds)', async () => {
     const refundingDetail = {
       ...paidDetail,
       order: { ...paidDetail.order, status: 'REFUNDING' as const },
     };
     mockOrdersApi.detail.mockResolvedValue(refundingDetail);
     renderDetailPage();
-    // 查看退款是 Button(用 navigate onClick),不是 Link
-    expect(await screen.findByRole('button', { name: /查看退款/ })).toBeInTheDocument();
+    // REFUNDING 显示退款审核中区域 + 前往退款管理按钮
+    expect(await screen.findByRole('button', { name: /前往退款管理/ })).toBeInTheDocument();
+  });
+
+  it('OD ad-06: header 显示"订单号："标签前缀', async () => {
+    mockOrdersApi.detail.mockResolvedValue(paidDetail);
+    renderDetailPage();
+    expect(await screen.findByText(/订单号：/)).toBeInTheDocument();
+  });
+
+  it('OD ad-06: REFUNDING 操作区显示退款审核提示区域', async () => {
+    const refundingDetail = {
+      ...paidDetail,
+      order: { ...paidDetail.order, status: 'REFUNDING' as const },
+    };
+    mockOrdersApi.detail.mockResolvedValue(refundingDetail);
+    renderDetailPage();
+    expect(await screen.findByText('退款审核中')).toBeInTheDocument();
+    expect(screen.getByText('用户已申请退款，请前往退款管理审核')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /前往退款管理/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^查看退款$/ })).not.toBeInTheDocument();
+  });
+
+  it('OD ad-06: REFUNDED 操作区显示"查看退款记录"按钮', async () => {
+    const refundedDetail = {
+      ...paidDetail,
+      order: { ...paidDetail.order, status: 'REFUNDED' as const },
+    };
+    mockOrdersApi.detail.mockResolvedValue(refundedDetail);
+    renderDetailPage();
+    expect(await screen.findByRole('button', { name: /查看退款记录/ })).toBeInTheDocument();
+  });
+
+  it('OD ad-06: 操作区无 CardTitle "操作"', async () => {
+    mockOrdersApi.detail.mockResolvedValue(paidDetail);
+    renderDetailPage();
+    await screen.findByRole('link', { name: /返回.*列表/ });
+    expect(screen.queryByRole('heading', { name: /^操作$/ })).not.toBeInTheDocument();
   });
 });
