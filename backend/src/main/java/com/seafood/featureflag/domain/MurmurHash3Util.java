@@ -20,8 +20,8 @@ final class MurmurHash3Util {
         }
         int tail = nblocks * 4, k1 = 0;
         switch (len & 3) {
-            case 3: k1 ^= (data[tail + 2] & 0xff) << 16;
-            case 2: k1 ^= (data[tail + 1] & 0xff) << 8;
+            case 3: k1 ^= (data[tail + 2] & 0xff) << 16; // fall through
+            case 2: k1 ^= (data[tail + 1] & 0xff) << 8;  // fall through
             case 1: k1 ^= (data[tail] & 0xff);
                     k1 *= 0xcc9e2d51; k1 = Integer.rotateLeft(k1, 15); k1 *= 0x1b873593; h1 ^= k1;
         }

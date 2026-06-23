@@ -38,4 +38,17 @@ public class FeatureFlagMapper {
         doc.setUpdatedAt(flag.updatedAt());
         return doc;
     }
+
+    /**
+     * update 场景专用重载：保留已有文档的 MongoDB _id，避免 save() 变成插入新文档。
+     *
+     * @param flag       domain 聚合根
+     * @param existingId 数据库中该 flag 对应文档的 _id
+     * @return 带 id 的 FeatureFlagDocument（save 时走 upsert，不会产生重复文档）
+     */
+    public static FeatureFlagDocument toDocument(FeatureFlag flag, String existingId) {
+        var doc = toDocument(flag);
+        doc.setId(existingId);
+        return doc;
+    }
 }
