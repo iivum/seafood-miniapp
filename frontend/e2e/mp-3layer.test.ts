@@ -103,8 +103,31 @@ const PAGES: PageSpec[] = [
     dataMust: ['addresses', 'selectMode'],
     fromBackend: { path: 'addresses.0', fields: ['name', 'phone', 'detail', 'isDefault'] },
   },
-  // ⚠️ mp-05 / mp-09 订单详情 — v2.1 后由独立 TDD test 覆盖
-  //   (mp-od-design.test.ts 含 mp-09 spec;mp-05 spec 待 OD 设计稿)
+  {
+    name: 'mp-09-order-detail',
+    url: '/pages-sub/order/order-detail/order-detail?id=v2.1-closure-order-001',
+    storage: {
+      userInfo: { id: 'dev-user-001', openId: 'dev-mock', nickName: '视觉验收' },
+      token: 'dev-mock-jwt',
+    },
+    wxmlMust: [
+      /status-banner|order-detail__status/,
+      /timeline-card|order-detail__timeline/,
+      /tl-node/,
+      /addr-card|order-detail__address/,
+      /items-card|order-detail__items/,
+      /price-card|order-detail__price/,
+      /info-card|order-detail__info/,
+      /bottom-bar|order-detail__actions/,
+    ],
+    dataMust: ['order', 'statusBanner', 'timeline'],
+    dataExact: [
+      { path: 'order.id', equals: 'v2.1-closure-order-001' },
+      { path: 'order.status', equals: 'PENDING' },
+    ],
+    fromBackend: { path: 'order', fields: ['id', 'status', 'items', 'totalAmount', 'estimatedDelivery', 'createdAt'] },
+  },
+  // ⚠️ mp-05 订单确认 — spec 待 OD 设计稿补充
 ];
 
 /** connect + 重试 3 次 — 见 stability.md 模板 A */
