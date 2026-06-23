@@ -13,6 +13,8 @@
       class="cat-sidebar__item {{activeCategoryId === item.id ? 'cat-sidebar__item--active' : ''}}"
       bindtap="onCategoryTap"
       data-category-id="{{item.id}}"
+      hover-class="is-clicked"
+      hover-stay-time="100"
     >
       <text class="cat-sidebar__emoji">{{item.icon}}</text>
       <text class="cat-sidebar__name">{{item.name}}</text>
