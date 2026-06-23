@@ -58,7 +58,7 @@ describe('OrderListPage', () => {
     const user = userEvent.setup();
     renderWithProviders(<OrderListPage />, { authenticated: true });
     await screen.findByText('o1');
-    await user.click(screen.getByRole('tab', { name: '已付款' }));
+    await user.click(screen.getByRole('tab', { name: '待发货' }));
     // 切到 PAID tab → 只剩 o1
     await waitFor(() => {
       expect(screen.getByText('o1')).toBeInTheDocument();
@@ -139,5 +139,75 @@ describe('OrderListPage', () => {
       URL.createObjectURL = originalCreate;
       URL.revokeObjectURL = originalRevoke;
     }
+  });
+
+  it('OD ad-05: 状态 tab 精确为 5 个（全部/待付款/待发货/已发货/已完成）', async () => {
+    renderWithProviders(<OrderListPage />, { authenticated: true });
+    await screen.findByText('o1');
+    const tabs = screen.getAllByRole('tab');
+    const labels = tabs.map((t) => t.textContent?.trim());
+    expect(labels).toEqual(['全部', '待付款', '待发货', '已发货', '已完成']);
+  });
+
+  it('OD ad-05: 切到"待付款"tab 只显示 PENDING 订单', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<OrderListPage />, { authenticated: true });
+    await screen.findByText('o1');
+    await user.click(screen.getByRole('tab', { name: '待付款' }));
+    await waitFor(() => {
+      expect(screen.getByText('o3')).toBeInTheDocument();
+      expect(screen.queryByText('o1')).not.toBeInTheDocument();
+      expect(screen.queryByText('o2')).not.toBeInTheDocument();
+    });
+  });
+
+  it('OD ad-05: 切到"待发货"tab 只显示 PAID 订单', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<OrderListPage />, { authenticated: true });
+    await screen.findByText('o1');
+    await user.click(screen.getByRole('tab', { name: '待发货' }));
+    await waitFor(() => {
+      expect(screen.getByText('o1')).toBeInTheDocument();
+      expect(screen.queryByText('o2')).not.toBeInTheDocument();
+      expect(screen.queryByText('o3')).not.toBeInTheDocument();
+    });
+  });
+
+  it('OD ad-05: 空态显示 Package 图标文案而非"暂无数据"', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<OrderListPage />, { authenticated: true });
+    await screen.findByText('o1');
+    await user.click(screen.getByRole('tab', { name: '已完成' }));
+    await waitFor(() => {
+      expect(screen.getByText('暂无订单')).toBeInTheDocument();
+      expect(screen.getByText('当前筛选条件下没有订单')).toBeInTheDocument();
+      expect(screen.queryByText('暂无数据')).not.toBeInTheDocument();
+    });
+  });
+
+  it('OD ad-05: 批量发货 pending 时显示 animate-spin 图标', async () => {
+    mockOrdersApi.batchShip.mockImplementation(() => new Promise(() => {}));
+    const user = userEvent.setup();
+    renderWithProviders(<OrderListPage />, { authenticated: true });
+    await screen.findByText('o1');
+    await user.click(screen.getByLabelText('选择订单 o1'));
+    const batchBtn = await screen.findByRole('button', { name: /批量发货/ });
+    await user.click(batchBtn);
+    await waitFor(() => {
+      const spinner = document.querySelector('.animate-spin');
+      expect(spinner).toBeInTheDocument();
+    });
+  });
+
+  it('OD ad-05: 导出 CSV pending 时显示 animate-spin 图标', async () => {
+    mockOrdersApi.exportCsv.mockImplementation(() => new Promise(() => {}));
+    const user = userEvent.setup();
+    renderWithProviders(<OrderListPage />, { authenticated: true });
+    await screen.findByText('o1');
+    await user.click(screen.getByRole('button', { name: /导出 CSV/ }));
+    await waitFor(() => {
+      const spinner = document.querySelector('.animate-spin');
+      expect(spinner).toBeInTheDocument();
+    });
   });
 });
