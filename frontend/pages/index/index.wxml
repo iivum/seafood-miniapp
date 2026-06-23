@@ -16,7 +16,7 @@
     duration="500"
     circular="true"
   >
-    <swiper-item wx:for="{{banners}}" wx:key="id" bindtap="onBannerTap" data-banner-id="{{item.id}}">
+    <swiper-item wx:for="{{banners}}" wx:key="id" bindtap="onBannerTap" data-banner-id="{{item.id}}" hover-class="is-clicked" hover-stay-time="100">
       <view class="home-banner__item home-banner__item--{{item.tone}}">
         <text class="home-banner__emoji">{{item.emoji}}</text>
         <view class="home-banner__copy">
@@ -35,6 +35,8 @@
       class="home-chip {{activeCategory === item.id ? 'home-chip--active' : ''}}"
       bindtap="onCategoryTap"
       data-category="{{item.id}}"
+      hover-class="is-clicked"
+      hover-stay-time="100"
     >
       <text class="home-chip__emoji">{{item.icon}}</text>
       <text class="home-chip__label">{{item.name}}</text>
