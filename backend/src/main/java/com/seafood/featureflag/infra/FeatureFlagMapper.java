@@ -1,0 +1,41 @@
+package com.seafood.featureflag.infra;
+
+import com.seafood.featureflag.domain.FeatureFlag;
+import java.util.List;
+
+/**
+ * FeatureFlag domain ↔ FeatureFlagDocument infra 双向映射。
+ *
+ * <p>静态工具类，无状态，不注册为 Spring Bean（参考 ProductMapper 模式）。
+ */
+public class FeatureFlagMapper {
+
+    private FeatureFlagMapper() {}
+
+    public static FeatureFlag toDomain(FeatureFlagDocument doc) {
+        return new FeatureFlag(
+                doc.getFlagKey(),
+                doc.isEnabled(),
+                doc.getRolloutPercentage(),
+                doc.getUserSegments() != null ? doc.getUserSegments() : List.of(),
+                doc.getExpiresAt(),
+                doc.getDescription(),
+                doc.getCreatedBy(),
+                doc.getCreatedAt(),
+                doc.getUpdatedAt());
+    }
+
+    public static FeatureFlagDocument toDocument(FeatureFlag flag) {
+        var doc = new FeatureFlagDocument();
+        doc.setFlagKey(flag.flagKey());
+        doc.setEnabled(flag.enabled());
+        doc.setRolloutPercentage(flag.rolloutPercentage());
+        doc.setUserSegments(flag.userSegments());
+        doc.setExpiresAt(flag.expiresAt());
+        doc.setDescription(flag.description());
+        doc.setCreatedBy(flag.createdBy());
+        doc.setCreatedAt(flag.createdAt());
+        doc.setUpdatedAt(flag.updatedAt());
+        return doc;
+    }
+}
