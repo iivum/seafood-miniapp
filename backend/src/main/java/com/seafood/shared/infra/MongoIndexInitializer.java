@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 import org.springframework.stereotype.Component;
 
 import com.seafood.banner.infra.BannerDocument;
+import com.seafood.featureflag.infra.FeatureFlagAuditDocument;
 import com.seafood.featureflag.infra.FeatureFlagDocument;
 import com.seafood.order.infra.OrderDocument;
 import com.seafood.product.infra.ProductDocument;
@@ -77,6 +78,12 @@ public class MongoIndexInitializer {
         ensureAnnotationDerived(BannerDocument.class);
         // feature flag flagKey 唯一索引(performance-only:@Indexed(unique=true) 注解派生)
         ensureAnnotationDerived(FeatureFlagDocument.class);
+        // feature flag 审计记录(append-only):flagKey + timestamp 复合索引
+        ensureAnnotationDerived(FeatureFlagAuditDocument.class);
+        ensureOptional("feature_flag_audits",
+                new Index().on("flagKey", org.springframework.data.domain.Sort.Direction.ASC)
+                        .on("timestamp", org.springframework.data.domain.Sort.Direction.DESC)
+                        .named("idx_flagKey_timestamp_desc"));
 
         // text index:performance-only,失败仅 warn
         ensureOptional("products",

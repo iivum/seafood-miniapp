@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.*;
  * 走 raw MongoClient 验证 BSON 字段往返。
  */
 @Tag("docker")
+@Tag("native")
 class FeatureFlagRepositoryIT extends MongoIntegrationTest {
 
     private MongoCollection<Document> collection;
