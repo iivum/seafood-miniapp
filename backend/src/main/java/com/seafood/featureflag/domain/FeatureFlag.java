@@ -66,6 +66,12 @@ public record FeatureFlag(
         return evaluate(userId).enabled();
     }
 
+    /** 启用 flag，返回新实例。 */
+    public FeatureFlag enable() {
+        return new FeatureFlag(flagKey, true, rolloutPercentage, userSegments,
+                expiresAt, description, createdBy, createdAt, Instant.now());
+    }
+
     /** 禁用 flag，返回新实例。 */
     public FeatureFlag disable() {
         return new FeatureFlag(flagKey, false, rolloutPercentage, userSegments,

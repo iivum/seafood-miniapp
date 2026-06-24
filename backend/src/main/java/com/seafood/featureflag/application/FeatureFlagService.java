@@ -53,7 +53,7 @@ public class FeatureFlagService {
     public List<ClientFlagResponse> listClientFlags() {
         return repository.findAll().stream()
                 .map(FeatureFlagMapper::toDomain)
-                .map(f -> new ClientFlagResponse(f.flagKey(), f.isEnabled(null)))
+                .map(f -> new ClientFlagResponse(f.flagKey(), f.enabled()))
                 .toList();
     }
 
@@ -95,10 +95,7 @@ public class FeatureFlagService {
     public void enable(String flagKey, String actor) {
         FeatureFlagDocument doc = findOrThrow(flagKey);
         FeatureFlag before = FeatureFlagMapper.toDomain(doc);
-        FeatureFlag updated = new FeatureFlag(
-                before.flagKey(), true, before.rolloutPercentage(), before.userSegments(),
-                before.expiresAt(), before.description(), before.createdBy(),
-                before.createdAt(), Instant.now());
+        FeatureFlag updated = before.enable();
         repository.save(FeatureFlagMapper.toDocument(updated, doc.getId()));
         saveAudit(flagKey, AuditAction.ENABLE, before, updated, actor);
         cache.refresh();
