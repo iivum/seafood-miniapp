@@ -56,6 +56,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 公共读
                 .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+                // feature flag 公共端点（小程序匿名读，只含 flagKey + enabled）
+                .requestMatchers(HttpMethod.GET, "/api/featureflags").permitAll()
                 // banner:admin 全量列表必须排在公共 GET 之前(first-match 生效)
                 .requestMatchers(HttpMethod.GET, "/api/banners/all").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/banners", "/api/banners/*").permitAll()

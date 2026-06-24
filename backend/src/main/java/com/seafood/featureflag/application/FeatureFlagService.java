@@ -80,8 +80,11 @@ public class FeatureFlagService {
     /**
      * 分页查审计记录（按 timestamp 降序）。
      */
-    public Page<FeatureFlagAuditDocument> getAuditLog(String flagKey, Pageable pageable) {
-        return auditRepository.findByFlagKeyOrderByTimestampDesc(flagKey, pageable);
+    public Page<FeatureFlagAuditResponse> getAuditLog(String flagKey, Pageable pageable) {
+        return auditRepository.findByFlagKeyOrderByTimestampDesc(flagKey, pageable)
+                .map(doc -> new FeatureFlagAuditResponse(
+                        doc.getFlagKey(), doc.getAction(), doc.getBefore(),
+                        doc.getAfter(), doc.getActor(), doc.getTimestamp()));
     }
 
     // ========== 写路径（DB → audit → cache.refresh）==========

@@ -1,7 +1,6 @@
 package com.seafood.featureflag.application;
 
 import com.seafood.featureflag.domain.FeatureFlag;
-import com.seafood.featureflag.infra.FeatureFlagAuditDocument;
 import com.seafood.featureflag.infra.FeatureFlagAuditRepository;
 import com.seafood.featureflag.infra.FeatureFlagDocument;
 import com.seafood.featureflag.infra.FeatureFlagRepository;
@@ -68,7 +67,7 @@ class FeatureFlagServiceTest {
         verify(repository).save(savedDoc.capture());
         assertThat(savedDoc.getValue().isEnabled()).isTrue();
 
-        verify(auditRepository).save(any(FeatureFlagAuditDocument.class));
+        verify(auditRepository).save(any(com.seafood.featureflag.infra.FeatureFlagAuditDocument.class));
         verify(cache).refresh();
     }
 
@@ -83,7 +82,7 @@ class FeatureFlagServiceTest {
         verify(repository).save(savedDoc.capture());
         assertThat(savedDoc.getValue().isEnabled()).isFalse();
 
-        verify(auditRepository).save(any(FeatureFlagAuditDocument.class));
+        verify(auditRepository).save(any(com.seafood.featureflag.infra.FeatureFlagAuditDocument.class));
         verify(cache).refresh();
     }
 
@@ -99,7 +98,7 @@ class FeatureFlagServiceTest {
         verify(repository).save(savedDoc.capture());
         assertThat(savedDoc.getValue().getRolloutPercentage()).isEqualTo(80);
 
-        verify(auditRepository).save(any(FeatureFlagAuditDocument.class));
+        verify(auditRepository).save(any(com.seafood.featureflag.infra.FeatureFlagAuditDocument.class));
         verify(cache).refresh();
     }
 
@@ -114,7 +113,7 @@ class FeatureFlagServiceTest {
         verify(repository).save(savedDoc.capture());
         assertThat(savedDoc.getValue().getUserSegments()).contains("user-vip");
 
-        verify(auditRepository).save(any(FeatureFlagAuditDocument.class));
+        verify(auditRepository).save(any(com.seafood.featureflag.infra.FeatureFlagAuditDocument.class));
         verify(cache).refresh();
     }
 
@@ -130,7 +129,7 @@ class FeatureFlagServiceTest {
         verify(repository).save(savedDoc.capture());
         assertThat(savedDoc.getValue().getUserSegments()).doesNotContain("user-vip");
 
-        verify(auditRepository).save(any(FeatureFlagAuditDocument.class));
+        verify(auditRepository).save(any(com.seafood.featureflag.infra.FeatureFlagAuditDocument.class));
         verify(cache).refresh();
     }
 
@@ -159,15 +158,17 @@ class FeatureFlagServiceTest {
     @Test
     void getAuditLog_returnsPaged() {
         Pageable pageable = PageRequest.of(0, 10);
-        FeatureFlagAuditDocument audit = new FeatureFlagAuditDocument(
-                "new-ui", AuditAction.ENABLE.name(), null, null, "admin", Instant.now());
-        Page<FeatureFlagAuditDocument> page = new PageImpl<>(List.of(audit), pageable, 1);
+        com.seafood.featureflag.infra.FeatureFlagAuditDocument audit =
+                new com.seafood.featureflag.infra.FeatureFlagAuditDocument(
+                        "new-ui", AuditAction.ENABLE.name(), null, null, "admin", Instant.now());
+        Page<com.seafood.featureflag.infra.FeatureFlagAuditDocument> page =
+                new PageImpl<>(List.of(audit), pageable, 1);
         when(auditRepository.findByFlagKeyOrderByTimestampDesc(eq("new-ui"), eq(pageable))).thenReturn(page);
 
-        Page<FeatureFlagAuditDocument> result = service.getAuditLog("new-ui", pageable);
+        Page<FeatureFlagAuditResponse> result = service.getAuditLog("new-ui", pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().get(0).getFlagKey()).isEqualTo("new-ui");
+        assertThat(result.getContent().get(0).flagKey()).isEqualTo("new-ui");
     }
 
     // ========== 工具方法 ==========
