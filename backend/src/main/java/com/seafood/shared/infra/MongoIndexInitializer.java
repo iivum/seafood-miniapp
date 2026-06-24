@@ -12,11 +12,13 @@ import org.springframework.data.mongodb.core.index.MongoPersistentEntityIndexRes
 import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 import org.springframework.stereotype.Component;
 
-import com.seafood.product.infra.ProductDocument;
-import com.seafood.order.infra.OrderDocument;
-import com.seafood.user.infra.UserDocument;
-import com.seafood.user.infra.LoginAttemptDocument;
 import com.seafood.banner.infra.BannerDocument;
+import com.seafood.featureflag.infra.FeatureFlagAuditDocument;
+import com.seafood.featureflag.infra.FeatureFlagDocument;
+import com.seafood.order.infra.OrderDocument;
+import com.seafood.product.infra.ProductDocument;
+import com.seafood.user.infra.LoginAttemptDocument;
+import com.seafood.user.infra.UserDocument;
 
 /**
  * 启动时建索引(design §6.2,specs/backend-api §Native Image safety)。
@@ -74,6 +76,14 @@ public class MongoIndexInitializer {
         ensureAnnotationDerived(LoginAttemptDocument.class);
         // banner sortOrder + status 索引(performance-only:公共列表按 sortOrder 升序)
         ensureAnnotationDerived(BannerDocument.class);
+        // feature flag flagKey 唯一索引(performance-only:@Indexed(unique=true) 注解派生)
+        ensureAnnotationDerived(FeatureFlagDocument.class);
+        // feature flag 审计记录(append-only):flagKey + timestamp 复合索引
+        ensureAnnotationDerived(FeatureFlagAuditDocument.class);
+        ensureOptional("feature_flag_audits",
+                new Index().on("flagKey", org.springframework.data.domain.Sort.Direction.ASC)
+                        .on("timestamp", org.springframework.data.domain.Sort.Direction.DESC)
+                        .named("idx_flagKey_timestamp_desc"));
 
         // text index:performance-only,失败仅 warn
         ensureOptional("products",
