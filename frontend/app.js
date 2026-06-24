@@ -1,3 +1,5 @@
+const { refreshFlags } = require('./utils/featureflag.js');
+
 App({
   onLaunch: function () {
     this.initPlatformInfo();
@@ -12,6 +14,13 @@ App({
       // The new request layer isn't required at runtime; fall back
       // to the legacy utils/request.js path.
     }
+    // 拉取最新 feature flags 并缓存（失败时静默保留旧缓存）
+    refreshFlags();
+  },
+
+  onShow: function () {
+    // 每次小程序切换到前台时刷新 feature flags
+    refreshFlags();
   },
 
   /**
