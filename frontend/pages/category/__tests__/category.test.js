@@ -14,13 +14,22 @@ global.wx = {
   showToast: jest.fn(),
   navigateTo: jest.fn(),
   stopPullDownRefresh: jest.fn(),
+  // M8:P1 鉴权守卫改用 wx.getStorageSync('accessToken') 判登录态(对齐首页)。
+  // 默认 '' = 未登录;具体 it 内按需改。
+  getStorageSync: jest.fn(() => ''),
 };
 
-// getApp —— goToDetail / addToCart 据 globalData.userInfo 判登录态。
+// getApp —— goToDetail 据 globalData.userInfo 判登录态。
 const mockApp = { globalData: { userInfo: { id: 'u-1' } } };
 global.getApp = jest.fn(() => mockApp);
 
-// utils/cart.js —— addToCart 内 lazy require,mock 掉验调用。
+// src/features/cart/api.js —— M8:已登录分支走后端 CartAPI(而非本地 cartUtil)。
+const mockAddItem = jest.fn().mockResolvedValue();
+jest.mock('../../../src/features/cart/api', () => ({
+  CartAPI: { addItem: mockAddItem },
+}));
+
+// utils/cart.js —— M8:不再走本地 cartUtil,保留 mock 仅防止残留 import 报错。
 jest.mock('../../../utils/cart.js', () => ({ addToCart: jest.fn() }));
 const cartUtil = require('../../../utils/cart.js');
 
@@ -56,6 +65,8 @@ describe('category', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockApp.globalData.userInfo = { id: 'u-1' };
+    // M8:默认有 token(已登录);未登录用例单独覆盖 ''。
+    wx.getStorageSync.mockReturnValue('mock-token');
     mockModule.isLoading = false;
     mockModule.hasNext = true;
     ctx = {
@@ -151,16 +162,23 @@ describe('category', () => {
     expect(wx.navigateTo).toHaveBeenCalledWith({ url: '/pages-sub/user/login/login' });
   });
 
-  it('addToCart 已登录加入购物车并提示', () => {
+  it('addToCart 已登录调 CartAPI.addItem 并提示', async () => {
     ctx.addToCart({ currentTarget: { dataset: { product: { id: 'p1' } } } });
-    expect(cartUtil.addToCart).toHaveBeenCalledWith({ id: 'p1' });
+    // 让 CartAPI.addItem 的 .then 跑完,触发 toast
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mockAddItem).toHaveBeenCalledWith({ productId: 'p1', quantity: 1 });
+    expect(cartUtil.addToCart).not.toHaveBeenCalled();
     expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '已加入购物车' }));
   });
 
-  it('addToCart 未登录提示先登录', () => {
-    mockApp.globalData.userInfo = null;
+  it('addToCart 未登录跳 login 页(带 redirect)且不走 CartAPI', () => {
+    wx.getStorageSync.mockReturnValue('');
     ctx.addToCart({ currentTarget: { dataset: { product: { id: 'p1' } } } });
+    expect(mockAddItem).not.toHaveBeenCalled();
     expect(cartUtil.addToCart).not.toHaveBeenCalled();
+    expect(wx.navigateTo).toHaveBeenCalledWith(
+      expect.objectContaining({ url: expect.stringMatching(/login.*redirect=/) })
+    );
     expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '请先登录' }));
   });
 
