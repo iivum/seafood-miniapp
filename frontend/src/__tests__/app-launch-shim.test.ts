@@ -2,7 +2,7 @@
  * P0-1 启动崩防御测试。
  *
  * 根因:utils/request.js 导出对象 { request, authRequest } 非函数。
- * app.js 4 处写 `const request = require('./utils/request.js')` 拿到对象
+ * app.js 3 处写 `const request = require('./utils/request.js')` 拿到对象
  * 后调 request({...}) 抛 TypeError: request is not a function,
  * 有 token 时 onLaunch 同步抛错 → 启动中断,setBaseUrl/refreshFlags 不执行。
  *
