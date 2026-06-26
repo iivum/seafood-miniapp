@@ -6,6 +6,5 @@
   },
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark",
-  "renderer": "skyline",
   "navigationStyle": "custom"
 }
