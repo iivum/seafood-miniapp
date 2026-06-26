@@ -46,7 +46,18 @@ Page({
     errorMessage: '',
   },
 
-  onShow: function () {
+  /**
+   * P1 鉴权守卫 — 未登录直接 GET /api/orders 返 403,既挡 403 错误又挡用户误解。
+   * 顶部加 token 检查,未登录跳 login 带 redirect;已登录继续原 fetchOrders。
+   */
+  onShow() {
+    const token = wx.getStorageSync('accessToken');
+    if (!token) {
+      wx.navigateTo({
+        url: '/pages-sub/user/login/login?redirect=/pages-sub/order/order-list/order-list',
+      });
+      return;
+    }
     this.fetchOrders();
   },
 
