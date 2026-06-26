@@ -269,3 +269,55 @@
   color: #667eea;
   margin: 0 5rpx;
 }
+
+/* Task 6 (8b8355b) 新 wxml class 配套样式 — 旧 .login-container / .wechat-login-btn 等保留 */
+.login-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 60rpx;
+}
+.login-logo {
+  width: 200rpx;
+  height: 80rpx;
+  margin-bottom: 60rpx;
+}
+.login-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+.login-subtitle {
+  font-size: 28rpx;
+  color: #7E7670;
+  margin-bottom: 80rpx;
+}
+.login-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  width: 100%;
+}
+.login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  height: 88rpx;
+  border-radius: 8rpx;
+  font-size: 30rpx;
+}
+.login-btn--dev {
+  background: #FAF8F4;
+  color: #7E7670;
+  border: 1rpx solid #E8E4DE;
+}
+.login-btn--wechat {
+  background: #07c160;
+  color: white;
+}
+.login-tip {
+  font-size: 24rpx;
+  color: #7E7670;
+  margin-top: 32rpx;
+}
