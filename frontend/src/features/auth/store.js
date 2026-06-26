@@ -76,10 +76,40 @@ class AuthStore {
     return this.loginInFlight;
   }
 
+  /**
+   * 登录:外部传入 code(开发者登录合成 dev- 前缀,微信登录经 wx.login 拿真 code)。
+   * 与 login() 共用 loginInFlight,避免并发重复请求。
+   */
+  async loginWithCode(code) {
+    if (!code || typeof code !== 'string') {
+      throw new Error('loginWithCode requires a non-empty code');
+    }
+    if (this.loginInFlight) return this.loginInFlight;
+    this.loginInFlight = this._doLoginWithCode(code).finally(() => {
+      this.loginInFlight = null;
+    });
+    return this.loginInFlight;
+  }
+
   async _doLogin() {
     this._setState({ isLoggingIn: true, lastError: null });
     try {
       const code = await this._wxLogin();
+      const { AuthAPI } = require('./api');
+      const res = await AuthAPI.wechatLogin({ code });
+      this._applyLoginResponse(res);
+      this._setState({ isLoggingIn: false, lastError: null });
+      return res.user;
+    } catch (err) {
+      const message = err && err.message ? err.message : 'WeChat login failed';
+      this._setState({ isLoggingIn: false, lastError: message });
+      throw err;
+    }
+  }
+
+  async _doLoginWithCode(code) {
+    this._setState({ isLoggingIn: true, lastError: null });
+    try {
       const { AuthAPI } = require('./api');
       const res = await AuthAPI.wechatLogin({ code });
       this._applyLoginResponse(res);

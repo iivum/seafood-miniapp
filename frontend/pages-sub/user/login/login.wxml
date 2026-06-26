@@ -1,36 +1,31 @@
-<view class="login-container">
-  <!-- Logo和标题 -->
-  <view class="login-header">
-    <image class="logo" src="/images/logo.png" mode="aspectFit"></image>
-    <text class="title">海鲜生鲜商城</text>
-    <text class="subtitle">新鲜海鲜，品质保证</text>
+<view class="login-page">
+  <image class="login-logo" src="/images/logo.png" mode="aspectFit" />
+  <text class="login-title">海鲜生鲜商城</text>
+  <text class="login-subtitle">登录后开始购物</text>
+
+  <view class="login-actions">
+    <!-- 开发者登录:本地 + e2e 用,后端 dev-login(code 以 dev- 开头即走通) -->
+    <button
+      class="login-btn login-btn--dev"
+      bindtap="onDevLogin"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <icon type="download" size="20" />
+      <text>开发者登录</text>
+    </button>
+
+    <!-- 微信登录:真机扫码,后端走 wx.login code → jscode2session -->
+    <button
+      class="login-btn login-btn--wechat"
+      bindtap="onWxLogin"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <icon type="wechat" size="20" color="#07c160" />
+      <text>微信登录</text>
+    </button>
   </view>
 
-  <!-- 微信登录表单 -->
-  <view class="login-form">
-    <view class="form-content">
-      <button class="wechat-login-btn" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{isLoading}}">
-        <icon type="wechat" size="24" color="#fff"></icon>
-        <text>微信一键登录</text>
-      </button>
-      
-      <view class="tips">
-        <text>点击登录即表示同意</text>
-        <text class="link" bindtap="showAgreement">《用户协议》</text>
-        <text>和</text>
-        <text class="link" bindtap="showPrivacy">《隐私政策》</text>
-      </view>
-
-      <!-- 错误提示 -->
-      <text class="error-tip" wx:if="{{errorMsg}}">{{errorMsg}}</text>
-    </view>
-  </view>
-
-  <!-- 加载提示 -->
-  <view class="loading-mask" wx:if="{{isLoading}}">
-    <view class="loading-content">
-      <icon type="loading" size="48" color="#007aff"></icon>
-      <text>登录中...</text>
-    </view>
-  </view>
+  <text class="login-tip">首次使用将自动创建账号</text>
 </view>

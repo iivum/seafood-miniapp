@@ -138,10 +138,48 @@ class AuthStore {
     return this.loginInFlight;
   }
 
+  /**
+   * Run the WeChat login flow using an externally-supplied `code`.
+   *
+   * Unlike `login()`, this does NOT call `wx.login` internally — the caller
+   * provides the code. Used by the login page's two paths:
+   *   - 开发者登录(dev-login):caller synthesizes a `dev-…` code that the
+   *     backend recognises in dev mode and treats as a test openId.
+   *   - 微信登录:caller calls `wx.login` first and forwards the real code
+   *     for `jscode2session`.
+   *
+   * Single-flight deduped against concurrent `login()` calls so the
+   * dev-login path shares the same in-flight promise as the regular path.
+   */
+  async loginWithCode(code: string): Promise<StoredUser> {
+    if (!code || typeof code !== 'string') {
+      throw new Error('loginWithCode requires a non-empty code');
+    }
+    if (this.loginInFlight) return this.loginInFlight;
+    this.loginInFlight = this.doLoginWithCode(code).finally(() => {
+      this.loginInFlight = null;
+    });
+    return this.loginInFlight;
+  }
+
   private async doLogin(): Promise<StoredUser> {
     this.setState({ isLoggingIn: true, lastError: null });
     try {
       const code = await this.wxLogin();
+      const res = await AuthAPI.wechatLogin({ code });
+      this.applyLoginResponse(res);
+      this.setState({ isLoggingIn: false, lastError: null });
+      return res.user;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'WeChat login failed';
+      this.setState({ isLoggingIn: false, lastError: message });
+      throw err;
+    }
+  }
+
+  private async doLoginWithCode(code: string): Promise<StoredUser> {
+    this.setState({ isLoggingIn: true, lastError: null });
+    try {
       const res = await AuthAPI.wechatLogin({ code });
       this.applyLoginResponse(res);
       this.setState({ isLoggingIn: false, lastError: null });
