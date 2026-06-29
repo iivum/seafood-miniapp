@@ -406,12 +406,8 @@
           "actor" : {
             "type" : "string"
           },
-          "after" : {
-            "type" : "object"
-          },
-          "before" : {
-            "type" : "object"
-          },
+          "after" : { },
+          "before" : { },
           "flagKey" : {
             "type" : "string"
           },

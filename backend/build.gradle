@@ -329,8 +329,6 @@ tasks.named('test') {
     // JDK 25 强模块封装 — Spring Data Mongo 4.5 的 PreferredConstructor 在解析
     // java.time.Instant 时用反射 setAccessible(true),需 opens 才能工作。
     jvmArgs '--add-opens', 'java.base/java.time=ALL-UNNAMED'
-    // TEMP DEBUG(契约漂移诊断):把测试 stdout 透传到 Gradle console,诊断后移除。
-    testLogging { showStandardStreams = true }
 }
 
 // P0 #1 失败回滚(2026-06-07):尝试用三种方式限制 nativeTest 只跑 @Tag("native")

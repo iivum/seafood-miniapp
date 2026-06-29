@@ -94,28 +94,6 @@ class OpenApiContractIT {
         }
 
         String committed = Files.readString(CONTRACT);
-
-        // TEMP DEBUG (CI 诊断契约漂移):把生成 spec 与 committed 不一致的行打到 stdout,
-        // 便于从 CI 日志离线精确 diff。诊断后移除。
-        if (!current.equals(committed)) {
-            var cur = java.util.List.of(current.split("\n", -1));
-            var com = new java.util.HashSet<>(java.util.List.of(committed.split("\n", -1)));
-            System.out.println("<<<OPENAPI_DRIFT_BEGIN>>>");
-            for (int i = 0; i < cur.size(); i++) {
-                if (!com.contains(cur.get(i))) {
-                    System.out.println("GEN+ " + i + " |" + cur.get(i));
-                }
-            }
-            var curSet = new java.util.HashSet<>(cur);
-            int j = 0;
-            for (String line : committed.split("\n", -1)) {
-                if (!curSet.contains(line)) {
-                    System.out.println("COM- " + j + " |" + line);
-                }
-                j++;
-            }
-            System.out.println("<<<OPENAPI_DRIFT_END>>>");
-        }
         assertThat(current)
                 .as("OpenAPI 契约漂移:API 变了但未更新 committed spec。确认变更有意后跑 "
                         + "`CONTRACT_UPDATE=true ./gradlew test --tests *OpenApiContractIT -PexcludeTags=` "
