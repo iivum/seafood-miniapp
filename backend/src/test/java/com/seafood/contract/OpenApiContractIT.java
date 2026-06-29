@@ -93,6 +93,12 @@ class OpenApiContractIT {
             return;
         }
 
+        // TEMP DEBUG (CI 诊断契约漂移):把生成的 spec 写进 always() 上传的 jacoco 报告目录,
+        // 便于离线精确 diff。诊断后移除。
+        Path debug = Path.of("build/reports/jacoco/test/generated-openapi.json");
+        Files.createDirectories(debug.getParent());
+        Files.writeString(debug, current);
+
         String committed = Files.readString(CONTRACT);
         assertThat(current)
                 .as("OpenAPI 契约漂移:API 变了但未更新 committed spec。确认变更有意后跑 "
