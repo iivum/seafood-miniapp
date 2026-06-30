@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GlobalExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.error</a> &gt; <span class="el_source">GlobalExceptionHandler.java</span></div><h1>GlobalExceptionHandler.java</h1><pre class="source lang-java linenums">package com.seafood.shared.error;
+
+import com.seafood.shared.security.RateLimitedException;
+import com.seafood.user.application.AccountLockedException;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 全局异常 → ErrorResponse 转换(参见 design.md §5.3)。
+ *
+ * &lt;p&gt;Sprint 2 增:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link RateLimitedException} → HTTP 429 + Retry-After + {@code code=RATE_LIMITED}
+ *       (C2,specs/runtime-security §Admin endpoints enforce a rate limit)&lt;/li&gt;
+ *   &lt;li&gt;{@link AccountLockedException} → HTTP 423 + Retry-After + {@code code=ACCOUNT_LOCKED}
+ *       (C3 §3.10,specs/auth §Login lockout)&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@RestControllerAdvice
+<span class="fc" id="L27">public class GlobalExceptionHandler {</span>
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity&lt;ErrorResponse&gt; notFound(NotFoundException e) {
+<span class="fc" id="L31">        return ResponseEntity.status(404)</span>
+<span class="fc" id="L32">                .body(new ErrorResponse(&quot;NOT_FOUND&quot;, e.getMessage(), null));</span>
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity&lt;ErrorResponse&gt; validation(ValidationException e) {
+<span class="nc" id="L37">        return ResponseEntity.badRequest()</span>
+<span class="nc" id="L38">                .body(new ErrorResponse(&quot;VALIDATION&quot;, e.getMessage(), e.getFieldErrors()));</span>
+    }
+
+    @ExceptionHandler(DomainException.class)
+    public ResponseEntity&lt;ErrorResponse&gt; domain(DomainException e) {
+<span class="fc" id="L43">        return ResponseEntity.status(409)</span>
+<span class="fc" id="L44">                .body(new ErrorResponse(&quot;DOMAIN&quot;, e.getMessage(), null));</span>
+    }
+
+    @ExceptionHandler(RateLimitedException.class)
+    public ResponseEntity&lt;ErrorResponse&gt; rateLimited(RateLimitedException e) {
+<span class="fc" id="L49">        return ResponseEntity.status(429)</span>
+<span class="fc" id="L50">                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))</span>
+<span class="fc" id="L51">                .body(new ErrorResponse(&quot;RATE_LIMITED&quot;, e.getMessage(), null));</span>
+    }
+
+    /**
+     * Sprint 2 §3.10 — 账号被锁 → HTTP 423 Locked(WEBDAV 状态码) + Retry-After +
+     * {@code code=ACCOUNT_LOCKED}。
+     */
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity&lt;ErrorResponse&gt; accountLocked(AccountLockedException e) {
+<span class="fc" id="L60">        return ResponseEntity.status(HttpStatus.LOCKED) // 423</span>
+<span class="fc" id="L61">                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))</span>
+<span class="fc" id="L62">                .body(new ErrorResponse(&quot;ACCOUNT_LOCKED&quot;, e.getMessage(), null));</span>
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity&lt;ErrorResponse&gt; beanValidation(MethodArgumentNotValidException e) {
+<span class="fc" id="L67">        Map&lt;String, String&gt; fields = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L68">        e.getBindingResult().getFieldErrors().forEach(fe -&gt;</span>
+<span class="fc" id="L69">                fields.put(fe.getField(), fe.getDefaultMessage()));</span>
+<span class="fc" id="L70">        return ResponseEntity.badRequest()</span>
+<span class="fc" id="L71">                .body(new ErrorResponse(&quot;VALIDATION&quot;, &quot;Request validation failed&quot;, fields));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
