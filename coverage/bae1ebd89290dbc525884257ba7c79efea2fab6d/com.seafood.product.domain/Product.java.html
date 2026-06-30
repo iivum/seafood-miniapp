@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Product.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.product.domain</a> &gt; <span class="el_source">Product.java</span></div><h1>Product.java</h1><pre class="source lang-java linenums">package com.seafood.product.domain;
+
+import com.seafood.shared.error.DomainException;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Product 聚合根(参见 design.md §6.1)。
+ *
+ * &lt;p&gt;设计取舍:
+ * &lt;ul&gt;
+ *   &lt;li&gt;用 Java 25 record 表达不可变状态;可变操作返回新 record(避免 setter 漂移)&lt;/li&gt;
+ *   &lt;li&gt;业务规则(price &amp;gt; 0、stock &amp;ge; 0、name 非空)在构造时校验&lt;/li&gt;
+ *   &lt;li&gt;状态变更(下架、扣减库存)走命名方法,集中异常&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;路线图 3.7(Sprint 2):新增 {@code skus: List&lt;Sku&gt;} 字段。{@code price} /
+ * {@code stock} 保留作&quot;默认 SKU&quot;(参见 tasks.md §5.13 决策),旧数据反序列化为
+ * {@code skus = []} 时,UI / API 走默认 SKU 逻辑(不引入新端点)。聚合校验:
+ * skus 非空时,第一 SKU 的 price / stock 应等于 Product.price / stock(避免不一致);
+ * skus 为空时,price / stock 必须 &gt; 0(防全空商品)。
+ */
+public record Product(
+        String id,
+        String name,
+        String description,
+        BigDecimal price,
+        int stock,
+        ProductCategory category,
+        String imageUrl,
+        ProductStatus status,
+        List&lt;Sku&gt; skus,
+        Instant createdAt,
+        Instant updatedAt
+) {
+
+<span class="fc" id="L40">    public Product {</span>
+<span class="pc bpc" id="L41" title="1 of 4 branches missed.">        if (name == null || name.isBlank()) {</span>
+<span class="fc" id="L42">            throw new DomainException(&quot;商品名称不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L44" title="1 of 4 branches missed.">        if (price == null || price.signum() &lt;= 0) {</span>
+<span class="fc" id="L45">            throw new DomainException(&quot;商品价格必须大于 0&quot;);</span>
+        }
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (stock &lt; 0) {</span>
+<span class="fc" id="L48">            throw new DomainException(&quot;库存不能为负数&quot;);</span>
+        }
+<span class="fc bfc" id="L50" title="All 2 branches covered.">        if (category == null) {</span>
+<span class="fc" id="L51">            throw new DomainException(&quot;商品分类不能为空&quot;);</span>
+        }
+        // skus 字段校验:null 等价空 list;非空时第一 SKU 应与默认 price/stock 一致
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (skus == null) {</span>
+<span class="fc" id="L55">            skus = List.of();</span>
+        } else {
+<span class="fc" id="L57">            skus = List.copyOf(skus);</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">            if (!skus.isEmpty()) {</span>
+<span class="fc" id="L59">                Sku first = skus.get(0);</span>
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">                if (first.price().compareTo(price) != 0) {</span>
+<span class="nc" id="L61">                    throw new DomainException(&quot;第一 SKU 价格(&quot; + first.price()</span>
+                            + &quot;)必须等于商品默认价格(&quot; + price + &quot;)&quot;);
+                }
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">                if (first.stock() != stock) {</span>
+<span class="nc" id="L65">                    throw new DomainException(&quot;第一 SKU 库存(&quot; + first.stock()</span>
+                            + &quot;)必须等于商品默认库存(&quot; + stock + &quot;)&quot;);
+                }
+            }
+        }
+<span class="fc" id="L70">    }</span>
+
+    /** 旧构造器(11 参)— 不带 skus,等价 skus = []。供 ProductService.create() 等存量调用。 */
+    public Product(String id, String name, String description, BigDecimal price, int stock,
+                   ProductCategory category, String imageUrl, ProductStatus status,
+                   Instant createdAt, Instant updatedAt) {
+<span class="fc" id="L76">        this(id, name, description, price, stock, category, imageUrl, status, List.of(),</span>
+                createdAt, updatedAt);
+<span class="fc" id="L78">    }</span>
+
+    /** 扣减库存,返回新 record;库存不足抛 DomainException。 */
+    public Product decrementStock(int quantity) {
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (quantity &lt;= 0) {</span>
+<span class="fc" id="L83">            throw new DomainException(&quot;扣减数量必须大于 0&quot;);</span>
+        }
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        if (this.stock &lt; quantity) {</span>
+<span class="fc" id="L86">            throw new DomainException(&quot;库存不足:仅剩 &quot; + this.stock + &quot;,需要 &quot; + quantity);</span>
+        }
+<span class="fc" id="L88">        return new Product(id, name, description, price, stock - quantity,</span>
+<span class="fc" id="L89">                category, imageUrl, status, skus, createdAt, Instant.now());</span>
+    }
+
+    /** 上架 / 下架。 */
+    public Product withStatus(ProductStatus newStatus) {
+<span class="fc" id="L94">        return new Product(id, name, description, price, stock, category, imageUrl,</span>
+<span class="fc" id="L95">                newStatus, skus, createdAt, Instant.now());</span>
+    }
+
+    /** 更新基础信息(name/desc/price/image),价格校验同上。 */
+    public Product updateBasics(String name, String description, BigDecimal price, String imageUrl) {
+<span class="pc bpc" id="L100" title="2 of 4 branches missed.">        if (name == null || name.isBlank()) {</span>
+<span class="nc" id="L101">            throw new DomainException(&quot;商品名称不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L103" title="2 of 4 branches missed.">        if (price == null || price.signum() &lt;= 0) {</span>
+<span class="nc" id="L104">            throw new DomainException(&quot;商品价格必须大于 0&quot;);</span>
+        }
+<span class="fc" id="L106">        return new Product(id, name, description, price, stock, category, imageUrl,</span>
+<span class="fc" id="L107">                status, skus, createdAt, Instant.now());</span>
+    }
+
+    /**
+     * 3.7 命名方法:替换整张 SKU 列表(批量更新,ad-04 SKU 行内编辑保存)。
+     * 校验:数量 0-50(防止意外大数组撑爆 Mongo doc 16MB 限制);
+     * 第一 SKU 的 price / stock 与 Product 默认值必须一致(聚合不变量)。
+     */
+    public Product replaceSkus(List&lt;Sku&gt; newSkus) {
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">        if (newSkus == null) {</span>
+<span class="nc" id="L117">            newSkus = List.of();</span>
+        }
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        if (newSkus.size() &gt; 50) {</span>
+<span class="fc" id="L120">            throw new DomainException(&quot;SKU 数量超过 50 上限&quot;);</span>
+        }
+        // 紧凑构造器会校验第一 SKU 与默认 price/stock 一致;这里预读一次
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">        if (!newSkus.isEmpty()) {</span>
+<span class="fc" id="L124">            Sku first = newSkus.get(0);</span>
+<span class="pc bpc" id="L125" title="1 of 2 branches missed.">            if (first.price().compareTo(price) != 0) {</span>
+<span class="nc" id="L126">                throw new DomainException(&quot;第一 SKU 价格必须等于商品默认价格&quot;);</span>
+            }
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">            if (first.stock() != stock) {</span>
+<span class="nc" id="L129">                throw new DomainException(&quot;第一 SKU 库存必须等于商品默认库存&quot;);</span>
+            }
+        }
+<span class="fc" id="L132">        return new Product(id, name, description, price, stock, category, imageUrl,</span>
+<span class="fc" id="L133">                status, newSkus, createdAt, Instant.now());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

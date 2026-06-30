@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FeatureFlagService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.featureflag.application</a> &gt; <span class="el_source">FeatureFlagService.java</span></div><h1>FeatureFlagService.java</h1><pre class="source lang-java linenums">package com.seafood.featureflag.application;
+
+import com.seafood.featureflag.domain.FeatureFlag;
+import com.seafood.featureflag.infra.FeatureFlagAuditDocument;
+import com.seafood.featureflag.infra.FeatureFlagAuditRepository;
+import com.seafood.featureflag.infra.FeatureFlagDocument;
+import com.seafood.featureflag.infra.FeatureFlagMapper;
+import com.seafood.featureflag.infra.FeatureFlagRepository;
+import com.seafood.shared.error.NotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Feature flag 应用服务，协调 domain、infra、cache 三层，处理 flag 的查询与状态变更。
+ *
+ * &lt;p&gt;读路径：委托内存缓存（{@link FeatureFlagCache}），零 DB 往返。
+ * &lt;p&gt;写路径：更新 DB → 写审计记录 → 立即刷新缓存（近实时）。
+ */
+@Service
+public class FeatureFlagService {
+
+    private final FeatureFlagRepository repository;
+    private final FeatureFlagAuditRepository auditRepository;
+    private final FeatureFlagCache cache;
+
+    public FeatureFlagService(FeatureFlagRepository repository,
+                               FeatureFlagAuditRepository auditRepository,
+<span class="fc" id="L32">                               FeatureFlagCache cache) {</span>
+<span class="fc" id="L33">        this.repository = repository;</span>
+<span class="fc" id="L34">        this.auditRepository = auditRepository;</span>
+<span class="fc" id="L35">        this.cache = cache;</span>
+<span class="fc" id="L36">    }</span>
+
+    // ========== 读路径（走缓存）==========
+
+    /**
+     * 判断指定用户是否命中某 flag。
+     * flag 不存在时默认返回 false（fail-closed）。
+     */
+    public boolean isEnabled(String flagKey, String userId) {
+<span class="fc" id="L45">        return cache.get(flagKey)</span>
+<span class="fc" id="L46">                .map(f -&gt; f.isEnabled(userId))</span>
+<span class="fc" id="L47">                .orElse(false);</span>
+    }
+
+    /**
+     * 小程序公共端点：返回所有 flag 的 flagKey + enabled（当前用户 = anonymous）。
+     */
+    public List&lt;ClientFlagResponse&gt; listClientFlags() {
+<span class="nc" id="L54">        return repository.findAll().stream()</span>
+<span class="nc" id="L55">                .map(FeatureFlagMapper::toDomain)</span>
+<span class="nc" id="L56">                .map(f -&gt; new ClientFlagResponse(f.flagKey(), f.enabled()))</span>
+<span class="nc" id="L57">                .toList();</span>
+    }
+
+    // ========== 管理员读路径（走 DB 或 cache）==========
+
+    /**
+     * 管理员分页列表（所有 flag，含 disabled）。
+     */
+    public Page&lt;FeatureFlagResponse&gt; listAll(Pageable pageable) {
+<span class="fc" id="L66">        return repository.findAll(pageable)</span>
+<span class="fc" id="L67">                .map(FeatureFlagMapper::toDomain)</span>
+<span class="fc" id="L68">                .map(this::toResponse);</span>
+    }
+
+    /**
+     * 管理员查单条详情。
+     */
+    public FeatureFlagResponse get(String flagKey) {
+<span class="nc" id="L75">        FeatureFlagDocument doc = repository.findByFlagKey(flagKey)</span>
+<span class="nc" id="L76">                .orElseThrow(() -&gt; new NotFoundException(&quot;feature flag not found: &quot; + flagKey));</span>
+<span class="nc" id="L77">        return toResponse(FeatureFlagMapper.toDomain(doc));</span>
+    }
+
+    /**
+     * 分页查审计记录（按 timestamp 降序）。
+     */
+    public Page&lt;FeatureFlagAuditResponse&gt; getAuditLog(String flagKey, Pageable pageable) {
+<span class="fc" id="L84">        return auditRepository.findByFlagKeyOrderByTimestampDesc(flagKey, pageable)</span>
+<span class="fc" id="L85">                .map(doc -&gt; new FeatureFlagAuditResponse(</span>
+<span class="fc" id="L86">                        doc.getFlagKey(), doc.getAction(), doc.getBefore(),</span>
+<span class="fc" id="L87">                        doc.getAfter(), doc.getActor(), doc.getTimestamp()));</span>
+    }
+
+    // ========== 写路径（DB → audit → cache.refresh）==========
+
+    /**
+     * 启用 flag。
+     */
+    public void enable(String flagKey, String actor) {
+<span class="fc" id="L96">        FeatureFlagDocument doc = findOrThrow(flagKey);</span>
+<span class="fc" id="L97">        FeatureFlag before = FeatureFlagMapper.toDomain(doc);</span>
+<span class="fc" id="L98">        FeatureFlag updated = before.enable();</span>
+<span class="fc" id="L99">        repository.save(FeatureFlagMapper.toDocument(updated, doc.getId()));</span>
+<span class="fc" id="L100">        saveAudit(flagKey, AuditAction.ENABLE, before, updated, actor);</span>
+<span class="fc" id="L101">        cache.refresh();</span>
+<span class="fc" id="L102">    }</span>
+
+    /**
+     * 禁用 flag。
+     */
+    public void disable(String flagKey, String actor) {
+<span class="fc" id="L108">        FeatureFlagDocument doc = findOrThrow(flagKey);</span>
+<span class="fc" id="L109">        FeatureFlag before = FeatureFlagMapper.toDomain(doc);</span>
+<span class="fc" id="L110">        FeatureFlag updated = before.disable();</span>
+<span class="fc" id="L111">        repository.save(FeatureFlagMapper.toDocument(updated, doc.getId()));</span>
+<span class="fc" id="L112">        saveAudit(flagKey, AuditAction.DISABLE, before, updated, actor);</span>
+<span class="fc" id="L113">        cache.refresh();</span>
+<span class="fc" id="L114">    }</span>
+
+    /**
+     * 更新灰度比例。
+     */
+    public void updateRollout(String flagKey, int percentage, String actor) {
+<span class="fc" id="L120">        FeatureFlagDocument doc = findOrThrow(flagKey);</span>
+<span class="fc" id="L121">        FeatureFlag before = FeatureFlagMapper.toDomain(doc);</span>
+<span class="fc" id="L122">        FeatureFlag updated = before.updateRollout(percentage);</span>
+<span class="fc" id="L123">        repository.save(FeatureFlagMapper.toDocument(updated, doc.getId()));</span>
+<span class="fc" id="L124">        saveAudit(flagKey, AuditAction.PERCENTAGE_CHANGE, before, updated, actor);</span>
+<span class="fc" id="L125">        cache.refresh();</span>
+<span class="fc" id="L126">    }</span>
+
+    /**
+     * 将 userId 加入白名单。
+     */
+    public void addToWhitelist(String flagKey, String userId, String actor) {
+<span class="fc" id="L132">        FeatureFlagDocument doc = findOrThrow(flagKey);</span>
+<span class="fc" id="L133">        FeatureFlag before = FeatureFlagMapper.toDomain(doc);</span>
+<span class="fc" id="L134">        FeatureFlag updated = before.addToWhitelist(userId);</span>
+<span class="fc" id="L135">        repository.save(FeatureFlagMapper.toDocument(updated, doc.getId()));</span>
+<span class="fc" id="L136">        saveAudit(flagKey, AuditAction.WHITELIST_ADD, before, updated, actor);</span>
+<span class="fc" id="L137">        cache.refresh();</span>
+<span class="fc" id="L138">    }</span>
+
+    /**
+     * 将 userId 移出白名单。
+     */
+    public void removeFromWhitelist(String flagKey, String userId, String actor) {
+<span class="fc" id="L144">        FeatureFlagDocument doc = findOrThrow(flagKey);</span>
+<span class="fc" id="L145">        FeatureFlag before = FeatureFlagMapper.toDomain(doc);</span>
+<span class="fc" id="L146">        FeatureFlag updated = before.removeFromWhitelist(userId);</span>
+<span class="fc" id="L147">        repository.save(FeatureFlagMapper.toDocument(updated, doc.getId()));</span>
+<span class="fc" id="L148">        saveAudit(flagKey, AuditAction.WHITELIST_REMOVE, before, updated, actor);</span>
+<span class="fc" id="L149">        cache.refresh();</span>
+<span class="fc" id="L150">    }</span>
+
+    // ========== 私有工具方法 ==========
+
+    private FeatureFlagDocument findOrThrow(String flagKey) {
+<span class="fc" id="L155">        return repository.findByFlagKey(flagKey)</span>
+<span class="fc" id="L156">                .orElseThrow(() -&gt; new NotFoundException(&quot;feature flag not found: &quot; + flagKey));</span>
+    }
+
+    private void saveAudit(String flagKey, AuditAction action,
+                           FeatureFlag before, FeatureFlag after, String actor) {
+<span class="fc" id="L161">        auditRepository.save(new FeatureFlagAuditDocument(</span>
+<span class="fc" id="L162">                flagKey, action.name(), before, after, actor, Instant.now()));</span>
+<span class="fc" id="L163">    }</span>
+
+    private FeatureFlagResponse toResponse(FeatureFlag flag) {
+<span class="fc" id="L166">        return new FeatureFlagResponse(</span>
+<span class="fc" id="L167">                flag.flagKey(), flag.enabled(), flag.rolloutPercentage(),</span>
+<span class="fc" id="L168">                flag.userSegments(), flag.expiresAt(), flag.description(),</span>
+<span class="fc" id="L169">                flag.createdBy(), flag.createdAt(), flag.updatedAt());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

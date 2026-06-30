@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.api</a> &gt; <span class="el_source">UserController.java</span></div><h1>UserController.java</h1><pre class="source lang-java linenums">package com.seafood.user.api;
+
+import com.seafood.shared.security.UserPrincipal;
+import com.seafood.user.api.dto.AddAddressRequest;
+import com.seafood.user.api.dto.UpdateAddressRequest;
+import com.seafood.user.api.dto.UserResponse;
+import com.seafood.user.application.UserService;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 用户 API(参见 specs/auth §End-to-end)。
+ *
+ * &lt;p&gt;地址写操作路径形如 {@code /api/users/{userId}/addresses},其中 {@code userId}
+ * 必须等于调用者本人或调用者是 ADMIN — 校验在 {@link UserService#authorize}。
+ */
+@RestController
+@RequestMapping(&quot;/api/users&quot;)
+public class UserController {
+
+    private final UserService users;
+
+<span class="fc" id="L35">    public UserController(UserService users) {</span>
+<span class="fc" id="L36">        this.users = users;</span>
+<span class="fc" id="L37">    }</span>
+
+    @GetMapping(&quot;/me&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public UserResponse me(@AuthenticationPrincipal UserPrincipal me) {
+<span class="nc" id="L42">        return users.get(me.getId(), me);</span>
+    }
+
+    @GetMapping(&quot;/{userId}&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public UserResponse get(@PathVariable String userId,
+                            @AuthenticationPrincipal UserPrincipal me) {
+<span class="nc" id="L49">        return users.get(userId, me);</span>
+    }
+
+    @GetMapping
+    @PreAuthorize(&quot;hasRole('ADMIN')&quot;)
+    public Page&lt;UserResponse&gt; list(@PageableDefault(size = 20) Pageable pageable,
+                                   @AuthenticationPrincipal UserPrincipal me) {
+<span class="nc" id="L56">        return users.list(pageable, me);</span>
+    }
+
+    @PostMapping(&quot;/{userId}/addresses&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public UserResponse addAddress(@PathVariable String userId,
+                                   @Valid @RequestBody AddAddressRequest req,
+                                   @AuthenticationPrincipal UserPrincipal me) {
+<span class="nc" id="L64">        return users.addAddress(userId, req, me);</span>
+    }
+
+    @PutMapping(&quot;/{userId}/addresses/{addressId}&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public UserResponse updateAddress(@PathVariable String userId,
+                                      @PathVariable String addressId,
+                                      @Valid @RequestBody UpdateAddressRequest req,
+                                      @AuthenticationPrincipal UserPrincipal me) {
+<span class="nc" id="L73">        return users.updateAddress(userId, addressId, req, me);</span>
+    }
+
+    @DeleteMapping(&quot;/{userId}/addresses/{addressId}&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public UserResponse removeAddress(@PathVariable String userId,
+                                      @PathVariable String addressId,
+                                      @AuthenticationPrincipal UserPrincipal me) {
+<span class="nc" id="L81">        return users.removeAddress(userId, addressId, me);</span>
+    }
+
+    @PostMapping(&quot;/{userId}/addresses/{addressId}/default&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public UserResponse setDefault(@PathVariable String userId,
+                                   @PathVariable String addressId,
+                                   @AuthenticationPrincipal UserPrincipal me) {
+<span class="nc" id="L89">        return users.setDefaultAddress(userId, addressId, me);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

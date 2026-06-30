@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SensitiveValueBeanSerializerModifier.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.config</a> &gt; <span class="el_source">SensitiveValueBeanSerializerModifier.java</span></div><h1>SensitiveValueBeanSerializerModifier.java</h1><pre class="source lang-java linenums">package com.seafood.shared.config;
+
+import tools.jackson.databind.BeanDescription;
+import tools.jackson.databind.SerializationConfig;
+import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.ser.BeanPropertyWriter;
+import tools.jackson.databind.ser.ValueSerializerModifier;
+
+import java.util.List;
+import java.util.regex.Pattern;
+
+/**
+ * Sprint 2 §1.6 — 全局按字段名脱敏的 Jackson 3 {@link ValueSerializerModifier}。
+ *
+ * &lt;p&gt;规则:String 字段且字段名命中 {@link #SENSITIVE_FIELD_PATTERN} 时,
+ * 把该 property 的 serializer 替换为 {@link SensitiveValueMasker};新字段无需注解即自动覆盖。
+ * 非 String 类型即便字段名命中也不动(避免误伤 {@code int tokenCount} 这类计数字段)。
+ *
+ * &lt;p&gt;PR review #24 修复 regex 误伤:原版用 {@code uri} 部分匹配,导致 {@code touristName}、
+ * {@code tutorial}、{@code duration} 这类合法字段被当作 URI 凭据脱敏。
+ * 现:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code secret|password|token|appid} — 单词边界匹配(降低误伤,如 {@code int tokenCount}
+ *       不再误中是因为类型检查,这里加 word boundary 进一步收紧)&lt;/li&gt;
+ *   &lt;li&gt;{@code Uri} 改为&lt;em&gt;字段名后缀&lt;/em&gt;匹配 — 只覆盖 {@code mongoUri}、{@code jdbcUri}、
+ *       {@code redirectUri} 这类&quot;以 Uri 结尾的字符串字段&quot;&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;注册见 {@link JacksonSensitiveValueConfig}。
+ */
+<span class="fc" id="L31">public class SensitiveValueBeanSerializerModifier extends ValueSerializerModifier {</span>
+
+    /**
+     * 大小写不敏感。
+     * &lt;ul&gt;
+     *   &lt;li&gt;{@code secret|password|token|appid} — 子串匹配(覆盖 camelCase 内部,如
+     *       {@code adminSecret}、{@code accessToken}),Java 字段名里这些词几乎都是有意为之,
+     *       误伤概率低;由类型检查兜住 {@code int tokenCount} 这类&lt;/li&gt;
+     *   &lt;li&gt;{@code Uri} — 改为&lt;em&gt;字段名后缀&lt;/em&gt;匹配 {@code .*Uri$},只覆盖
+     *       {@code mongoUri}/{@code jdbcUri}/{@code redirectUri} 这类真凭据,
+     *       不误伤 {@code touristName}/{@code tutorialTitle}/{@code durationMs}&lt;/li&gt;
+     * &lt;/ul&gt;
+     */
+<span class="fc" id="L44">    static final Pattern SENSITIVE_FIELD_PATTERN = Pattern.compile(</span>
+            &quot;(?i).*(secret|password|token|appid).*|.*Uri$&quot;);
+
+    @Override
+    @SuppressWarnings({&quot;rawtypes&quot;, &quot;unchecked&quot;})
+    public List&lt;BeanPropertyWriter&gt; changeProperties(
+            SerializationConfig config,
+            BeanDescription.Supplier beanDesc,
+            List&lt;BeanPropertyWriter&gt; beanProperties) {
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        for (BeanPropertyWriter writer : beanProperties) {</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">            if (shouldMask(writer)) {</span>
+<span class="fc" id="L55">                writer.assignSerializer((ValueSerializer) new SensitiveValueMasker());</span>
+            }
+<span class="fc" id="L57">        }</span>
+<span class="fc" id="L58">        return beanProperties;</span>
+    }
+
+    private static boolean shouldMask(BeanPropertyWriter writer) {
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (writer.getType().getRawClass() != String.class) {</span>
+<span class="fc" id="L63">            return false;</span>
+        }
+<span class="fc" id="L65">        String name = writer.getName();</span>
+        // v2.1 signoff 修复:TokenResponse / UserResponse 是 API 响应 DTO,字段
+        // accessToken / refreshToken 必须以原值返回给客户端(否则前端拿到的 token 是
+        // &quot;eyJh***&quot;,后续所有 admin API 必 403)。脱敏目标对象是 internal config
+        // 类(JwtProperties.adminSecret / password 等),不是 API 凭据。
+        // 字段名 accessToken / refreshToken 命中 token 子串导致无差别被 mask,
+        // 是设计 bug —— 用字段名白名单修补(Pattern 是 substring 匹配,精确白名单
+        // 4 个 API 凭据字段即可,不影响 password/secret/appid 脱敏)。
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">        if (name.equals(&quot;accessToken&quot;)</span>
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">                || name.equals(&quot;refreshToken&quot;)</span>
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">                || name.equals(&quot;role&quot;)</span>
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">                || name.equals(&quot;username&quot;)) {</span>
+<span class="nc" id="L77">            return false;</span>
+        }
+<span class="fc" id="L79">        return SENSITIVE_FIELD_PATTERN.matcher(name).matches();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

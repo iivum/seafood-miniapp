@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LoginLockoutService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.application</a> &gt; <span class="el_source">LoginLockoutService.java</span></div><h1>LoginLockoutService.java</h1><pre class="source lang-java linenums">package com.seafood.user.application;
+
+import com.seafood.user.infra.LoginAttemptDocument;
+import com.seafood.user.infra.LoginAttemptRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+
+/**
+ * sprint-1-closure 2.3 — Admin 登录锁定服务(IP + account 双维度,3/15min)。
+ *
+ * &lt;p&gt;决策(见 design.md D3):
+ * &lt;ul&gt;
+ *   &lt;li&gt;单 IP 锁会被 NAT 误伤,单 account 锁会被攻击者换 IP 暴力破解;两个都计,任一维度
+ *       超阈值都锁&lt;/li&gt;
+ *   &lt;li&gt;数据用 {@code login_attempts} MongoDB collection + TTL index(2.1)— 不上 Redis&lt;/li&gt;
+ *   &lt;li&gt;{@code getLockoutState(ip, account)} 是只读查询,供 admin UI 启动期轮询用&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;计数语义:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code recordFailure}:写一条 {@code success=false} 记录到 login_attempts,触发 Micrometer 计数&lt;/li&gt;
+ *   &lt;li&gt;{@code recordSuccess}:写一条 {@code success=true} 记录 + 重置失败次数(TTL 自动清掉旧的)&lt;/li&gt;
+ *   &lt;li&gt;{@code isIpLocked / isAccountLocked}:过去 15 分钟内失败 ≥ 3 视为锁&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@Service
+public class LoginLockoutService {
+
+    /** 失败次数阈值 */
+    public static final int FAILURE_THRESHOLD = 3;
+    /** 锁定时长 15 分钟(秒) */
+    public static final long LOCKOUT_DURATION_SECONDS = 900L;
+    /** 滚动窗口 15 分钟 */
+    public static final long WINDOW_SECONDS = 900L;
+
+    private final LoginAttemptRepository repo;
+    private final MeterRegistry meterRegistry;
+
+<span class="fc" id="L43">    public LoginLockoutService(LoginAttemptRepository repo, MeterRegistry meterRegistry) {</span>
+<span class="fc" id="L44">        this.repo = repo;</span>
+<span class="fc" id="L45">        this.meterRegistry = meterRegistry;</span>
+<span class="fc" id="L46">    }</span>
+
+    /**
+     * 记一次失败。如果本次失败把 IP 或 account 推到了 lock 阈值,
+     * 返回 {@code true} 让 caller 可以立即 throw AccountLockedException,
+     * 避免下一轮&quot;先 isXLocked 后 recordFailure&quot;的 read-after-write 竞态
+     * (那个竞态会让第 4 次失败仍走 catch 而不是 423)。
+     */
+    public boolean recordFailure(String ip, String account) {
+<span class="fc" id="L55">        repo.save(new LoginAttemptDocument(ip, account, false, Instant.now()));</span>
+<span class="pc bpc" id="L56" title="1 of 4 branches missed.">        if (isIpLocked(ip) || isAccountLocked(account)) {</span>
+<span class="fc" id="L57">            meterRegistry.counter(&quot;users.login.attempts&quot;, &quot;result&quot;, &quot;locked&quot;).increment();</span>
+<span class="fc" id="L58">            return true;</span>
+        }
+<span class="fc" id="L60">        return false;</span>
+    }
+
+    public void recordSuccess(String ip, String account) {
+        // 成功登录不需要把旧失败清掉 — TTL index 900s 后自动清;期间 isXLocked 会继续返 true
+        // 直到窗口滑出。Sprint 4 follow-up:成功时主动删除该 ip/account 的失败记录,立即解锁。
+<span class="fc" id="L66">        repo.save(new LoginAttemptDocument(ip, account, true, Instant.now()));</span>
+<span class="fc" id="L67">    }</span>
+
+    public boolean isIpLocked(String ip) {
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        return countFailuresSince(ip, null) &gt;= FAILURE_THRESHOLD;</span>
+    }
+
+    public boolean isAccountLocked(String account) {
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        return countFailuresSince(null, account) &gt;= FAILURE_THRESHOLD;</span>
+    }
+
+    /** 滚动窗口内失败次数(任一维度) */
+    private long countFailuresSince(String ip, String account) {
+<span class="fc" id="L79">        Instant since = Instant.now().minus(WINDOW_SECONDS, ChronoUnit.SECONDS);</span>
+<span class="fc" id="L80">        long count = 0;</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">        if (ip != null) {</span>
+<span class="fc" id="L82">            count = repo.countByIpAndSuccessAndTsAfter(ip, false, since);</span>
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">        } else if (account != null) {</span>
+<span class="fc" id="L84">            count = repo.countByAccountAndSuccessAndTsAfter(account, false, since);</span>
+        }
+<span class="fc" id="L86">        return count;</span>
+    }
+
+    /**
+     * 计算锁状态(供 GET /api/auth/login-lock 用)。
+     * 优先级:IP 锁 &gt; Account 锁 &gt; NONE。
+     */
+    public LockoutState getLockoutState(String ip, String account) {
+<span class="fc" id="L94">        Instant since = Instant.now().minus(WINDOW_SECONDS, ChronoUnit.SECONDS);</span>
+<span class="pc bpc" id="L95" title="1 of 4 branches missed.">        if (ip != null &amp;&amp; isIpLocked(ip)) {</span>
+<span class="fc" id="L96">            Instant until = earliestLockUntil(repo.findByIpAndTsAfterOrderByTsDesc(ip, since));</span>
+<span class="fc" id="L97">            return new LockoutState(true, until, &quot;IP&quot;);</span>
+        }
+<span class="pc bpc" id="L99" title="1 of 4 branches missed.">        if (account != null &amp;&amp; isAccountLocked(account)) {</span>
+<span class="fc" id="L100">            Instant until = earliestLockUntil(repo.findByAccountAndTsAfterOrderByTsDesc(account, since));</span>
+<span class="fc" id="L101">            return new LockoutState(true, until, &quot;ACCOUNT&quot;);</span>
+        }
+<span class="fc" id="L103">        return new LockoutState(false, null, &quot;NONE&quot;);</span>
+    }
+
+    private Instant earliestLockUntil(List&lt;LoginAttemptDocument&gt; records) {
+        // 锁定直到第 (threshold) 次失败 + 15 分钟
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">        if (records.size() &lt; FAILURE_THRESHOLD) return null;</span>
+        // 倒序拿第 N 条 = 第 (threshold) 个失败
+<span class="fc" id="L110">        Instant trigger = records.get(FAILURE_THRESHOLD - 1).getTs();</span>
+<span class="fc" id="L111">        return trigger.plusSeconds(LOCKOUT_DURATION_SECONDS);</span>
+    }
+
+<span class="fc" id="L114">    public record LockoutState(boolean locked, Instant until, String scope) {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RequestIdFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.observability</a> &gt; <span class="el_source">RequestIdFilter.java</span></div><h1>RequestIdFilter.java</h1><pre class="source lang-java linenums">package com.seafood.shared.observability;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.regex.Pattern;
+
+/**
+ * 请求级 TraceID 注入(OpenSpec setup-observability-stack PR #1,design §D3 / §D4)。
+ *
+ * &lt;p&gt;职责:
+ * &lt;ol&gt;
+ *   &lt;li&gt;从入站 {@code X-Request-Id} header 透传(若符合 UUID 正则且长度 ≤ 64),否则
+ *       通过 {@link RequestIdGenerator} 生成 UUID v7。&lt;/li&gt;
+ *   &lt;li&gt;把 ID 写入 SLF4J MDC 的 {@code requestId} 字段 — Spring Boot 4 的
+ *       structured logging(Logstash schema)会自动把它作为顶层 JSON key 输出。&lt;/li&gt;
+ *   &lt;li&gt;把同一 ID 写到响应 header {@code X-Request-Id},保证下游 / 前端拿到回写凭证。&lt;/li&gt;
+ *   &lt;li&gt;在 {@code finally} 块清理 MDC,避免虚拟线程池复用时泄漏到下一个请求
+ *       (Sprint 2 §nativeTest 切片 + design §D4 明确要求)。&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;异常路径:即便 {@code chain.doFilter} 抛异常,finally 块仍保证 MDC 清理
+ * 与 response header 写入(在 response commit 之前完成)。
+ *
+ * &lt;p&gt;GraalVM Native 兼容:UUID 正则在编译期就确定;不依赖任何反射;SLF4J / MDC
+ * 走 SLF4J 2.x facade,native-image 友好。
+ *
+ * &lt;p&gt;本 filter &lt;em&gt;不&lt;/em&gt;用 {@code @Component} — 注册通过
+ * {@link ObservabilityConfig#requestIdFilter()} 显式声明 URL pattern 与顺序,
+ * 这样测试可绕开 Spring 直接 new()。
+ */
+public class RequestIdFilter extends OncePerRequestFilter {
+
+    /** HTTP header 名(对外契约,SPEC §Request identifier MDC field)。 */
+    public static final String HEADER = &quot;X-Request-Id&quot;;
+
+    /** MDC key(Spring Boot 4 Logstash structured logging 自动作为顶层 JSON key)。 */
+    public static final String MDC_KEY = &quot;requestId&quot;;
+
+    /** 头值最大长度(SPEC §Request identifier passthrough 1;design §Risks 防 log injection)。 */
+    public static final int MAX_LENGTH = 64;
+
+    /**
+     * UUID 正则(SPEC §Request identifier passthrough 1)。不强制 hex 段大小写,允许
+     * {@code 01931A45-7C80-7000-9B3E-3F8A1C5E4D20} 等大写形式透传。
+     */
+<span class="fc" id="L54">    public static final Pattern UUID_PATTERN = Pattern.compile(</span>
+            &quot;^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$&quot;,
+            Pattern.CASE_INSENSITIVE);
+
+<span class="fc" id="L58">    private static final Logger LOG = LoggerFactory.getLogger(RequestIdFilter.class);</span>
+
+    private final RequestIdGenerator generator;
+
+    /** 默认构造 — 供 Spring 容器化装配使用。 */
+    public RequestIdFilter() {
+<span class="fc" id="L64">        this(new RequestIdGenerator.TimeBasedEpoch());</span>
+<span class="fc" id="L65">    }</span>
+
+    /** 测试 / 自定义生成器注入。 */
+<span class="fc" id="L68">    public RequestIdFilter(RequestIdGenerator generator) {</span>
+<span class="fc" id="L69">        this.generator = generator;</span>
+<span class="fc" id="L70">    }</span>
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+            throws ServletException, IOException {
+<span class="fc" id="L75">        String requestId = resolveRequestId(req.getHeader(HEADER));</span>
+        try {
+<span class="fc" id="L77">            MDC.put(MDC_KEY, requestId);</span>
+<span class="fc" id="L78">            res.setHeader(HEADER, requestId);</span>
+<span class="fc" id="L79">            chain.doFilter(req, res);</span>
+        } finally {
+            // 必须无条件清 — 否则虚拟线程复用时泄漏到下一个请求
+<span class="fc" id="L82">            MDC.remove(MDC_KEY);</span>
+        }
+<span class="fc" id="L84">    }</span>
+
+    /**
+     * 决定入站请求的 requestId。优先级(SPEC §Request identifier passthrough):
+     * &lt;ol&gt;
+     *   &lt;li&gt;header 存在 + 匹配 UUID 正则 + 长度 ≤ 64 → 透传&lt;/li&gt;
+     *   &lt;li&gt;否则 → 通过 {@link RequestIdGenerator} 生成新 UUID v7,并在 header 不合法
+     *       时记录一条 WARN(WARN message 不回显原始 header 值,防 log injection)&lt;/li&gt;
+     * &lt;/ol&gt;
+     */
+    private String resolveRequestId(String header) {
+<span class="fc bfc" id="L95" title="All 2 branches covered.">        if (header != null) {</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">            if (header.length() &gt; MAX_LENGTH) {</span>
+<span class="fc" id="L97">                LOG.warn(&quot;X-Request-Id rejected: length exceeds {} chars&quot;, MAX_LENGTH);</span>
+<span class="fc" id="L98">                return generator.next().toString();</span>
+            }
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            if (!UUID_PATTERN.matcher(header).matches()) {</span>
+                // SPEC §Malformed X-Request-Id is replaced:message 不回显原始值
+<span class="fc" id="L102">                LOG.warn(&quot;X-Request-Id rejected: malformed (length={})&quot;, header.length());</span>
+<span class="fc" id="L103">                return generator.next().toString();</span>
+            }
+<span class="fc" id="L105">            return header;</span>
+        }
+<span class="fc" id="L107">        return generator.next().toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
