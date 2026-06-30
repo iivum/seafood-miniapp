@@ -341,6 +341,17 @@
         },
         "type" : "object"
       },
+      "ClientFlagResponse" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "flagKey" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "DashboardResponse" : {
         "properties" : {
           "lowStock" : {
@@ -383,6 +394,65 @@
           },
           "reason" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "FeatureFlagAuditResponse" : {
+        "properties" : {
+          "action" : {
+            "type" : "string"
+          },
+          "actor" : {
+            "type" : "string"
+          },
+          "after" : { },
+          "before" : { },
+          "flagKey" : {
+            "type" : "string"
+          },
+          "timestamp" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "FeatureFlagResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "expiresAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "flagKey" : {
+            "type" : "string"
+          },
+          "rolloutPercentage" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userSegments" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
         },
         "type" : "object"
@@ -523,6 +593,98 @@
           },
           "trackingNumber" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PageFeatureFlagAuditResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FeatureFlagAuditResponse"
+            },
+            "type" : "array"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "numberOfElements" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PageFeatureFlagResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FeatureFlagResponse"
+            },
+            "type" : "array"
+          },
+          "empty" : {
+            "type" : "boolean"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "numberOfElements" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sort" : {
+            "$ref" : "#/components/schemas/SortObject"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -1006,6 +1168,32 @@
         },
         "type" : "object"
       },
+      "UpdateFlagRequest" : {
+        "properties" : {
+          "addToWhitelist" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "removeFromWhitelist" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "rolloutPercentage" : {
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "UploadResponse" : {
         "properties" : {
           "files" : {
@@ -1443,6 +1631,118 @@
           }
         },
         "tags" : [ "admin-bff-controller" ]
+      }
+    },
+    "/api/admin/feature-flags" : {
+      "get" : {
+        "operationId" : "listFlags",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageFeatureFlagResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-feature-flag-controller" ]
+      }
+    },
+    "/api/admin/feature-flags/{flagKey}" : {
+      "get" : {
+        "operationId" : "getFlag",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "flagKey",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FeatureFlagResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-feature-flag-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateFlag",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "flagKey",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateFlagRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-feature-flag-controller" ]
+      }
+    },
+    "/api/admin/feature-flags/{flagKey}/audit" : {
+      "get" : {
+        "operationId" : "getAuditLog",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "flagKey",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageable",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/components/schemas/Pageable"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageFeatureFlagAuditResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-feature-flag-controller" ]
       }
     },
     "/api/admin/orders/batch-ship" : {
@@ -2066,6 +2366,27 @@
           }
         },
         "tags" : [ "cart-controller" ]
+      }
+    },
+    "/api/featureflags" : {
+      "get" : {
+        "operationId" : "listClientFlags",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ClientFlagResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "feature-flag-controller" ]
       }
     },
     "/api/orders" : {
