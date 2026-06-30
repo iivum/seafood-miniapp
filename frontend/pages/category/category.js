@@ -1,4 +1,5 @@
 const { ProductListModule } = require('../../src/modules/productList/productList.js');
+const { CartAPI } = require('../../src/features/cart/api');
 
 // Initialize product list module
 const productListModule = new ProductListModule({ pageSize: 20 });
@@ -143,20 +144,34 @@ Page({
     });
   },
 
-  addToCart: function (e) {
-    const app = getApp();
-    if (!app.globalData.userInfo) {
+  /**
+   * Add product to cart — P1 鉴权守卫(Task 4.x follow-up / M8)。
+   * 未登录跳 login 页;已登录走 cartApi.addItem(后端 needAuth)。
+   * 不再走本地 cartUtil.addToCart(数据永远到不了后端,登录后看不到)。
+   * 与首页 pages/index/index.js addToCart 行为对齐。
+   */
+  addToCart(e) {
+    const product = e.currentTarget.dataset.product;
+    const productId = product && product.id;
+    const token = wx.getStorageSync('accessToken');
+    if (!token) {
+      // 未登录:跳 login。wx.navigateTo 保留历史栈,登录成功后
+      // login 页 onShow 检测到 isAuthenticated 会自动 wx.navigateBack 回分类页。
+      wx.navigateTo({
+        url: '/pages-sub/user/login/login?redirect=/pages/category/category',
+      });
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
-    const product = e.currentTarget.dataset.product;
-    const cartUtil = require('../../utils/cart.js');
-    cartUtil.addToCart(product);
-    wx.showToast({
-      title: '已加入购物车',
-      icon: 'success',
-      duration: 1500
-    });
+    // 已登录:走后端 needAuth API
+    CartAPI.addItem({ productId, quantity: 1 })
+      .then(() => {
+        wx.showToast({ title: '已加入购物车', icon: 'success' });
+      })
+      .catch((err) => {
+        console.error('addToCart 失败', err);
+        wx.showToast({ title: '加入失败', icon: 'none' });
+      });
   },
 
   onRetry: function () {

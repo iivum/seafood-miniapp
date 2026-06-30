@@ -16,10 +16,10 @@ page {
   --accent-soft: #ffe7d9;
   --accent-strong: #b83300;
   --accent-deep: #64230d;
-  --success: #1a7d4a;
-  --warning: #92400e;
+  --success: #318f5a;
+  --warning: #df911a;
   --error: #b9003d;
-  --info: #007792;
+  --info: #1988a3;
   --success-soft: #d5f9e0;
   --warning-soft: #ffe9cb;
   --error-soft: #ffe2e4;

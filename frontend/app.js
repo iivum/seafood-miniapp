@@ -155,7 +155,7 @@ App({
   },
 
   validateToken: function(token) {
-    const request = require('./utils/request.js');
+    const { request } = require('./utils/request.js');
     request({
         url: '/auth/me',
       header: {
@@ -216,7 +216,7 @@ App({
   },
 
   fetchWeChatToken: function(openId, userInfo) {
-    const request = require('./utils/request.js');
+    const { request } = require('./utils/request.js');
     return request({
         url: '/auth/wx-login',
       method: 'POST',
@@ -241,7 +241,7 @@ App({
   },
 
   logout: function() {
-    const request = require('./utils/request.js');
+    const { request } = require('./utils/request.js');
     const app = this;
 
     request({
