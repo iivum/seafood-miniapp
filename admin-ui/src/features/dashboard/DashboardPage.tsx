@@ -154,7 +154,7 @@ function RecentOrdersList({
 function LowStockList({
   items,
 }: {
-  items: { id: string; name: string; stock: number; category: string }[];
+  items: { id: string; name: string; stock: number; category: string; imageUrl?: string | null }[];
 }) {
   if (items.length === 0) {
     return (
@@ -187,7 +187,26 @@ function LowStockList({
       <TableBody>
         {items.map((p) => (
           <TableRow key={p.id}>
-            <TableCell className="font-medium">{p.name}</TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt={p.name}
+                    loading="lazy"
+                    className="h-8 w-8 rounded object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      (e.currentTarget.nextSibling as HTMLElement | null)?.removeAttribute('hidden');
+                    }}
+                  />
+                ) : null}
+                {!p.imageUrl ? (
+                  <div className="h-8 w-8 rounded bg-muted" />
+                ) : null}
+                <span className="font-medium">{p.name}</span>
+              </div>
+            </TableCell>
             <TableCell className="text-muted">{p.category}</TableCell>
             <TableCell className="text-right">
               {p.stock === 0 ? (
@@ -200,7 +219,7 @@ function LowStockList({
             </TableCell>
             <TableCell className="text-right">
               <Link
-                to="/admin/products"
+                to={`/admin/products?highlight=${p.id}`}
                 className="text-xs text-accent hover:underline"
               >
                 去补货

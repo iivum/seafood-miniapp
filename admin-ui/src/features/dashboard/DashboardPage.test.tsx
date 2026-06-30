@@ -178,7 +178,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('所有商品库存充足，无需补货')).toBeInTheDocument();
   });
 
-  it('LowStock: 非零库存商品显示「去补货」链接', async () => {
+  it('LowStock: 非零库存商品显示「去补货」链接含 highlight query', async () => {
     mockDashboard.get.mockResolvedValueOnce({
       orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
       productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
@@ -193,6 +193,44 @@ describe('DashboardPage', () => {
     renderWithProviders(<DashboardPage />, { authenticated: true });
     await waitFor(() => expect(screen.getByText('海胆')).toBeInTheDocument());
     const link = screen.getByRole('link', { name: '去补货' });
-    expect(link).toHaveAttribute('href', '/admin/products');
+    expect(link).toHaveAttribute('href', '/admin/products?highlight=p-link');
+  });
+
+  it('LowStock: imageUrl 有值时渲染缩略图 img', async () => {
+    mockDashboard.get.mockResolvedValueOnce({
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
+      productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
+      topProducts: [],
+      trend7d: [],
+      recentOrders: [],
+      lowStock: [
+        { id: 'p-img', name: '龙虾', description: '', price: '299.00', stock: 2,
+          category: '虾蟹', imageUrl: 'https://cdn.example.com/lobster.jpg',
+          status: 'ACTIVE', createdAt: '', updatedAt: '' },
+      ],
+    });
+    renderWithProviders(<DashboardPage />, { authenticated: true });
+    await waitFor(() => expect(screen.getByText('龙虾')).toBeInTheDocument());
+    const img = screen.getByRole('img', { name: '龙虾' });
+    expect(img).toHaveAttribute('src', 'https://cdn.example.com/lobster.jpg');
+    expect(img).toHaveClass('rounded');
+  });
+
+  it('LowStock: imageUrl 为空时渲染灰色占位 div 而非 img', async () => {
+    mockDashboard.get.mockResolvedValueOnce({
+      orderStats: { today: 0, week: 0, month: 0, gmvToday: 0, avgOrderToday: 0 },
+      productStats: { total: 0, onSale: 0, outOfStock: 0, byCategory: {} },
+      topProducts: [],
+      trend7d: [],
+      recentOrders: [],
+      lowStock: [
+        { id: 'p-noimg', name: '海带', description: '', price: '15.00', stock: 4,
+          category: '藻类', imageUrl: '',
+          status: 'ACTIVE', createdAt: '', updatedAt: '' },
+      ],
+    });
+    renderWithProviders(<DashboardPage />, { authenticated: true });
+    await waitFor(() => expect(screen.getByText('海带')).toBeInTheDocument());
+    expect(screen.queryByRole('img', { name: '海带' })).not.toBeInTheDocument();
   });
 });
