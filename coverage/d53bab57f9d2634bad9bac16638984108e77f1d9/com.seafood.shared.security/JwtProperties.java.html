@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.security</a> &gt; <span class="el_source">JwtProperties.java</span></div><h1>JwtProperties.java</h1><pre class="source lang-java linenums">package com.seafood.shared.security;
+
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import java.time.Duration;
+import java.util.Objects;
+
+/**
+ * JWT 配置(参见 design.md §4.1 + Sprint 2 §1.1 fail-fast 校验)。
+ *
+ * &lt;p&gt;小程序/admin 入口共用同一对 ttl,签名密钥分开:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code secret}      — 小程序 /api/auth/** 签名密钥,≥32 字节&lt;/li&gt;
+ *   &lt;li&gt;{@code adminSecret} — admin-ui /api/admin/auth/** 签名密钥,≥32 字节,
+ *       且必须与 {@code secret} 不同(避免单密钥泄漏即两端失陷)&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Sprint 2 起,Spring {@code @Validated} 在 binding 阶段触发 JSR-303;任一规则违反
+ * 直接抛 {@code ConfigurationPropertiesBindException},进程退出非 0,优先于
+ * {@code JwtTokenProvider.@PostConstruct} 的手写兜底。
+ */
+@ConfigurationProperties(prefix = &quot;security.jwt&quot;)
+@Validated
+<span class="fc" id="L28">public class JwtProperties {</span>
+
+    /** 缺失即 fail-fast(由 @Validated + JwtTokenProvider 双重保险)。 */
+    @NotBlank(message = &quot;security.jwt.secret must not be blank&quot;)
+    @Size(min = 32, message = &quot;security.jwt.secret must be at least 32 bytes (HS256 minimum)&quot;)
+    private String secret;
+
+    @NotBlank(message = &quot;security.jwt.admin-secret must not be blank&quot;)
+    @Size(min = 32, message = &quot;security.jwt.admin-secret must be at least 32 bytes (HS256 minimum)&quot;)
+    private String adminSecret;
+
+<span class="fc" id="L39">    private Duration accessTokenTtl = Duration.ofMinutes(15);</span>
+<span class="fc" id="L40">    private Duration refreshTokenTtl = Duration.ofDays(7);</span>
+
+<span class="fc" id="L42">    public String getSecret() { return secret; }</span>
+<span class="fc" id="L43">    public void setSecret(String secret) { this.secret = secret; }</span>
+
+<span class="fc" id="L45">    public String getAdminSecret() { return adminSecret; }</span>
+<span class="fc" id="L46">    public void setAdminSecret(String adminSecret) { this.adminSecret = adminSecret; }</span>
+
+<span class="fc" id="L48">    public Duration getAccessTokenTtl() { return accessTokenTtl; }</span>
+<span class="fc" id="L49">    public void setAccessTokenTtl(Duration accessTokenTtl) { this.accessTokenTtl = accessTokenTtl; }</span>
+
+<span class="fc" id="L51">    public Duration getRefreshTokenTtl() { return refreshTokenTtl; }</span>
+<span class="fc" id="L52">    public void setRefreshTokenTtl(Duration refreshTokenTtl) { this.refreshTokenTtl = refreshTokenTtl; }</span>
+
+    /**
+     * 跨字段校验:adminSecret 不得等于 secret。
+     *
+     * &lt;p&gt;用 {@code @AssertTrue} 而非自定义校验器,Spring/Hibernate Validator 原生支持,
+     * 无须额外组件;命名为 {@code isAdminSecretDistinctFromUserSecret} 避免与可写属性
+     * 冲突(只读 boolean 属性会出现在 /actuator/configprops 里,这一布尔不属敏感字段)。
+     */
+    @AssertTrue(message = &quot;security.jwt.admin-secret must differ from security.jwt.secret&quot;)
+    public boolean isAdminSecretDistinctFromUserSecret() {
+        // null 安全:任一为 null 时把跨字段校验放过,由 @NotBlank 给出准确错误。
+<span class="pc bpc" id="L64" title="2 of 4 branches missed.">        if (secret == null || adminSecret == null) {</span>
+<span class="nc" id="L65">            return true;</span>
+        }
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        return !Objects.equals(secret, adminSecret);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

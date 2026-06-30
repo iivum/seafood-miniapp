@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminUploadController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.bff.admin</a> &gt; <span class="el_source">AdminUploadController.java</span></div><h1>AdminUploadController.java</h1><pre class="source lang-java linenums">package com.seafood.bff.admin;
+
+import com.seafood.bff.admin.dto.UploadResponse;
+import com.seafood.shared.error.DomainException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * 路线图 3.6 后端图片上传端点(ad-04 商品表单多图上传 + 主图标记基础)。
+ *
+ * &lt;p&gt;设计要点:
+ * &lt;ul&gt;
+ *   &lt;li&gt;POST /api/admin/uploads(ADMIN only)接 multipart/form-data,files: MultipartFile[]&lt;/li&gt;
+ *   &lt;li&gt;写本地磁盘 {upload.dir}/yyyy/MM/{uuid}.ext(默认 ${SEAFOOD_UPLOAD_DIR:./var/seafood/uploads},Spring ${seafood.upload.dir})&lt;/li&gt;
+ *   &lt;li&gt;静态文件经 /api/static/uploads/** 暴露(参见 {@code StaticResourceConfig.addResourceHandlers})&lt;/li&gt;
+ *   &lt;li&gt;安全:mime 白名单 image/jpeg+png+webp,size 5MB/单,filename 强制重写(UUID)防 path 穿越&lt;/li&gt;
+ *   &lt;li&gt;OSS/S3 决策:本迭代写本地磁盘 + 注入 upload.dir,Sprint 4 切 OSS 时只换 save 逻辑,响应 shape 不变&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;v2 视觉 5.14-5.17:路径同源 — 写盘(本类)与读盘(StaticResourceConfig)
+ * 都 @Value 注入 {@code seafood.upload.dir}。启动期 fail-fast 校验
+ * 抽到 {@link UploadWritabilityChecker}(独立 component,不带 @PreAuthorize,
+ * 避免启动期 ApplicationReadyEvent 触发时被类级 hasRole 拦截抛
+ * AuthenticationCredentialsNotFoundException)。docker-compose 加
+ * {@code seafood_uploads} named volume 持久化(5.14)。
+ */
+@RestController
+@RequestMapping(&quot;/api/admin/uploads&quot;)
+@PreAuthorize(&quot;hasRole('ADMIN')&quot;)
+public class AdminUploadController {
+
+    private static final long MAX_FILE_SIZE = 5L * 1024 * 1024; // 5MB
+<span class="fc" id="L53">    private static final Set&lt;String&gt; ALLOWED_MIME = Set.of(</span>
+            &quot;image/jpeg&quot;, &quot;image/jpg&quot;, &quot;image/png&quot;, &quot;image/webp&quot;
+    );
+<span class="fc" id="L56">    private static final DateTimeFormatter YYYY_MM = DateTimeFormatter</span>
+<span class="fc" id="L57">            .ofPattern(&quot;yyyy/MM&quot;).withZone(ZoneOffset.UTC);</span>
+<span class="fc" id="L58">    private static final Logger log = LoggerFactory.getLogger(AdminUploadController.class);</span>
+
+    private final Path uploadRoot;
+
+<span class="fc" id="L62">    public AdminUploadController(@Value(&quot;${seafood.upload.dir:./var/seafood/uploads}&quot;) String uploadDir) {</span>
+<span class="fc" id="L63">        this.uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();</span>
+        try {
+<span class="fc" id="L65">            Files.createDirectories(uploadRoot);</span>
+<span class="nc" id="L66">        } catch (IOException e) {</span>
+<span class="nc" id="L67">            throw new IllegalStateException(&quot;无法创建上传目录: &quot; + uploadRoot, e);</span>
+<span class="fc" id="L68">        }</span>
+<span class="fc" id="L69">        log.info(&quot;AdminUploadController initialized, uploadRoot={}&quot;, uploadRoot);</span>
+<span class="fc" id="L70">    }</span>
+
+    /**
+     * 多文件上传。返回每文件的 url + size + mime;UI 拿到后塞 Product.images[] 数组。
+     */
+    @PostMapping
+    public ResponseEntity&lt;UploadResponse&gt; upload(@RequestParam(&quot;files&quot;) MultipartFile[] files) {
+<span class="nc bnc" id="L77" title="All 4 branches missed.">        if (files == null || files.length == 0) {</span>
+<span class="nc" id="L78">            throw new DomainException(&quot;至少上传 1 个文件&quot;);</span>
+        }
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (files.length &gt; 9) {</span>
+<span class="nc" id="L81">            throw new DomainException(&quot;单次最多上传 9 个文件&quot;);</span>
+        }
+        // 按 yyyy/MM 分目录(UTC,简化时区;Sprint 4 接 OSS 时改 region 本地时间)
+<span class="nc" id="L84">        String subDir = YYYY_MM.format(Instant.now());</span>
+<span class="nc" id="L85">        Path dir = uploadRoot.resolve(subDir).normalize();</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        if (!dir.startsWith(uploadRoot)) {</span>
+            // 防止路径穿越(即便 yyyy/MM 是固定串也防一手)
+<span class="nc" id="L88">            throw new DomainException(&quot;非法路径&quot;);</span>
+        }
+        try {
+<span class="nc" id="L91">            Files.createDirectories(dir);</span>
+<span class="nc" id="L92">        } catch (IOException e) {</span>
+<span class="nc" id="L93">            throw new IllegalStateException(&quot;无法创建子目录: &quot; + dir, e);</span>
+<span class="nc" id="L94">        }</span>
+
+<span class="nc" id="L96">        List&lt;UploadResponse.UploadedFile&gt; uploaded = new ArrayList&lt;&gt;(files.length);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        for (MultipartFile f : files) {</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            if (f.isEmpty()) {</span>
+<span class="nc" id="L99">                throw new DomainException(&quot;文件为空:&quot; + f.getOriginalFilename());</span>
+            }
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            if (f.getSize() &gt; MAX_FILE_SIZE) {</span>
+<span class="nc" id="L102">                throw new DomainException(&quot;文件超过 5MB 上限:&quot; + f.getOriginalFilename());</span>
+            }
+<span class="nc" id="L104">            String mime = f.getContentType();</span>
+<span class="nc bnc" id="L105" title="All 4 branches missed.">            if (mime == null || !ALLOWED_MIME.contains(mime.toLowerCase())) {</span>
+<span class="nc" id="L106">                throw new DomainException(&quot;不支持的图片类型:&quot; + mime</span>
+                        + &quot;;仅允许 jpeg/png/webp&quot;);
+            }
+<span class="nc" id="L109">            String ext = extFromMime(mime);</span>
+<span class="nc" id="L110">            String name = UUID.randomUUID() + &quot;.&quot; + ext;</span>
+<span class="nc" id="L111">            Path target = dir.resolve(name);</span>
+            try {
+<span class="nc" id="L113">                f.transferTo(target);</span>
+<span class="nc" id="L114">            } catch (IOException e) {</span>
+<span class="nc" id="L115">                throw new IllegalStateException(&quot;写入文件失败:&quot; + target, e);</span>
+<span class="nc" id="L116">            }</span>
+<span class="nc" id="L117">            String url = &quot;/api/static/uploads/&quot; + subDir + &quot;/&quot; + name;</span>
+<span class="nc" id="L118">            uploaded.add(new UploadResponse.UploadedFile(url, f.getSize(), mime));</span>
+        }
+<span class="nc" id="L120">        return ResponseEntity.ok(new UploadResponse(uploaded));</span>
+    }
+
+    private static String extFromMime(String mime) {
+<span class="nc bnc" id="L124" title="All 4 branches missed.">        return switch (mime.toLowerCase()) {</span>
+<span class="nc" id="L125">            case &quot;image/jpeg&quot;, &quot;image/jpg&quot; -&gt; &quot;jpg&quot;;</span>
+<span class="nc" id="L126">            case &quot;image/png&quot; -&gt; &quot;png&quot;;</span>
+<span class="nc" id="L127">            case &quot;image/webp&quot; -&gt; &quot;webp&quot;;</span>
+<span class="nc" id="L128">            default -&gt; &quot;bin&quot;; // 不会到达(白名单已守)</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

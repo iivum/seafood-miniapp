@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminRateLimiter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.security</a> &gt; <span class="el_source">AdminRateLimiter.java</span></div><h1>AdminRateLimiter.java</h1><pre class="source lang-java linenums">package com.seafood.shared.security;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * Admin 路径限流器(Sprint 2 §2.5,specs/runtime-security §Admin endpoints enforce a
+ * rate limit,design §4 decision 4)。
+ *
+ * &lt;p&gt;算法:固定窗口 + Caffeine 内存计数。每个 {@code (clientIp + &quot;:&quot; + account)} 桶
+ * 维护当前窗口开始时间(毫秒)与已用计数;窗口 60s,每桶每窗口最多
+ * {@code requestsPerMinute} 次。超过则拒绝并返回距下次刷新的秒数。
+ *
+ * &lt;p&gt;为什么不用 {@code Bucket4j}:只此一处用,引一个 dep 不值。spec §Open Questions
+ * 提到 GraalVM Native 兼容性;Caffeine 已被 Spring Boot 4 reachability metadata 覆盖。
+ *
+ * &lt;p&gt;所有时间计算统一用毫秒,避免 nanos/millis 单位混淆。
+ */
+@Component
+public class AdminRateLimiter {
+
+    private static final long WINDOW_MS = 60_000L;
+
+    private final AdminRateLimitProperties props;
+    private final Cache&lt;String, AtomicReference&lt;Window&gt;&gt; buckets;
+    private final Ticker ticker;
+
+    /**
+     * CI fix (PR review / nativeCompile 失败排查):本类有两个 constructor
+     * (1-arg public + 2-arg package-private 测试用),Spring 6 的 AOT 处理无法
+     * 自动选定 —— {@code processAot} 阶段抛 &quot;No constructor or factory method
+     * candidate found&quot;,导致 {@code ./gradlew nativeCompile} 失败。
+     * 修法:{@code @Autowired} 显式标记 1-arg 为首选(等价于&quot;DI 容器只调这个&quot;),
+     * AOT / 反射都能直接锁定。package-private 2-arg 仅供单测用 Mockito 注入 Ticker。
+     */
+    @Autowired
+    public AdminRateLimiter(AdminRateLimitProperties props) {
+<span class="fc" id="L44">        this(props, Ticker.systemTicker());</span>
+<span class="fc" id="L45">    }</span>
+
+    /** 测试用:注入假 {@link Ticker} 以快进时间。 */
+<span class="fc" id="L48">    AdminRateLimiter(AdminRateLimitProperties props, Ticker ticker) {</span>
+<span class="fc" id="L49">        this.props = props;</span>
+<span class="fc" id="L50">        this.ticker = ticker;</span>
+<span class="fc" id="L51">        this.buckets = Caffeine.newBuilder()</span>
+<span class="fc" id="L52">                .expireAfterAccess(Duration.ofSeconds(props.getBucketTtlSeconds()))</span>
+<span class="fc" id="L53">                .ticker(ticker)</span>
+<span class="fc" id="L54">                .build();</span>
+<span class="fc" id="L55">    }</span>
+
+    public Decision tryAcquire(String key) {
+<span class="fc" id="L58">        AtomicReference&lt;Window&gt; ref = buckets.get(key,</span>
+<span class="fc" id="L59">                k -&gt; new AtomicReference&lt;&gt;(new Window(currentWindowStartMs(), 0)));</span>
+        // PR review #3 fix:CAS loop with re-check on lost CAS.
+        // 原实现在 CAS 失败时 `bumped = ref.get()` 重读但**不重检** limit,然后无条件
+        // `Decision.grant()` — 两个并发请求都看到 count=59 时,都过 limit 检查,
+        // 都尝试 CAS to 60,一个胜出(count=60),另一个失败但重读到 60 仍然 grant,
+        // 桶变成 61,rate limit 被绕过。现:CAS 失败即 loop,重新拿 w + 重检 limit。
+        // 模式来自 LoginAttemptService.recordFailure,经过 stress 测试验证。
+        for (;;) {
+<span class="fc" id="L67">            Window w = ref.get();</span>
+<span class="fc" id="L68">            long nowMs = currentTimeMs();</span>
+<span class="fc" id="L69">            long windowStart = currentWindowStartMs();</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">            if (w.startMs != windowStart) {</span>
+                // 切到新窗口;若 CAS 失败则下一轮 loop 重新感知到。
+<span class="fc" id="L72">                Window fresh = new Window(windowStart, 0);</span>
+<span class="pc bpc" id="L73" title="1 of 2 branches missed.">                if (ref.compareAndSet(w, fresh)) {</span>
+<span class="fc" id="L74">                    w = fresh;</span>
+                } else {
+                    continue;
+                }
+            }
+<span class="fc bfc" id="L79" title="All 2 branches covered.">            if (w.count &gt;= props.getRequestsPerMinute()) {</span>
+<span class="fc" id="L80">                long retryMs = (w.startMs + WINDOW_MS) - nowMs;</span>
+<span class="fc" id="L81">                int retrySec = (int) Math.max(1L, (retryMs + 999) / 1000); // 上取整,至少 1</span>
+<span class="fc" id="L82">                return Decision.deny(retrySec);</span>
+            }
+<span class="fc" id="L84">            Window bumped = new Window(w.startMs, w.count + 1);</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            if (ref.compareAndSet(w, bumped)) {</span>
+<span class="fc" id="L86">                return Decision.grant();</span>
+            }
+            // CAS 失败 → loop 重检;不再无条件 grant。
+<span class="fc" id="L89">        }</span>
+    }
+
+    /** 当前时间(毫秒);把 Ticker 的 nanos 读数转换成毫秒。 */
+    private long currentTimeMs() {
+<span class="fc" id="L94">        return ticker.read() / 1_000_000L;</span>
+    }
+
+    /** 当前 60 秒窗口起点(毫秒);用整数除法对齐到 60s 边界。 */
+    private long currentWindowStartMs() {
+<span class="fc" id="L99">        long nowMs = currentTimeMs();</span>
+<span class="fc" id="L100">        return (nowMs / WINDOW_MS) * WINDOW_MS;</span>
+    }
+
+<span class="fc" id="L103">    public record Decision(boolean permitted, int retryAfterSeconds) {</span>
+<span class="fc" id="L104">        public static Decision grant() { return new Decision(true, 0); }</span>
+        public static Decision deny(int retryAfterSeconds) {
+<span class="fc" id="L106">            return new Decision(false, retryAfterSeconds);</span>
+        }
+    }
+
+<span class="fc" id="L110">    private record Window(long startMs, int count) {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

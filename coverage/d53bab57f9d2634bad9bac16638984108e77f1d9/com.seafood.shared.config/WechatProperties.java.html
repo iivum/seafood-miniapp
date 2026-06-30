@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WechatProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.config</a> &gt; <span class="el_source">WechatProperties.java</span></div><h1>WechatProperties.java</h1><pre class="source lang-java linenums">package com.seafood.shared.config;
+
+import jakarta.validation.constraints.AssertTrue;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * 微信小程序配置(Sprint 2 §1.3)。
+ *
+ * &lt;p&gt;开发期 {@code wechat.enabled=false},appid/secret 可缺,登录 code 必须以 {@code dev-}
+ * 开头(参见 {@code WechatCodeExchanger})。
+ * 一旦 {@code enabled=true} 切到真实微信接口,必须同时提供 appid + secret;启动期由
+ * {@link #isCredentialsPresentWhenEnabled()} 的 {@code @AssertTrue} 保证 fail-fast。
+ */
+@ConfigurationProperties(prefix = &quot;wechat&quot;)
+@Validated
+<span class="fc" id="L17">public class WechatProperties {</span>
+
+    /** 默认 false:开发期接受 dev- code,生产部署需显式打开。 */
+<span class="fc" id="L20">    private boolean enabled = false;</span>
+    private String appid;
+    private String secret;
+
+<span class="fc" id="L24">    public boolean isEnabled() { return enabled; }</span>
+<span class="fc" id="L25">    public void setEnabled(boolean enabled) { this.enabled = enabled; }</span>
+
+<span class="fc" id="L27">    public String getAppid() { return appid; }</span>
+<span class="fc" id="L28">    public void setAppid(String appid) { this.appid = appid; }</span>
+
+<span class="fc" id="L30">    public String getSecret() { return secret; }</span>
+<span class="fc" id="L31">    public void setSecret(String secret) { this.secret = secret; }</span>
+
+    /**
+     * 跨字段校验:启用后必须同时有 appid + secret(任一缺失即拒绝启动)。
+     */
+    @AssertTrue(message = &quot;wechat.enabled=true requires non-blank wechat.appid and wechat.secret&quot;)
+    public boolean isCredentialsPresentWhenEnabled() {
+<span class="fc bfc" id="L38" title="All 2 branches covered.">        if (!enabled) {</span>
+<span class="fc" id="L39">            return true;</span>
+        }
+<span class="pc bpc" id="L41" title="1 of 8 branches missed.">        return appid != null &amp;&amp; !appid.isBlank() &amp;&amp; secret != null &amp;&amp; !secret.isBlank();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

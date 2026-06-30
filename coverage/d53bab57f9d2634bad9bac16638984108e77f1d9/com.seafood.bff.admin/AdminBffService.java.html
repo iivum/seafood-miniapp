@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminBffService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.bff.admin</a> &gt; <span class="el_source">AdminBffService.java</span></div><h1>AdminBffService.java</h1><pre class="source lang-java linenums">package com.seafood.bff.admin;
+
+import com.seafood.bff.admin.dto.DashboardResponse;
+import com.seafood.bff.admin.dto.OrderDetailResponse;
+import com.seafood.bff.admin.dto.OrderStatsResponse;
+import com.seafood.bff.admin.dto.TopProductResponse;
+import com.seafood.bff.admin.dto.TrendPointResponse;
+import com.seafood.order.api.dto.OrderResponse;
+import com.seafood.order.application.OrderService;
+import com.seafood.product.api.dto.ProductResponse;
+import com.seafood.product.api.dto.ProductStatsResponse;
+import com.seafood.product.application.ProductService;
+import com.seafood.shared.error.NotFoundException;
+import com.seafood.user.api.dto.UserResponse;
+import com.seafood.user.application.UserService;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * 管理后台 BFF 服务(参见 design.md §5.1,specs/backend-api §Admin BFF aggregation)。
+ *
+ * &lt;p&gt;约束:
+ * &lt;ul&gt;
+ *   &lt;li&gt;只通过 ApplicationService 跨模块交互,绝不直接碰 Repository(design §1.3)&lt;/li&gt;
+ *   &lt;li&gt;不缓存(决策 4) — 后续 P99 &gt; 500ms 时再加 Caffeine&lt;/li&gt;
+ *   &lt;li&gt;ADMIN-only,由 SecurityConfig URL 规则 + Controller @PreAuthorize 双重防护&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@Service
+public class AdminBffService {
+
+    private static final int TOP_N = 10;
+    private static final int LOW_STOCK_THRESHOLD = 10;
+    private static final int TREND_DAYS = 7;
+    private static final int RECENT_ORDERS_LIMIT = 10;
+<span class="fc" id="L50">    private static final ZoneId ZONE = ZoneId.of(&quot;Asia/Shanghai&quot;);</span>
+
+    private final OrderService orders;
+    private final ProductService products;
+    private final UserService users;
+    private final com.seafood.product.application.ProductQueryService productStats;
+
+    public AdminBffService(OrderService orders,
+                           ProductService products,
+                           UserService users,
+<span class="fc" id="L60">                           com.seafood.product.application.ProductQueryService productStats) {</span>
+<span class="fc" id="L61">        this.orders = orders;</span>
+<span class="fc" id="L62">        this.products = products;</span>
+<span class="fc" id="L63">        this.users = users;</span>
+<span class="fc" id="L64">        this.productStats = productStats;</span>
+<span class="fc" id="L65">    }</span>
+
+    // ----- 6.1 order detail -----
+
+    public OrderDetailResponse orderDetail(String orderId) {
+<span class="fc" id="L70">        OrderResponse order = orders.get(orderId);</span>
+        // 用户查看:借 ADMIN 越权(仅本方法内)— UserService 校验 ADMIN 即放行
+<span class="fc" id="L72">        UserResponse customer = users.get(order.userId(),</span>
+                new com.seafood.shared.security.UserPrincipal(&quot;__bff__&quot;,
+                        com.seafood.shared.security.Role.ADMIN));
+
+<span class="fc" id="L76">        List&lt;OrderDetailResponse.ItemWithProduct&gt; items = new ArrayList&lt;&gt;(order.items().size());</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        for (var item : order.items()) {</span>
+            ProductResponse product;
+            try {
+<span class="fc" id="L80">                product = products.get(item.productId());</span>
+<span class="fc" id="L81">            } catch (NotFoundException ignore) {</span>
+                // 商品已删;订单行仍展示,商品字段 null — 前端按需显示&quot;已下架&quot;
+<span class="fc" id="L83">                product = null;</span>
+<span class="fc" id="L84">            }</span>
+<span class="fc" id="L85">            items.add(new OrderDetailResponse.ItemWithProduct(</span>
+<span class="fc" id="L86">                    item.productId(), item.productName(),</span>
+<span class="fc" id="L87">                    item.unitPrice(), item.quantity(), product));</span>
+<span class="fc" id="L88">        }</span>
+<span class="fc" id="L89">        return new OrderDetailResponse(order, customer, items);</span>
+    }
+
+    // ----- 6.2 product stats(直接复用 ProductStatsResponse)-----
+
+    public ProductStatsResponse productStats() {
+<span class="fc" id="L95">        return productStats.stats();</span>
+    }
+
+    // ----- 6.3 dashboard -----
+
+    public DashboardResponse dashboard() {
+<span class="fc" id="L101">        Instant startOfToday = LocalDate.now(ZONE).atStartOfDay(ZONE).toInstant();</span>
+<span class="fc" id="L102">        Instant startOfWeek = LocalDate.now(ZONE)</span>
+<span class="fc" id="L103">                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))</span>
+<span class="fc" id="L104">                .atStartOfDay(ZONE).toInstant();</span>
+<span class="fc" id="L105">        Instant startOfMonth = LocalDate.now(ZONE)</span>
+<span class="fc" id="L106">                .withDayOfMonth(1)</span>
+<span class="fc" id="L107">                .atStartOfDay(ZONE).toInstant();</span>
+
+        // countCreatedSince 走 DB 计数,sumTotalAmountCreatedSince 走内存扫描,两次调用非事务一致
+<span class="fc" id="L110">        long todayCount = orders.countCreatedSince(startOfToday);</span>
+<span class="fc" id="L111">        BigDecimal gmvToday = orders.sumTotalAmountCreatedSince(startOfToday);</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">        BigDecimal avgOrderToday = todayCount &gt; 0</span>
+<span class="fc" id="L113">                ? gmvToday.divide(BigDecimal.valueOf(todayCount), 2, RoundingMode.HALF_UP)</span>
+<span class="fc" id="L114">                : BigDecimal.ZERO;</span>
+
+<span class="fc" id="L116">        OrderStatsResponse orderStats = new OrderStatsResponse(</span>
+                todayCount,
+<span class="fc" id="L118">                orders.countCreatedSince(startOfWeek),</span>
+<span class="fc" id="L119">                orders.countCreatedSince(startOfMonth),</span>
+                gmvToday,
+                avgOrderToday);
+<span class="fc" id="L122">        ProductStatsResponse prodStats = productStats.stats();</span>
+<span class="fc" id="L123">        List&lt;TopProductResponse&gt; top = topProducts();</span>
+<span class="fc" id="L124">        List&lt;TrendPointResponse&gt; trend7d = trend7d();</span>
+<span class="fc" id="L125">        List&lt;ProductResponse&gt; lowStock = productStats.lowStock(LOW_STOCK_THRESHOLD).stream()</span>
+<span class="fc" id="L126">                .limit(TOP_N)</span>
+<span class="fc" id="L127">                .toList();</span>
+        // 路线图 2.21:近期订单流(最近 10 单,按 createdAt 倒序,findRecent 内部已排序)
+<span class="fc" id="L129">        List&lt;com.seafood.order.api.dto.OrderResponse&gt; recentOrders = orders.findRecent(RECENT_ORDERS_LIMIT);</span>
+<span class="fc" id="L130">        return new DashboardResponse(orderStats, prodStats, top, trend7d, lowStock, recentOrders);</span>
+    }
+
+    private List&lt;TopProductResponse&gt; topProducts() {
+        // 拉最近 500 单,在内存聚合
+<span class="fc" id="L135">        List&lt;OrderResponse&gt; recent = orders.findRecent(500);</span>
+<span class="fc" id="L136">        Map&lt;String, Long&gt; qtyByProduct = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        for (OrderResponse o : recent) {</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">            for (var it : o.items()) {</span>
+<span class="fc" id="L139">                qtyByProduct.merge(it.productId(), (long) it.quantity(), Long::sum);</span>
+<span class="fc" id="L140">            }</span>
+<span class="fc" id="L141">        }</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        if (qtyByProduct.isEmpty()) {</span>
+<span class="fc" id="L143">            return List.of();</span>
+        }
+        // 取 top 10 productId,再批量拉 product 元数据
+<span class="fc" id="L146">        List&lt;Map.Entry&lt;String, Long&gt;&gt; top = qtyByProduct.entrySet().stream()</span>
+<span class="fc" id="L147">                .sorted(Map.Entry.&lt;String, Long&gt;comparingByValue().reversed())</span>
+<span class="fc" id="L148">                .limit(TOP_N)</span>
+<span class="fc" id="L149">                .toList();</span>
+<span class="fc" id="L150">        Set&lt;String&gt; ids = top.stream().map(Map.Entry::getKey).collect(Collectors.toSet());</span>
+<span class="fc" id="L151">        Map&lt;String, ProductResponse&gt; productById = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        for (String id : ids) {</span>
+            try {
+<span class="fc" id="L154">                productById.put(id, products.get(id));</span>
+<span class="fc" id="L155">            } catch (NotFoundException ignore) {</span>
+                // 商品已删,跳过元数据,销量仍保留
+<span class="fc" id="L157">            }</span>
+<span class="fc" id="L158">        }</span>
+<span class="fc" id="L159">        return top.stream()</span>
+<span class="fc" id="L160">                .map(e -&gt; new TopProductResponse(productById.get(e.getKey()), e.getValue()))</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">                .filter(t -&gt; t.product() != null)</span>
+<span class="fc" id="L162">                .sorted(Comparator.comparingLong(TopProductResponse::totalQuantitySold).reversed())</span>
+<span class="fc" id="L163">                .toList();</span>
+    }
+
+    /**
+     * 路线图 2.17:7 天订单数折线(今日 + 前 6 天,UTC+8 当日为界)。
+     *
+     * &lt;p&gt;实现:对每一天的起点跑 {@code countCreatedSince(startOfDay)} — 拿到「从 startOfDay
+     * 到现在的累计订单数」。相邻两天累计数相减 = 当日新增订单数。
+     * 共 7 次 DB 读(顺序);7 天趋势刷新 P99 应 &lt; 100ms(admin 仪表盘非热路径)。
+     *
+     * &lt;p&gt;性能优化方向:用 MongoDB aggregation pipeline 一次返回 7 桶;
+     * 万级订单时再做(2.5 Sprint 1 末 spike 同款 P99 监控)。
+     */
+    private List&lt;TrendPointResponse&gt; trend7d() {
+<span class="fc" id="L177">        LocalDate today = LocalDate.now(ZONE);</span>
+<span class="fc" id="L178">        long[] cumulative = new long[TREND_DAYS];</span>
+        // cumulative[i] = 从 (today - i) 天 0 点至今的累计订单数(单调非递减)
+        // i=0 → 今天 0 点(最小,只含今天); i=6 → 6 天前 0 点(最大,含 7 天)
+<span class="fc bfc" id="L181" title="All 2 branches covered.">        for (int i = 0; i &lt; TREND_DAYS; i++) {</span>
+<span class="fc" id="L182">            Instant from = today.minusDays(i).atStartOfDay(ZONE).toInstant();</span>
+<span class="fc" id="L183">            cumulative[i] = orders.countCreatedSince(from);</span>
+        }
+        // 倒序产出 oldest → newest,与折线图 X 轴方向一致
+<span class="fc" id="L186">        List&lt;TrendPointResponse&gt; out = new ArrayList&lt;&gt;(TREND_DAYS);</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        for (int i = TREND_DAYS - 1; i &gt;= 0; i--) {</span>
+            long perDay;
+<span class="fc bfc" id="L189" title="All 2 branches covered.">            if (i == 0) {</span>
+<span class="fc" id="L190">                perDay = cumulative[0]; // 今天 0 点至今 = 今天新增</span>
+            } else {
+                // cumulative[i] 包含 (today-i) 当天 + 之后;
+                // cumulative[i-1] 不含 (today-i) 当天(只含 (today-i+1) 之后);
+                // 差 = (today-i) 当天新增
+<span class="fc" id="L195">                perDay = cumulative[i] - cumulative[i - 1];</span>
+            }
+<span class="fc" id="L197">            out.add(new TrendPointResponse(today.minusDays(i), perDay));</span>
+        }
+<span class="fc" id="L199">        return out;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

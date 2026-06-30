@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.api</a> &gt; <span class="el_source">AuthController.java</span></div><h1>AuthController.java</h1><pre class="source lang-java linenums">package com.seafood.user.api;
+
+import com.seafood.user.api.dto.RefreshRequest;
+import com.seafood.user.api.dto.TokenResponse;
+import com.seafood.user.api.dto.WechatLoginRequest;
+import com.seafood.user.application.AuthService;
+import com.seafood.user.application.TokenRevocationService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.seafood.shared.security.JwtTokenProvider;
+import com.seafood.shared.security.UserPrincipal;
+
+import java.time.Instant;
+
+/**
+ * 小程序入口 — 微信 code 登录 + refresh + logout。
+ *
+ * &lt;p&gt;Sprint 2 §3.6 — {@code POST /api/auth/logout} 走两阶段:
+ * &lt;ol&gt;
+ *   &lt;li&gt;从 {@code Authorization} header 解出 jti + exp(用现有 {@link JwtTokenProvider})&lt;/li&gt;
+ *   &lt;li&gt;调 {@link TokenRevocationService#revoke(String, String, Instant)}&lt;/li&gt;
+ *   &lt;li&gt;返 204 No Content&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;为什么不在 controller 抛 401:filter 已把 token 验过,所以 SecurityContext 一定有
+ * UserPrincipal;直接取其 id 即可。考虑到 RFC 6750 客户端可能在 logout 前 token 已
+ * 经过期,filter 不会写 SecurityContext,这种情况返 401(未登录)。
+ */
+@RestController
+@RequestMapping(&quot;/api/auth&quot;)
+public class AuthController {
+
+    private static final String BEARER = &quot;Bearer &quot;;
+
+    private final AuthService auth;
+    private final JwtTokenProvider tokens;
+    private final TokenRevocationService revocations;
+
+    public AuthController(AuthService auth,
+                          JwtTokenProvider tokens,
+<span class="fc" id="L51">                          TokenRevocationService revocations) {</span>
+<span class="fc" id="L52">        this.auth = auth;</span>
+<span class="fc" id="L53">        this.tokens = tokens;</span>
+<span class="fc" id="L54">        this.revocations = revocations;</span>
+<span class="fc" id="L55">    }</span>
+
+    @PostMapping(&quot;/wechat-login&quot;)
+    public TokenResponse wechatLogin(@Valid @RequestBody WechatLoginRequest req,
+                                     HttpServletRequest httpReq) {
+        // PR review #7:lockout key 必须用 clientIp(在 exchange 之前没有 openId)。
+        // 不用 X-Forwarded-For — 由前置 nginx/ALB 写到 TCP socket,getRemoteAddr 已可信
+        // (参见 AdminRateLimitFilter 同款决策)。
+<span class="nc" id="L63">        return auth.wechatLogin(req, httpReq.getRemoteAddr());</span>
+    }
+
+    @PostMapping(&quot;/refresh&quot;)
+    public TokenResponse refresh(@Valid @RequestBody RefreshRequest req) {
+<span class="nc" id="L68">        return auth.refresh(req.refreshToken(), AuthService.Audience.USER);</span>
+    }
+
+    /**
+     * 登出当前 access token(Sprint 2 §3.6)。
+     *
+     * &lt;p&gt;从 Authorization header 解 jti + exp(签名/exp 校验仍走 JwtTokenProvider
+     * 保证 token 没被伪造),写入 revoked_tokens,返 204。
+     *
+     * &lt;p&gt;PR review I3:删 {@code @PreAuthorize(&quot;isAuthenticated()&quot;)} ——
+     * 过期 token 在 {@link JwtAuthenticationFilter} 不会写 SecurityContext,
+     * 走到 controller 时 {@code me == null},{@code @PreAuthorize} 失败走
+     * Spring 默认 {@code AccessDeniedHandler} 返 403,与本方法注释承诺的 401 不符。
+     * 现:自己判 header 缺失/格式错 → 401;expired token → 仍 204(idempotent);
+     * 签名错 / 解析失败 → 401(无法信任 jti)。
+     */
+    @PostMapping(&quot;/logout&quot;)
+    public ResponseEntity&lt;Void&gt; logout(HttpServletRequest req,
+                                       @AuthenticationPrincipal UserPrincipal me) {
+<span class="fc" id="L87">        String header = req.getHeader(&quot;Authorization&quot;);</span>
+<span class="pc bpc" id="L88" title="1 of 4 branches missed.">        if (header == null || !header.startsWith(BEARER)) {</span>
+<span class="fc" id="L89">            return ResponseEntity.status(401).build();</span>
+        }
+<span class="fc" id="L91">        String token = header.substring(BEARER.length()).trim();</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        if (token.isEmpty()) {</span>
+<span class="fc" id="L93">            return ResponseEntity.status(401).build();</span>
+        }
+        try {
+<span class="fc" id="L96">            Claims claims = tokens.parseUser(token);</span>
+<span class="fc" id="L97">            String jti = claims.getId();</span>
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">            Instant exp = claims.getExpiration() == null ? null : claims.getExpiration().toInstant();</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">            String userId = me == null ? claims.getSubject() : me.getId();</span>
+<span class="fc" id="L100">            revocations.revoke(jti, userId, exp);</span>
+<span class="fc" id="L101">        } catch (ExpiredJwtException e) {</span>
+            // 已过期:仍 204 — logout 幂等,不应当作错误(force-revoke 一个已死的 jti 没意义)
+<span class="nc" id="L103">        } catch (JwtException e) {</span>
+            // 签名错 / 格式错:401(无法信任 jti,不能调 revoke)
+<span class="nc" id="L105">            return ResponseEntity.status(401).build();</span>
+<span class="fc" id="L106">        }</span>
+<span class="fc" id="L107">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

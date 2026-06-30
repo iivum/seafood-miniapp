@@ -1,0 +1,762 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.application</a> &gt; <span class="el_source">OrderService.java</span></div><h1>OrderService.java</h1><pre class="source lang-java linenums">package com.seafood.order.application;
+
+import com.seafood.order.api.dto.CartItemResponse;
+import com.seafood.order.api.dto.OrderResponse;
+import com.seafood.order.api.dto.RefundResponse;
+import com.seafood.order.domain.Cart;
+import com.seafood.order.domain.CartItem;
+import com.seafood.order.domain.Order;
+import com.seafood.order.domain.OrderAction;
+import com.seafood.order.domain.OrderItem;
+import com.seafood.order.domain.OrderStatus;
+import com.seafood.order.domain.Refund;
+import com.seafood.order.infra.CartRepository;
+import com.seafood.order.infra.OrderDocument;
+import com.seafood.order.infra.OrderMapper;
+import com.seafood.order.infra.OrderRepository;
+import com.seafood.order.domain.OrderTracking;
+import com.seafood.order.domain.RefundStatus;
+import com.seafood.order.infra.RefundDocument;
+import com.seafood.order.infra.RefundMapper;
+import com.seafood.order.infra.RefundRepository;
+import com.seafood.product.domain.Product;
+import com.seafood.product.infra.ProductRepository;
+import com.seafood.shared.error.DomainException;
+import com.seafood.shared.error.NotFoundException;
+import com.seafood.shared.security.Role;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 订单服务(参见 specs/backend-api §Order lifecycle)。
+ *
+ * &lt;p&gt;关键路径:
+ * &lt;ul&gt;
+ *   &lt;li&gt;create:读 cart → 拉商品最新价/库存 → 快照 → 调 ProductService.decrementStock
+ *       (扣减失败回滚整个下单,见 catch)→ 持久化 → 清空 cart&lt;/li&gt;
+ *   &lt;li&gt;list:调用方角色决定 userId 过滤 — CUSTOMER 看自己,ADMIN 看全部&lt;/li&gt;
+ *   &lt;li&gt;ship/cancel:状态机集中规则,任何越界抛 DomainException&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;OpenSpec setup-observability-stack PR #3 — 业务计数器埋点
+ * (design §D5 + specs/metrics-export §Business counters):
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code orders.created{paymentMethod}} — 下单成功时累加,tag 为支付渠道&lt;/li&gt;
+ *   &lt;li&gt;{@code orders.cancelled{reason}} — 取消成功时累加,tag 为取消原因&lt;/li&gt;
+ *   &lt;li&gt;{@code orders.paid{paymentMethod,amountBucket}} — 支付成功时累加,amount bucket
+ *       由 {@link OrderMetrics#bucketize} 计算(design §ADR-OQ3 几何 4 档)&lt;/li&gt;
+ * &lt;/ul&gt;
+ * tag 全部为低基数字符串(wechat/admin/unknown,user/timeout/admin,lt100/100to500/500to2000/gte2000),
+ * 满足 ArchUnit {@code MetricsCardinalityTest} 约束(参见 design §D5)。
+ */
+@Service
+public class OrderService {
+
+    private final OrderRepository orders;
+    private final CartRepository carts;
+    private final ProductRepository products;
+    private final RefundRepository refunds;
+    private final MeterRegistry meterRegistry;
+
+    public OrderService(OrderRepository orders,
+                        CartRepository carts,
+                        ProductRepository products,
+                        MeterRegistry meterRegistry) {
+<span class="nc" id="L76">        this(orders, carts, products, null, meterRegistry);</span>
+<span class="nc" id="L77">    }</span>
+
+    /**
+     * 4.7 引入:5 参构造(带 RefundRepository)— 业务创建路径用。
+     * 旧 4 参构造保留用于历史测试/其他不涉及退款的场景,内部把 refunds 显式置 null;
+     * 调用退款方法时若 refunds == null,Service 抛 IllegalStateException(防止线上
+     * 漏配导致&quot;silent skip 退款&quot;)。
+     */
+    @Autowired
+    public OrderService(OrderRepository orders,
+                        CartRepository carts,
+                        ProductRepository products,
+                        RefundRepository refunds,
+<span class="fc" id="L90">                        MeterRegistry meterRegistry) {</span>
+<span class="fc" id="L91">        this.orders = orders;</span>
+<span class="fc" id="L92">        this.carts = carts;</span>
+<span class="fc" id="L93">        this.products = products;</span>
+<span class="fc" id="L94">        this.refunds = refunds;</span>
+<span class="fc" id="L95">        this.meterRegistry = meterRegistry;</span>
+<span class="fc" id="L96">    }</span>
+
+    private RefundRepository refunds() {
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        if (refunds == null) {</span>
+<span class="nc" id="L100">            throw new IllegalStateException(</span>
+                    &quot;RefundRepository 未注入 — Spring 容器应注入 5 参构造;&quot;
+                    + &quot;历史 4 参构造只用于非退款测试场景&quot;);
+        }
+<span class="fc" id="L104">        return refunds;</span>
+    }
+
+    // ----- create -----
+
+    public OrderResponse create(String userId) {
+<span class="fc" id="L110">        return create(userId, &quot;wechat&quot;);</span>
+    }
+
+    /**
+     * @param paymentMethod 支付渠道 — 留 metric tag 用。当前单渠道(微信小程序),暂不持久化到
+     *                      Order document(Sprint 3 接入真实支付时再加 {@code paymentMethod}
+     *                      字段 + Mongo migration);只用于埋 {@code orders.created} 计数。
+     */
+    public OrderResponse create(String userId, String paymentMethod) {
+<span class="fc" id="L119">        Cart cart = carts.findById(userId)</span>
+<span class="fc" id="L120">                .map(d -&gt; new com.seafood.order.domain.Cart(d.getUserId(), d.getItems(), d.getUpdatedAt()))</span>
+<span class="fc" id="L121">                .orElseThrow(() -&gt; new DomainException(&quot;购物车为空&quot;));</span>
+<span class="fc" id="L122">        cart.requireNonEmptySelected();</span>
+
+        // 1) 拉所有商品 → 快照 + 校验存在/上架
+<span class="fc" id="L125">        List&lt;com.seafood.product.infra.ProductDocument&gt; docs = products.findAllById(</span>
+<span class="fc" id="L126">                cart.items().stream().map(c -&gt; c.productId()).toList());</span>
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">        if (docs.size() != new java.util.HashSet&lt;&gt;(cart.items().stream().map(c -&gt; c.productId()).toList()).size()) {</span>
+<span class="nc" id="L128">            throw new DomainException(&quot;购物车包含已下架商品&quot;);</span>
+        }
+<span class="fc" id="L130">        java.util.Map&lt;String, com.seafood.product.infra.ProductDocument&gt; byId = new java.util.HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        for (var d : docs) byId.put(d.getId(), d);</span>
+
+<span class="fc" id="L133">        List&lt;OrderItem&gt; items = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        for (CartItem ci : cart.items()) {</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">            if (!ci.selected()) continue;</span>
+<span class="fc" id="L136">            var pd = byId.get(ci.productId());</span>
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">            if (pd == null) {</span>
+<span class="nc" id="L138">                throw new DomainException(&quot;商品不存在:&quot; + ci.productId());</span>
+            }
+<span class="pc bpc" id="L140" title="1 of 2 branches missed.">            if (pd.getStatus() != com.seafood.product.domain.ProductStatus.ACTIVE) {</span>
+<span class="nc" id="L141">                throw new DomainException(&quot;商品已下架:&quot; + pd.getName());</span>
+            }
+<span class="fc bfc" id="L143" title="All 2 branches covered.">            if (pd.getStock() &lt; ci.quantity()) {</span>
+<span class="fc" id="L144">                throw new DomainException(&quot;库存不足:&quot; + pd.getName() + &quot; (剩余 &quot; + pd.getStock() + &quot;)&quot;);</span>
+            }
+<span class="fc" id="L146">            items.add(new OrderItem(pd.getId(), pd.getName(), pd.getPrice(), ci.quantity()));</span>
+<span class="fc" id="L147">        }</span>
+<span class="fc" id="L148">        BigDecimal total = items.stream().map(OrderItem::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add);</span>
+
+        // 2) 扣减库存(失败时记录已扣商品;Mongo 事务在生产应启用 — design §6.1 TODO)
+<span class="fc" id="L151">        java.util.List&lt;String&gt; decremented = new ArrayList&lt;&gt;();</span>
+        try {
+<span class="fc bfc" id="L153" title="All 2 branches covered.">            for (OrderItem it : items) {</span>
+<span class="fc" id="L154">                Product p = productDecrementOrThrow(it.productId(), it.quantity());</span>
+<span class="fc" id="L155">                decremented.add(p.id());</span>
+<span class="fc" id="L156">            }</span>
+<span class="nc" id="L157">        } catch (DomainException e) {</span>
+            // 暂不回滚:无 Mongo 事务,反向 inc 风险比保留更糟;运维侧 reconcile
+            // 后续接事务后改为 throw + 自动回滚
+<span class="nc" id="L160">            throw e;</span>
+<span class="fc" id="L161">        }</span>
+
+        // 3) 持久化订单
+<span class="fc" id="L164">        Instant now = Instant.now();</span>
+        // mp-09 路线图 4.20:预计送达时间 = now + 24h。海鲜商品配送时效约定(本仓库仅单卖家内部运营,
+        // 无外部承运商,delivery SLA 由 admin 配置后此处读配置,先写死 24h)。
+<span class="fc" id="L167">        Instant estimatedDelivery = now.plus(Duration.ofHours(24));</span>
+<span class="fc" id="L168">        Order order = new Order(null, userId, items, total, new OrderStatus.Pending(),</span>
+                null, null, null, estimatedDelivery, now, now);
+<span class="fc" id="L170">        OrderDocument saved = orders.save(OrderMapper.toDocument(order));</span>
+
+        // 4) 清空 cart
+<span class="fc" id="L173">        carts.deleteById(userId);</span>
+
+        // 5) 业务埋点(PR #3 3.3):下单成功(库存已扣 + 订单已落库 + cart 已清)后累加。
+        // 失败路径(库存不足/商品下架/购物车空)在 catch + 早 throw 处退出,不递增。
+        // paymentMethod tag 显式落在 create(userId, paymentMethod) 重载入口,无值默认
+        // &quot;wechat&quot;(本期单渠道);Sprint 3 多支付接入后这里扩展为枚举校验。
+<span class="pc bpc" id="L179" title="2 of 4 branches missed.">        String method = (paymentMethod == null || paymentMethod.isBlank()) ? &quot;wechat&quot; : paymentMethod;</span>
+<span class="fc" id="L180">        meterRegistry.counter(&quot;orders.created&quot;, &quot;paymentMethod&quot;, method).increment();</span>
+
+<span class="fc" id="L182">        return OrderResponse.from(OrderMapper.toDomain(saved));</span>
+    }
+
+    // ----- list -----
+
+    public Page&lt;OrderResponse&gt; list(String requestedUserId, Pageable pageable) {
+<span class="fc bfc" id="L188" title="All 2 branches covered.">        boolean isAdmin = currentRole() == Role.ADMIN;</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">        String effectiveUserId = isAdmin</span>
+<span class="pc bpc" id="L190" title="3 of 4 branches missed.">                ? (requestedUserId == null || requestedUserId.isBlank() ? null : requestedUserId)</span>
+<span class="fc" id="L191">                : currentUserId();</span>
+<span class="pc bpc" id="L192" title="1 of 4 branches missed.">        Page&lt;OrderDocument&gt; page = (isAdmin &amp;&amp; effectiveUserId == null)</span>
+<span class="fc" id="L193">                ? orders.findAll(pageable)</span>
+<span class="fc" id="L194">                : orders.findByUserId(effectiveUserId, pageable);</span>
+<span class="fc" id="L195">        List&lt;OrderResponse&gt; mapped = page.getContent().stream()</span>
+<span class="fc" id="L196">                .map(OrderMapper::toDomain)</span>
+<span class="fc" id="L197">                .map(OrderResponse::from)</span>
+<span class="fc" id="L198">                .toList();</span>
+<span class="fc" id="L199">        return new PageImpl&lt;&gt;(mapped, pageable, page.getTotalElements());</span>
+    }
+
+    /**
+     * 路线图 4.11 — 按状态分页列退款单(ad-06 列表)。BFF controller 不再
+     * 直接访问 RefundRepository(违反 BFF 边界 + controllers 禁 *Repository
+     * 依赖),由本服务层封装。
+     *
+     * &lt;p&gt;status 缺省 → 全量;UI 通常传 REQUESTED(待审)/ APPROVED / REJECTED。
+     * 默认按 updatedAt 倒序(最新操作在前)。
+     */
+    public Page&lt;RefundResponse&gt; listRefunds(String status, Pageable pageable) {
+<span class="pc bpc" id="L211" title="2 of 4 branches missed.">        Page&lt;RefundDocument&gt; page = (status == null || status.isBlank())</span>
+<span class="fc" id="L212">                ? refunds.findAll(pageable)</span>
+<span class="pc" id="L213">                : refunds.findByStatus(status, pageable);</span>
+<span class="fc" id="L214">        return page.map(d -&gt; RefundResponse.from(RefundMapper.toDomain(d)));</span>
+    }
+
+    // ----- ship / cancel(状态机)-----
+
+    public OrderResponse ship(String orderId) {
+<span class="fc" id="L220">        Order o = load(orderId);</span>
+<span class="fc" id="L221">        Order next = o.markShipped(Instant.now());</span>
+<span class="fc" id="L222">        return OrderResponse.from(persistAndReturn(next));</span>
+    }
+
+    /**
+     * 4.13 批量发货(参见 design.md §5.1 + specs/admin-batch-operations §Bulk ship)。
+     *
+     * &lt;p&gt;策略:逐单处理 + 失败跳过。任一单失败不阻塞其它单(类似 Stripe / Shopify
+     * batch API),比&quot;全有或全无&quot;更友好 — admin 不必因 1 单异常重发整批。
+     *
+     * &lt;p&gt;每单校验:
+     * &lt;ul&gt;
+     *   &lt;li&gt;订单存在(否则 404 reason)&lt;/li&gt;
+     *   &lt;li&gt;订单状态为 PAID(否则 DomainException,reason 明确说明当前状态)&lt;/li&gt;
+     * &lt;/ul&gt;
+     * 校验失败:收集到 {@code failed} 列表,继续处理下一单;
+     * 校验成功:调 {@code markShipped(when)},如有 carrier/trackingNumber 一并挂上
+     * (见 4.1 OrderTracking 值对象 — 4.13 与 4.18 共用入口),持久化后 add 到 success。
+     *
+     * &lt;p&gt;调用方(AdminOrderController)负责鉴权 — ADMIN only。
+     *
+     * @return 包含 successIds / failed(每项 orderId + reason)/ 统计计数的响应
+     */
+    public com.seafood.bff.admin.dto.BatchShipResponse batchShip(
+            java.util.List&lt;String&gt; orderIds,
+            String carrier,
+            String trackingNumber) {
+<span class="fc" id="L248">        java.util.List&lt;String&gt; success = new java.util.ArrayList&lt;&gt;();</span>
+<span class="fc" id="L249">        java.util.List&lt;com.seafood.bff.admin.dto.BatchShipResponse.FailedItem&gt; failed = new java.util.ArrayList&lt;&gt;();</span>
+
+        // 解析一次 tracking(可能为 null — admin 可后续单独录物流)
+<span class="fc" id="L252">        OrderTracking tracking = null;</span>
+<span class="pc bpc" id="L253" title="1 of 6 branches missed.">        if (carrier != null &amp;&amp; !carrier.isBlank()</span>
+<span class="pc bpc" id="L254" title="1 of 2 branches missed.">                &amp;&amp; trackingNumber != null &amp;&amp; !trackingNumber.isBlank()) {</span>
+            // 至少一个事件,标记&quot;已发货&quot;起始点
+<span class="fc" id="L256">            tracking = new OrderTracking(</span>
+<span class="fc" id="L257">                    carrier.trim(),</span>
+<span class="fc" id="L258">                    trackingNumber.trim(),</span>
+<span class="fc" id="L259">                    java.util.List.of(new com.seafood.order.domain.TrackingEvent(</span>
+<span class="fc" id="L260">                            Instant.now(), &quot;SHIPPED&quot;, &quot;&quot;, &quot;已发货&quot;)));</span>
+<span class="pc bpc" id="L261" title="2 of 6 branches missed.">        } else if ((carrier != null &amp;&amp; !carrier.isBlank())</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">                || (trackingNumber != null &amp;&amp; !trackingNumber.isBlank())) {</span>
+            // 部分填写:拒,避免只填承运商没单号这种半截状态
+<span class="fc" id="L264">            failed.add(new com.seafood.bff.admin.dto.BatchShipResponse.FailedItem(</span>
+                    &quot;(global)&quot;, &quot;carrier 与 trackingNumber 必须同时填写或同时留空&quot;));
+            // 注意:这种情况不 return,继续处理 orderIds(它们可能没问题)
+        }
+
+<span class="fc bfc" id="L269" title="All 2 branches covered.">        for (String orderId : orderIds) {</span>
+            try {
+<span class="fc" id="L271">                Order o = load(orderId);</span>
+<span class="fc" id="L272">                Order shipped = o.markShipped(Instant.now());</span>
+<span class="fc bfc" id="L273" title="All 2 branches covered.">                if (tracking != null) {</span>
+<span class="fc" id="L274">                    shipped = shipped.attachTracking(tracking);</span>
+                }
+<span class="fc" id="L276">                persistAndReturn(shipped);</span>
+<span class="fc" id="L277">                success.add(orderId);</span>
+<span class="fc" id="L278">            } catch (com.seafood.shared.error.NotFoundException e) {</span>
+<span class="fc" id="L279">                failed.add(new com.seafood.bff.admin.dto.BatchShipResponse.FailedItem(</span>
+                        orderId, &quot;订单不存在&quot;));
+<span class="fc" id="L281">            } catch (com.seafood.shared.error.DomainException e) {</span>
+<span class="fc" id="L282">                failed.add(new com.seafood.bff.admin.dto.BatchShipResponse.FailedItem(</span>
+<span class="fc" id="L283">                        orderId, e.getMessage()));</span>
+<span class="fc" id="L284">            }</span>
+<span class="fc" id="L285">        }</span>
+<span class="fc" id="L286">        return com.seafood.bff.admin.dto.BatchShipResponse.of(success, failed);</span>
+    }
+
+    public OrderResponse cancel(String orderId, String reason) {
+<span class="fc" id="L290">        Order o = load(orderId);</span>
+<span class="fc" id="L291">        Order next = o.cancel(reason, Instant.now());</span>
+<span class="fc" id="L292">        OrderResponse resp = OrderResponse.from(persistAndReturn(next));</span>
+
+        // 业务埋点(PR #3 3.4):取消成功时累加。reason 规范化到低基数白名单
+        // (user / timeout / admin)— 其他输入(空 / 随意字符串)归到 &quot;other&quot;,防止
+        // 用户/攻击者在 reason 里塞高基数字符串污染 PromQL 时间序列。
+<span class="fc" id="L297">        String tag = normalizeCancelReason(reason);</span>
+<span class="fc" id="L298">        meterRegistry.counter(&quot;orders.cancelled&quot;, &quot;reason&quot;, tag).increment();</span>
+<span class="fc" id="L299">        return resp;</span>
+    }
+
+    public OrderResponse markPaid(String orderId) {
+<span class="fc" id="L303">        Order o = load(orderId);</span>
+<span class="fc" id="L304">        Order next = o.markPaid(Instant.now());</span>
+<span class="fc" id="L305">        OrderResponse resp = OrderResponse.from(persistAndReturn(next));</span>
+
+        // 业务埋点(PR #3 3.5):支付成功时累加。paymentMethod tag 暂固定 &quot;wechat&quot;
+        // (本期单渠道,订单创建时无 paymentMethod 字段 — Sprint 3 接入真实支付再
+        // 扩展);amountBucket 由 OrderMetrics.bucketize(design §ADR-OQ3 几何 4 档)
+        // 计算 — 严格低基数标签白名单。
+<span class="fc" id="L311">        String amountBucket = OrderMetrics.bucketize(next.totalAmount());</span>
+<span class="fc" id="L312">        meterRegistry.counter(&quot;orders.paid&quot;,</span>
+                        &quot;paymentMethod&quot;, &quot;wechat&quot;,
+                        &quot;amountBucket&quot;, amountBucket)
+<span class="fc" id="L315">                .increment();</span>
+<span class="fc" id="L316">        return resp;</span>
+    }
+
+    // ----- 1.4 / 1.5 sprint-1-closure: 3 新增 customer-side 状态机操作 -----
+
+    /**
+     * sprint-1-closure 1.4 — 客户确认收货(SHIPPED → COMPLETED)。
+     * 状态机检查见 {@link OrderAction#CONFIRM_RECEIVE};埋点 {@code orders.completed}。
+     */
+    public OrderResponse confirmReceive(String orderId) {
+<span class="fc" id="L326">        Order o = load(orderId);</span>
+<span class="pc bpc" id="L327" title="1 of 2 branches missed.">        if (!OrderAction.CONFIRM_RECEIVE.isAllowedFrom(o.status())) {</span>
+<span class="nc" id="L328">            throw new DomainException(&quot;Only SHIPPED orders can be confirmed received: current &quot;</span>
+<span class="nc" id="L329">                    + o.status().code());</span>
+        }
+<span class="fc" id="L331">        Order next = o.markCompleted(Instant.now());</span>
+<span class="fc" id="L332">        OrderResponse resp = OrderResponse.from(persistAndReturn(next));</span>
+<span class="fc" id="L333">        meterRegistry.counter(&quot;orders.completed&quot;).increment();</span>
+<span class="fc" id="L334">        return resp;</span>
+    }
+
+    /**
+     * sprint-1-closure 1.4 — 客户再次购买(从终态订单重建 cart items)。无状态变更,
+     * 仅返回一组 {@code CartItem} 给前端用,前端自己 addToCart。埋点 {@code orders.rebuy}。
+     */
+    public List&lt;CartItemResponse&gt; rebuy(String orderId) {
+<span class="fc" id="L342">        Order o = load(orderId);</span>
+<span class="fc bfc" id="L343" title="All 2 branches covered.">        if (!OrderAction.REBUY.isAllowedFrom(o.status())) {</span>
+<span class="fc" id="L344">            throw new DomainException(&quot;Cannot rebuy order in status &quot; + o.status().code());</span>
+        }
+<span class="fc" id="L346">        meterRegistry.counter(&quot;orders.rebuy&quot;).increment();</span>
+<span class="fc" id="L347">        return o.items().stream()</span>
+<span class="fc" id="L348">                .map(it -&gt; new CartItemResponse(</span>
+<span class="fc" id="L349">                        it.productId(), it.quantity(), true, Instant.now()))</span>
+<span class="fc" id="L350">                .toList();</span>
+    }
+
+    /**
+     * sprint-1-closure 1.5 — 提醒发货(PAID 状态发通知,无状态变更)。本期 stub:
+     * 调一个 todo-stub,后续接 push 平台。埋点 {@code orders.remind_ship}。
+     */
+    public void remindShip(String orderId) {
+<span class="fc" id="L358">        Order o = load(orderId);</span>
+<span class="fc bfc" id="L359" title="All 2 branches covered.">        if (!OrderAction.REMIND_SHIP.isAllowedFrom(o.status())) {</span>
+<span class="fc" id="L360">            throw new DomainException(&quot;Only PAID orders can be reminded to ship: current &quot;</span>
+<span class="fc" id="L361">                    + o.status().code());</span>
+        }
+        // TODO(sprint-3): call WeChat subscribe-message API
+<span class="fc" id="L364">        meterRegistry.counter(&quot;orders.remind_ship&quot;).increment();</span>
+<span class="fc" id="L365">    }</span>
+
+    /**
+     * sprint-1-closure 1.3 — 统一的 customer-side 状态机入口。检查 ownership /
+     * 当前状态合法性 → 路由到对应业务方法 → 埋点。Controller 后续可以全部改用本方法
+     * 取代 4 个分散调用;现存 cancel/markPaid/getTracking 仍保留向后兼容。
+     */
+    public OrderResponse transition(String orderId, OrderAction action) {
+        // 1) 鉴权 + 加载(防 enumeration:非主且非 admin 返 404)
+<span class="fc" id="L374">        Order o = load(orderId);</span>
+<span class="pc bpc" id="L375" title="1 of 2 branches missed.">        boolean isAdmin = currentRole() == Role.ADMIN;</span>
+<span class="pc bpc" id="L376" title="1 of 4 branches missed.">        if (!isAdmin &amp;&amp; !o.userId().equals(currentUserId())) {</span>
+<span class="fc" id="L377">            throw new NotFoundException(&quot;订单不存在:&quot; + orderId);</span>
+        }
+        // 2) 状态机检查
+<span class="fc bfc" id="L380" title="All 2 branches covered.">        if (!action.isAllowedFrom(o.status())) {</span>
+<span class="fc" id="L381">            throw new DomainException(&quot;Action &quot; + action + &quot; not allowed from status &quot;</span>
+<span class="fc" id="L382">                    + o.status().code());</span>
+        }
+        // 3) 路由
+<span class="pc bpc" id="L385" title="4 of 6 branches missed.">        return switch (action) {</span>
+<span class="nc" id="L386">            case CANCEL -&gt; cancel(orderId, &quot;user&quot;);</span>
+<span class="fc" id="L387">            case PAY -&gt; markPaid(orderId);</span>
+<span class="fc" id="L388">            case CONFIRM_RECEIVE -&gt; confirmReceive(orderId);</span>
+            case REBUY -&gt; {
+<span class="nc" id="L390">                rebuy(orderId);</span>
+                // REBUY 不改 state,返当前 order
+<span class="nc" id="L392">                yield OrderResponse.from(load(orderId));</span>
+            }
+            case REFUND -&gt; {
+                // 复用 requestRefund(amount, reason) 路径,reason 用 action 标签
+<span class="nc" id="L396">                RefundResponse rr = requestRefund(orderId, o.totalAmount(), &quot;customer:&quot; + action);</span>
+<span class="nc" id="L397">                yield OrderResponse.from(load(orderId));</span>
+            }
+            case REMIND_SHIP -&gt; {
+<span class="nc" id="L400">                remindShip(orderId);</span>
+<span class="nc" id="L401">                yield OrderResponse.from(load(orderId));</span>
+            }
+        };
+    }
+
+    /**
+     * 把 {@code reason} 字符串规范化到低基数白名单 4 档。空白或不在白名单的归 &quot;other&quot;,
+     * 防止任意字符串污染 PromQL series 数量。
+     */
+    private static String normalizeCancelReason(String reason) {
+<span class="pc bpc" id="L411" title="1 of 2 branches missed.">        if (reason == null) return &quot;other&quot;;</span>
+<span class="fc" id="L412">        String r = reason.trim();</span>
+<span class="pc bpc" id="L413" title="1 of 2 branches missed.">        if (r.isEmpty()) return &quot;other&quot;;</span>
+<span class="fc bfc" id="L414" title="All 2 branches covered.">        if (r.equalsIgnoreCase(&quot;user&quot;)) return &quot;user&quot;;</span>
+<span class="fc bfc" id="L415" title="All 2 branches covered.">        if (r.equalsIgnoreCase(&quot;timeout&quot;)) return &quot;timeout&quot;;</span>
+<span class="fc bfc" id="L416" title="All 2 branches covered.">        if (r.equalsIgnoreCase(&quot;admin&quot;)) return &quot;admin&quot;;</span>
+<span class="fc" id="L417">        return &quot;other&quot;;</span>
+    }
+
+    // ----- 跨模块只读(BFF 用)-----
+
+    public OrderResponse get(String orderId) {
+<span class="nc" id="L423">        return OrderResponse.from(load(orderId));</span>
+    }
+
+    /**
+     * 路线图 4.2:返回订单物流(GET /api/orders/{id}/tracking)。{@code Order.tracking}
+     * 在 SHIPPED 之后才挂值,所以 PENDING / PAID / CANCELLED 订单会返回 null(JSON 200,null
+     * 字段),不是 404;只有订单本身不存在才 404。
+     *
+     * &lt;p&gt;鉴权:CUSTOMER 只能查自己单(否则 404 不暴露存在性);ADMIN 查任意。
+     * 鉴权失败抛 NotFoundException(与 order not-found 同样语义,防 enumeration)。
+     */
+    public OrderTracking getTracking(String orderId) {
+<span class="fc" id="L435">        Order o = load(orderId);</span>
+<span class="fc bfc" id="L436" title="All 2 branches covered.">        boolean isAdmin = currentRole() == Role.ADMIN;</span>
+<span class="fc bfc" id="L437" title="All 4 branches covered.">        if (!isAdmin &amp;&amp; !o.userId().equals(currentUserId())) {</span>
+            // 鉴权失败:对外表现为订单不存在
+<span class="fc" id="L439">            throw new NotFoundException(&quot;订单不存在:&quot; + orderId);</span>
+        }
+<span class="fc" id="L441">        return o.tracking();</span>
+    }
+
+    public long countCreatedSince(Instant from) {
+<span class="nc" id="L445">        return orders.countByCreatedAtGreaterThanEqual(from);</span>
+    }
+
+    public BigDecimal sumTotalAmountCreatedSince(Instant from) {
+<span class="fc" id="L449">        return orders.findTop500ByOrderByCreatedAtDesc().stream()</span>
+<span class="pc bpc" id="L450" title="1 of 4 branches missed.">                .takeWhile(doc -&gt; doc.getCreatedAt() != null &amp;&amp; !doc.getCreatedAt().isBefore(from))</span>
+<span class="fc" id="L451">                .map(OrderDocument::getTotalAmount)</span>
+<span class="pc bpc" id="L452" title="1 of 2 branches missed.">                .filter(amount -&gt; amount != null)</span>
+<span class="fc" id="L453">                .reduce(BigDecimal.ZERO, BigDecimal::add);</span>
+    }
+
+    // ----- 4.7 / 4.8 退款(Refund 生命周期)-----
+
+    /**
+     * 4.7:mp 端申请退款。校验:
+     * &lt;ul&gt;
+     *   &lt;li&gt;订单存在(否则 NotFoundException)&lt;/li&gt;
+     *   &lt;li&gt;当前用户是订单主或 ADMIN(否则 NotFoundException 防 enumeration — 跟 tracking 同策略)&lt;/li&gt;
+     *   &lt;li&gt;订单状态允许申请退款(PAID / SHIPPED / COMPLETED 之一;PENDING 未付款,REFUNDING
+     *       已有进行中的退款单,REFUNDED / CANCELLED 终态不可申请)&lt;/li&gt;
+     *   &lt;li&gt;该订单没有未决(REQUESTED)退款单(否则 DomainException — 同单不允许重复申请)&lt;/li&gt;
+     *   &lt;li&gt;{@code amount} 严格 &gt; 0 且 ≤ {@code Order.totalAmount}(防止超额退款;Refund 构造器
+     *       内部还会再校验 &gt; 0 一次)&lt;/li&gt;
+     *   &lt;li&gt;{@code reason} 非空且 ≤ 200 字符(Refund 构造器内部校验)&lt;/li&gt;
+     * &lt;/ul&gt;
+     * 成功路径:创建 Refund(REQUESTED) → Order 转 REFUNDING → 持久化两者。
+     * 失败路径:任何校验失败抛 DomainException / NotFoundException,事务未启用不产生副作用。
+     */
+    public RefundResponse requestRefund(String orderId, BigDecimal amount, String reason) {
+<span class="fc" id="L474">        Order o = load(orderId);</span>
+
+        // 鉴权:非订单主且非 ADMIN → 对外表现为订单不存在
+<span class="pc bpc" id="L477" title="1 of 2 branches missed.">        boolean isAdmin = currentRole() == Role.ADMIN;</span>
+<span class="pc bpc" id="L478" title="1 of 4 branches missed.">        if (!isAdmin &amp;&amp; !o.userId().equals(currentUserId())) {</span>
+<span class="fc" id="L479">            throw new NotFoundException(&quot;订单不存在:&quot; + orderId);</span>
+        }
+
+        // 状态校验:PENDING / REFUNDING / REFUNDED / CANCELLED 不允许申请
+<span class="pc bpc" id="L483" title="1 of 2 branches missed.">        if (!(o.status() instanceof OrderStatus.Paid</span>
+<span class="pc bpc" id="L484" title="1 of 2 branches missed.">                || o.status() instanceof OrderStatus.Shipped</span>
+<span class="fc bfc" id="L485" title="All 2 branches covered.">                || o.status() instanceof OrderStatus.Completed)) {</span>
+<span class="fc" id="L486">            throw new DomainException(&quot;当前订单状态不允许申请退款:&quot; + o.status().code());</span>
+        }
+
+        // 金额校验
+<span class="pc bpc" id="L490" title="1 of 4 branches missed.">        if (amount == null || amount.signum() &lt;= 0) {</span>
+<span class="fc" id="L491">            throw new DomainException(&quot;退款金额必须大于 0&quot;);</span>
+        }
+<span class="fc bfc" id="L493" title="All 2 branches covered.">        if (amount.compareTo(o.totalAmount()) &gt; 0) {</span>
+<span class="fc" id="L494">            throw new DomainException(&quot;退款金额不能超过订单总额:&quot; + o.totalAmount());</span>
+        }
+
+        // 同单未决退款单:返回 409 语义(DomainException → GlobalExceptionHandler 映射 409)
+<span class="fc" id="L498">        refunds().findByOrderId(orderId).ifPresent(existing -&gt; {</span>
+<span class="pc bpc" id="L499" title="1 of 2 branches missed.">            if (!existing.getStatus().equals(&quot;APPROVED&quot;)</span>
+<span class="fc bfc" id="L500" title="All 2 branches covered.">                    &amp;&amp; !existing.getStatus().equals(&quot;REJECTED&quot;)) {</span>
+<span class="fc" id="L501">                throw new DomainException(&quot;该订单已有进行中的退款申请,状态:&quot; + existing.getStatus());</span>
+            }
+            // 已 APPROVED / REJECTED 的历史退款单允许再次申请(客服场景:同单分批退)
+<span class="fc" id="L504">        });</span>
+
+<span class="fc" id="L506">        Instant now = Instant.now();</span>
+<span class="fc" id="L507">        Refund refund = new Refund(</span>
+<span class="fc" id="L508">                null, orderId, o.userId(), amount, reason,</span>
+                new com.seafood.order.domain.RefundStatus.Requested(),
+                now, now);
+<span class="fc" id="L511">        RefundDocument savedRefund = refunds().save(RefundMapper.toDocument(refund));</span>
+
+        // 同步:Order 转 REFUNDING + 挂上 refundId(4.20 admin-ui / 详情页依赖)
+<span class="fc" id="L514">        Order next = o.markRefunding(now).attachRefundId(savedRefund.getId());</span>
+<span class="fc" id="L515">        orders.save(OrderMapper.toDocument(next));</span>
+
+<span class="fc" id="L517">        return RefundResponse.from(RefundMapper.toDomain(savedRefund));</span>
+    }
+
+    /**
+     * 4.8:admin 同意退款。校验:Refund 存在(否则 404) + 当前状态 REQUESTED(否则 409)。
+     * 成功路径:Refund REQUESTED → APPROVED + Order REFUNDING → REFUNDED,持久化两者。
+     */
+    public RefundResponse approveRefund(String refundId) {
+<span class="fc" id="L525">        Refund r = loadRefund(refundId);</span>
+
+        // 优先校验 Refund 状态(早返回,不依赖 Order 加载)—
+        // 已批准/已拒绝的退款单直接 409,不抛 NotFoundException(order 可能在别处未就绪)。
+<span class="fc bfc" id="L529" title="All 2 branches covered.">        if (!(r.status() instanceof RefundStatus.Requested)) {</span>
+<span class="fc" id="L530">            throw new DomainException(&quot;退款单状态非 REQUESTED,无法重复同意:当前 &quot; + r.status().code());</span>
+        }
+
+<span class="fc" id="L533">        Order o = load(r.orderId());</span>
+
+        // 防御:Order 状态与 Refund 状态应一致(REFUNDING)
+<span class="pc bpc" id="L536" title="1 of 2 branches missed.">        if (!(o.status() instanceof OrderStatus.Refunding)) {</span>
+<span class="nc" id="L537">            throw new DomainException(&quot;订单状态非 REFUNDING,无法同意退款:&quot; + o.status().code());</span>
+        }
+
+<span class="fc" id="L540">        Instant now = Instant.now();</span>
+<span class="fc" id="L541">        Refund approved = r.approve(now);</span>
+<span class="fc" id="L542">        RefundDocument savedRefund = refunds().save(RefundMapper.toDocument(approved));</span>
+
+<span class="fc" id="L544">        Order refunded = o.markRefunded(now);</span>
+<span class="fc" id="L545">        orders.save(OrderMapper.toDocument(refunded));</span>
+
+        // 业务埋点(4.9):admin 同意退款时累加。paymentMethod 暂固定 &quot;wechat&quot;
+        // (本期单渠道,Refund 实体未带 paymentMethod 字段 — Sprint 3 接入真实
+        // 退款渠道再扩展);amountBucket 复用 OrderMetrics.bucketize(订单金额,4 档
+        // 几何分桶 — 严格低基数标签白名单,设计同 orders.paid)。
+<span class="fc" id="L551">        String amountBucket = OrderMetrics.bucketize(o.totalAmount());</span>
+<span class="fc" id="L552">        meterRegistry.counter(&quot;orders.refunded&quot;,</span>
+                        &quot;paymentMethod&quot;, &quot;wechat&quot;,
+                        &quot;amountBucket&quot;, amountBucket)
+<span class="fc" id="L555">                .increment();</span>
+
+<span class="fc" id="L557">        return RefundResponse.from(RefundMapper.toDomain(savedRefund));</span>
+    }
+
+    /**
+     * 4.8:admin 拒绝退款。校验:Refund 存在 + REQUESTED;Order 必须 REFUNDING。
+     * 成功路径:Refund REQUESTED → REJECTED + Order REFUNDING → COMPLETED(回退到
+     * &quot;已签收&quot;业务态,详见 {@link Order#markRefundRejected} javadoc)。
+     *
+     * &lt;p&gt;{@code reason} 是 admin 拒绝原因(可选,但 UI 强烈建议填,审计需要)。
+     * 当前实现:reason 仅入参校验非空长度,未持久化到 Refund 字段(Sprint 3 4.8 范围内
+     * 不引入新字段;后续可加 {@code rejectReason} 列)。
+     */
+    public RefundResponse rejectRefund(String refundId, String reason) {
+<span class="pc bpc" id="L570" title="1 of 4 branches missed.">        if (reason != null &amp;&amp; reason.length() &gt; 200) {</span>
+<span class="fc" id="L571">            throw new DomainException(&quot;拒绝原因超过 200 字符上限&quot;);</span>
+        }
+<span class="fc" id="L573">        Refund r = loadRefund(refundId);</span>
+<span class="fc" id="L574">        Order o = load(r.orderId());</span>
+
+<span class="pc bpc" id="L576" title="1 of 2 branches missed.">        if (!(o.status() instanceof OrderStatus.Refunding)) {</span>
+<span class="nc" id="L577">            throw new DomainException(&quot;订单状态非 REFUNDING,无法拒绝退款:&quot; + o.status().code());</span>
+        }
+
+<span class="fc" id="L580">        Instant now = Instant.now();</span>
+<span class="fc" id="L581">        Refund rejected = r.reject(now);</span>
+<span class="fc" id="L582">        RefundDocument savedRefund = refunds().save(RefundMapper.toDocument(rejected));</span>
+
+<span class="fc" id="L584">        Order rolledBack = o.markRefundRejected(now);</span>
+<span class="fc" id="L585">        orders.save(OrderMapper.toDocument(rolledBack));</span>
+
+<span class="fc" id="L587">        return RefundResponse.from(RefundMapper.toDomain(savedRefund));</span>
+    }
+
+    private Refund loadRefund(String refundId) {
+<span class="fc" id="L591">        return refunds().findById(refundId)</span>
+<span class="fc" id="L592">                .map(RefundMapper::toDomain)</span>
+<span class="fc" id="L593">                .orElseThrow(() -&gt; new NotFoundException(&quot;退款单不存在:&quot; + refundId));</span>
+    }
+
+    /** 用于 BFF topProducts 聚合;Phase 1 拉最近 500 单,生产应换 Mongo aggregation pipeline。 */
+    public List&lt;OrderResponse&gt; findRecent(int limit) {
+<span class="fc" id="L598">        var docs = orders.findTop500ByOrderByCreatedAtDesc();</span>
+<span class="fc" id="L599">        int n = Math.min(limit, docs.size());</span>
+<span class="fc" id="L600">        return docs.subList(0, n).stream()</span>
+<span class="fc" id="L601">                .map(OrderMapper::toDomain)</span>
+<span class="fc" id="L602">                .map(OrderResponse::from)</span>
+<span class="fc" id="L603">                .toList();</span>
+    }
+
+    /**
+     * 4.15:导出最近 N 单为 RFC 4180 CSV(ad-05「导出」按钮,Controller 已加 UTF-8 BOM)。
+     *
+     * &lt;p&gt;列:订单号 / 用户 ID / 金额(元) / 状态 / 取消原因 / 创建时间 / 更新时间。
+     * 物流不在 CSV 内(嵌套结构 Excel 不友好)— ad-06 详情页看。
+     *
+     * &lt;p&gt;复用 {@link #findRecent(int)} 同一查询路径(findTop500ByOrderByCreatedAtDesc),
+     * 与 findRecent 的&quot;500 上限&quot;生产 TODO 同步 — 真要做全量导出应换 Mongo aggregation
+     * pipeline + 游标分批。
+     *
+     * &lt;p&gt;CSV 转义规则(RFC 4180):字段包含 {@code ,} / {@code &quot;} / 换行时,整个字段
+     * 用双引号包裹,字段内双引号用 {@code &quot;&quot;} 转义。本方法走集中 helper {@link #csvEscape}
+     * 避免散落判断。
+     */
+    public String exportRecentOrdersAsCsv(int limit) {
+<span class="fc" id="L621">        var docs = orders.findTop500ByOrderByCreatedAtDesc();</span>
+<span class="fc" id="L622">        int n = Math.min(limit, docs.size());</span>
+
+<span class="fc" id="L624">        StringBuilder sb = new StringBuilder(256 + n * 80);</span>
+<span class="fc" id="L625">        sb.append(&quot;订单号,用户ID,金额(元),状态,取消原因,创建时间,更新时间\n&quot;);</span>
+<span class="fc bfc" id="L626" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L627">            var d = docs.get(i);</span>
+<span class="fc" id="L628">            sb.append(csvEscape(d.getId())).append(',')</span>
+<span class="fc" id="L629">              .append(csvEscape(d.getUserId())).append(',')</span>
+<span class="pc bpc" id="L630" title="1 of 2 branches missed.">              .append(d.getTotalAmount() == null ? &quot;&quot; : d.getTotalAmount().toPlainString()).append(',')</span>
+<span class="fc" id="L631">              .append(csvEscape(d.getStatus())).append(',')</span>
+<span class="fc" id="L632">              .append(csvEscape(d.getCancelReason())).append(',')</span>
+<span class="pc bpc" id="L633" title="1 of 2 branches missed.">              .append(d.getCreatedAt() == null ? &quot;&quot; : d.getCreatedAt().toString()).append(',')</span>
+<span class="pc bpc" id="L634" title="1 of 2 branches missed.">              .append(d.getUpdatedAt() == null ? &quot;&quot; : d.getUpdatedAt().toString()).append('\n');</span>
+        }
+<span class="fc" id="L636">        return sb.toString();</span>
+    }
+
+    /** RFC 4180 CSV 字段转义:含 {@code ,} / {@code &quot;} / 换行 → 用双引号包裹,内部 {@code &quot;} → {@code &quot;&quot;}。 */
+    private static String csvEscape(String value) {
+<span class="fc bfc" id="L641" title="All 2 branches covered.">        if (value == null) return &quot;&quot;;</span>
+<span class="fc bfc" id="L642" title="All 2 branches covered.">        boolean needsQuote = value.indexOf(',') &gt;= 0</span>
+<span class="pc bpc" id="L643" title="1 of 2 branches missed.">                || value.indexOf('&quot;') &gt;= 0</span>
+<span class="pc bpc" id="L644" title="1 of 2 branches missed.">                || value.indexOf('\n') &gt;= 0</span>
+<span class="pc bpc" id="L645" title="1 of 2 branches missed.">                || value.indexOf('\r') &gt;= 0;</span>
+<span class="fc bfc" id="L646" title="All 2 branches covered.">        if (!needsQuote) return value;</span>
+<span class="fc" id="L647">        return &quot;\&quot;&quot; + value.replace(&quot;\&quot;&quot;, &quot;\&quot;\&quot;&quot;) + &quot;\&quot;&quot;;</span>
+    }
+
+    /**
+     * 4.14:渲染拣货单为可打印 HTML(浏览器 Ctrl+P 另存 PDF)。本期 HTML 兜底,
+     * 见 {@code AdminOrderController.printPicklist} javadoc 决策说明。
+     * 包含字段:订单号 / 用户 ID / 收货信息(暂无,商品配送地址由后续地址模块接入)
+     * / 商品行(name × qty,小计)/ 订单总金额 / 状态 / 创建时间。
+     */
+    public String renderPicklistHtml(String orderId) {
+<span class="fc" id="L657">        Order o = load(orderId);</span>
+<span class="fc" id="L658">        StringBuilder sb = new StringBuilder(512 + o.items().size() * 80);</span>
+<span class="fc" id="L659">        sb.append(&quot;&lt;!DOCTYPE html&gt;&lt;html lang=\&quot;zh\&quot;&gt;&lt;head&gt;&lt;meta charset=\&quot;UTF-8\&quot;&gt;&quot;)</span>
+<span class="fc" id="L660">          .append(&quot;&lt;title&gt;拣货单 - &quot;).append(htmlEscape(o.id())).append(&quot;&lt;/title&gt;&quot;)</span>
+<span class="fc" id="L661">          .append(&quot;&lt;style&gt;&quot;)</span>
+<span class="fc" id="L662">          .append(&quot;body{font-family:system-ui,sans-serif;padding:24px;color:#1a1a1a;}&quot;)</span>
+<span class="fc" id="L663">          .append(&quot;h1{font-size:24px;margin:0 0 16px;}&quot;)</span>
+<span class="fc" id="L664">          .append(&quot;table{width:100%;border-collapse:collapse;margin:16px 0;}&quot;)</span>
+<span class="fc" id="L665">          .append(&quot;th,td{border:1px solid #ccc;padding:8px 12px;text-align:left;}&quot;)</span>
+<span class="fc" id="L666">          .append(&quot;th{background:#f4f4f4;}&quot;)</span>
+<span class="fc" id="L667">          .append(&quot;.right{text-align:right;}&quot;)</span>
+<span class="fc" id="L668">          .append(&quot;.meta{color:#666;font-size:14px;margin-bottom:8px;}&quot;)</span>
+<span class="fc" id="L669">          .append(&quot;@media print{body{padding:0;}.no-print{display:none;}}&quot;)</span>
+<span class="fc" id="L670">          .append(&quot;&lt;/style&gt;&lt;/head&gt;&lt;body&gt;&quot;)</span>
+<span class="fc" id="L671">          .append(&quot;&lt;h1&gt;拣货单&lt;/h1&gt;&quot;)</span>
+<span class="fc" id="L672">          .append(&quot;&lt;div class=\&quot;meta\&quot;&gt;订单号:&quot;).append(htmlEscape(o.id())).append(&quot;&lt;/div&gt;&quot;)</span>
+<span class="fc" id="L673">          .append(&quot;&lt;div class=\&quot;meta\&quot;&gt;用户 ID:&quot;).append(htmlEscape(o.userId())).append(&quot;&lt;/div&gt;&quot;)</span>
+<span class="fc" id="L674">          .append(&quot;&lt;div class=\&quot;meta\&quot;&gt;状态:&quot;).append(o.status().code()).append(&quot;&lt;/div&gt;&quot;)</span>
+<span class="fc" id="L675">          .append(&quot;&lt;div class=\&quot;meta\&quot;&gt;创建时间:&quot;).append(o.createdAt()).append(&quot;&lt;/div&gt;&quot;)</span>
+<span class="fc" id="L676">          .append(&quot;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;#&lt;/th&gt;&lt;th&gt;商品&lt;/th&gt;&lt;th class=\&quot;right\&quot;&gt;单价&lt;/th&gt;&quot;)</span>
+<span class="fc" id="L677">          .append(&quot;&lt;th class=\&quot;right\&quot;&gt;数量&lt;/th&gt;&lt;th class=\&quot;right\&quot;&gt;小计&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&quot;);</span>
+<span class="fc" id="L678">        int i = 1;</span>
+<span class="fc bfc" id="L679" title="All 2 branches covered.">        for (var it : o.items()) {</span>
+<span class="fc" id="L680">            sb.append(&quot;&lt;tr&gt;&quot;)</span>
+<span class="fc" id="L681">              .append(&quot;&lt;td&gt;&quot;).append(i++).append(&quot;&lt;/td&gt;&quot;)</span>
+<span class="fc" id="L682">              .append(&quot;&lt;td&gt;&quot;).append(htmlEscape(it.productName())).append(&quot;&lt;/td&gt;&quot;)</span>
+<span class="fc" id="L683">              .append(&quot;&lt;td class=\&quot;right\&quot;&gt;¥ &quot;).append(it.unitPrice().toPlainString()).append(&quot;&lt;/td&gt;&quot;)</span>
+<span class="fc" id="L684">              .append(&quot;&lt;td class=\&quot;right\&quot;&gt;&quot;).append(it.quantity()).append(&quot;&lt;/td&gt;&quot;)</span>
+<span class="fc" id="L685">              .append(&quot;&lt;td class=\&quot;right\&quot;&gt;¥ &quot;).append(it.subtotal().toPlainString()).append(&quot;&lt;/td&gt;&quot;)</span>
+<span class="fc" id="L686">              .append(&quot;&lt;/tr&gt;&quot;);</span>
+<span class="fc" id="L687">        }</span>
+<span class="fc" id="L688">        sb.append(&quot;&lt;/tbody&gt;&lt;tfoot&gt;&lt;tr&gt;&lt;th colspan=\&quot;4\&quot; class=\&quot;right\&quot;&gt;合计&lt;/th&gt;&quot;)</span>
+<span class="fc" id="L689">          .append(&quot;&lt;th class=\&quot;right\&quot;&gt;¥ &quot;).append(o.totalAmount().toPlainString()).append(&quot;&lt;/th&gt;&lt;/tr&gt;&lt;/tfoot&gt;&quot;)</span>
+<span class="fc" id="L690">          .append(&quot;&lt;/table&gt;&quot;)</span>
+<span class="fc" id="L691">          .append(&quot;&lt;div class=\&quot;no-print\&quot;&gt;&lt;button onclick=\&quot;window.print()\&quot;&gt;打印 / 另存为 PDF&lt;/button&gt;&lt;/div&gt;&quot;)</span>
+<span class="fc" id="L692">          .append(&quot;&lt;/body&gt;&lt;/html&gt;&quot;);</span>
+<span class="fc" id="L693">        return sb.toString();</span>
+    }
+
+    /** HTML 字段转义:含 {@code &lt;} / {@code &gt;} / {@code &amp;} / {@code &quot;} / {@code '} 时转义。 */
+    private static String htmlEscape(String value) {
+<span class="pc bpc" id="L698" title="1 of 2 branches missed.">        if (value == null) return &quot;&quot;;</span>
+<span class="fc" id="L699">        return value.replace(&quot;&amp;&quot;, &quot;&amp;amp;&quot;)</span>
+<span class="fc" id="L700">                    .replace(&quot;&lt;&quot;, &quot;&amp;lt;&quot;)</span>
+<span class="fc" id="L701">                    .replace(&quot;&gt;&quot;, &quot;&amp;gt;&quot;)</span>
+<span class="fc" id="L702">                    .replace(&quot;\&quot;&quot;, &quot;&amp;quot;&quot;)</span>
+<span class="fc" id="L703">                    .replace(&quot;'&quot;, &quot;&amp;#39;&quot;);</span>
+    }
+
+    // ----- helpers -----
+
+    private Order load(String orderId) {
+<span class="fc" id="L709">        return orders.findById(orderId)</span>
+<span class="fc" id="L710">                .map(OrderMapper::toDomain)</span>
+<span class="fc" id="L711">                .orElseThrow(() -&gt; new NotFoundException(&quot;订单不存在:&quot; + orderId));</span>
+    }
+
+    private Order persistAndReturn(Order o) {
+<span class="fc" id="L715">        OrderDocument saved = orders.save(OrderMapper.toDocument(o));</span>
+<span class="fc" id="L716">        return OrderMapper.toDomain(saved);</span>
+    }
+
+    private Product productDecrementOrThrow(String productId, int qty) {
+<span class="fc" id="L720">        var doc = products.findById(productId)</span>
+<span class="pc" id="L721">                .orElseThrow(() -&gt; new DomainException(&quot;商品不存在:&quot; + productId));</span>
+<span class="fc" id="L722">        int newStock = doc.getStock() - qty;</span>
+<span class="pc bpc" id="L723" title="1 of 2 branches missed.">        if (newStock &lt; 0) {</span>
+<span class="nc" id="L724">            throw new DomainException(&quot;库存不足:&quot; + doc.getName());</span>
+        }
+<span class="fc" id="L726">        doc.setStock(newStock);</span>
+<span class="pc bpc" id="L727" title="1 of 4 branches missed.">        if (newStock == 0 &amp;&amp; doc.getStatus() == com.seafood.product.domain.ProductStatus.ACTIVE) {</span>
+<span class="fc" id="L728">            doc.setStatus(com.seafood.product.domain.ProductStatus.OUT_OF_STOCK);</span>
+        }
+<span class="fc" id="L730">        products.save(doc);</span>
+<span class="fc" id="L731">        return new Product(</span>
+<span class="fc" id="L732">                doc.getId(), doc.getName(), doc.getDescription(), doc.getPrice(), doc.getStock(),</span>
+<span class="fc" id="L733">                com.seafood.product.domain.ProductCategory.of(doc.getCategory()),</span>
+<span class="fc" id="L734">                doc.getImageUrl(), doc.getStatus(), doc.getCreatedAt(), Instant.now());</span>
+    }
+
+
+    private static Role currentRole() {
+<span class="fc" id="L739">        var auth = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="pc bpc" id="L740" title="2 of 4 branches missed.">        if (auth == null || !auth.isAuthenticated()) {</span>
+<span class="nc" id="L741">            return null;</span>
+        }
+<span class="fc" id="L743">        return auth.getAuthorities().stream()</span>
+<span class="fc" id="L744">                .map(a -&gt; a.getAuthority())</span>
+<span class="fc" id="L745">                .filter(s -&gt; s.startsWith(&quot;ROLE_&quot;))</span>
+<span class="fc" id="L746">                .map(s -&gt; s.substring(5))</span>
+<span class="fc" id="L747">                .map(Role::valueOf)</span>
+<span class="fc" id="L748">                .findFirst()</span>
+<span class="fc" id="L749">                .orElse(null);</span>
+    }
+
+    private static String currentUserId() {
+<span class="fc" id="L753">        var auth = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="pc bpc" id="L754" title="2 of 4 branches missed.">        if (auth == null || !auth.isAuthenticated()) return null;</span>
+<span class="fc" id="L755">        Object principal = auth.getPrincipal();</span>
+<span class="pc bpc" id="L756" title="1 of 2 branches missed.">        if (principal instanceof com.seafood.shared.security.UserPrincipal up) {</span>
+<span class="fc" id="L757">            return up.getId();</span>
+        }
+<span class="nc" id="L759">        return auth.getName();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
