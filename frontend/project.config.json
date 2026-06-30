@@ -51,5 +51,9 @@
     "tabIndent": "insertSpaces",
     "tabSize": 2
   },
+  "simulatorPluginLibVersion": {},
+  "testRoot": "minitest/"
+}Size": 2
+  },
   "simulatorPluginLibVersion": {}
 }
