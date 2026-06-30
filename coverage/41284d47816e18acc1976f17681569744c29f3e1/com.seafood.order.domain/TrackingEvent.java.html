@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TrackingEvent.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.domain</a> &gt; <span class="el_source">TrackingEvent.java</span></div><h1>TrackingEvent.java</h1><pre class="source lang-java linenums">package com.seafood.order.domain;
+
+import com.seafood.shared.error.DomainException;
+
+import java.time.Instant;
+
+/**
+ * 物流跟踪单事件值对象(参见 design.md §6.3 + specs/admin-batch-operations §Logistics tracking)。
+ *
+ * &lt;p&gt;一次物流事件(发货 / 到达中转站 / 派送中 / 签收 等):
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code at} — 事件时间(物流公司推送的时间戳,UTC instant)&lt;/li&gt;
+ *   &lt;li&gt;{@code status} — 事件状态描述,例如 &quot;SHIPPED&quot; / &quot;IN_TRANSIT&quot; / &quot;DELIVERED&quot;(可扩展,本期未限枚举)&lt;/li&gt;
+ *   &lt;li&gt;{@code location} — 事件发生地(城市或中转站)&lt;/li&gt;
+ *   &lt;li&gt;{@code description} — 人类可读描述,最长 200 字符&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;不可变 record;所有字段在构造时校验。
+ */
+public record TrackingEvent(
+        Instant at,
+        String status,
+        String location,
+        String description
+) {
+<span class="fc" id="L26">    public TrackingEvent {</span>
+<span class="fc bfc" id="L27" title="All 2 branches covered.">        if (at == null) {</span>
+<span class="fc" id="L28">            throw new DomainException(&quot;物流事件时间不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L30" title="2 of 4 branches missed.">        if (status == null || status.isBlank()) {</span>
+<span class="nc" id="L31">            throw new DomainException(&quot;物流事件状态不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">        if (description == null) {</span>
+<span class="nc" id="L34">            throw new DomainException(&quot;物流事件描述不能为空&quot;);</span>
+        }
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        if (description.length() &gt; 200) {</span>
+<span class="fc" id="L37">            throw new DomainException(&quot;物流事件描述超过 200 字符上限&quot;);</span>
+        }
+<span class="fc" id="L39">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

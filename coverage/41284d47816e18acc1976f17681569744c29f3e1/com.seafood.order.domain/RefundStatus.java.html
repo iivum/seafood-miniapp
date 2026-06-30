@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefundStatus.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.domain</a> &gt; <span class="el_source">RefundStatus.java</span></div><h1>RefundStatus.java</h1><pre class="source lang-java linenums">package com.seafood.order.domain;
+
+import com.seafood.shared.error.DomainException;
+
+/**
+ * 退款单状态机(参见 specs/admin-batch-operations §Refund lifecycle + design §6.3)。
+ *
+ * &lt;p&gt;合法转移(其它一律抛 DomainException):
+ * &lt;pre&gt;
+ *   REQUESTED → APPROVED   (admin 同意退款,Sprint 3 4.8)
+ *             → REJECTED   (admin 拒绝退款,Order 回退到 COMPLETED)
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;本迭代(4.6)只引入 {@code Refund} 聚合根 + 仓储 + 状态机,不动 Order 流转;
+ * Sprint 3 task 4.7 实现「创建 Refund + Order 转 REFUNDING」端点;4.8 实现 admin 同意/拒绝
+ * 端点(更新 Refund.status + Order 流转到 REFUNDED / COMPLETED)。
+ *
+ * &lt;p&gt;不允许循环:APPROVED / REJECTED 都是终态(同 Order 终态语义)。
+ */
+public sealed interface RefundStatus
+        permits RefundStatus.Requested, RefundStatus.Approved, RefundStatus.Rejected {
+
+    String code();
+
+<span class="fc" id="L25">    record Requested() implements RefundStatus { public String code() { return &quot;REQUESTED&quot;; } }</span>
+<span class="fc" id="L26">    record Approved()  implements RefundStatus { public String code() { return &quot;APPROVED&quot;; } }</span>
+<span class="fc" id="L27">    record Rejected()  implements RefundStatus { public String code() { return &quot;REJECTED&quot;; } }</span>
+
+    static RefundStatus of(String code) {
+<span class="fc bfc" id="L30" title="All 4 branches covered.">        return switch (code) {</span>
+<span class="fc" id="L31">            case &quot;REQUESTED&quot; -&gt; new Requested();</span>
+<span class="fc" id="L32">            case &quot;APPROVED&quot;  -&gt; new Approved();</span>
+<span class="fc" id="L33">            case &quot;REJECTED&quot;  -&gt; new Rejected();</span>
+<span class="fc" id="L34">            default -&gt; throw new DomainException(&quot;未知退款状态:&quot; + code);</span>
+        };
+    }
+
+    default boolean isTerminal() {
+<span class="fc bfc" id="L39" title="All 4 branches covered.">        return this instanceof Approved || this instanceof Rejected;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

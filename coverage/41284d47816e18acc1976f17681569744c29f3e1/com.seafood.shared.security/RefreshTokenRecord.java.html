@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefreshTokenRecord.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.security</a> &gt; <span class="el_source">RefreshTokenRecord.java</span></div><h1>RefreshTokenRecord.java</h1><pre class="source lang-java linenums">package com.seafood.shared.security;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.time.Instant;
+
+/**
+ * 单次使用 refresh token 的消费记录(参见 design.md §4.1,specs/auth §Token refresh)。
+ *
+ * &lt;p&gt;字段:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code jti} — refresh token 的唯一 id&lt;/li&gt;
+ *   &lt;li&gt;{@code userId} — 主体&lt;/li&gt;
+ *   &lt;li&gt;{@code familyId} — 登录族;任一 jti 被重用 → 整族撤销&lt;/li&gt;
+ *   &lt;li&gt;{@code audience} — {@code &quot;user&quot;} 或 {@code &quot;admin&quot;},防止跨域误用&lt;/li&gt;
+ *   &lt;li&gt;{@code consumed} — true 表示已使用,后续调用视为重用&lt;/li&gt;
+ *   &lt;li&gt;{@code expiresAt} — 用于后台清理&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@Document(collection = &quot;refresh_tokens&quot;)
+<span class="fc" id="L23">public class RefreshTokenRecord {</span>
+
+    @Id
+    private String jti;
+
+    @Indexed
+    private String userId;
+
+    @Indexed
+    private String familyId;
+
+    private String audience;
+    private boolean consumed;
+    private Instant expiresAt;
+
+<span class="fc" id="L38">    public String getJti() { return jti; }</span>
+<span class="fc" id="L39">    public void setJti(String jti) { this.jti = jti; }</span>
+
+<span class="nc" id="L41">    public String getUserId() { return userId; }</span>
+<span class="fc" id="L42">    public void setUserId(String userId) { this.userId = userId; }</span>
+
+<span class="fc" id="L44">    public String getFamilyId() { return familyId; }</span>
+<span class="fc" id="L45">    public void setFamilyId(String familyId) { this.familyId = familyId; }</span>
+
+<span class="fc" id="L47">    public String getAudience() { return audience; }</span>
+<span class="fc" id="L48">    public void setAudience(String audience) { this.audience = audience; }</span>
+
+<span class="fc" id="L50">    public boolean isConsumed() { return consumed; }</span>
+<span class="fc" id="L51">    public void setConsumed(boolean consumed) { this.consumed = consumed; }</span>
+
+<span class="fc" id="L53">    public Instant getExpiresAt() { return expiresAt; }</span>
+<span class="fc" id="L54">    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
