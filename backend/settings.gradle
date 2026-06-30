@@ -4,9 +4,15 @@ pluginManagement {
         mavenCentral()
         maven { url 'https://repo.spring.io/milestone' }
         maven { url 'https://repo.spring.io/snapshot' }
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://maven.aliyun.com/repository/spring' }
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        // aliyun 镜像仅本地(非 CI)启用:GitHub runner 在美国,aliyun 既慢又间歇 5xx
+        // —— PR #42 因 gradle-pitest-plugin 拉 aliyun 502 连吃 3 次 re-run。CI 走官方源
+        // (gradlePluginPortal + mavenCentral)更稳;本地中国开发机仍享 aliyun 加速。
+        // GitHub Actions 自动设 CI=true;本地无此变量。
+        if (System.getenv('CI') == null) {
+            maven { url 'https://maven.aliyun.com/repository/public' }
+            maven { url 'https://maven.aliyun.com/repository/spring' }
+            maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        }
     }
 }
 

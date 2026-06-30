@@ -10,6 +10,13 @@ on:
   pull_request:
   push:
     branches: [main, "feat/**", "fix/**"]
+  # OWASP Dependency-Check 移到 nightly(+ main push + 手动):NVD 全量扫描冷启动
+  # 30-45min,在 PR 上常顶满 60min timeout 被 cancel(见 PR #42),既挡不住合并
+  # (continue-on-error)又污染 PR check 列表。SCA 是供应链漂移监控,nightly 的时效
+  # 完全够用;真实 CVE 仍上传 SARIF 到 Code Scanning。TruffleHog(秒级)仍每 PR 跑。
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 # Sprint 2 CI 加速 (2026-06-07):新 push 立刻取消同 PR 的旧 run,避免占 runner。
 # main / feat/* / fix/* 上不取消(group key 含 ref,各分支独立)。
@@ -34,6 +41,9 @@ env:
 jobs:
   dependency-check:
     name: OWASP Dependency-Check
+    # 不在 PR 上跑(只 nightly schedule / main push / 手动 dispatch),避免 NVD 冷启动
+    # 顶满 timeout 污染 PR check 列表。
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # CI 修复 (2026-06-22):NVD API 503 是外部瞬时不可用,非代码问题。
     # continue-on-error: true 使 NVD 短暂宕机时 Security workflow 不阻塞 PR 合并。

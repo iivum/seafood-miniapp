@@ -94,11 +94,45 @@ class OpenApiContractIT {
         }
 
         String committed = Files.readString(CONTRACT);
+
+        // 自愈式漂移门:不一致时把「springdoc 实际生成的规范化 spec」+ 行级 diff 落到
+        // build/reports/openapi/(CI 以 artifact 上传)。作者无需本地 JDK25 + Docker 重生成 ——
+        // 直接下载 generated-openapi.json 覆盖 committed SoT 即可。diff 里 GEN+ = 缺的行,
+        // COM- = 多余的行,便于一眼定位 API 改了哪里。
+        if (!current.equals(committed)) {
+            writeDriftReport(current, committed);
+        }
         assertThat(current)
-                .as("OpenAPI 契约漂移:API 变了但未更新 committed spec。确认变更有意后跑 "
-                        + "`CONTRACT_UPDATE=true ./gradlew test --tests *OpenApiContractIT -PexcludeTags=` "
-                        + "重生成并提交 " + CONTRACT)
+                .as("OpenAPI 契约漂移:API 变了但未更新 committed spec。"
+                        + "① CI 下载 `openapi-contract-drift` artifact,用 generated-openapi.json 覆盖 "
+                        + CONTRACT + ";② 或本地有意变更后跑 "
+                        + "`CONTRACT_UPDATE=true ./gradlew test --tests *OpenApiContractIT -PexcludeTags=` 重生成。"
+                        + "漂移详情见 build/reports/openapi/contract-drift.txt")
                 .isEqualTo(committed);
+    }
+
+    /** 把生成 spec + 行级 diff 写到 build/reports/openapi/,供 CI artifact 下载、离线精确对齐。 */
+    private static void writeDriftReport(String current, String committed) throws Exception {
+        Path dir = Path.of("build/reports/openapi");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("generated-openapi.json"), current);
+
+        var committedLines = new java.util.HashSet<>(java.util.List.of(committed.split("\n", -1)));
+        var currentLines = new java.util.HashSet<>(java.util.List.of(current.split("\n", -1)));
+        var diff = new StringBuilder("OpenAPI 契约漂移 —— GEN+ = committed 缺的行,COM- = committed 多余的行\n\n");
+        String[] cur = current.split("\n", -1);
+        for (int i = 0; i < cur.length; i++) {
+            if (!committedLines.contains(cur[i])) {
+                diff.append("GEN+ ").append(i + 1).append(" |").append(cur[i]).append('\n');
+            }
+        }
+        String[] com = committed.split("\n", -1);
+        for (int i = 0; i < com.length; i++) {
+            if (!currentLines.contains(com[i])) {
+                diff.append("COM- ").append(i + 1).append(" |").append(com[i]).append('\n');
+            }
+        }
+        Files.writeString(dir.resolve("contract-drift.txt"), diff.toString());
     }
 
     private String fetchOpenApiJson() throws Exception {
