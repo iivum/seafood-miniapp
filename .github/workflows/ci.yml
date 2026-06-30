@@ -92,6 +92,19 @@ jobs:
         working-directory: backend
         run: ./gradlew --no-daemon --build-cache --parallel check
 
+      # 自愈式 OpenAPI 契约门:OpenApiContractIT 漂移时把 springdoc 实际生成的
+      # 规范化 spec(generated-openapi.json)+ 行级 diff(contract-drift.txt)落盘。
+      # 作者下载本 artifact、用 generated-openapi.json 覆盖 committed SoT 即修复,
+      # 无需本地 JDK25 + Docker 重生成。
+      - name: Upload OpenAPI contract drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-contract-drift
+          path: backend/build/reports/openapi/**
+          if-no-files-found: ignore
+          retention-days: 7
+
       # Sprint 3 B coverage-gate: 上传 Jacoco HTML/XML report 作为 CI artifact,
       # retention 7 days,供 PR review 查 per-file coverage(Sprint 4 D3 落 Codecov)。
       - name: Upload Jacoco coverage report

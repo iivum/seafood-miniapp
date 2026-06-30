@@ -38,9 +38,12 @@
 buildscript {
     repositories {
         mavenCentral()
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         gradlePluginPortal()
+        // aliyun 镜像仅本地(非 CI)启用 —— 详见 settings.gradle 注释(CI 上 aliyun 间歇 502)。
+        if (System.getenv('CI') == null) {
+            maven { url 'https://maven.aliyun.com/repository/public' }
+            maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        }
     }
     if (gradle.startParameter.projectProperties.containsKey('owasp')) {
         dependencies {
@@ -221,9 +224,12 @@ repositories {
     mavenCentral()
     maven { url 'https://repo.spring.io/milestone' }
     maven { url 'https://repo.spring.io/snapshot' }
-    maven { url 'https://maven.aliyun.com/repository/public' }
-    maven { url 'https://maven.aliyun.com/repository/spring' }
     gradlePluginPortal()
+    // aliyun 镜像仅本地(非 CI)启用 —— 详见 settings.gradle 注释(CI 上 aliyun 间歇 5xx)。
+    if (System.getenv('CI') == null) {
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/spring' }
+    }
 }
 
 ext {
