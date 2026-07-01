@@ -24,11 +24,13 @@
 
 ## 4. mp-04 cart
 
-- [ ] 4.1 诊断：跑 `npm run test:visual mp-04-cart` + `npm run test:geometry mp-04-cart`，记录当前状态（C5 baseline 55% RED）
-- [ ] 4.2 对照 `frontend/e2e/od-golden/mp-04-cart.png` + diff 图，列出偏离点清单
-- [ ] 4.3 写 task brief（偏离清单 + diff 图 + `frontend/pages/cart/cart.*` + mp-04 spec requirement 原文），派 subagent 修复，task reviewer 复查
-- [ ] 4.4 复验：重跑 harness，确认 ≤5%（或几何全绿）
-- [ ] 4.5 commit，更新 ledger
+- [x] 4.1 诊断：发现测试 harness 本身的 bug——`visual-diff.cjs` 的 `mp-04-cart` 条目缺 `auth:true`（geometry fixture 本来就有），导致截到登录页而非购物车，假信号。已单独修复（commit `c4e86cf`）。修复后重新诊断：几何层 4/4 GREEN（address-card/select-bar/item-rows/checkout-bar）；感知层先是拿到假信号，修完 harness 后拿到真信号——发现更严重的**生产级真 bug**：`CartService.get()` 从不返回商品名/价格/图片（`CartItem` 域对象只有 `productId/quantity/selected/addedAt`），任何用户打开购物车都是原始 ID + ¥0。已与用户确认纳入本 change 修复
+- [x] 4.2 对照 golden 发现除数据 bug 外，还缺顶部"购物车(N)"标题栏、地址卡未自动选中默认地址；划线原价/"海港直营"商家分组标签（单卖家系统概念不成立）/"常一起买"推荐区/SKU chip 按已定原则跳过
+- [x] 4.3 **两轮修复**：
+  - 第一轮（后端富化，commit `5997e88`）：`CartService` 注入 `ProductService`（仿 `BannerService` 跨模块查询先例），新增 `CartLineItemResponse` 富化 DTO，字段名对齐前端 fallback 链（`productName`/`unitPrice`/`imageUrl`），商品不存在时单行降级不 500。OpenAPI 契约同步重生成。task reviewer 独立重跑 `./gradlew check --rerun-tasks`：600/600 测试 + ArchUnit 4/4 全过，Approved
+  - 第二轮（样式 + 前端 bug，commit `fe492ec`）：新增标题栏、默认地址自动选中（真 bug：`selectedAddress` 从未自动查询过默认地址）、以及**顺带修复的重大死绑定**——`cart.wxml` 引用的 `isItemSelected(item.id)`（WXML 不支持函数调用表达式）/`onItemCheckTap`/`onSelectAllTap` 在 `cart.js` 从未定义，checkbox/全选完全无响应，"选品→结算"核心链路被卡死（2026-06-16 v2-visual-redesign 重构引入，此后从未被发现）。改绑 `item.selected` + 补齐 handler + `reconcileSelection()`（纯前端驱动，因为对应后端 PATCH 端点不存在）。task reviewer 逐行走查 `reconcileSelection` 时序正确性，确认真实无漏洞，Approved
+- [x] 4.4 复验：几何层 4/4 GREEN 不变；感知层 55%（C5 基线）→24.47%，大幅改善；剩余差距为已确认的架构性差异（真实商品图 vs OD 特定 mockup 图、划线原价/商家分组/推荐区按约定未做）
+- [x] 4.5 commit 完成（`c4e86cf`/`5997e88`/`fe492ec` + 复验截图），ledger 已更新
 
 ## 5. mp-06 order-confirm
 
@@ -83,3 +85,5 @@
 ## 遗留问题清单（本 change 范围外，供后续 change 参考）
 
 - **`POST /api/orders` 不支持显式 items 建单**（mp-03 诊断时发现，commit `c10c093`）：现在只能从用户服务端购物车建单（`OrderController#create` 无 `@RequestBody`），无法支撑 spec `mini-program/spec.md:91-107` "Direct buy from product detail" 要求的"跳过购物车、items 只含当前商品"完整语义。当前 mp-03「立即购买」是前端近似（先 addItem 合并进购物车再跳订单确认页），未做后端隔离。完全合规需要新增 `POST /api/orders` 的 items 参数支持（或新开一个端点），涉及 DDD 分层改动，建议另开 change。
+- **`CartController` 缺 `PUT`/`PATCH /cart/items/:id` 路由**（mp-04 诊断时发现，两轮 reviewer 独立核实）：只有 `GET`/`POST /items`/`DELETE /items/{id}`/`DELETE`。前端 `CartAPI.updateItem()`（数量+/-持久化）/`CartAPI.toggleItem()`（选中态持久化）对应的后端端点根本不存在——数量 +/- 按钮点击目前会打到 404（预先存在的问题，不是这几轮改动引入/加剧的）；勾选态这轮改成纯前端 `reconcileSelection()` 方案绕开（页面实例生命周期内正确，但 reLaunch/小程序被系统回收重建后会丢失、回退成后端默认全选）。完全解决需要给 `CartController` 补这两个端点，建议另开 change。
+- **`Address` 领域模型字段名与多处 wxml 引用不一致**（mp-04 复验时发现）：`backend/src/main/java/com/seafood/user/domain/Address.java` 只有 `province/city/detail` 字段，没有 `district`/`detailAddress`。但 `frontend/pages/cart/cart.wxml` 和 `frontend/pages-sub/user/address/address-list.wxml` 都在用 `{{item.district}}{{item.detailAddress}}`——渲染时这两个字段是 undefined，地址详情展示不全（能看到省市，看不到详细地址）。这是跨多个页面的既有 bug，不是这几轮改动引入的，建议另开 change 统一修正字段名对齐（前端改字段名 vs 后端加字段，哪个更合适需要单独判断）。
