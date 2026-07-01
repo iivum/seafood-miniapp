@@ -271,25 +271,6 @@
         },
         "type" : "object"
       },
-      "CartItem" : {
-        "properties" : {
-          "addedAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "productId" : {
-            "type" : "string"
-          },
-          "quantity" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "selected" : {
-            "type" : "boolean"
-          }
-        },
-        "type" : "object"
-      },
       "CartItemRequest" : {
         "properties" : {
           "productId" : {
@@ -323,11 +304,42 @@
         },
         "type" : "object"
       },
+      "CartLineItemResponse" : {
+        "properties" : {
+          "addedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "imageUrl" : {
+            "type" : "string"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "selected" : {
+            "type" : "boolean"
+          },
+          "unitPrice" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
       "CartResponse" : {
         "properties" : {
           "items" : {
             "items" : {
-              "$ref" : "#/components/schemas/CartItem"
+              "$ref" : "#/components/schemas/CartLineItemResponse"
             },
             "type" : "array"
           },
