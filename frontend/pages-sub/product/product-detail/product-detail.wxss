@@ -40,7 +40,10 @@
   justify-content: space-between;
   padding: 16rpx 24rpx 0;
   /* 顶部渐隐暗色 scrim,保证按钮在任意图片亮度下都可辨识(纯视觉legibility手法,
-     不是编造数据) */
+     不是编造数据)。35,24,20 是 --fg(#231814)分解值,tokens.wxss 未定义
+     scrim/overlay 专用 token(--shadow-* 家族透明度是给 box-shadow 用的,
+     不适合这里需要的更高不透明度),裸写 rgba 是既定接受的例外(同 mp-01
+     首页 swiper indicator-color 的既有先例),非本次改动引入新违规。 */
   background: linear-gradient(to bottom, rgba(35, 24, 20, 0.35), rgba(35, 24, 20, 0));
 }
 
@@ -57,7 +60,7 @@
   margin: 0;
   border: none;
   border-radius: var(--radius-pill, 9999px);
-  background: rgba(35, 24, 20, 0.35);
+  background: rgba(35, 24, 20, 0.35); /* --fg 分解值,同上方 scrim 注释的既定例外 */
   display: flex;
   align-items: center;
   justify-content: center;

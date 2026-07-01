@@ -49,7 +49,7 @@
           hover-class="is-clicked"
           hover-stay-time="100"
         >
-          <view class="detail-topbar__btn detail-topbar__btn--share">
+          <view class="detail-topbar__btn">
             <text class="detail-topbar__icon">⤴</text>
           </view>
         </button>
