@@ -6,8 +6,25 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
   商品行(图 + checkbox + 信息 + stepper + 删除 ×)+ 底部结算 bar(已选 N 件 · 合计 ¥xx +
   结算按钮 pill 风格)。空购物车显示 Empty OD 组件(1.7)。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+
+  mp-04 OD 对齐第二轮(brief \`.superpowers/sdd/mp-od-4-cart-styling-brief.md\`):
+  ① 新增顶部标题栏"购物车 (N)"(brief §1;navigationStyle:custom 此前从未渲染
+     替代标题栏,真实遗漏,同 mp-02 category.wxml 的 cat-topbar 模式)。不做
+     OD 图里的"编辑"批量删除模式(已有单行 × 删除达到类似效果,避免过度设计)。
+  ② 商品行 checkbox 从 \`isItemSelected(item.id)\`(WXML 不支持任意函数调用
+     当表达式,此前一直是非法写法,渲染必坏)改成直接绑 \`item.selected\`
+     (cart.js computeTotals() 统一派生写回);全选栏 \`isAllSelected\` 本身是
+     合法的 data 属性引用,此前只是 data 里缺这个字段(cart.js 已补)。
+     checkbox 点击死绑定详见 cart.js 文件头注释。
+  ③ 划线原价 / "海港直营"商家分组标题 / "常一起买"推荐区 / SKU 规格 chip
+     明确排除,不做(brief 范围边界)。
 -->
 <view class="cart-container">
+  <!-- 顶部标题栏(brief §1) -->
+  <view class="cart-topbar safe-area-top">
+    <text class="cart-topbar__title">购物车 ({{cartItems.length}})</text>
+  </view>
+
   <!-- 空购物车 -->
   <view class="cart-empty" wx:if="{{cartItems.length === 0}}">
     <shared-empty
@@ -61,8 +78,8 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
           hover-class="is-clicked"
           hover-stay-time="100"
         >
-          <view class="cart-checkbox {{isItemSelected(item.id) ? 'cart-checkbox--checked' : ''}}">
-            <text wx:if="{{isItemSelected(item.id)}}" class="cart-checkbox__icon">✓</text>
+          <view class="cart-checkbox {{item.selected ? 'cart-checkbox--checked' : ''}}">
+            <text wx:if="{{item.selected}}" class="cart-checkbox__icon">✓</text>
           </view>
         </view>
         <image

@@ -8,12 +8,34 @@
  * .cart-footer__checkout 的 box-shadow 此前裸写 #231814(违反"不裸写 hex"
  * 约束),改成 var(--shadow-*, fallback) 形式,与 mp-01/02/03(index.wxss /
  * category.wxss / product-detail.wxss)token 用法惯例对齐。
+ *
+ * 第二轮(mp-od-4-cart-styling-brief.md):新增 .cart-topbar(brief §1,与
+ * mp-02 category.wxss 的 .cat-topbar 同款圆角/间距/token 惯例)。其余圆角/
+ * 间距核对结论:.cart-item/.cart-address/.cart-bar/.cart-footer 已用
+ * var(--radius-xl, 14px)/var(--radius-pill, 9999px),与 golden 图贴近,未见
+ * 需要改动的裸写值。
  */
 
 .cart-container {
   min-height: 100vh;
   background: var(--bg, #fffbf8);
   padding-bottom: 160rpx; /* 给 sticky footer 留位置 */
+}
+
+/* ===== 顶部标题栏(brief §1;navigationStyle:custom 替代标题栏) ===== */
+
+.cart-topbar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 32rpx 20rpx;
+  background: var(--bg, #fffbf8);
+}
+
+.cart-topbar__title {
+  font-family: var(--font-display, serif);
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
 }
 
 .cart-empty {
