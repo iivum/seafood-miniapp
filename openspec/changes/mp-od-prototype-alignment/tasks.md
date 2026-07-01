@@ -1,10 +1,10 @@
-## 1. mp-01 home
+## 1. mp-01 home ✅
 
-- [ ] 1.1 诊断：跑 `npm run test:visual mp-01-home` + `npm run test:geometry mp-01-home`，记录当前感知 diff% + 几何层各项状态 + 偏离区域（C5 记录 home 几何已 GREEN，需确认感知层现状及一周内改动是否引入新偏离）
-- [ ] 1.2 对照 `frontend/e2e/od-golden/mp-01-home.png` + diff 图，列出具体偏离点清单（若几何已全绿且感知 ≤5%，此屏直接跳到 1.5 记录完成，不派 subagent）
-- [ ] 1.3 若有偏离：写 task brief（偏离清单 + diff 图路径 + `frontend/pages/index/index.*` 文件路径 + `mini-program` spec 中 mp-01 requirement 原文），按 `superpowers:subagent-driven-development` 派 implementer subagent 修复，task reviewer 复查 spec 符合度 + 代码质量
-- [ ] 1.4 复验：重跑 harness，确认感知 diff ≤5%（或几何全绿 + 感知残差记录在案）
-- [ ] 1.5 commit，更新 `.superpowers/sdd/progress.md` ledger
+- [x] 1.1 诊断：跑 `npm run test:visual mp-01-home` + `npm run test:geometry mp-01-home`，记录当前感知 diff% + 几何层各项状态 + 偏离区域。结果：感知 66.99% RED（比 C5 的 61% 还差）；几何层 4/4 GREEN（banner/category-row/section-header/grid-columns）
+- [x] 1.2 对照 golden + diff 图列偏离点：顶部定位/搜索栏整块缺失、filter chip 行整块缺失、hero banner 视觉语言完全不同（浅色小卡片 vs OD 深色沉浸大卡片带 LIVE/价格/CTA）、品类导航从圆形图片图标变成扁平文字 chip、section header 文案/查看全部链接缺失。发现现有 spec 里 mp-01 requirement 文字描述本身与 OD golden 不符（过时）
+- [x] 1.3 写 task brief（`.superpowers/sdd/mp-od-1-home-brief.md`），派 implementer subagent 修复（commit `3e47552`：新增顶部栏+搜索复用死代码、banner 前端近似深色重样式、修复分类硬编码 4→5 真实数据 bug、filter chip 行仅"全部"功能性、section header 动态文案，34 个新测试，327/327 全绿）；task reviewer 复查：spec 6/6 符合，代码质量 Approved（1 条 Important：`.home-chip` class 语义偷换影响 geometry 检查）
+- [x] 1.4 复验：控制器直接修了 reviewer 指出的 geometry selector 问题（`category-row` 改指向 `.home-category`，新增 `filter-chip-row` 检查），复验时额外发现 banner tone class 大小写不匹配的真 bug（wxml 绑定后端大写枚举 `ACCENT`/`SOFT`，CSS 写小写 `--accent`/`--soft`，导致深色样式从未生效），已修（commit `e645a8d`）。最终：几何层 5/5 GREEN；感知层 66.99%→56.26%，剩余差距逐项核对为预期内容差异（OD mockup 冻结文案/图片 vs 真实 seed 数据：banner 文案、产品图、"55 款"vs"9 款"），非结构/样式偏差
+- [x] 1.5 commit 完成（`3e47552` + `e645a8d`），ledger 见下方
 
 ## 2. mp-02 category
 
