@@ -8,11 +8,11 @@
 
 ## 2. mp-02 category
 
-- [ ] 2.1 诊断：跑 `npm run test:visual mp-02-category` + `npm run test:geometry mp-02-category`，记录当前状态（C5 baseline 66% RED，category 曾有前后端分类契约 bug 已修，需确认现状）
-- [ ] 2.2 对照 `frontend/e2e/od-golden/mp-02-category.png` + diff 图，列出偏离点清单
-- [ ] 2.3 写 task brief（偏离清单 + diff 图 + `frontend/pages/category/category.*` + mp-02 spec requirement 原文），派 subagent 修复，task reviewer 复查
-- [ ] 2.4 复验：重跑 harness，确认 ≤5%（或几何全绿）
-- [ ] 2.5 commit，更新 ledger
+- [x] 2.1 诊断：感知 66.72% RED；几何层 3/3 GREEN（sidebar/header/grid-columns）
+- [x] 2.2 对照 golden 发现：OD 原型实际是"11 类目 + Featured banner + 人气TOP6 + 本季新品"编辑推荐型页面，与现有"5 类目侧栏筛选网格"架构不同。**已与用户确认范围**：只做前端近似，保留现有 5 类目架构，不新增这 3 个板块，不扩展类目数
+- [x] 2.3 写 task brief（`.superpowers/sdd/mp-od-2-category-brief.md`），派 implementer 修复（commit `b2733f1`：新增顶部"分类"标题栏+装饰搜索按钮、侧栏从纵向堆叠改横向单行文字、修复 token 违规，顺带修 2 个真 bug——`activeCategoryId`/`selectedCategory` 死绑定 + `data-category-id`/`data-id` 不匹配导致侧栏点击失效，328/328 测试全绿）；task reviewer 复查：spec ✅ 范围收敛干净（未偷加越界板块），代码质量 Approved（0 Critical/Important，2 Minor 非阻塞），2 个顺带 bug 独立核实为真
+- [x] 2.4 复验：几何层 3/3 GREEN；感知层 66.72%→61.02%，剩余差距是架构性的（OD 有 Featured/TOP6/新品板块，按约定未做），非新 bug
+- [x] 2.5 commit 完成（`b2733f1` + 复验截图 commit），ledger 已更新
 
 ## 3. mp-03 product-detail
 
