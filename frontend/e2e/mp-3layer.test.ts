@@ -54,7 +54,11 @@ const PAGES: PageSpec[] = [
   {
     name: 'mp-01-home',
     tab: '/pages/index/index',
-    wxmlMust: [/home-banner/, /home-chips/, /今日推荐/],
+    // mp-od-prototype-alignment mp-01:文案改"今日 {N} 款推荐"(真实 totalProducts,
+    // 见 frontend/e2e/od-golden/mp-01-home.png)。outerWxml 是原始标签串,数字外
+    // 包了一层 <text class="home-section-title__count"> 做 accent 高亮,故"今日"
+    // 与"款推荐"之间允许任意字符(含标签),不再是连续四字"今日推荐"。
+    wxmlMust: [/home-banner/, /home-chips/, /今日[\s\S]*?\d+[\s\S]*?款推荐/],
     dataMust: ['products', 'categories'],
     fromBackend: { path: 'products.0', fields: ['name', 'price', 'stock', 'category', 'imageUrl'] },
   },

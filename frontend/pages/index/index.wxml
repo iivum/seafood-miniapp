@@ -1,15 +1,55 @@
 <!--
-  路线图 2.1 — mp-01 首页 OD v2 视觉重写。
-  5 分类 chips(chip pill 风格 + accent active) + 顶部 banner(swiper indicator 蓝调) +
-  「今日推荐」瀑布(2 列 grid,ProductCard OD 1.9 组件)+ 加载/错误/空状态。
+  mp-01 首页 —— 对齐 OD 原型(openspec change mp-od-prototype-alignment)。
+  唯一真值 = frontend/e2e/od-golden/mp-01-home.png(非本文件早期注释描述的旧结构)。
+  6 区块:① 定位 + 搜索(复用已有 onSearchInput/onSearch,首次接入 UI)
+         ② 深色沉浸 hero banner(前端近似,不编造后端没有的 LIVE/价格/CTA 字段)
+         ③ 5 分类圆形导航(真实可筛选类目,非 OD 营销文案标签)
+         ④ filter chip 行(只有"全部"功能性,其余 3 项占位 + toast)
+         ⑤ 动态"今日 {N} 款推荐" + 查看全部
+         ⑥ 2 列商品 grid(结构基本不变)
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
 -->
 <view class="home-container">
-  <!-- Banner 轮播(蓝调 indicator) -->
+  <!-- ① 定位 + 通知 + 搜索(brief §1) -->
+  <view class="home-header safe-area-top">
+    <view class="home-location-row">
+      <view class="home-location">
+        <text class="home-location__icon">📍</text>
+        <text class="home-location__text">厦门·高崎码头</text>
+      </view>
+      <view
+        class="home-bell"
+        bindtap="onBellTap"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text class="home-bell__icon">🔔</text>
+      </view>
+    </view>
+    <view class="home-search">
+      <text class="home-search__icon">🔍</text>
+      <input
+        class="home-search__input"
+        placeholder="试试「波龙」「黄花鱼」"
+        value="{{searchKeyword}}"
+        confirm-type="search"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+      />
+      <text
+        class="home-search__btn"
+        bindtap="onSearch"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >搜索</text>
+    </view>
+  </view>
+
+  <!-- ② Hero banner(brief §2;深色沉浸卡片 —— 只用 title/subtitle/emoji 现有字段近似) -->
   <swiper
     class="home-banner"
     indicator-dots="true"
-    indicator-color="rgba(200, 195, 190, 0.4)"
+    indicator-color="rgba(255, 255, 255, 0.4)"
     indicator-active-color="var(--accent, #db633c)"
     autoplay="true"
     interval="3500"
@@ -27,27 +67,73 @@
     </swiper-item>
   </swiper>
 
-  <!-- 5 分类 chips(横向 scroll,active 状态 accent) -->
-  <scroll-view scroll-x="true" class="home-chips" enhanced="true" show-scrollbar="{{false}}">
+  <!-- ③ 5 分类圆形导航(brief §3;先修 4→5 类目数据 bug,真实类目名,非 OD 营销文案) -->
+  <scroll-view scroll-x="true" class="home-category-row" enhanced="true" show-scrollbar="{{false}}">
     <view
       wx:for="{{categories}}"
       wx:key="id"
-      class="home-chip {{activeCategory === item.id ? 'home-chip--active' : ''}}"
+      class="home-category"
       bindtap="onCategoryTap"
       data-category="{{item.id}}"
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="home-chip__emoji">{{item.icon}}</text>
-      <text class="home-chip__label">{{item.name}}</text>
+      <view class="home-category__icon">
+        <text>{{item.icon}}</text>
+      </view>
+      <text class="home-category__label">{{item.name}}</text>
     </view>
   </scroll-view>
 
-  <!-- 今日推荐 section header(衬线 display) -->
+  <!-- ⑤ 今日推荐 section header(brief §5;真实 totalProducts,非硬编码文案) -->
   <view class="home-section-header">
-    <text class="home-section-title">今日推荐</text>
-    <text class="home-section-subtitle">每日 10 款 · 限时优惠</text>
+    <text class="home-section-title">今日 <text class="home-section-title__count">{{totalProducts}}</text> 款推荐</text>
+    <text
+      class="home-section-link"
+      bindtap="onClearFilter"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >查看全部→</text>
   </view>
+
+  <!-- ④ Filter chip 行(brief §4;只有"全部"功能性,其余 3 项视觉占位 + toast) -->
+  <scroll-view scroll-x="true" class="home-chips" enhanced="true" show-scrollbar="{{false}}">
+    <view
+      class="home-chip {{!activeCategory ? 'home-chip--active' : ''}}"
+      bindtap="onClearFilter"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="home-chip__label">全部</text>
+    </view>
+    <view
+      class="home-chip"
+      bindtap="onFilterPlaceholderTap"
+      data-label="捕捞当日"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="home-chip__label">捕捞当日</text>
+    </view>
+    <view
+      class="home-chip"
+      bindtap="onFilterPlaceholderTap"
+      data-label="限量拾"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="home-chip__label">限量拾</text>
+    </view>
+    <view
+      class="home-chip"
+      bindtap="onFilterPlaceholderTap"
+      data-label="满199减30"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="home-chip__label">满199减30</text>
+    </view>
+  </scroll-view>
 
   <!-- 加载中(首屏,无 products) -->
   <view class="home-state" wx:if="{{isLoading && products.length === 0}}">
