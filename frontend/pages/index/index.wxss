@@ -104,12 +104,11 @@
   margin: 0 24rpx;
   box-sizing: border-box;
   box-shadow: 0 4rpx 16rpx var(--shadow-md, rgba(35, 24, 20, 0.07));
-}
-
-/* OD 只展示一种深色沉浸风格;accent/soft 两个 tone 都收敛到 accent-deep,
-   不编造后端没有的字段(brief §2 —— 只做前端近似,不改 Banner 领域模型)。 */
-.home-banner__item--accent,
-.home-banner__item--soft {
+  /* OD 只展示一种深色沉浸风格;后端 tone 枚举(ACCENT/SOFT)都收敛到同一
+     accent-deep 底色,不编造后端没有的字段(brief §2 —— 只做前端近似,
+     不改 Banner 领域模型)。放基础 class 上而非 --accent/--soft 修饰符,
+     避免与 wxml `home-banner__item--{{item.tone}}` 绑定的大写枚举值
+     (ACCENT/SOFT)大小写不匹配、样式从未生效的问题(诊断复验时发现)。 */
   background: var(--accent-deep, #64230d);
   color: var(--surface, #fff);
 }
