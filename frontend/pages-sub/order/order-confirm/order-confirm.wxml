@@ -2,8 +2,33 @@
   路线图 3.14 / 3.17 / 3.18 — mp-06 订单确认 OD v2 视觉 + 金额明细实时算 + 备注 + 配送方式。
   5 段:地址 / 商品清单 / 配送方式 / 备注 / 金额明细 + 底部结算 sticky。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+
+  mp-06 OD 原型对齐(openspec change mp-od-prototype-alignment,brief
+  `.superpowers/sdd/mp-od-5-order-confirm-brief.md`):
+  ① 新增顶部标题栏"订单确认"+ 返回按钮(brief §1;navigationStyle:custom
+     替代原生导航栏此前从未渲染标题栏,真实遗漏,同 order-detail.wxml 的
+     topbar 模式)。
+  ② "共 N 件"底部真实件数统计(brief §3,itemCount = 商品种类数,order-confirm.js
+     recalcAmounts 统一算)加到金额明细卡标题行,复用 card-title 既有 flex
+     space-between 布局(同 remark-card 计数器惯例),不新增布局类。
+  ③ 预计送达卡片/"顺丰冷链可达"标签/商家分组"海港直营"/SKU chip 明确排除,
+     不做(brief 范围边界:无后端数据支撑或概念不成立)。
 -->
 <view class="order-confirm-container">
+  <!-- 0. 顶部标题栏(brief §1) -->
+  <view class="confirm-topbar safe-area-top">
+    <view
+      class="confirm-topbar__back"
+      bindtap="goBack"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="confirm-topbar__back-icon">‹</text>
+    </view>
+    <text class="confirm-topbar__title">订单确认</text>
+    <view class="confirm-topbar__placeholder"></view>
+  </view>
+
   <!-- 1. 地址选择器 -->
   <navigator
     class="address-card"
@@ -104,9 +129,12 @@
     />
   </view>
 
-  <!-- 5. 金额明细(3.17 4 项联动实时算) -->
+  <!-- 5. 金额明细(3.17 4 项联动实时算 + brief §3 "共 N 件" 真实件数) -->
   <view class="summary-card">
-    <view class="card-title">金额明细</view>
+    <view class="card-title">
+      <text>金额明细</text>
+      <text class="summary-count">共 {{itemCount}} 件</text>
+    </view>
     <view class="summary-row">
       <text class="summary-row__label">商品总额</text>
       <text class="summary-row__value">¥ {{subtotal}}</text>

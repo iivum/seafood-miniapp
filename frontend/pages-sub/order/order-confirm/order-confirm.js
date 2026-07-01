@@ -4,10 +4,26 @@
  * 3.17:4 金额项联动实时算(商品总额 = Σ item.price × item.quantity;
  *       运费 = 配送方式映射;优惠 = 满 100 减 10 占位;实付 = 总额 + 运费 - 优惠)
  * 3.18:配送方式 3 选(免运费 / 顺丰 12 / 中通 8)+ 备注 max 50 字
+ *
+ * mp-06 OD 原型对齐(openspec change mp-od-prototype-alignment,brief
+ * `.superpowers/sdd/mp-od-5-order-confirm-brief.md`):
+ *  ① 金额浮点数精度真 bug(brief 优先级最高,当前生产环境已存在,不是这次
+ *     诊断引入的):recalcAmounts 全程裸浮点数运算,没有在任何环节四舍五入,
+ *     底部结算金额会显示"¥404.94000000000005"这种精度尾巴直接漏到用户界面
+ *     (145.11×2 + 124.72 满 100 减 10 即复现,见 __tests__)。改成算完
+ *     subtotal/discount/orderTotal 后统一用 roundYuan() 规整到 2 位小数再
+ *     setData,不把裸浮点数塞进 data 让 wxml 插值时才暴露精度问题。
+ *  ② 顶部标题栏(brief §1,新增)+ 默认地址自动选中(brief §2,同 mp-04
+ *     cart.js autoSelectDefaultAddress 同类问题第二次出现,按 brief 要求
+ *     各自维护一份,不跨文件抽公共函数)+ "共 N 件"底部真实件数统计(brief §3,
+ *     itemCount = 商品种类数 = cartItems.length,不是数量总和)。
+ *  ③ 预计送达卡片/"顺丰冷链可达"标签/商家分组"海港直营"/SKU chip 明确排除,
+ *     不做(brief 范围边界:无后端数据支撑或概念不成立)。
  */
 const { orderStore } = require('../../../src/features/order/store');
 const { cartStore } = require('../../../src/features/cart/store');
 const { paymentModule } = require('../../../src/modules/payment/payment.js');
+const { request } = require('../../../utils/request.js');
 
 // 3.17 配送方式 → 运费映射
 const SHIPPING_FEE_MAP = {
@@ -19,6 +35,11 @@ const SHIPPING_FEE_MAP = {
 // 3.17 优惠规则(占位,Sprint 3 接真实优惠):满 100 减 10
 function calcDiscount(subtotal) {
   return subtotal >= 100 ? 10 : 0;
+}
+
+// mp-06 金额精度修复:统一在写入 data 前 round 到 2 位小数(brief §"优先修")。
+function roundYuan(amount) {
+  return Math.round(amount * 100) / 100;
 }
 
 Page({
@@ -35,6 +56,8 @@ Page({
     subtotal: 0,
     discount: 0,
     orderTotal: 0,
+    // mp-06 brief §3:底部"共 N 件"真实商品种类数统计
+    itemCount: 0,
     isCreating: false,
     isPaying: false,
     errorMessage: '',
@@ -45,7 +68,37 @@ Page({
       this.loadExistingOrder(options.id);
     } else {
       this.refreshCartPreview();
+      // brief §2 真 bug:仅新下单(购物车结算)流程需要自动选默认地址;
+      // "查看已下单订单"(options.id 存在)应展示订单实际收货地址,不应用
+      // 任意默认地址覆盖,故不在那个分支调用。
+      this.autoSelectDefaultAddress();
     }
+  },
+
+  /**
+   * mp-06 真 bug 修复(brief §2,同 mp-04 cart.js autoSelectDefaultAddress
+   * 同类问题第二次出现)。此前 selectedAddress 初始值一直是 null,且首次
+   * 进入本页时没有任何地方自动查询并选中用户的默认地址 —— 唯一赋值路径只有
+   * 用户手动跳转地址选择页(该回传路径见 onShow,已正常工作,未改动)。
+   * 复用 address-list.js / cart.js 同款 self-scoped `/addresses` 端点,
+   * 找 isDefault === true 的一条自动 setData。用户没有任何地址 / 没有默认
+   * 地址时保持 null,维持既有空态,不是错误。按 brief 要求各自维护一份
+   * 实现,不跨文件抽公共函数(YAGNI,两处触发时机/生命周期钩子不同)。
+   */
+  autoSelectDefaultAddress: function () {
+    if (this.data.selectedAddress) return;
+    request({ url: '/addresses', needAuth: true })
+      .then((addresses) => {
+        if (this.data.selectedAddress) return; // 期间用户已手动选择,不覆盖
+        const list = Array.isArray(addresses) ? addresses : [];
+        const defaultAddress = list.find((a) => a.isDefault === true);
+        if (defaultAddress) {
+          this.setData({ selectedAddress: defaultAddress });
+        }
+      })
+      .catch((err) => {
+        console.error('查询默认地址失败:', err);
+      });
   },
 
   onShow: function () {
@@ -103,16 +156,22 @@ Page({
   },
 
   /**
-   * 3.17 实时算 4 金额项(总额 / 运费 / 优惠 / 实付)。
+   * 3.17 实时算 4 金额项(总额 / 运费 / 优惠 / 实付)+ mp-06 brief §3 商品件数。
    * 调用时机:refreshCartPreview + onSelectShipping + onRemarkInput(实际不触发金额变,保留)。
+   *
+   * mp-06 金额精度修复(brief 优先级最高的真 bug):subtotal/discount/orderTotal
+   * 全程裸浮点数运算(如 145.11×2 + 124.72 = 414.94000000000005),此前直接
+   * setData 进去,wxml 插值时把精度尾巴漏给用户("¥404.94000000000005")。
+   * 现在算完每一项后立刻用 roundYuan() 规整到 2 位小数再写入 data。
    */
   recalcAmounts: function () {
     const items = this.data.cartItems || [];
-    const subtotal = items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0);
+    const subtotal = roundYuan(items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 0), 0));
     const shippingFee = SHIPPING_FEE_MAP[this.data.shippingMethod] ?? 0;
-    const discount = calcDiscount(subtotal);
-    const orderTotal = Math.max(0, subtotal + shippingFee - discount);
-    this.setData({ subtotal, shippingFee, discount, orderTotal });
+    const discount = roundYuan(calcDiscount(subtotal));
+    const orderTotal = roundYuan(Math.max(0, subtotal + shippingFee - discount));
+    const itemCount = items.length;
+    this.setData({ subtotal, shippingFee, discount, orderTotal, itemCount });
   },
 
   selectAddress: function () {
