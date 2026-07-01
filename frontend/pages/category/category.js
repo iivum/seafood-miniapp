@@ -189,5 +189,13 @@ Page({
       isEmpty: false,
       isError: false
     });
+  },
+
+  /**
+   * 顶部标题栏搜索按钮(mp-02 OD 对齐)。纯装饰:跨页面搜索状态管理超出这次
+   * 前端近似范围,不伪造真实搜索交互 —— 与首页 onBellTap 处理方式一致。
+   */
+  onSearchTap: function () {
+    wx.showToast({ title: '功能开发中', icon: 'none' });
   }
 });

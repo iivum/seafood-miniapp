@@ -138,102 +138,121 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
 
 exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/category/category.wxml 快照 1`] = `
 "<!--
-  路线图 2.2 — mp-02 分类列表 OD v2 视觉重写。
-  双栏布局:左侧 sidebar(分类列表,active 状态 accent + 内描边) + 右侧 2 列商品 grid
-  (复用 2.1 网格 + ProductCard 1.9 OD 风格)。顶部 sticky 分类名(衬线 display)。
+  mp-02 分类页 —— 对齐 OD 原型(openspec change mp-od-prototype-alignment)。
+  范围已确认:保留现有"5 类目侧栏 + 商品网格筛选"信息架构,不扩展到 OD 的
+  11 类目 / Featured banner / 人气榜 / 新品榜(那些需要当前领域模型没有的
+  后端聚合能力,超出这次前端近似范围)。只对齐两处纯视觉细节:
+    ① 顶部标题栏(category.json 的 navigationStyle:custom 禁用了原生导航栏,
+       但此前从未渲染替代标题栏 —— 真实遗漏 bug,非样式改动)
+    ② 侧栏行从"icon 在上文字在下"纵向堆叠改成 OD 风格横向单行文字列表
+  active 态左侧 accent 竖条(::before)沿用既有实现,未改动。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
 -->
 <view class="cat-container">
-  <!-- 左侧分类 sidebar -->
-  <scroll-view class="cat-sidebar" scroll-y="true" enhanced="true" show-scrollbar="{{false}}">
+  <!-- 顶部标题栏(brief §1;搜索按钮纯装饰,参考 mp-01 onBellTap 处理方式) -->
+  <view class="cat-topbar safe-area-top">
+    <text class="cat-topbar__title">分类</text>
     <view
-      wx:for="{{categories}}"
-      wx:key="id"
-      class="cat-sidebar__item {{activeCategoryId === item.id ? 'cat-sidebar__item--active' : ''}}"
-      bindtap="onCategoryTap"
-      data-category-id="{{item.id}}"
+      class="cat-topbar__search"
+      bindtap="onSearchTap"
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="cat-sidebar__emoji">{{item.icon}}</text>
-      <text class="cat-sidebar__name">{{item.name}}</text>
+      <text class="cat-topbar__search-icon">🔍</text>
     </view>
-  </scroll-view>
+  </view>
 
-  <!-- 右侧商品区 -->
-  <view class="cat-main">
-    <!-- sticky 分类名头 -->
-    <view class="cat-header">
-      <text class="cat-header__title">{{selectedCategoryName}}</text>
-      <text class="cat-header__subtitle">{{selectedCategoryDesc || '每日新鲜直送'}}</text>
-    </view>
-
-    <!-- 加载中 -->
-    <view class="cat-state" wx:if="{{isLoading && products.length === 0}}">
-      <shared-loading message="加载中..."></shared-loading>
-    </view>
-
-    <!-- 错误状态 -->
-    <view class="cat-state" wx:elif="{{isError}}">
-      <shared-empty
-        icon="⚠️"
-        message="{{errorMessage || '加载失败'}}"
-        retry-text="重新加载"
-        bind:retry="onRetry"
-      ></shared-empty>
-    </view>
-
-    <!-- 空状态 -->
-    <view class="cat-state" wx:elif="{{isEmpty}}">
-      <shared-empty
-        icon="🦐"
-        message="该分类暂无商品"
-      ></shared-empty>
-    </view>
-
-    <!-- 2 列商品 grid -->
-    <view class="cat-grid" wx:else>
+  <view class="cat-body">
+    <!-- 左侧分类 sidebar -->
+    <scroll-view class="cat-sidebar" scroll-y="true" enhanced="true" show-scrollbar="{{false}}">
       <view
-        wx:for="{{products}}"
+        wx:for="{{categories}}"
         wx:key="id"
-        class="cat-grid__cell"
+        class="cat-sidebar__item {{selectedCategory === item.id ? 'cat-sidebar__item--active' : ''}}"
+        bindtap="onCategoryTap"
+        data-id="{{item.id}}"
+        hover-class="is-clicked"
+        hover-stay-time="100"
       >
-        <navigator
-          class="cat-grid__nav"
-          url="/pages-sub/product/product-detail/product-detail?id={{item.id}}"
-          open-type="navigate"
+        <text class="cat-sidebar__name">{{item.name}}</text>
+      </view>
+    </scroll-view>
+
+    <!-- 右侧商品区 -->
+    <view class="cat-main">
+      <!-- sticky 分类名头 -->
+      <view class="cat-header">
+        <text class="cat-header__title">{{selectedCategoryName}}</text>
+        <text class="cat-header__subtitle">{{selectedCategoryDesc || '每日新鲜直送'}}</text>
+      </view>
+
+      <!-- 加载中 -->
+      <view class="cat-state" wx:if="{{isLoading && products.length === 0}}">
+        <shared-loading message="加载中..."></shared-loading>
+      </view>
+
+      <!-- 错误状态 -->
+      <view class="cat-state" wx:elif="{{isError}}">
+        <shared-empty
+          icon="⚠️"
+          message="{{errorMessage || '加载失败'}}"
+          retry-text="重新加载"
+          bind:retry="onRetry"
+        ></shared-empty>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="cat-state" wx:elif="{{isEmpty}}">
+        <shared-empty
+          icon="🦐"
+          message="该分类暂无商品"
+        ></shared-empty>
+      </view>
+
+      <!-- 2 列商品 grid -->
+      <view class="cat-grid" wx:else>
+        <view
+          wx:for="{{products}}"
+          wx:key="id"
+          class="cat-grid__cell"
         >
-          <image
-            class="cat-grid__img"
-            src="{{item.imageUrl}}"
-            mode="aspectFill"
-            lazy-load="true"
-          ></image>
-          <view class="cat-grid__body">
-            <text class="cat-grid__name">{{item.name}}</text>
-            <view class="cat-grid__foot">
-              <text class="cat-grid__price">¥ {{item.price}}</text>
-              <view
-                class="cat-grid__add"
-                catchtap="addToCart"
-                data-product="{{item}}"
-                hover-class="cat-grid__add--hover"
-                hover-stay-time="100"
-              >
-                <text>+</text>
+          <navigator
+            class="cat-grid__nav"
+            url="/pages-sub/product/product-detail/product-detail?id={{item.id}}"
+            open-type="navigate"
+          >
+            <image
+              class="cat-grid__img"
+              src="{{item.imageUrl}}"
+              mode="aspectFill"
+              lazy-load="true"
+            ></image>
+            <view class="cat-grid__body">
+              <text class="cat-grid__name">{{item.name}}</text>
+              <view class="cat-grid__foot">
+                <text class="cat-grid__price">¥ {{item.price}}</text>
+                <view
+                  class="cat-grid__add"
+                  catchtap="addToCart"
+                  data-product="{{item}}"
+                  hover-class="cat-grid__add--hover"
+                  hover-stay-time="100"
+                >
+                  <text>+</text>
+                </view>
               </view>
             </view>
-          </view>
-        </navigator>
+          </navigator>
+        </view>
       </view>
-    </view>
 
-    <!-- 加载更多 / 没有更多 -->
-    <view class="cat-loadmore" wx:if="{{isLoadingMore}}">
-      <shared-loading message="加载更多..." variant="inline"></shared-loading>
-    </view>
-    <view class="cat-nomore" wx:elif="{{!hasMore && products.length > 0}}">
-      <text>— 没有更多了 —</text>
+      <!-- 加载更多 / 没有更多 -->
+      <view class="cat-loadmore" wx:if="{{isLoadingMore}}">
+        <shared-loading message="加载更多..." variant="inline"></shared-loading>
+      </view>
+      <view class="cat-nomore" wx:elif="{{!hasMore && products.length > 0}}">
+        <text>— 没有更多了 —</text>
+      </view>
     </view>
   </view>
 </view>"

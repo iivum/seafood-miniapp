@@ -1,16 +1,56 @@
 /*
- * 路线图 2.2 — mp-02 分类列表 OD v2 视觉。
- * 双栏:左 sidebar + 右 grid(同 2.1 网格样式)。
+ * mp-02 分类页 —— 对齐 OD 原型(openspec change mp-od-prototype-alignment)。
+ * 顶部标题栏(新增,brief §1)+ 双栏 body(左 sidebar 单行文字列表 + 右 grid)。
  * tokens 单一源 docs/redesign/tokens.json。
  */
 
 .cat-container {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: var(--bg, #fffbf8);
 }
 
-/* ===== 左侧 sidebar ===== */
+/* ===== 顶部标题栏(brief §1;navigationStyle:custom 替代标题栏) ===== */
+
+.cat-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 32rpx 20rpx;
+  background: var(--bg, #fffbf8);
+}
+
+.cat-topbar__title {
+  font-family: var(--font-display, serif);
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
+}
+
+.cat-topbar__search {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--surface, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2rpx 8rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
+}
+
+.cat-topbar__search-icon {
+  font-size: 30rpx;
+}
+
+/* ===== 双栏 body(sidebar + main) ===== */
+
+.cat-body {
+  display: flex;
+  flex: 1;
+}
+
+/* ===== 左侧 sidebar(OD 风格:纯文字单行列表,无 icon) ===== */
 
 .cat-sidebar {
   width: 200rpx;
@@ -21,11 +61,9 @@
 
 .cat-sidebar__item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6rpx;
-  padding: 28rpx 12rpx;
-  font-size: 26rpx;
+  padding: 26rpx 24rpx 26rpx 32rpx;
+  font-size: 27rpx;
   color: var(--muted, #5a5451);
   position: relative;
   transition: background 0.18s ease, color 0.18s ease;
@@ -48,13 +86,11 @@
   border-radius: 0 6rpx 6rpx 0;
 }
 
-.cat-sidebar__emoji {
-  font-size: 40rpx;
-}
-
 .cat-sidebar__name {
-  font-size: 24rpx;
-  text-align: center;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ===== 右侧主区 ===== */
@@ -111,13 +147,13 @@
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
   overflow: hidden;
-  box-shadow: 0 2rpx 10rpx #231814;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .cat-grid__cell:active {
   transform: scale(0.99);
-  box-shadow: 0 1rpx 4rpx #231814;
+  box-shadow: 0 1rpx 4rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .cat-grid__nav {
@@ -179,7 +215,7 @@
   font-size: 32rpx;
   line-height: 1;
   font-weight: 300;
-  box-shadow: 0 4rpx 10rpx #231814;
+  box-shadow: 0 4rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .cat-grid__add--hover {

@@ -85,6 +85,7 @@ describe('category', () => {
       addToCart: pageConfig.addToCart,
       onRetry: pageConfig.onRetry,
       onBackToCategories: pageConfig.onBackToCategories,
+      onSearchTap: pageConfig.onSearchTap,
     };
     ctx.setData = jest.fn(function (patch) { Object.assign(this.data, patch); }.bind(ctx));
   });
@@ -193,5 +194,14 @@ describe('category', () => {
     ctx.onBackToCategories();
     expect(ctx.data.selectedCategory).toBeNull();
     expect(ctx.data.products).toEqual([]);
+  });
+
+  /**
+   * mp-02 顶部标题栏搜索按钮(OD 对齐,brief §1)—— 纯装饰,不伪造跨页搜索状态管理。
+   * 与首页 onBellTap 处理方式一致:toast "功能开发中"。
+   */
+  it('onSearchTap 提示功能开发中(装饰性,不实现真实搜索交互)', () => {
+    ctx.onSearchTap();
+    expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '功能开发中', icon: 'none' }));
   });
 });
