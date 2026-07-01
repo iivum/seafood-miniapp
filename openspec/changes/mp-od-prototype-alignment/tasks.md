@@ -16,11 +16,11 @@
 
 ## 3. mp-03 product-detail
 
-- [ ] 3.1 诊断：跑 `npm run test:visual mp-03-product-detail` + `npm run test:geometry mp-03-product-detail`，记录当前状态（C5 baseline 67% RED，最差的数据屏之一）
-- [ ] 3.2 对照 `frontend/e2e/od-golden/mp-03-product-detail.png` + diff 图，列出偏离点清单
-- [ ] 3.3 写 task brief（偏离清单 + diff 图 + `frontend/pages-sub/product/product-detail/*` + mp-03 spec requirement 原文），派 subagent 修复，task reviewer 复查
-- [ ] 3.4 复验：重跑 harness，确认 ≤5%（或几何全绿）
-- [ ] 3.5 commit，更新 ledger
+- [x] 3.1 诊断：感知 63.22% RED；几何层 4/4 GREEN（product-image/product-name/product-price/footer-bar）
+- [x] 3.2 对照 golden 发现：原价划线、物流/质量标签行（捕捞当日/顺丰冷链/死蟹包赔）、统计行（规格/冰鲜链/评价数）后端 `Product` 无对应字段，按已定原则不编造、跳过；确认单图 `<image>`（非 swiper）是对的，spec 里"3-5 张轮播"是过时描述
+- [x] 3.3 写 task brief（`.superpowers/sdd/mp-od-3-product-detail-brief.md`），派 implementer 修复（commit `c10c093`：新增悬浮顶栏返回/收藏/分享、token 核对）；implementer 中途发现并经确认后顺带修复 2 个范围外真 bug——① 数量 stepper 死绑定（`onIncrement`/`onDecrement` 从未定义）② `onBuyNow` 重复定义导致违反已有 spec requirement「Direct buy from product detail」（91-107 行），已恢复正确跳转目标（mp-06 而非购物车）。**已知缺口**：完全满足该 spec 的"mp-06 不碰购物车+items 只显示这一个商品"仍需要后端 `POST /api/orders` 支持显式 items 字段（当前只能从用户购物车建单），超出前端范围未做，记入本 change 遗留清单（见文末）。360/360 测试全绿；task reviewer 复查：spec ✅ 范围收敛干净（grep 确认零处碰 backend/），代码质量 Approved（0 Critical/Important，3 Minor：死 class、scrim rgba 无 token 注释、报告标题措辞夸大）
+- [x] 3.4 复验：控制器清理 2 处 Minor（删死 class + 补注释说明既定例外），几何层 4/4 GREEN 不变；感知层 63.22%→62.72%，残差为已确认的架构性差异
+- [x] 3.5 commit 完成（`c10c093` + `d65117b`），ledger 已更新
 
 ## 4. mp-04 cart
 
@@ -79,3 +79,7 @@
 - [ ] 10.3 检查 `CLAUDE.md`「视觉验证」章节是否需要同步更新（如 9 屏 GREEN 状态、验证方式变化）
 - [ ] 10.4 用 `superpowers:requesting-code-review` 走一次全量 diff 的最终 review（既有分散在各屏 commit 的 task review 之外，做一次跨屏一致性检查：token 用法、组件复用、命名风格）
 - [ ] 10.5 全部完成后 `/opsx:archive mp-od-prototype-alignment`
+
+## 遗留问题清单（本 change 范围外，供后续 change 参考）
+
+- **`POST /api/orders` 不支持显式 items 建单**（mp-03 诊断时发现，commit `c10c093`）：现在只能从用户服务端购物车建单（`OrderController#create` 无 `@RequestBody`），无法支撑 spec `mini-program/spec.md:91-107` "Direct buy from product detail" 要求的"跳过购物车、items 只含当前商品"完整语义。当前 mp-03「立即购买」是前端近似（先 addItem 合并进购物车再跳订单确认页），未做后端隔离。完全合规需要新增 `POST /api/orders` 的 items 参数支持（或新开一个端点），涉及 DDD 分层改动，建议另开 change。
