@@ -609,15 +609,58 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/pr
   衬线 36rpx)+ 数量 stepper(− / 数字 / + 圆形)+ 推荐商品横向 scroll + 底部 sticky
   「加入购物车」主按钮(沿用 1.6 shared-button primary 风格)。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+
+  mp-03 OD 原型对齐(openspec change mp-od-prototype-alignment,brief
+  \`.superpowers/sdd/mp-od-3-product-detail-brief.md\`):
+    ① 悬浮顶栏(新增)—— 原生导航栏是不透明实体条,不会悬浮在图片上,与 OD
+       图不符;product-detail.json 加 navigationStyle:custom 后在这里补一个
+       绝对定位悬浮在大图顶部的操作栏:返回(真实 navigateBack)/收藏(装饰,
+       与下面 detail-footer 里已有的 onToggleFavorite 是独立入口)/分享
+       (小程序原生 open-type="share",触发 onShareAppMessage)。
+    ② OD 图里还有原价划线、"捕捞当日/顺丰冷链/死蟹包赔"标签行、"规格/冰鲜链/
+       评价"统计行 —— 后端 Product 领域模型没有对应字段,不编造,详见 brief。
 -->
 <view class="detail-container">
-  <!-- 大图(无圆角顶,通顶) -->
-  <image
-    class="detail-image"
-    src="{{product.imageUrl}}"
-    mode="aspectFill"
-    lazy-load="{{true}}"
-  ></image>
+  <!-- 大图(无圆角顶,通顶)+ 悬浮顶栏(brief §1) -->
+  <view class="detail-hero">
+    <image
+      class="detail-image"
+      src="{{product.imageUrl}}"
+      mode="aspectFill"
+      lazy-load="{{true}}"
+    ></image>
+
+    <view class="detail-topbar safe-area-top">
+      <view
+        class="detail-topbar__btn"
+        bindtap="onBack"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text class="detail-topbar__icon">‹</text>
+      </view>
+      <view class="detail-topbar__actions">
+        <view
+          class="detail-topbar__btn"
+          bindtap="onFavoriteTap"
+          hover-class="is-clicked"
+          hover-stay-time="100"
+        >
+          <text class="detail-topbar__icon">♡</text>
+        </view>
+        <button
+          class="detail-topbar__btn-reset"
+          open-type="share"
+          hover-class="is-clicked"
+          hover-stay-time="100"
+        >
+          <view class="detail-topbar__btn detail-topbar__btn--share">
+            <text class="detail-topbar__icon">⤴</text>
+          </view>
+        </button>
+      </view>
+    </view>
+  </view>
 
   <!-- 商品信息卡片(上角 radius-xl 与大图无连接 — 中间留 gap 模拟 separation) -->
   <view class="detail-info">
