@@ -47,20 +47,8 @@
 .card { margin: 24rpx 32rpx 0; background: var(--surface, #ffffff); border: 1rpx solid var(--border, #e6e0dd); border-radius: 20rpx; padding: 32rpx; }
 .card-title { font-size: 24rpx; font-weight: 600; color: var(--muted, #6b615d); margin-bottom: 16rpx; letter-spacing: 0.1em; text-transform: uppercase; }
 
-.timeline { padding: 8rpx 0; }
-.tl-node { display: flex; gap: 24rpx; padding: 16rpx 0; }
-.tl-node .dot {
-  width: 16rpx; height: 16rpx; border-radius: 50%;
-  background: var(--border, #e6e0dd); margin-top: 12rpx; flex-shrink: 0;
-}
-.tl-node--done .dot { background: var(--success, #318f5a); }
-.tl-node--current .dot { background: var(--success, #318f5a); box-shadow: 0 0 0 8rpx var(--success-soft, #d5f9e0); }
-.tl-node .content { flex: 1; }
-.tl-node .row1 { display: flex; justify-content: space-between; margin-bottom: 4rpx; }
-.tl-node .label { font-size: 28rpx; font-weight: 500; }
-.tl-node--future .label { color: var(--muted, #6b615d); }
-.tl-node .time { font-size: 22rpx; color: var(--muted, #6b615d); }
-.tl-node .desc { font-size: 24rpx; color: var(--muted, #6b615d); }
+/* mp-09 接线 order-tracking-timeline 组件后,旧 .timeline/.tl-node 硬编码样式已不再使用
+   (组件自带 index.wxss,同 order-action-row 惯例——不在宿主页面重复定义)。 */
 
 .addr-card .row1 { display: flex; gap: 16rpx; margin-bottom: 12rpx; }
 .addr-card .nm { font-size: 30rpx; font-weight: 600; }
@@ -90,10 +78,5 @@
   background: var(--surface, #ffffff);
   border-top: 1rpx solid var(--border, #e6e0dd);
 }
-.bottom-bar .act {
-  flex: 1; height: 80rpx; border-radius: 16rpx; font-size: 28rpx;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--bg, #f5efe8); color: var(--fg, #231814);
-  border: 1rpx solid var(--border, #e6e0dd);
-}
-.bottom-bar .act.primary { background: var(--accent, #db633c); color: var(--shell, #ffffff); border: 0; }
+/* mp-09 接线 order-action-row 组件后,旧 .bottom-bar .act 硬编码 3 按钮样式已不再使用
+   (按钮 variant 配色由组件自带 index.wxss 负责)。 */

@@ -2,6 +2,8 @@
   "navigationStyle": "custom",
   "usingComponents": {
     "shared-loading": "@vant/weapp/loading/index",
-    "shared-empty": "@vant/weapp/empty/index"
+    "shared-empty": "@vant/weapp/empty/index",
+    "order-action-row": "../../../src/features/order/components/OrderActionRow/index",
+    "order-tracking-timeline": "../../../src/features/order/components/OrderTrackingTimeline/index"
   }
 }

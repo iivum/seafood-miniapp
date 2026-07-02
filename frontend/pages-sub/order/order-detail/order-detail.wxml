@@ -2,6 +2,16 @@
   sprint-1-closure mp-09 订单详情页 OD 设计稿。
   5 段:状态 banner / 物流时间线 / 收货地址 / 商品清单 / 金额明细 / 订单信息 + 底部 sticky action bar。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+
+  mp-od-prototype-alignment mp-09(brief `.superpowers/sdd/mp-od-8-order-detail-brief.md`):
+  接线两个 mp-08 已建好的组件,取代此前的硬编码:
+    - order-tracking-timeline:取代硬编码 3 段静态时间线,改用 order.tracking.events 真实数据
+      推算 4 节点(已下单/已发货/运输中/已签收),PENDING/PAID/CANCELLED 不展示(组件内 shouldShow 判定)。
+    - order-action-row:取代硬编码固定 3 按钮(此前 PENDING 订单也显示"确认收货",语义不通),
+      改用状态感知的操作行,spec `mini-program/spec.md:262` 要求。
+  收货人显示裸 order.userId(下方 addr-card)是已知问题,根因是 POST /api/orders 完全不支持
+  addressId、Order 域对象无地址快照字段——需要后端 API 契约变更,已记入遗留清单另开 change,
+  本次不做任何相关改动(含不改成中性占位文案)。
 -->
 <view class="order-detail">
   <view class="topbar">
@@ -26,21 +36,7 @@
       <view wx:if="{{statusBanner.estimatedText}}" class="status-sub">{{statusBanner.estimatedText}}</view>
     </view>
 
-    <view class="card timeline-card">
-      <view class="card-title">物流轨迹</view>
-      <view class="timeline">
-        <view wx:for="{{timeline}}" wx:key="label" class="tl-node tl-node--{{item.state}}">
-          <view class="dot"></view>
-          <view class="content">
-            <view class="row1">
-              <text class="label">{{item.label}}</text>
-              <text class="time">{{item.time}}</text>
-            </view>
-            <view class="desc">{{item.desc}}</view>
-          </view>
-        </view>
-      </view>
-    </view>
+    <order-tracking-timeline order="{{order}}"></order-tracking-timeline>
 
     <view class="card addr-card">
       <view class="row1">
@@ -86,9 +82,7 @@
     </view>
 
     <view class="bottom-bar">
-      <button class="act secondary" bindtap="applyRefund" data-testid="apply-refund">申请退款</button>
-      <button class="act secondary" bindtap="viewLogistics" data-testid="view-logistics">查看物流</button>
-      <button class="act primary" bindtap="confirmReceive" data-testid="confirm-receive">确认收货</button>
+      <order-action-row status="{{order.status}}" bind:action="onActionTap"></order-action-row>
     </view>
   </block>
 

@@ -108,6 +108,12 @@ const PAGES: PageSpec[] = [
     fromBackend: { path: 'addresses.0', fields: ['name', 'phone', 'detail', 'isDefault'] },
   },
   {
+    // mp-od-prototype-alignment mp-09(brief `.superpowers/sdd/mp-od-8-order-detail-brief.md`)
+    // 接线 order-tracking-timeline + order-action-row 组件后:硬编码的 .timeline-card/.tl-node
+    // 已不存在(时间线交给组件内部渲染,seed 订单 PENDING 状态下组件 shouldShow() 判定不展示,
+    // 断言组件内部标签会对这条 seed 数据产生假阴性,故不再断言其 markup,同 mp-08-order-list
+    // 对 order-action-row 的处理惯例——只断言宿主页面自己拥有的结构);page.data 不再有
+    // timeline 字段(交给组件 property 消费 order 自行计算)。
     name: 'mp-09-order-detail',
     url: '/pages-sub/order/order-detail/order-detail?id=v2.1-closure-order-001',
     storage: {
@@ -116,15 +122,13 @@ const PAGES: PageSpec[] = [
     },
     wxmlMust: [
       /status-banner/,
-      /timeline-card/,
-      /tl-node/,
       /addr-card/,
       /items-card/,
       /price-card/,
       /info-card/,
       /bottom-bar/,
     ],
-    dataMust: ['order', 'statusBanner', 'timeline'],
+    dataMust: ['order', 'statusBanner'],
     dataExact: [
       { path: 'order.id', equals: 'v2.1-closure-order-001' },
       { path: 'order.status', equals: 'PENDING' },
