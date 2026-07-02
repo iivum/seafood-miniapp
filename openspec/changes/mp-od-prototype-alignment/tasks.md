@@ -43,12 +43,12 @@
 
 ## 6. mp-07 address
 
-- [ ] 6.1 诊断：跑 `npm run test:visual mp-07-address` + `npm run test:geometry mp-07-address`，记录当前状态；同时确认 `AddressController` 是否已解决 C5 记录的 403 问题（`GET /api/addresses` 手动请求验证）
-- [ ] 6.2 若 403/空态问题仍存在：用 `superpowers:systematic-debugging` 定位根因（Controller 路由/鉴权/前端请求路径）
-- [ ] 6.3 对照 `frontend/e2e/od-golden/mp-07-address.png` + diff 图，列出偏离点清单（含 6.2 的根因结论）
-- [ ] 6.4 写 task brief（偏离清单 + diff 图 + 根因结论 + `frontend/pages-sub/user/address/*` + mp-07 spec requirement 原文），派 subagent 修复样式 + 后端/鉴权 bug，task reviewer 复查
-- [ ] 6.5 复验：重跑 harness 确认 ≤5%（或几何全绿）；确认地址列表在真实登录态下正常加载（非 403/空）
-- [ ] 6.6 commit，更新 ledger
+- [x] 6.1 诊断：感知 37.9% RED；几何层 2/2 GREEN（address-cards/add-btn）。**C5 记录的 403 问题确认已解决**——`AddressController` 完整实现，3 条种子地址正常加载渲染，无 403
+- [x] 6.2 无需排查（403 问题不存在），跳过
+- [x] 6.3 对照 golden 列偏离点：顶部"地址管理"标题栏缺失、"设为默认"交互缺失（但发现后端+前端逻辑都已存在，只是 wxml 没接线，不是数据缺口）；"已开通12城冷链"提示条/地址标签"公司""家人"按已定原则跳过；地址详情展示不全是已记录的跨页面已知 bug，不重复处理
+- [x] 6.4 写 task brief（`.superpowers/sdd/mp-od-6-address-brief.md`），派 implementer 修复（commit `dcdcddc`：新建 `address-list.json` + 顶部标题栏、接线已有的 `setDefaultAddress` 方法）；implementer 中途发现并（经协调者批准）顺带修复**又一个死绑定真 bug**——`onSelectAddress`/`onEditAddress`/`onDeleteAddress`/`onAddNewAddress` 四处 wxml `bindtap` 引用的方法名在 `address-list.js` 里根本不存在（方向和之前几屏相反：这次是 wxml 引用了不存在的方法），导致整卡选择/编辑/删除/添加新地址**全部**点击无反应，几乎是整个页面核心交互失效。已改绑真实方法名 + 新增 wxml↔JS bindtap 契约测试防回归。441/441 测试全绿；task reviewer 用手动注入回归验证契约测试真实有效（改回错误绑定后测试确实变红），Approved，0 Critical/Important。reviewer 额外发现 2 个非阻塞的既有布局偏离（操作栏竖排 vs OD 横排底部栏；默认地址卡片按 brief 设计不显示"设为默认"行，OD 里默认卡片显示已选中态），记入遗留清单
+- [x] 6.5 复验：几何层 2/2 GREEN 不变；感知层遇到 WeChat DevTools 自动化端口跑久了状态异常（screenshot 报 "fail to capture screenshot"，确认是 DevTools 底层问题非代码 bug），重启自动化端口后恢复正常：37.9%→37.55%
+- [x] 6.6 commit 完成（`dcdcddc`），ledger 已更新
 
 ## 7. mp-08 order-list
 
@@ -88,3 +88,4 @@
 - **`CartController` 缺 `PUT`/`PATCH /cart/items/:id` 路由**（mp-04 诊断时发现，两轮 reviewer 独立核实）：只有 `GET`/`POST /items`/`DELETE /items/{id}`/`DELETE`。前端 `CartAPI.updateItem()`（数量+/-持久化）/`CartAPI.toggleItem()`（选中态持久化）对应的后端端点根本不存在——数量 +/- 按钮点击目前会打到 404（预先存在的问题，不是这几轮改动引入/加剧的）；勾选态这轮改成纯前端 `reconcileSelection()` 方案绕开（页面实例生命周期内正确，但 reLaunch/小程序被系统回收重建后会丢失、回退成后端默认全选）。完全解决需要给 `CartController` 补这两个端点，建议另开 change。
 - **`Address` 领域模型字段名与多处 wxml 引用不一致**（mp-04 复验时发现）：`backend/src/main/java/com/seafood/user/domain/Address.java` 只有 `province/city/detail` 字段，没有 `district`/`detailAddress`。但 `frontend/pages/cart/cart.wxml` 和 `frontend/pages-sub/user/address/address-list.wxml` 都在用 `{{item.district}}{{item.detailAddress}}`——渲染时这两个字段是 undefined，地址详情展示不全（能看到省市，看不到详细地址）。这是跨多个页面的既有 bug，不是这几轮改动引入的，建议另开 change 统一修正字段名对齐（前端改字段名 vs 后端加字段，哪个更合适需要单独判断）。
 - **新旧 token 存储没有在小程序冷启动时统一桥接**（mp-06 诊断时发现，影响面可能不小）：legacy `frontend/utils/request.js` 的鉴权请求读 `app.globalData.token`，这个字段只在 `app.js` 旧版 `checkLoginStatus()`（读 `wx.getStorageSync('token')`）或主动调用新版 `authStore.login()`/`loginWithCode()`（内部 `persistUser()` 桥接）时才被赋值。新版登录写的是完全不同的 storage key（`accessToken`，`src/shared/api/storage.ts`），从未写旧 `token` key。结果：小程序冷启动、用户是"之前登录过、这次只是恢复会话"（没有触发新的 `login()` 调用）时，`app.globalData.token` 会保持未初始化，任何仍在用 legacy `utils/request.js` 发鉴权请求的代码都会静默鉴权失败。已确认影响 mp-04 `cart.js` + mp-06 `order-confirm.js` 的默认地址自动选中功能（优雅降级，不崩溃、不脏数据，只是功能不生效）；实际影响面可能更大，取决于还有多少页面仍在用 legacy `utils/request.js` 做鉴权请求，需要单独排查。建议另开 change：在 `app.js` `onLaunch` 时从 `tokenStorage` 恢复 session 时一并初始化 `globalData.token`，彻底桥接新旧两套存储。
+- **mp-07 地址卡片操作栏布局是竖排侧边而非 OD 的横排底部栏**（mp-07 reviewer 发现，既有布局，本轮未触碰）：`address-list.wxss` 的 `.address-card__actions` 是 `flex-direction: column` + 右侧 `border-left` 竖排（编辑/删除/设为默认纵向堆叠），OD 图是卡片底部一条横向操作栏（虚线分隔）。持续拖累这一屏的感知 diff 分数，不是本次改动引入，brief 范围未要求调整，留给后续视觉打磨 change 处理。
