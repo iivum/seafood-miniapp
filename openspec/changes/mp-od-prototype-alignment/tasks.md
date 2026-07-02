@@ -52,18 +52,20 @@
 
 ## 7. mp-08 order-list
 
-- [ ] 7.1 诊断：跑 `npm run test:visual mp-08-order-list` + `npm run test:geometry mp-08-order-list`，记录当前状态（C5 baseline 29% RED）
-- [ ] 7.2 对照 `frontend/e2e/od-golden/mp-08-order-list.png` + diff 图，列出偏离点清单
-- [ ] 7.3 写 task brief（偏离清单 + diff 图 + `frontend/pages-sub/order/order-list/*` + mp-08 完整布局 spec requirement 原文，注意与既有 action-row requirement 的边界），派 subagent 修复，task reviewer 复查
-- [ ] 7.4 复验：重跑 harness，确认 ≤5%（或几何全绿）
-- [ ] 7.5 commit，更新 ledger
+- [x] 7.1 诊断：感知 28.98% RED（9 屏里偏离最小之一）；几何层 3/3 GREEN（header/tabs/order-card）。基础结构已比较完整（标题栏/tab/卡片都在）。**本屏起全程用 Monitor + miniprogram-automator `mp.on('console'/'exception')` 事件桥接实时监控 DevTools console**（用户要求，比手动轮询 `mp_getLogs` 更好——查证 miniprogram-automator 内部真有 `App.logAdded`/`App.exceptionThrown` 事件可订阅）
+- [x] 7.2 对照 golden 列偏离点：缺"共N件商品"文案；商品缩略图缺失（`OrderItem` 域对象是价格快照，故意不含 imageUrl，架构决策不做）；"剩余支付时间"倒计时（无支付超时业务策略，会是假承诺，不做）；商家名文案（单卖家系统不成立，不做）
+- [x] 7.3 写 task brief（`.superpowers/sdd/mp-od-7-order-list-brief.md`），派 implementer 修复"共N件"+样式核对（commit `b446311`）——**过程中发现 `OrderActionRow` 组件（取消订单/去付款/确认收货/申请退款）虽然 JS 逻辑完整且测试覆盖，但 `.wxml`/`.wxss`/`.json` 三个文件完全缺失，从未在任何页面注册，是影响全 app 的核心功能缺失**（spec `mini-program/spec.md:262` 明确要求，用户此前完全没有任何界面能操作订单状态）。已与用户确认现在建（同时服务 mp-08+mp-09，order-detail.json 接线留给 task 8）。implementer 建好展示层后，task reviewer 复查时**又发现两层更深的休眠 bug**：① `order-list.js` 的 `onActionTap` 从 `e.detail` 解构 `{id, action}` 两者都取反了（组件只传 `{id: 动作类型}`，订单 id 在 `dataset.id` 上）② `OrderAPI.js` 运行时 shim 缺 `pay`/`remindShip`/`confirmReceive`/`rebuy`/`requestRefund` 共 5 个方法（`.ts` 源码完整，shim 只同步了一半，`api.test.ts` 一直测 `.ts` 侧测不出来）——组件展示层修好后暴露：点任何订单操作按钮都只会弹"未知操作"，不做真实操作，比"完全不显示"更容易误导用户。已确认属于已授权范围（休眠 bug 被这次改动激活，同类"随屏修真 bug"原则），直接修复（commit `9bfe1e0`）：修正 `onActionTap` 参数读取 + 补全 `OrderAPI.js` 5 个方法 + 新增 `api-shim-contract.test.js`（锁 shim 方法集合，防再次漂移）+ `order-list.js` 此前零覆盖，新增 28 例（TDD 双重 RED→GREEN 验证）。479/479 测试全绿
+- [x] 7.4 复验：几何层 3/3 GREEN 不变；感知层 28.98%→29.8%（真实按钮渲染后视觉权重变化，非回归）。**实机端到端验证**：真实 dev-login 注入 token，点击"立即付款"按钮，订单状态**真的从 PENDING 变成 PAID**（`updatedAt` 时间戳同步更新），console 全程干净无报错——证明整条链路（wxml→组件→事件→page handler→OrderAPI→后端→UI 刷新）完全打通
+- [x] 7.5 commit 完成（`b446311` + `9bfe1e0`），ledger 已更新
 
 ## 8. mp-09 order-detail
 
+> **承接 mp-08 的发现**：`OrderActionRow` 组件文件（`.wxml`/`.wxss`/`.json`）已在 mp-08 建好，这次只需要接进 `order-detail.json` 的 `usingComponents`（不用重新画组件）。**务必核对 `order-detail.js` 如果有自己的 action 点击处理方法，是否正确从 `e.detail.id` 取动作类型、从 `dataset.id`（或页面已有的当前订单 id）取订单 id**——mp-08 的 `order-list.js` 就是在这个事件契约上翻车的（`onActionTap` 从 `e.detail` 解构 `{id, action}` 两者都取反），order-detail 页面走的是单订单详情，可能连订单 id 都不需要从 dataset 取（页面本身就绑定了当前订单），但动作类型一定要从 `e.detail.id` 读，不要重复同样的错误。
+
 - [ ] 8.1 诊断：跑 `npm run test:visual mp-09-order-detail` + `npm run test:geometry mp-09-order-detail`，记录当前状态（C5 baseline 30% RED）
 - [ ] 8.2 对照 `frontend/e2e/od-golden/mp-09-order-detail.png` + diff 图，列出偏离点清单
-- [ ] 8.3 写 task brief（偏离清单 + diff 图 + `frontend/pages-sub/order/order-detail/*` + mp-09 spec requirement 原文），派 subagent 修复，task reviewer 复查
-- [ ] 8.4 复验：重跑 harness，确认 ≤5%（或几何全绿）
+- [ ] 8.3 写 task brief（偏离清单 + diff 图 + `frontend/pages-sub/order/order-detail/*` + mp-09 spec requirement 原文，含上面的 OrderActionRow 接线注意事项），派 subagent 修复，task reviewer 复查
+- [ ] 8.4 复验：重跑 harness，确认 ≤5%（或几何全绿）；实机点击验证 action row 按钮真实生效（不是弹"未知操作"）
 - [ ] 8.5 commit，更新 ledger
 
 ## 9. mp-05 profile
