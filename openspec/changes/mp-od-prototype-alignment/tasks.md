@@ -34,12 +34,12 @@
 
 ## 5. mp-06 order-confirm
 
-- [ ] 5.1 诊断：跑 `npm run test:visual mp-06-order-confirm` + `npm run test:geometry mp-06-order-confirm`，记录当前状态（C5 baseline 35% RED + 已知"空购物车直达"问题，需确认根因是否仍存在）
-- [ ] 5.2 若空购物车问题仍存在：用 `superpowers:systematic-debugging` 定位根因（购物车/直购状态传递链路），确认是前端状态传递 bug 还是后端数据问题
-- [ ] 5.3 对照 `frontend/e2e/od-golden/mp-06-order-confirm.png` + diff 图，列出偏离点清单（含 5.2 的根因结论）
-- [ ] 5.4 写 task brief（偏离清单 + diff 图 + 根因结论 + `frontend/pages-sub/order/order-confirm/*` + mp-06 spec requirement 原文），派 subagent 修复样式 + 空购物车 bug，task reviewer 复查
-- [ ] 5.5 复验：重跑 harness 确认 ≤5%（或几何全绿）；手动走一遍 direct-buy 入口（product-detail 立即购买）确认不再出现空购物车
-- [ ] 5.6 commit，更新 ledger
+- [x] 5.1 诊断：感知 38.96% RED；几何层 5/5 GREEN（address-card/delivery-card/delivery-opts/summary-card/bottom-bar）。C5 记录的"空购物车直达"问题**已不再出现**（mp-04 购物车数据富化修复后此屏读到的购物车数据也正常了，无需 5.2 的根因排查）
+- [x] 5.2 空购物车问题已随 mp-04 修复自动解决，跳过；诊断中新发现更严重的问题：结算金额显示 **"¥404.94000000000005"**——裸浮点数运算精度问题直接漏到用户界面，当前生产环境真实存在
+- [x] 5.3 对照 golden 列偏离点：顶部"订单确认"标题栏缺失、地址卡未自动选中默认地址（同 mp-04 cart.js 同类问题，各自独立文件）、"共N件"底部文案缺失；预计送达卡片/"顺丰冷链可达"标签/商家分组"海港直营"/SKU chip 按已定原则跳过
+- [x] 5.4 写 task brief（`.superpowers/sdd/mp-od-5-order-confirm-brief.md`），派 implementer 修复（commit `3900051`：优先修浮点数精度 bug（`roundYuan` 四舍五入）、新增顶部标题栏、默认地址自动选中（区分购物车结算/已有订单两分支）、"共N件"真实数据，39 个新测试，434/434 全绿）；task reviewer 用 Node 实测手算复核浮点数修复（确认精确对应线上 bug 数值 404.94000000000005→404.94，舍入方向正确），Approved，0 Critical/Important
+- [x] 5.5 复验：几何层 5/5 GREEN 不变；感知层 38.96%→37.76%；金额显示确认已修复（¥404.94）。**新发现范围外问题**：`autoSelectDefaultAddress()` 依赖的 legacy `utils/request.js` 鉴权字段 `app.globalData.token` 只在主动 `login()` 时才桥接，小程序冷启动恢复已登录会话时不会初始化——影响 mp-04/mp-06 两个已上线的默认地址自动选中功能在真实场景下静默失效（不崩溃，优雅降级回手动选择）。已与用户确认记入遗留清单，不在本 change 修复
+- [x] 5.6 commit 完成（`3900051` + 复验截图），ledger 已更新
 
 ## 6. mp-07 address
 
@@ -87,3 +87,4 @@
 - **`POST /api/orders` 不支持显式 items 建单**（mp-03 诊断时发现，commit `c10c093`）：现在只能从用户服务端购物车建单（`OrderController#create` 无 `@RequestBody`），无法支撑 spec `mini-program/spec.md:91-107` "Direct buy from product detail" 要求的"跳过购物车、items 只含当前商品"完整语义。当前 mp-03「立即购买」是前端近似（先 addItem 合并进购物车再跳订单确认页），未做后端隔离。完全合规需要新增 `POST /api/orders` 的 items 参数支持（或新开一个端点），涉及 DDD 分层改动，建议另开 change。
 - **`CartController` 缺 `PUT`/`PATCH /cart/items/:id` 路由**（mp-04 诊断时发现，两轮 reviewer 独立核实）：只有 `GET`/`POST /items`/`DELETE /items/{id}`/`DELETE`。前端 `CartAPI.updateItem()`（数量+/-持久化）/`CartAPI.toggleItem()`（选中态持久化）对应的后端端点根本不存在——数量 +/- 按钮点击目前会打到 404（预先存在的问题，不是这几轮改动引入/加剧的）；勾选态这轮改成纯前端 `reconcileSelection()` 方案绕开（页面实例生命周期内正确，但 reLaunch/小程序被系统回收重建后会丢失、回退成后端默认全选）。完全解决需要给 `CartController` 补这两个端点，建议另开 change。
 - **`Address` 领域模型字段名与多处 wxml 引用不一致**（mp-04 复验时发现）：`backend/src/main/java/com/seafood/user/domain/Address.java` 只有 `province/city/detail` 字段，没有 `district`/`detailAddress`。但 `frontend/pages/cart/cart.wxml` 和 `frontend/pages-sub/user/address/address-list.wxml` 都在用 `{{item.district}}{{item.detailAddress}}`——渲染时这两个字段是 undefined，地址详情展示不全（能看到省市，看不到详细地址）。这是跨多个页面的既有 bug，不是这几轮改动引入的，建议另开 change 统一修正字段名对齐（前端改字段名 vs 后端加字段，哪个更合适需要单独判断）。
+- **新旧 token 存储没有在小程序冷启动时统一桥接**（mp-06 诊断时发现，影响面可能不小）：legacy `frontend/utils/request.js` 的鉴权请求读 `app.globalData.token`，这个字段只在 `app.js` 旧版 `checkLoginStatus()`（读 `wx.getStorageSync('token')`）或主动调用新版 `authStore.login()`/`loginWithCode()`（内部 `persistUser()` 桥接）时才被赋值。新版登录写的是完全不同的 storage key（`accessToken`，`src/shared/api/storage.ts`），从未写旧 `token` key。结果：小程序冷启动、用户是"之前登录过、这次只是恢复会话"（没有触发新的 `login()` 调用）时，`app.globalData.token` 会保持未初始化，任何仍在用 legacy `utils/request.js` 发鉴权请求的代码都会静默鉴权失败。已确认影响 mp-04 `cart.js` + mp-06 `order-confirm.js` 的默认地址自动选中功能（优雅降级，不崩溃、不脏数据，只是功能不生效）；实际影响面可能更大，取决于还有多少页面仍在用 legacy `utils/request.js` 做鉴权请求，需要单独排查。建议另开 change：在 `app.js` `onLaunch` 时从 `tokenStorage` 恢复 session 时一并初始化 `globalData.token`，彻底桥接新旧两套存储。
