@@ -137,7 +137,7 @@ Page({
   // 设置默认地址
   setDefaultAddress: function(e) {
     const address = e.currentTarget.dataset.address;
-    
+
     request({
       url: `/addresses/${address.id}/default`,
       method: 'PUT',
@@ -157,5 +157,11 @@ Page({
         icon: 'none'
       });
     });
+  },
+
+  // 返回上一页(自定义标题栏返回按钮;navigationStyle:custom 后原生返回按钮
+  // 消失,必须自己实现 —— brief `.superpowers/sdd/mp-od-6-address-brief.md` §1)
+  goBack: function() {
+    wx.navigateBack();
   }
 })

@@ -1,6 +1,12 @@
 /*
  * 路线图 3.15 — mp-07 「地址管理」OD v2 视觉。
  * tokens 单一源 docs/redesign/tokens.json。
+ *
+ * mp-07 OD 原型对齐(brief `.superpowers/sdd/mp-od-6-address-brief.md`):
+ * 新增 .addr-topbar(与 order-detail.wxss 的 .topbar / order-confirm.wxss
+ * 的 .confirm-topbar 同款圆角/间距/token 惯例,合并原来独立的 .select-title
+ * 选择模式标题,不再让两个标题同时出现)+ .address-card__action-radio
+ * (设为默认接线,复用既有 .address-card__radio 同款 inset box-shadow 圆圈)。
  */
 
 .address-list-container {
@@ -9,19 +15,42 @@
   padding: 24rpx 24rpx 200rpx;
 }
 
-/* ===== 顶部选择模式标题 ===== */
+/* ===== 顶部标题栏 ===== */
 
-.select-title {
-  margin: 0 0 24rpx;
-  padding: 0 8rpx;
+.addr-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 24rpx;
 }
 
-.select-title__text {
+.addr-topbar__back {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--surface, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2rpx 8rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
+}
+
+.addr-topbar__back-icon {
+  font-size: 36rpx;
+  color: var(--fg, #231814);
+  line-height: 1;
+}
+
+.addr-topbar__title {
   font-family: var(--font-display, serif);
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 600;
   color: var(--fg, #231814);
-  line-height: 1.3;
+}
+
+.addr-topbar__placeholder {
+  width: 64rpx;
+  height: 64rpx;
 }
 
 /* ===== 地址卡 ===== */
@@ -121,6 +150,14 @@
 .address-card__action-icon {
   font-size: 28rpx;
   line-height: 1;
+}
+
+.address-card__action-radio {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: var(--surface, #fff);
+  box-shadow: inset 0 0 0 2rpx var(--border-strong, #d5cbc8);
 }
 
 .address-card__action--danger {

@@ -52,6 +52,7 @@ describe('address-list', () => {
       deleteAddress: pageConfig.deleteAddress,
       selectAddress: pageConfig.selectAddress,
       setDefaultAddress: pageConfig.setDefaultAddress,
+      goBack: pageConfig.goBack,
       onLoad: pageConfig.onLoad,
       onShow: pageConfig.onShow,
     };
@@ -173,5 +174,13 @@ describe('address-list', () => {
     ctx.setDefaultAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     await new Promise(r => setTimeout(r, 50));
     expect(wx.showToast).toHaveBeenCalledWith({ title: '设置失败', icon: 'none' });
+  });
+
+  // mp-07 OD 对齐(brief `.superpowers/sdd/mp-od-6-address-brief.md` §1):
+  // navigationStyle:custom 替代原生导航栏后,原生返回按钮消失,自定义
+  // topbar 的返回按钮必须真实调用 wx.navigateBack()。
+  it('goBack navigates back', () => {
+    ctx.goBack();
+    expect(wx.navigateBack).toHaveBeenCalled();
   });
 });

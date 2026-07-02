@@ -2,11 +2,37 @@
   路线图 3.15 — mp-07 「地址管理」OD v2 视觉重写。
   列表 + 默认徽章 + 编辑/删除;选择模式(订单确认页跳过来,顶部"选择地址"标题 + radio 选中)。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+
+  mp-07 OD 原型对齐(openspec change mp-od-prototype-alignment,brief
+  `.superpowers/sdd/mp-od-6-address-brief.md`):
+  ① 新增顶部标题栏(navigationStyle:custom 替代原生导航栏,此前该页面
+     完全没有 .json、原生导航栏又不在 mp 截图 harness 捕获范围内,等于
+     "看不见")。非选择模式显示"地址管理",选择模式复用既有"选择收货地址"
+     文案,合并进同一个 topbar,不让两个标题同时出现(brief §1)。
+  ② "设为默认"接线(brief"好消息"):address-list.js 的 setDefaultAddress
+     早已完整实现,只是 wxml 从未绑定过任何 UI 元素;这次加进
+     .address-card__actions 列表,复用既有 .address-card__action 样式,
+     只对非默认地址(!item.isDefault)显示。
+  ③ 额外发现并修复的真 bug(coordinator 2026-07-02 追加授权,同 mp-02/mp-03
+     反复出现的 wxml↔JS 死绑定问题的反方向版本):原 bindtap 目标名
+     onSelectAddress/onEditAddress/onDeleteAddress/onAddNewAddress 在
+     address-list.js 里根本不存在(真实方法名不带 on 前缀),覆盖本页整卡
+     选择/编辑/删除/添加新地址几乎全部核心交互,此前点击一律无反应。已改绑
+     真实方法名,回归测试见 `__tests__/address-list-wxml-contract.test.js`。
 -->
 <view class="address-list-container">
-  <!-- 顶部选择模式标题 -->
-  <view class="select-title" wx:if="{{selectMode}}">
-    <text class="select-title__text">选择收货地址</text>
+  <!-- 顶部标题栏:非选择模式"地址管理",选择模式复用"选择收货地址"(brief §1) -->
+  <view class="addr-topbar safe-area-top">
+    <view
+      class="addr-topbar__back"
+      bindtap="goBack"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="addr-topbar__back-icon">‹</text>
+    </view>
+    <text class="addr-topbar__title">{{selectMode ? '选择收货地址' : '地址管理'}}</text>
+    <view class="addr-topbar__placeholder"></view>
   </view>
 
   <view class="address-list" wx:if="{{addresses.length > 0}}">
@@ -15,10 +41,10 @@
       wx:for="{{addresses}}"
       wx:key="id"
     >
-      <!-- 选择模式:radio 选中 + 整卡 tap 触发 onSelectAddress -->
+      <!-- 选择模式:radio 选中 + 整卡 tap 触发 selectAddress -->
       <view
         class="address-card__body"
-        bindtap="onSelectAddress"
+        bindtap="selectAddress"
         data-address="{{item}}"
         data-id="{{item.id}}"
         hover-class="is-clicked"
@@ -35,8 +61,19 @@
       </view>
       <view class="address-card__actions">
         <view
+          wx:if="{{!item.isDefault}}"
           class="address-card__action"
-          bindtap="onEditAddress"
+          bindtap="setDefaultAddress"
+          data-address="{{item}}"
+          hover-class="is-clicked"
+          hover-stay-time="100"
+        >
+          <view class="address-card__action-radio"></view>
+          <text>设为默认</text>
+        </view>
+        <view
+          class="address-card__action"
+          bindtap="editAddress"
           data-address="{{item}}"
           hover-class="is-clicked"
           hover-stay-time="100"
@@ -46,7 +83,7 @@
         </view>
         <view
           class="address-card__action address-card__action--danger"
-          bindtap="onDeleteAddress"
+          bindtap="deleteAddress"
           data-id="{{item.id}}"
           hover-class="is-clicked"
           hover-stay-time="100"
@@ -73,7 +110,7 @@
   <view class="add-bar safe-area-bottom-fixed">
     <view
       class="add-btn"
-      bindtap="onAddNewAddress"
+      bindtap="addNewAddress"
       hover-class="is-clicked"
       hover-stay-time="100"
     >
