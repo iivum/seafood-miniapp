@@ -289,16 +289,27 @@
 
 .order-card__summary {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   padding: 16rpx 0;
   border-top: 1rpx solid var(--border, #e6e0dd);
+}
+
+.order-card__summary-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
 }
 
 .order-card__order-no {
   font-size: 22rpx;
   color: var(--muted, #6b615d);
   letter-spacing: 0.4rpx;
+}
+
+.order-card__item-count {
+  font-size: 22rpx;
+  color: var(--muted, #6b615d);
 }
 
 .order-card__total-row {

@@ -597,9 +597,12 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
         </view>
       </view>
 
-      <!-- 订单号 + 合计 -->
+      <!-- 订单号 + 共N件 + 合计(mp-08 OD 对齐 brief §1:"共 N 件商品" 真实种类数) -->
       <view class="order-card__summary">
-        <text class="order-card__order-no">订单号：#{{item.id}}</text>
+        <view class="order-card__summary-left">
+          <text class="order-card__order-no">订单号：#{{item.id}}</text>
+          <text class="order-card__item-count">共 {{item.items.length}} 件商品</text>
+        </view>
         <view class="order-card__total-row">
           <text class="order-card__total-label">合计</text>
           <text class="order-card__total-price">¥ {{item.totalAmount}}</text>

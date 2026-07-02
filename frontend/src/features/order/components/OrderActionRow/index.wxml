@@ -1,0 +1,20 @@
+<!--
+  OrderActionRow — 订单状态 → 操作按钮行(mp-08 OD 对齐时补建的渲染层,
+  逻辑映射见 index.js/index.ts `getActionsFor()`,7 状态已测试覆盖,这里
+  只负责把 `actions` 数组渲染成按钮,不改变状态→按钮的选择逻辑)。
+  按钮顺序沿用 actions 数组顺序(次操作在前、主操作在后,对齐 OD 图
+  "outline 按钮靠左、实心主按钮靠右"的视觉惯例)。
+-->
+<view class="order-action-row" wx:if="{{actions.length > 0}}">
+  <view
+    wx:for="{{actions}}"
+    wx:key="id"
+    class="order-action-row__btn order-action-row__btn--{{item.variant}}"
+    data-id="{{item.id}}"
+    bindtap="onTap"
+    hover-class="{{item.variant === 'disabled' ? '' : 'order-action-row__btn--hover'}}"
+    hover-stay-time="100"
+  >
+    <text>{{item.label}}</text>
+  </view>
+</view>
