@@ -2,6 +2,7 @@
   "navigationBarTitleText": "个人中心",
   "usingComponents": {
     "shared-empty": "@vant/weapp/empty/index",
-    "shared-loading": "@vant/weapp/loading/index"
+    "shared-loading": "@vant/weapp/loading/index",
+    "van-icon": "@vant/weapp/icon/index"
   }
 }

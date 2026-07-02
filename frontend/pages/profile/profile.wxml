@@ -30,7 +30,7 @@
         hover-stay-time="100"
       >
         <view class="status-item__icon status-item__icon--pending">
-          <text class="status-item__emoji">💰</text>
+          <van-icon name="balance-o" custom-class="status-item__icon-glyph status-item__icon-glyph--pending" />
         </view>
         <text class="status-item__label">待付款</text>
         <view class="status-item__badge" wx:if="{{badges.pending > 0}}">{{badges.pending}}</view>
@@ -42,7 +42,7 @@
         hover-stay-time="100"
       >
         <view class="status-item__icon status-item__icon--paid">
-          <text class="status-item__emoji">📦</text>
+          <van-icon name="gift-o" custom-class="status-item__icon-glyph status-item__icon-glyph--paid" />
         </view>
         <text class="status-item__label">待发货</text>
         <view class="status-item__badge" wx:if="{{badges.paid > 0}}">{{badges.paid}}</view>
@@ -54,7 +54,7 @@
         hover-stay-time="100"
       >
         <view class="status-item__icon status-item__icon--shipped">
-          <text class="status-item__emoji">🚚</text>
+          <van-icon name="logistics" custom-class="status-item__icon-glyph status-item__icon-glyph--shipped" />
         </view>
         <text class="status-item__label">待收货</text>
         <view class="status-item__badge" wx:if="{{badges.shipped > 0}}">{{badges.shipped}}</view>
@@ -66,7 +66,7 @@
         hover-stay-time="100"
       >
         <view class="status-item__icon status-item__icon--completed">
-          <text class="status-item__emoji">✅</text>
+          <van-icon name="completed" custom-class="status-item__icon-glyph status-item__icon-glyph--completed" />
         </view>
         <text class="status-item__label">已完成</text>
         <view class="status-item__badge" wx:if="{{badges.completed > 0}}">{{badges.completed}}</view>
@@ -82,19 +82,19 @@
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="tool-item__icon">📍</text>
+      <van-icon name="location-o" custom-class="tool-item__icon" />
       <text class="tool-item__label">收货地址</text>
       <text class="tool-item__arrow">›</text>
     </navigator>
-    <navigator class="tool-item" url="/pages/service/chat" hover-class="is-clicked" hover-stay-time="100">
-      <text class="tool-item__icon">💬</text>
+    <view class="tool-item" bindtap="onContactService" hover-class="is-clicked" hover-stay-time="100">
+      <van-icon name="chat-o" custom-class="tool-item__icon" />
       <text class="tool-item__label">联系客服</text>
       <text class="tool-item__arrow">›</text>
-    </navigator>
-    <navigator class="tool-item" url="/pages/about/about" hover-class="is-clicked" hover-stay-time="100">
-      <text class="tool-item__icon">ℹ️</text>
+    </view>
+    <view class="tool-item" bindtap="onAboutUs" hover-class="is-clicked" hover-stay-time="100">
+      <van-icon name="info-o" custom-class="tool-item__icon" />
       <text class="tool-item__label">关于我们</text>
       <text class="tool-item__arrow">›</text>
-    </navigator>
+    </view>
   </view>
 </view>

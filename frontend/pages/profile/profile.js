@@ -34,6 +34,14 @@ Page({
     wx.navigateTo({ url: '/pages-sub/user/login/login' });
   },
 
+  onContactService: function () {
+    wx.showToast({ title: '联系客服开发中', icon: 'none' });
+  },
+
+  onAboutUs: function () {
+    wx.showToast({ title: '关于我们开发中', icon: 'none' });
+  },
+
   onLogout: function () {
     if (!authStore.getState().isAuthenticated) {
       wx.showToast({ title: '您尚未登录', icon: 'none' });
