@@ -17,9 +17,12 @@ global.wx = {
 const mockApp = { globalData: { userInfo: { id: 'user-1', nickname: 'Test' } } };
 global.getApp = jest.fn(() => mockApp);
 
-// Mock request
+// Mock request — 按真实模块导出形状 mock({ request, authRequest }），不要把整个模块
+// mock 成裸函数：那样会掩盖 `const request = require(...)` 忘记解构的真实 bug
+// （2026-07 诊断发现：address-edit.js 生产代码里 request(...) 会抛
+// "request is not a function"，但旧版 mock 让测试假绿，见 mp-od-prototype-alignment）。
 const mockRequest = jest.fn().mockResolvedValue({});
-jest.mock('../../../../utils/request.js', () => mockRequest);
+jest.mock('../../../../utils/request.js', () => ({ request: mockRequest, authRequest: jest.fn() }));
 
 // Capture Page config
 let pageConfig;
