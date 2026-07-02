@@ -127,9 +127,16 @@ Page({
     });
   },
 
+  // mp-od-prototype-alignment mp-08 诊断发现:OrderActionRow 组件 triggerEvent('action', {id})
+  // 的 detail 只带 action 类型(如 'cancelOrder'),订单 id 是 wxml 上 data-id 挂的
+  // (order-action-row 标签本身,同 onOrderTap/onTabTap 惯例)。旧代码从 e.detail 解构
+  // {id, action} 两者都取错——action 恒 undefined 落进 default「未知操作」,
+  // id 其实是 action 类型字符串。此前 OrderActionRow 组件未渲染时这段代码从未被真实调用过,
+  // 组件渲染层修好后才暴露(点任何按钮都只会弹"未知操作",不做真实操作)。
   onActionTap: function (e) {
-    const { id, action } = e.detail;
-    this.handleAction(action, id);
+    const action = e.detail.id;
+    const orderId = e.currentTarget.dataset.id;
+    this.handleAction(action, orderId);
   },
 
   /**
