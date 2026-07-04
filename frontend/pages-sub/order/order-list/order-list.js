@@ -191,7 +191,11 @@ Page({
       await this.fetchOrders();
     } catch (err) {
       wx.hideLoading();
-      const status = err && err.status;
+      // OrderAPI(src/shared/api/request.js ApiError)真实只带 .statusCode,没有
+      // .status——同 order-detail.js:157 已有的正确写法保持一致(跨屏一致性 review
+      // 发现:这里只读 err.status 曾让 409/403/404 三个分支在生产环境全部落空,
+      // 一律走到下面的通用 err.message 提示)。
+      const status = err && (err.statusCode || err.status);
       if (status === 409) {
         wx.showToast({ title: '订单状态已变更', icon: 'none' });
         await this.fetchOrders();

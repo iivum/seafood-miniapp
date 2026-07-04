@@ -207,14 +207,17 @@ describe('order-list', () => {
     });
 
     it('409 冲突:toast 状态已变更 + 刷新', async () => {
-      mockPay.mockRejectedValueOnce({ status: 409, message: 'conflict' });
+      // OrderAPI(src/shared/api/request.js ApiError)真实只带 .statusCode,没有
+      // .status——mock 用真实 shape,不是虚构的 { status: 409 }(那样会让 handleAction
+      // 读错字段名的 bug 被测试掩盖过去,见 order-detail.js 的正确参照写法)。
+      mockPay.mockRejectedValueOnce({ statusCode: 409, message: 'conflict' });
       const e = { detail: { id: 'pay' }, currentTarget: { dataset: { id: 'order-123' } } };
       await ctx.onActionTap(e);
       expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '订单状态已变更' }));
     });
 
     it('403/404:toast 无权限,不刷新', async () => {
-      mockPay.mockRejectedValueOnce({ status: 403, message: 'forbidden' });
+      mockPay.mockRejectedValueOnce({ statusCode: 403, message: 'forbidden' });
       const e = { detail: { id: 'pay' }, currentTarget: { dataset: { id: 'order-123' } } };
       const callsBefore = mockRefresh.mock.calls.length;
       await ctx.onActionTap(e);
