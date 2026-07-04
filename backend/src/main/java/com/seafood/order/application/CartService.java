@@ -5,6 +5,7 @@ import com.seafood.order.api.dto.CartLineItemResponse;
 import com.seafood.order.api.dto.CartResponse;
 import com.seafood.order.domain.Cart;
 import com.seafood.order.domain.CartItem;
+import com.seafood.order.domain.CartItemNotFoundException;
 import com.seafood.order.infra.CartDocument;
 import com.seafood.order.infra.CartRepository;
 import com.seafood.product.api.dto.ProductResponse;
@@ -57,6 +58,34 @@ public class CartService {
 
     public void clear(String userId) {
         carts.deleteById(userId);
+    }
+
+    /**
+     * 把某行数量替换成 {@code quantity}(design D2:整数替换,不是累加)。行不存在时
+     * 译成 {@link NotFoundException} → 404(design D1),而不是静默 no-op。
+     */
+    public CartResponse updateQuantity(String userId, String productId, int quantity) {
+        Cart current = loadOrEmpty(userId);
+        try {
+            Cart updated = current.updateQuantity(productId, quantity);
+            return toResponse(persist(updated));
+        } catch (CartItemNotFoundException e) {
+            throw new NotFoundException(e.getMessage());
+        }
+    }
+
+    /**
+     * 翻转某行的 {@code selected}。行不存在时译成 {@link NotFoundException} → 404
+     * (design D1,同 {@link #updateQuantity})。
+     */
+    public CartResponse toggleSelected(String userId, String productId) {
+        Cart current = loadOrEmpty(userId);
+        try {
+            Cart updated = current.toggleSelected(productId);
+            return toResponse(persist(updated));
+        } catch (CartItemNotFoundException e) {
+            throw new NotFoundException(e.getMessage());
+        }
     }
 
     // ----- helpers -----

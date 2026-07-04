@@ -39,4 +39,43 @@ class CartTest {
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("购物车为空");
     }
+
+    @Test
+    void updateQuantity_replacesQuantityForExistingLine() {
+        Cart c = Cart.empty("u1").addItem("p1", 2).updateQuantity("p1", 9);
+        assertThat(c.items()).hasSize(1);
+        assertThat(c.items().get(0).quantity()).isEqualTo(9);
+    }
+
+    @Test
+    void updateQuantity_doesNotAddToExistingQuantity() {
+        // design D2: PUT 是整数替换,不是累加 —— 拒绝任何把新数量加到旧数量上的实现。
+        Cart c = Cart.empty("u1").addItem("p1", 2).updateQuantity("p1", 9);
+        assertThat(c.items().get(0).quantity()).isNotEqualTo(11);
+        assertThat(c.items().get(0).quantity()).isEqualTo(9);
+    }
+
+    @Test
+    void updateQuantity_unknownProductId_throws() {
+        assertThatThrownBy(() -> Cart.empty("u1").addItem("p1", 1).updateQuantity("p-missing", 3))
+                .isInstanceOf(CartItemNotFoundException.class);
+    }
+
+    @Test
+    void toggleSelected_flipsSelectedForExistingLine() {
+        Cart c = Cart.empty("u1").addItem("p1", 1);
+        assertThat(c.items().get(0).selected()).isTrue();
+
+        Cart toggledOff = c.toggleSelected("p1");
+        assertThat(toggledOff.items().get(0).selected()).isFalse();
+
+        Cart toggledOn = toggledOff.toggleSelected("p1");
+        assertThat(toggledOn.items().get(0).selected()).isTrue();
+    }
+
+    @Test
+    void toggleSelected_unknownProductId_throws() {
+        assertThatThrownBy(() -> Cart.empty("u1").addItem("p1", 1).toggleSelected("p-missing"))
+                .isInstanceOf(CartItemNotFoundException.class);
+    }
 }

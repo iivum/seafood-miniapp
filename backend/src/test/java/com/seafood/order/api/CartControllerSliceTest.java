@@ -2,6 +2,7 @@ package com.seafood.order.api;
 
 import com.seafood.order.api.dto.CartResponse;
 import com.seafood.order.application.CartService;
+import com.seafood.shared.error.NotFoundException;
 import com.seafood.testsupport.contract.OpenApiContractAssert;
 import com.seafood.shared.security.AdminRateLimiter;
 import com.seafood.shared.security.JwtTokenProvider;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -25,6 +27,8 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /**
@@ -83,5 +87,61 @@ class CartControllerSliceTest {
             .exchange()
             .assertThat()
             .hasStatus(204);
+    }
+
+    @Test
+    void updateQuantity_existingLine_returns200() {
+        CartResponse stub = new CartResponse("u-1", List.of(), Instant.parse("2026-06-19T00:00:00Z"));
+        when(cartService.updateQuantity(any(), eq("p-1"), eq(9))).thenReturn(stub);
+
+        mvc.put().uri("/api/cart/items/p-1")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"quantity\":9}")
+            .exchange()
+            .assertThat()
+            .hasStatusOk()
+            .bodyJson()
+            .hasPathSatisfying("$.userId", v -> v.assertThat().isEqualTo("u-1"));
+    }
+
+    @Test
+    void updateQuantity_unknownLine_returns404() {
+        when(cartService.updateQuantity(any(), eq("p-missing"), anyInt()))
+            .thenThrow(new NotFoundException("购物车中不存在该商品行:p-missing"));
+
+        mvc.put().uri("/api/cart/items/p-missing")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"quantity\":9}")
+            .exchange()
+            .assertThat()
+            .hasStatus(404)
+            .bodyJson()
+            .hasPath("$.code");
+    }
+
+    @Test
+    void toggleSelected_existingLine_returns200() {
+        CartResponse stub = new CartResponse("u-1", List.of(), Instant.parse("2026-06-19T00:00:00Z"));
+        when(cartService.toggleSelected(any(), eq("p-1"))).thenReturn(stub);
+
+        mvc.patch().uri("/api/cart/items/p-1")
+            .exchange()
+            .assertThat()
+            .hasStatusOk()
+            .bodyJson()
+            .hasPathSatisfying("$.userId", v -> v.assertThat().isEqualTo("u-1"));
+    }
+
+    @Test
+    void toggleSelected_unknownLine_returns404() {
+        when(cartService.toggleSelected(any(), eq("p-missing")))
+            .thenThrow(new NotFoundException("购物车中不存在该商品行:p-missing"));
+
+        mvc.patch().uri("/api/cart/items/p-missing")
+            .exchange()
+            .assertThat()
+            .hasStatus(404)
+            .bodyJson()
+            .hasPath("$.code");
     }
 }

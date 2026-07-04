@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -153,5 +154,54 @@ class CartServiceSliceTest {
         cartService.clear("u-1");
 
         verify(cartRepository).deleteById("u-1");
+    }
+
+    @Test
+    void updateQuantity_existingLine_replacesQuantityAndSaves() {
+        when(cartRepository.findById("u-1")).thenReturn(Optional.of(doc("u-1", List.of(
+            new CartItem("p-1", 2, true, T)))));
+        when(productService.get("p-1"))
+            .thenReturn(product("p-1", "大闸蟹", new BigDecimal("99.00"), "https://cdn/p1.jpg"));
+
+        cartService.updateQuantity("u-1", "p-1", 9);
+
+        ArgumentCaptor<CartDocument> captor = ArgumentCaptor.forClass(CartDocument.class);
+        verify(cartRepository).save(captor.capture());
+        assertThat(captor.getValue().getItems()).hasSize(1);
+        assertThat(captor.getValue().getItems().get(0).quantity()).isEqualTo(9);
+    }
+
+    @Test
+    void updateQuantity_unknownProductId_throwsNotFoundException() {
+        when(cartRepository.findById("u-1")).thenReturn(Optional.of(doc("u-1", List.of(
+            new CartItem("p-1", 2, true, T)))));
+
+        assertThatThrownBy(
+                () -> cartService.updateQuantity("u-1", "p-missing", 5))
+            .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void toggleSelected_existingLine_flipsSelectedAndSaves() {
+        when(cartRepository.findById("u-1")).thenReturn(Optional.of(doc("u-1", List.of(
+            new CartItem("p-1", 2, true, T)))));
+        when(productService.get("p-1"))
+            .thenReturn(product("p-1", "大闸蟹", new BigDecimal("99.00"), "https://cdn/p1.jpg"));
+
+        cartService.toggleSelected("u-1", "p-1");
+
+        ArgumentCaptor<CartDocument> captor = ArgumentCaptor.forClass(CartDocument.class);
+        verify(cartRepository).save(captor.capture());
+        assertThat(captor.getValue().getItems().get(0).selected()).isFalse();
+    }
+
+    @Test
+    void toggleSelected_unknownProductId_throwsNotFoundException() {
+        when(cartRepository.findById("u-1")).thenReturn(Optional.of(doc("u-1", List.of(
+            new CartItem("p-1", 2, true, T)))));
+
+        assertThatThrownBy(
+                () -> cartService.toggleSelected("u-1", "p-missing"))
+            .isInstanceOf(NotFoundException.class);
     }
 }
