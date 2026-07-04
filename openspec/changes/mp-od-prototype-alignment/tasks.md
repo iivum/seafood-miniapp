@@ -80,11 +80,27 @@
 
 ## 10. 收尾
 
-- [ ] 10.1 全量复跑 `npm run test:visual` + `npm run test:geometry`（无 screen 参数，跑全部 9 屏），确认无回归
-- [ ] 10.2 汇总 9 屏最终 diff% / 几何状态表，写入本 change 的完成记录（tasks.md 底部或 design.md 附录）
-- [ ] 10.3 检查 `CLAUDE.md`「视觉验证」章节是否需要同步更新（如 9 屏 GREEN 状态、验证方式变化）
-- [ ] 10.4 用 `superpowers:requesting-code-review` 走一次全量 diff 的最终 review（既有分散在各屏 commit 的 task review 之外，做一次跨屏一致性检查：token 用法、组件复用、命名风格）
-- [ ] 10.5 全部完成后 `/opsx:archive mp-od-prototype-alignment`
+- [x] 10.1 全量复跑确认无回归。诊断中途遇到 DevTools 自动化端口长时间运行后异常（本 change 第 2 次遇到，同 mp-07 阶段记录的现象），全部 9 屏截图 TIMEOUT，按已记录的恢复流程重启 `cli auto` 进程解决。重启后复验：几何层 **9/9 屏 33 项检查全部 GREEN**，与各屏此前记录完全一致，无回归。感知层：7 屏（mp-01/02/03/06/07/08/09）与此前记录一致；`mp-04-cart` 批跑时因刚重启的瞬时状态截到登录页假信号，单独重跑确认 24.68%（此前 24.47%，无回归）；`mp-05-profile` 遇到一个新 harness 坑——该屏 `mp.screenshot()` 偶发耗时 ~2 分钟（其余屏 1-2 秒），导致标准 15s 超时的自动化调用全部 TIMEOUT。手动用不设超时的原生截图 + `sips`/`odiff-bin` 算出真实 diff 47.84%（此前 47.95%），确认无回归，非本屏真实问题。已记入 `frontend/e2e/tools/README.md` 新坑点章节
+- [x] 10.2 九屏最终状态表（见下）
+- [x] 10.3 检查 `CLAUDE.md`「视觉验证」章节：现有描述（感知层为主+几何层为辅、已落地范围）仍准确，9 屏均已过一轮对齐不改变方法论本身，未发现需要更新之处，不改动
+- [x] 10.4 跨屏一致性 review：最终结论 **APPROVED_WITH_MINOR_NOTES**。检查范围：token 用法一致性（9 屏全部合规，裸值均为既有合规例外）、组件复用接线（`OrderActionRow`/`OrderTrackingTimeline` 事件契约在两个消费页一致）、死绑定修复模式（每处均有对应契约/行为测试锁住）、遗留问题清单诚实度（逐项代码核实确认无偷偷 hack 掩盖）。**发现 1 个 Important（已修复）**：`order-list.js`/`order-detail.js` 是近乎逐行照抄的两份订单操作处理逻辑，`order-detail.js` 早已正确写成 `err.statusCode || err.status`，但 `order-list.js` 只读 `err.status`（对真实 `ApiError` 恒为 undefined），导致 409/403/404 专用提示在订单列表页全部落空——且被测试用虚构 shape `{status: 409}` 掩盖（真实 shape 是 `{statusCode: 409}`）。commit `d43e68f` 修复（源码对齐 + 测试改用真实 shape，先证 RED 后 GREEN），536/536 全绿。6 条 Minor（handler 命名分裂 `onBack`/`goBack`/裸动词、order-detail.wxss 是唯一非 BEM 风格屏、地址卡片跨屏 3 个不同 class 名、JSON 冗余配置、money 格式化无共享 util、契约测试模式未全屏铺开）留作后续视觉/命名打磨 change，不阻塞归档
+- [x] 10.5 归档：全部任务完成，执行 `/opsx:archive mp-od-prototype-alignment`
+
+### 九屏最终状态表
+
+| 屏 | 几何层 | 感知层 diff% | 残差性质 |
+|---|---|---|---|
+| mp-01 home | 5/5 GREEN | 56.26% | 预期内容差异（冻结 mockup 文案/图片 vs 真实 seed 数据） |
+| mp-02 category | 3/3 GREEN | 61.02% | 架构性差异（OD 编辑推荐型板块，已确认范围外） |
+| mp-03 product-detail | 4/4 GREEN | 62.69% | 预期内容差异 |
+| mp-04 cart | 4/4 GREEN | 24.68% | 预期内容差异，9 屏中最接近 golden |
+| mp-05 profile | 4/4 GREEN | 47.84% | 架构性差异（OD 会员运营板块，已确认范围外） |
+| mp-06 order-confirm | 5/5 GREEN | 37.83% | 预期内容差异 |
+| mp-07 address | 2/2 GREEN | 37.82% | 布局差异（操作栏竖排 vs 横排，遗留问题已记录） |
+| mp-08 order-list | 3/3 GREEN | 29.99% | 真实渲染权重差异（此前假信号已修复） |
+| mp-09 order-detail | 3/3 GREEN | 30.18% | 预期内容差异（收货人裸 userId，遗留问题已记录） |
+
+几何层 100% GREEN（9 屏 33 项检查全过）；感知层全部残差均已逐屏诊断确认为"架构性差异/预期内容差异"，非结构或样式回归，符合"感知 diff ≤5% 或几何全绿"完成判据的几何分支。
 
 ## 遗留问题清单（本 change 范围外，供后续 change 参考）
 
@@ -95,3 +111,5 @@
 - **mp-07 地址卡片操作栏布局是竖排侧边而非 OD 的横排底部栏**（mp-07 reviewer 发现，既有布局，本轮未触碰）：`address-list.wxss` 的 `.address-card__actions` 是 `flex-direction: column` + 右侧 `border-left` 竖排（编辑/删除/设为默认纵向堆叠），OD 图是卡片底部一条横向操作栏（虚线分隔）。持续拖累这一屏的感知 diff 分数，不是本次改动引入，brief 范围未要求调整，留给后续视觉打磨 change 处理。
 - **`User` 域对象无积分/VIP等级/余额/优惠券/收藏/浏览足迹字段**（mp-05 profile 诊断时发现）：OD 原型个人中心页展示丰富的会员运营板块，现有 `UserDocument` 只有 `id/openId/nickname/avatarUrl/role/phone/addresses/createdAt`。已与用户确认本 change 只做前端视觉近似（保留极简架构），不新增这些板块。完整对齐需要新的领域能力（积分累计规则、VIP 等级判定、余额账本、优惠券发放与核销、收藏/足迹追踪），涉及新聚合根设计，建议另开 change 单独设计。
 - **（已修复，非遗留）登录成功后 `authStore.state.user` 恒为空**：mp-05 诊断阶段发现的全局性 bug（后端 `TokenResponse` 从无 `user` 字段，前端却假设有），已确认现在修，不留作遗留问题——commit `d9951fb`（mp 运行时 `store.js` + 新建 `user/api.js` shim）+ `a0a60f1`（task reviewer 指出 `store.ts` 类型检查源码未同步这次修复，属于本 change 反复出现的"shim drift"反向重演，已一并同步修复，536/536 全绿，`tsc --noEmit` 0 error）。
+- **（已修复，非遗留）`order-list.js` 错误处理读错字段名**：最终跨屏一致性 review 发现，commit `d43e68f` 已修，详见 10.4。
+- **跨屏命名/风格不统一**（最终跨屏一致性 review 发现，6 条 Minor，未阻塞归档）：① 返回按钮 handler 命名分裂——`onBack`（order-list/order-detail/product-detail）vs `goBack`（order-confirm/address-list）② 地址操作用裸动词命名（`selectAddress`/`editAddress`/…，源于 mp-07 修死绑定时选择最小 diff 直接回绑已有方法名），其余 8 屏一律 `onXxx` 前缀 ③ `order-detail.wxss` 是唯一未跟随 `block__element--modifier` BEM 风格的屏（用扁平通用名 `.card`/`.card-title`/`.info-card`） ④ "地址卡片"这个 block 跨屏有 3 个不同 class 名（`address-card`/`addr-card`/`cart-address`） ⑤ `order-confirm.json`/`address-list.json` 在 `navigationStyle: custom` 下仍多写了 no-op 的 `navigationBarBackgroundColor`/`navigationBarTextStyle` ⑥ 金额格式化两套惯例并存（`order-confirm.js` 的 `roundYuan()` helper vs `cart.js` 的裸 `.toFixed(2)`），无共享 money util。建议后续视觉/命名打磨 change 统一处理，同时可考虑把 `order-list.js`/`order-detail.js` 近乎逐行重复的订单操作处理逻辑（~120 行）抽成共享的 order-action controller（这正是 `err.status`/`err.statusCode` 分叉 bug 的根源——一份拷贝改了另一份没跟上）。
