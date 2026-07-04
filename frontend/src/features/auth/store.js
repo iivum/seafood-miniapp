@@ -97,9 +97,9 @@ class AuthStore {
       const code = await this._wxLogin();
       const { AuthAPI } = require('./api');
       const res = await AuthAPI.wechatLogin({ code });
-      this._applyLoginResponse(res);
+      await this._applyLoginResponse(res);
       this._setState({ isLoggingIn: false, lastError: null });
-      return res.user;
+      return this.state.user;
     } catch (err) {
       const message = err && err.message ? err.message : 'WeChat login failed';
       this._setState({ isLoggingIn: false, lastError: message });
@@ -112,9 +112,9 @@ class AuthStore {
     try {
       const { AuthAPI } = require('./api');
       const res = await AuthAPI.wechatLogin({ code });
-      this._applyLoginResponse(res);
+      await this._applyLoginResponse(res);
       this._setState({ isLoggingIn: false, lastError: null });
-      return res.user;
+      return this.state.user;
     } catch (err) {
       const message = err && err.message ? err.message : 'WeChat login failed';
       this._setState({ isLoggingIn: false, lastError: message });
@@ -138,10 +138,26 @@ class AuthStore {
     });
   }
 
-  _applyLoginResponse(res) {
+  /**
+   * 后端 POST /auth/wechat-login 响应体(TokenResponse.java)只有 token 相关
+   * 字段,从来没有 user 字段——res.user 恒为 undefined。这里补调
+   * GET /users/me 拿真实用户信息。该附加请求是非致命性的:失败(网络错误等)
+   * 时静默降级为 user: null,不 throw,不阻断登录主流程(token 已拿到,核心
+   * 功能应可用,只是用户信息展示缺失)。参照 logout() 的 best-effort 模式。
+   */
+  async _applyLoginResponse(res) {
     tokenStorage.setTokens(res.accessToken, res.refreshToken);
-    persistUser(res.user);
-    this._setState({ user: res.user, isAuthenticated: true });
+    let user = res.user || null;
+    if (!user) {
+      try {
+        const { UserAPI } = require('../user/api');
+        user = await UserAPI.me();
+      } catch {
+        user = null; // best-effort:附加请求失败不阻断登录
+      }
+    }
+    persistUser(user);
+    this._setState({ user, isAuthenticated: true });
   }
 
   async silentRelogin() {
