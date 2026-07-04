@@ -62,19 +62,21 @@
 
 > **承接 mp-08 的发现**：`OrderActionRow` 组件文件（`.wxml`/`.wxss`/`.json`）已在 mp-08 建好，这次只需要接进 `order-detail.json` 的 `usingComponents`（不用重新画组件）。**务必核对 `order-detail.js` 如果有自己的 action 点击处理方法，是否正确从 `e.detail.id` 取动作类型、从 `dataset.id`（或页面已有的当前订单 id）取订单 id**——mp-08 的 `order-list.js` 就是在这个事件契约上翻车的（`onActionTap` 从 `e.detail` 解构 `{id, action}` 两者都取反），order-detail 页面走的是单订单详情，可能连订单 id 都不需要从 dataset 取（页面本身就绑定了当前订单），但动作类型一定要从 `e.detail.id` 读，不要重复同样的错误。
 
-- [ ] 8.1 诊断：跑 `npm run test:visual mp-09-order-detail` + `npm run test:geometry mp-09-order-detail`，记录当前状态（C5 baseline 30% RED）
-- [ ] 8.2 对照 `frontend/e2e/od-golden/mp-09-order-detail.png` + diff 图，列出偏离点清单
-- [ ] 8.3 写 task brief（偏离清单 + diff 图 + `frontend/pages-sub/order/order-detail/*` + mp-09 spec requirement 原文，含上面的 OrderActionRow 接线注意事项），派 subagent 修复，task reviewer 复查
-- [ ] 8.4 复验：重跑 harness，确认 ≤5%（或几何全绿）；实机点击验证 action row 按钮真实生效（不是弹"未知操作"）
-- [ ] 8.5 commit，更新 ledger
+- [x] 8.1 诊断：感知 30.32% RED，几何层 3/3 GREEN（status-banner/addr/bottom-bar）。Console 监控全程干净
+- [x] 8.2 对照 golden 列偏离点：底部操作按钮硬编码固定 3 个（申请退款/查看物流/确认收货），完全不随订单状态变化（PENDING 订单也显示"确认收货"，真 bug）；物流轨迹硬编码 3 段静态节点，未消费后端真实 `order.tracking.events`；收货人显示裸 `order.userId`（另开 change 处理，不在这次范围）；实时物流追踪数据无后端支撑，不做
+- [x] 8.3 写 task brief（`.superpowers/sdd/mp-od-8-order-detail-brief.md`），派 implementer 接线 `OrderActionRow`（mp-08 建好的组件，事件契约 `e.detail.id`，未重蹈 mp-08 一开始"两者都取反"的错误）+ `OrderTrackingTimeline`（早已实现且测试覆盖，只是没被任何页面接线）。**接线过程中同类休眠 bug 第 3 次出现**：`OrderTrackingTimeline/index.js`（mp 运行时真正执行的文件）顶部 `require('./index.ts-helpers')` 指向一个从未存在过的文件——组件此前从未被接线，坏 require 从未被真实执行到，接进 wxml 后 mp 运行时加载会直接崩溃整个组件。修复：内联 JS 版 `computeStages`/`shouldShow`（同 `OrderActionRow/index.js` 既有惯例），新增 `index.runtime.test.js` 直接 require `.js` 运行时文件锁回归。`order-detail.js` 此前零覆盖，新增 38 例测试（commit `fa05537`）。**task reviewer 复查（Approved，0 Critical/Important）**：独立核实坏 require 确实存在、修复逻辑与 `.ts` 源码逐行对比忠实移植、新测试真的锁住 `.js` 运行时文件（不是绕回测 `.ts`）。2 条 Minor：继承自 `order-list.js` 的死分支 `withdrawRefund`（不是本次引入，brief 明确要求照抄模式，合理）+ 测试数字笔误（38 非 39，不影响结论）。范围收敛核实：未碰 `order.userId`，未编造物流数据，未碰后端
+- [x] 8.4 复验：几何层 3/3 GREEN 不变；感知层 30.32%→30.24%（残差为已排除范围的预期差异，非新偏差）。**实机端到端验证**：真实 dev-login token → 真实 PENDING 订单 → 点击"立即付款"，后端确认订单真的 PENDING→PAID；订单改 SHIPPED + 真实 tracking events，验证 `OrderTrackingTimeline` 真实渲染 4 节点（证明坏 require 修复在真机有效，不只是单测）。全程 console 监控 0 error/warning/exception
+- [x] 8.5 commit 完成（`fa05537`），ledger 已更新
 
 ## 9. mp-05 profile
 
-- [ ] 9.1 诊断：跑 `npm run test:visual mp-05-profile` + `npm run test:geometry mp-05-profile`，记录当前状态（C5 baseline 71% RED，9 屏中最差）
-- [ ] 9.2 对照 `frontend/e2e/od-golden/mp-05-profile.png` + diff 图，列出偏离点清单
-- [ ] 9.3 写 task brief（偏离清单 + diff 图 + `frontend/pages/profile/profile.*` + mp-05 spec requirement 原文），派 subagent 修复，task reviewer 复查
-- [ ] 9.4 复验：重跑 harness，确认 ≤5%（或几何全绿）
-- [ ] 9.5 commit，更新 ledger
+- [x] 9.1 诊断：实测感知 48.74% RED（比 C5 记录的 71% 好，之前几屏的整体样式/token 修正带来正面影响）；几何层 4/4 GREEN（user-card/status-grid[4]/status-cols[4列]/tools-list[3]）。Console 监控全程干净
+- [x] 9.2 对照 golden 列偏离点：OD 是丰富会员运营型设计（姓名+VIP等级徽章+积分、收藏/足迹/优惠券三栏统计、积分/优惠券/余额三栏卡片、默认地址详情卡片）；现有实现是极简架构（头像+昵称+角色徽章 + 4状态订单卡 + 3项工具列表）。**已与用户确认**：`User` 域对象无积分/VIP/余额/优惠券/收藏/足迹字段，系统性数据模型缺口（同 mp-02 category 同款问题），只做前端视觉近似，不新增这些板块，记入遗留清单。顺带发现真 bug：7 处图标用系统 emoji（风格不符设计系统）；"联系客服"/"关于我们"两个 `<navigator>` 指向的页面根本不存在也未在 `app.json` 注册，点击必定跳转失败
+- [x] 9.3 写 task brief（`.superpowers/sdd/mp-od-9-profile-brief.md`），派 implementer 修复（commit `b109c14`）：用户卡视觉排版微调（字号/间距/圆角，不新增数据内容）；7 处 emoji 全部替换为 `<van-icon>`（复用项目已有的 `@vant/weapp` 依赖，图标名逐一核实真实存在于 vant 图标字体清单）；2 处死链接改为"开发中"toast（同 order-list.js 既有模式）；顺手修复一个此前静默走 fallback 的死 token 引用（`--font-sans`→`--font-body`，前者在 tokens.wxss 里根本不存在）。11 个新测试，528/528 全绿。**task reviewer 复查（Approved，0 Critical/Important，3 条 Minor 均无害）**：范围收敛专项核查确认无任何 VIP/积分/余额/收藏/足迹/默认地址卡片代码混入；7 个 van-icon 图标名逐一 grep 验证真实存在；死链接修复有真实行为断言测试锁定；"收货地址"链接未被误伤
+- [x] 9.4 复验：几何层 4/4 GREEN 不变；感知层 48.74%→47.95%（残差为已排除范围的会员运营板块，符合预期，非新偏差）
+- [x] 9.5 commit 完成（`b109c14`），ledger 已更新
+
+**新发现（不在本屏范围，已与用户确认现在修，见下方独立处理）**：implementer 诊断中发现登录成功后前端 `authStore` 从未拿到真实用户信息——后端 `TokenResponse`（`POST /api/auth/wechat-login` 响应）只有 token 相关字段，从无 `user` 字段，但 `authStore.js` 的 `login()`/`silentRelogin()` 假设响应体自带 `res.user` 并直接 `persistUser(res.user)`，导致 `userInfo` 恒为 `undefined`——这正是 profile 页面即使已登录也一直显示"点击登录"的根因。调研确认 `GET /api/users/me` 端点已存在，无需改后端契约，纯前端修复：登录成功后补调这个端点。全局性 bug（不止影响 profile 页），已与用户确认现在修。
 
 ## 10. 收尾
 
@@ -91,3 +93,5 @@
 - **`Address` 领域模型字段名与多处 wxml 引用不一致**（mp-04 复验时发现）：`backend/src/main/java/com/seafood/user/domain/Address.java` 只有 `province/city/detail` 字段，没有 `district`/`detailAddress`。但 `frontend/pages/cart/cart.wxml` 和 `frontend/pages-sub/user/address/address-list.wxml` 都在用 `{{item.district}}{{item.detailAddress}}`——渲染时这两个字段是 undefined，地址详情展示不全（能看到省市，看不到详细地址）。这是跨多个页面的既有 bug，不是这几轮改动引入的，建议另开 change 统一修正字段名对齐（前端改字段名 vs 后端加字段，哪个更合适需要单独判断）。
 - **新旧 token 存储没有在小程序冷启动时统一桥接**（mp-06 诊断时发现，影响面可能不小）：legacy `frontend/utils/request.js` 的鉴权请求读 `app.globalData.token`，这个字段只在 `app.js` 旧版 `checkLoginStatus()`（读 `wx.getStorageSync('token')`）或主动调用新版 `authStore.login()`/`loginWithCode()`（内部 `persistUser()` 桥接）时才被赋值。新版登录写的是完全不同的 storage key（`accessToken`，`src/shared/api/storage.ts`），从未写旧 `token` key。结果：小程序冷启动、用户是"之前登录过、这次只是恢复会话"（没有触发新的 `login()` 调用）时，`app.globalData.token` 会保持未初始化，任何仍在用 legacy `utils/request.js` 发鉴权请求的代码都会静默鉴权失败。已确认影响 mp-04 `cart.js` + mp-06 `order-confirm.js` 的默认地址自动选中功能（优雅降级，不崩溃、不脏数据，只是功能不生效）；实际影响面可能更大，取决于还有多少页面仍在用 legacy `utils/request.js` 做鉴权请求，需要单独排查。建议另开 change：在 `app.js` `onLaunch` 时从 `tokenStorage` 恢复 session 时一并初始化 `globalData.token`，彻底桥接新旧两套存储。
 - **mp-07 地址卡片操作栏布局是竖排侧边而非 OD 的横排底部栏**（mp-07 reviewer 发现，既有布局，本轮未触碰）：`address-list.wxss` 的 `.address-card__actions` 是 `flex-direction: column` + 右侧 `border-left` 竖排（编辑/删除/设为默认纵向堆叠），OD 图是卡片底部一条横向操作栏（虚线分隔）。持续拖累这一屏的感知 diff 分数，不是本次改动引入，brief 范围未要求调整，留给后续视觉打磨 change 处理。
+- **`User` 域对象无积分/VIP等级/余额/优惠券/收藏/浏览足迹字段**（mp-05 profile 诊断时发现）：OD 原型个人中心页展示丰富的会员运营板块，现有 `UserDocument` 只有 `id/openId/nickname/avatarUrl/role/phone/addresses/createdAt`。已与用户确认本 change 只做前端视觉近似（保留极简架构），不新增这些板块。完整对齐需要新的领域能力（积分累计规则、VIP 等级判定、余额账本、优惠券发放与核销、收藏/足迹追踪），涉及新聚合根设计，建议另开 change 单独设计。
+- **（已修复，非遗留）登录成功后 `authStore.state.user` 恒为空**：mp-05 诊断阶段发现的全局性 bug（后端 `TokenResponse` 从无 `user` 字段，前端却假设有），已确认现在修，不留作遗留问题——commit `d9951fb`（mp 运行时 `store.js` + 新建 `user/api.js` shim）+ `a0a60f1`（task reviewer 指出 `store.ts` 类型检查源码未同步这次修复，属于本 change 反复出现的"shim drift"反向重演，已一并同步修复，536/536 全绿，`tsc --noEmit` 0 error）。
