@@ -122,20 +122,32 @@ public class OrderService {
                 .orElseThrow(() -> new DomainException("购物车为空"));
         cart.requireNonEmptySelected();
 
-        List<LineItem> lines = cart.items().stream()
+        // 存在性/上架校验范围 = 购物车全量行(含未勾选),与建单/扣减范围
+        // (仅勾选行)分开 —— 修复 review 发现的收窄回归:pre-diff(ade2df2)对
+        // 全量 cart items 跑 findAllById + size-mismatch 校验,selected 过滤
+        // 只发生在后面的建单循环里;本次重构一度把 selected 过滤提前到了存在性
+        // 校验之前,导致"购物车里有个未勾选的已下架/已删商品"从"整单建不了"
+        // 静默退化为"直接忽略该行、照常下单"。这里显式拆两份 line 列表恢复原语义。
+        List<LineItem> allLines = cart.items().stream()
+                .map(ci -> new LineItem(ci.productId(), ci.quantity()))
+                .toList();
+        List<LineItem> selectedLines = cart.items().stream()
                 .filter(CartItem::selected)
                 .map(ci -> new LineItem(ci.productId(), ci.quantity()))
                 .toList();
         // 1) + 2):逐行校验存在/上架/库存 + 扣减(design.md Gap 2 / D3 共享 helper,
         // 与 create(userId, items) 的 explicit-items 路径共用同一份实现)
-        List<OrderItem> items = validateAndDecrementLines(lines);
+        List<OrderItem> items = validateAndDecrementLines(allLines, selectedLines);
 
-        // 3) 持久化订单 + 4) 埋点
-        OrderResponse response = persistOrderAndRecordMetric(userId, items, paymentMethod);
+        // 3) 持久化订单
+        OrderResponse response = persistOrder(userId, items);
 
-        // 5) 清空 cart —— 仅 cart 路径才碰 carts repository;
+        // 4) 清空 cart —— 仅 cart 路径才碰 carts repository;
         // explicit-items 直接购买路径(design D3)绝不读/清购物车
         carts.deleteById(userId);
+
+        // 5) 埋点(顺序恢复 pre-diff:先清 cart 再记 metric,和 ade2df2 一致)
+        recordOrderCreatedMetric(paymentMethod);
 
         return response;
     }
@@ -154,8 +166,12 @@ public class OrderService {
         List<LineItem> lines = items.stream()
                 .map(req -> new LineItem(req.productId(), req.quantity()))
                 .toList();
-        List<OrderItem> orderItems = validateAndDecrementLines(lines);
-        return persistOrderAndRecordMetric(userId, orderItems, "wechat");
+        // explicit-items 路径没有 selected 概念——请求体里的每一行都隐含"已选中",
+        // 所以存在性校验范围与建单范围是同一份 list(不像 cart 路径需要拆两份)。
+        List<OrderItem> orderItems = validateAndDecrementLines(lines, lines);
+        OrderResponse response = persistOrder(userId, orderItems);
+        recordOrderCreatedMetric("wechat");
+        return response;
     }
 
     /**
@@ -163,13 +179,24 @@ public class OrderService {
      * 直接购买路径共用的"逐行校验商品存在/上架/库存 + 扣减"实现,避免两份"商品不存在/
      * 已下架/库存不足"校验逻辑拷贝。
      *
-     * @param lines (productId, quantity) 待建单行;cart 路径已提前过滤 selected=false,
-     *              explicit-items 路径直接来自请求体
-     * @return 校验通过且库存已扣减的 OrderItem 列表,顺序与入参一致
+     * <p>存在性校验范围({@code existenceCheckLines})与建单/扣减范围
+     * ({@code linesToBuild})故意拆成两个参数 —— pre-diff(ade2df2)行为是:cart 路径的
+     * "商品不存在或已下架"校验跑在全量 cart items(含未勾选)上,只有后面建 OrderItem
+     * 才按 selected 过滤。explicit-items 路径没有 selected 概念,两个参数传同一份 list
+     * 即可(见调用方)。
+     *
+     * @param existenceCheckLines 用于 {@code products.findAllById} + size-mismatch 校验
+     *                            "商品不存在或已下架"的行集合;cart 路径传全量 cart items,
+     *                            explicit-items 路径传请求体原始行
+     * @param linesToBuild 实际建 OrderItem + 扣库存的行集合;cart 路径传 selected=true 的
+     *                     子集,explicit-items 路径与 existenceCheckLines 相同
+     * @return 校验通过且库存已扣减的 OrderItem 列表,顺序与 linesToBuild 一致
      */
-    private List<OrderItem> validateAndDecrementLines(List<LineItem> lines) {
-        // 1) 拉所有商品 → 快照 + 校验存在/上架
-        List<String> productIds = lines.stream().map(LineItem::productId).toList();
+    private List<OrderItem> validateAndDecrementLines(
+            List<LineItem> existenceCheckLines, List<LineItem> linesToBuild) {
+        // 1) 拉所有商品 → 快照 + 校验存在/上架(范围 = existenceCheckLines,cart 路径下
+        // 是全量购物车行,不受 selected 过滤影响 —— 这是本次修复恢复的 pre-diff 语义)
+        List<String> productIds = existenceCheckLines.stream().map(LineItem::productId).toList();
         List<com.seafood.product.infra.ProductDocument> docs = products.findAllById(productIds);
         if (docs.size() != new java.util.HashSet<>(productIds).size()) {
             throw new DomainException("商品不存在或已下架");
@@ -178,7 +205,7 @@ public class OrderService {
         for (var d : docs) byId.put(d.getId(), d);
 
         List<OrderItem> items = new ArrayList<>();
-        for (LineItem line : lines) {
+        for (LineItem line : linesToBuild) {
             var pd = byId.get(line.productId());
             if (pd == null) {
                 throw new DomainException("商品不存在:" + line.productId());
@@ -207,8 +234,12 @@ public class OrderService {
         return items;
     }
 
-    /** cart 路径 / explicit-items 路径共用:持久化订单 + orders.created 埋点。 */
-    private OrderResponse persistOrderAndRecordMetric(String userId, List<OrderItem> items, String paymentMethod) {
+    /**
+     * cart 路径 / explicit-items 路径共用:持久化订单。埋点故意不在这里做 —— cart 路径
+     * 需要在"持久化"和"记 metric"之间插入"清空 cart"(恢复 pre-diff 顺序:持久化 →
+     * 清 cart → 埋点),见 {@link #recordOrderCreatedMetric}。
+     */
+    private OrderResponse persistOrder(String userId, List<OrderItem> items) {
         BigDecimal total = items.stream().map(OrderItem::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Instant now = Instant.now();
@@ -218,15 +249,18 @@ public class OrderService {
         Order order = new Order(null, userId, items, total, new OrderStatus.Pending(),
                 null, null, null, estimatedDelivery, now, now);
         OrderDocument saved = orders.save(OrderMapper.toDocument(order));
+        return OrderResponse.from(OrderMapper.toDomain(saved));
+    }
 
-        // 业务埋点(PR #3 3.3):下单成功(库存已扣 + 订单已落库)后累加。失败路径
-        // (库存不足/商品下架/购物车空)在 validateAndDecrementLines 内早 throw 处退出,
-        // 不递增。paymentMethod tag 无值默认 "wechat"(本期单渠道);
-        // Sprint 3 多支付接入后这里扩展为枚举校验。
+    /**
+     * 业务埋点(PR #3 3.3):下单成功(库存已扣 + 订单已落库)后累加。失败路径
+     * (库存不足/商品下架/购物车空)在 validateAndDecrementLines 内早 throw 处退出,
+     * 不递增。paymentMethod tag 无值默认 "wechat"(本期单渠道);
+     * Sprint 3 多支付接入后这里扩展为枚举校验。
+     */
+    private void recordOrderCreatedMetric(String paymentMethod) {
         String method = (paymentMethod == null || paymentMethod.isBlank()) ? "wechat" : paymentMethod;
         meterRegistry.counter("orders.created", "paymentMethod", method).increment();
-
-        return OrderResponse.from(OrderMapper.toDomain(saved));
     }
 
     /** cart 路径 / explicit-items 路径共用的建单行(productId + quantity)。 */

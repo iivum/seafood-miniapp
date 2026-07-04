@@ -149,6 +149,34 @@ class OrderServiceTest {
         assertThat(prod.getStatus()).isEqualTo(ProductStatus.OUT_OF_STOCK);
     }
 
+    @Test
+    void create_cartHasUnselectedItemPointingAtMissingProduct_failsWholeCheckout() {
+        // Regression(mp-backend-contract-gaps Task 2a review 修复):cart 里一个已勾选
+        // 的有效商品 + 一个未勾选、指向不存在/已下架商品的行。pre-diff(ade2df2)行为是
+        // 存在性校验跑在全量 cart items 上(不看 selected),所以整单应该建不了 ——
+        // 而不是静默忽略那行未勾选商品、只用已勾选行成功下单。
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(
+                new CartItem("p1", 2, true, Instant.now()),       // 已勾选,有效商品
+                new CartItem("p-deleted", 1, false, Instant.now()) // 未勾选,商品已不存在
+        ));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        // findAllById 对全量 productIds(p1, p-deleted)查询,只有 p1 存在 → size 不匹配
+        when(productRepo.findAllById(List.of("p1", "p-deleted")))
+                .thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+
+        assertThatThrownBy(() -> service.create("u1"))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("商品不存在或已下架");
+
+        // 整单应该建不了:不落库订单,不清购物车,不扣任何库存
+        verify(orderRepo, never()).save(any(OrderDocument.class));
+        verify(cartRepo, never()).deleteById(anyString());
+        verify(productRepo, never()).save(any(ProductDocument.class));
+    }
+
     // === mp-backend-contract-gaps Task 2a(design.md Gap 2 / D3):
     // 显式 items 直接购买建单,绕开购物车 ===
 
