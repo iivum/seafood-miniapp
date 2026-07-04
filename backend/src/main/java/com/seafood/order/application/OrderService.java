@@ -1,5 +1,6 @@
 package com.seafood.order.application;
 
+import com.seafood.order.api.dto.CartItemRequest;
 import com.seafood.order.api.dto.CartItemResponse;
 import com.seafood.order.api.dto.OrderResponse;
 import com.seafood.order.api.dto.RefundResponse;
@@ -121,31 +122,75 @@ public class OrderService {
                 .orElseThrow(() -> new DomainException("购物车为空"));
         cart.requireNonEmptySelected();
 
+        List<LineItem> lines = cart.items().stream()
+                .filter(CartItem::selected)
+                .map(ci -> new LineItem(ci.productId(), ci.quantity()))
+                .toList();
+        // 1) + 2):逐行校验存在/上架/库存 + 扣减(design.md Gap 2 / D3 共享 helper,
+        // 与 create(userId, items) 的 explicit-items 路径共用同一份实现)
+        List<OrderItem> items = validateAndDecrementLines(lines);
+
+        // 3) 持久化订单 + 4) 埋点
+        OrderResponse response = persistOrderAndRecordMetric(userId, items, paymentMethod);
+
+        // 5) 清空 cart —— 仅 cart 路径才碰 carts repository;
+        // explicit-items 直接购买路径(design D3)绝不读/清购物车
+        carts.deleteById(userId);
+
+        return response;
+    }
+
+    /**
+     * mp-backend-contract-gaps Task 2a(design.md Gap 2 / D3):显式 items 直接购买建单,
+     * 绕开购物车。{@code items} 为 {@code null}/空 → 回退到现有购物车路径(未变);
+     * 非空 → 复用与购物车路径完全相同的逐行校验/扣减 helper 建单,全程不读也不清购物车。
+     *
+     * @param items 直接购买的行(productId + quantity);null/empty 回退 create(userId)
+     */
+    public OrderResponse create(String userId, List<CartItemRequest> items) {
+        if (items == null || items.isEmpty()) {
+            return create(userId);
+        }
+        List<LineItem> lines = items.stream()
+                .map(req -> new LineItem(req.productId(), req.quantity()))
+                .toList();
+        List<OrderItem> orderItems = validateAndDecrementLines(lines);
+        return persistOrderAndRecordMetric(userId, orderItems, "wechat");
+    }
+
+    /**
+     * mp-backend-contract-gaps Task 2a(design.md Gap 2 / D3):cart 路径与 explicit-items
+     * 直接购买路径共用的"逐行校验商品存在/上架/库存 + 扣减"实现,避免两份"商品不存在/
+     * 已下架/库存不足"校验逻辑拷贝。
+     *
+     * @param lines (productId, quantity) 待建单行;cart 路径已提前过滤 selected=false,
+     *              explicit-items 路径直接来自请求体
+     * @return 校验通过且库存已扣减的 OrderItem 列表,顺序与入参一致
+     */
+    private List<OrderItem> validateAndDecrementLines(List<LineItem> lines) {
         // 1) 拉所有商品 → 快照 + 校验存在/上架
-        List<com.seafood.product.infra.ProductDocument> docs = products.findAllById(
-                cart.items().stream().map(c -> c.productId()).toList());
-        if (docs.size() != new java.util.HashSet<>(cart.items().stream().map(c -> c.productId()).toList()).size()) {
-            throw new DomainException("购物车包含已下架商品");
+        List<String> productIds = lines.stream().map(LineItem::productId).toList();
+        List<com.seafood.product.infra.ProductDocument> docs = products.findAllById(productIds);
+        if (docs.size() != new java.util.HashSet<>(productIds).size()) {
+            throw new DomainException("商品不存在或已下架");
         }
         java.util.Map<String, com.seafood.product.infra.ProductDocument> byId = new java.util.HashMap<>();
         for (var d : docs) byId.put(d.getId(), d);
 
         List<OrderItem> items = new ArrayList<>();
-        for (CartItem ci : cart.items()) {
-            if (!ci.selected()) continue;
-            var pd = byId.get(ci.productId());
+        for (LineItem line : lines) {
+            var pd = byId.get(line.productId());
             if (pd == null) {
-                throw new DomainException("商品不存在:" + ci.productId());
+                throw new DomainException("商品不存在:" + line.productId());
             }
             if (pd.getStatus() != com.seafood.product.domain.ProductStatus.ACTIVE) {
                 throw new DomainException("商品已下架:" + pd.getName());
             }
-            if (pd.getStock() < ci.quantity()) {
+            if (pd.getStock() < line.quantity()) {
                 throw new DomainException("库存不足:" + pd.getName() + " (剩余 " + pd.getStock() + ")");
             }
-            items.add(new OrderItem(pd.getId(), pd.getName(), pd.getPrice(), ci.quantity()));
+            items.add(new OrderItem(pd.getId(), pd.getName(), pd.getPrice(), line.quantity()));
         }
-        BigDecimal total = items.stream().map(OrderItem::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 2) 扣减库存(失败时记录已扣商品;Mongo 事务在生产应启用 — design §6.1 TODO)
         java.util.List<String> decremented = new ArrayList<>();
@@ -159,8 +204,13 @@ public class OrderService {
             // 后续接事务后改为 throw + 自动回滚
             throw e;
         }
+        return items;
+    }
 
-        // 3) 持久化订单
+    /** cart 路径 / explicit-items 路径共用:持久化订单 + orders.created 埋点。 */
+    private OrderResponse persistOrderAndRecordMetric(String userId, List<OrderItem> items, String paymentMethod) {
+        BigDecimal total = items.stream().map(OrderItem::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+
         Instant now = Instant.now();
         // mp-09 路线图 4.20:预计送达时间 = now + 24h。海鲜商品配送时效约定(本仓库仅单卖家内部运营,
         // 无外部承运商,delivery SLA 由 admin 配置后此处读配置,先写死 24h)。
@@ -169,18 +219,18 @@ public class OrderService {
                 null, null, null, estimatedDelivery, now, now);
         OrderDocument saved = orders.save(OrderMapper.toDocument(order));
 
-        // 4) 清空 cart
-        carts.deleteById(userId);
-
-        // 5) 业务埋点(PR #3 3.3):下单成功(库存已扣 + 订单已落库 + cart 已清)后累加。
-        // 失败路径(库存不足/商品下架/购物车空)在 catch + 早 throw 处退出,不递增。
-        // paymentMethod tag 显式落在 create(userId, paymentMethod) 重载入口,无值默认
-        // "wechat"(本期单渠道);Sprint 3 多支付接入后这里扩展为枚举校验。
+        // 业务埋点(PR #3 3.3):下单成功(库存已扣 + 订单已落库)后累加。失败路径
+        // (库存不足/商品下架/购物车空)在 validateAndDecrementLines 内早 throw 处退出,
+        // 不递增。paymentMethod tag 无值默认 "wechat"(本期单渠道);
+        // Sprint 3 多支付接入后这里扩展为枚举校验。
         String method = (paymentMethod == null || paymentMethod.isBlank()) ? "wechat" : paymentMethod;
         meterRegistry.counter("orders.created", "paymentMethod", method).increment();
 
         return OrderResponse.from(OrderMapper.toDomain(saved));
     }
+
+    /** cart 路径 / explicit-items 路径共用的建单行(productId + quantity)。 */
+    private record LineItem(String productId, int quantity) {}
 
     // ----- list -----
 

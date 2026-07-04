@@ -37,7 +37,10 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -186,5 +189,67 @@ class OrderControllerSliceTest {
             .bodyJson()
             .hasPathSatisfying("$.id", v -> v.assertThat().isEqualTo("o-1"));
         OpenApiContractAssert.assertPostConformsToContract("/api/orders/{id}/ship", result);
+    }
+
+    // === mp-backend-contract-gaps Task 2a(design.md Gap 2 / D3):
+    // POST /api/orders 可选 items body — 直接购买建单绕开购物车 ===
+
+    /**
+     * 带非空 items 的请求体 → 201,且必须路由到 {@code OrderService#create(userId, items)}
+     * 重载(该重载内部绝不读/清购物车 — 已在 OrderServiceTest 逐行断言),而不是无参
+     * 的购物车路径重载。
+     */
+    @Test
+    void create_withItemsBody_returns201AndRoutesToExplicitItemsOverload() {
+        Instant now = Instant.parse("2026-06-19T00:00:00Z");
+        OrderResponse stub = new OrderResponse(
+                "o-direct", "u-1", List.of(), BigDecimal.ZERO,
+                "PENDING", null, null, null, null, now, now);
+        // 注:userId 用 any() 而非 eq("u-1") — 与本文件既有 CartControllerSliceTest 同规约,
+        // @AuthenticationPrincipal 解析出的 UserPrincipal 在 @WebMvcTest 切片下不保证
+        // getId() 精确回显手工写入 SecurityContextHolder 的值,断言路由到哪个重载即可。
+        when(orderService.create(any(), anyList())).thenReturn(stub);
+
+        var result = mvc.post().uri("/api/orders")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .content("{\"items\":[{\"productId\":\"p1\",\"quantity\":2}]}")
+            .exchange();
+
+        result.assertThat()
+            .hasStatus(201)
+            .bodyJson()
+            .hasPathSatisfying("$.id", v -> v.assertThat().isEqualTo("o-direct"));
+        verify(orderService).create(any(), anyList());
+        verify(orderService, never()).create(any());
+    }
+
+    /**
+     * 无 body、或 body 为 {@code {"items":[]}} → 行为与今天完全一致:路由到
+     * {@code OrderService#create(userId)} 购物车路径,不调用 explicit-items 重载。
+     */
+    @Test
+    void create_withNoBodyOrEmptyItems_returns201AndUsesExistingCartPath() {
+        Instant now = Instant.parse("2026-06-19T00:00:00Z");
+        OrderResponse stub = new OrderResponse(
+                "o-cart", "u-1", List.of(), BigDecimal.ZERO,
+                "PENDING", null, null, null, null, now, now);
+        when(orderService.create(any())).thenReturn(stub);
+
+        // 无 body
+        var noBodyResult = mvc.post().uri("/api/orders").exchange();
+        noBodyResult.assertThat()
+            .hasStatus(201)
+            .bodyJson()
+            .hasPathSatisfying("$.id", v -> v.assertThat().isEqualTo("o-cart"));
+
+        // body 为空对象 { items: [] }
+        var emptyItemsResult = mvc.post().uri("/api/orders")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .content("{\"items\":[]}")
+            .exchange();
+        emptyItemsResult.assertThat().hasStatus(201);
+
+        verify(orderService, org.mockito.Mockito.times(2)).create(any());
+        verify(orderService, never()).create(any(), anyList());
     }
 }

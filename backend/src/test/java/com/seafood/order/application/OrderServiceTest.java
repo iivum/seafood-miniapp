@@ -1,5 +1,6 @@
 package com.seafood.order.application;
 
+import com.seafood.order.api.dto.CartItemRequest;
 import com.seafood.order.api.dto.OrderResponse;
 import com.seafood.order.domain.CartItem;
 import com.seafood.order.infra.CartDocument;
@@ -31,6 +32,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class OrderServiceTest {
@@ -143,6 +147,71 @@ class OrderServiceTest {
 
         assertThat(prod.getStock()).isEqualTo(0);
         assertThat(prod.getStatus()).isEqualTo(ProductStatus.OUT_OF_STOCK);
+    }
+
+    // === mp-backend-contract-gaps Task 2a(design.md Gap 2 / D3):
+    // 显式 items 直接购买建单,绕开购物车 ===
+
+    @Test
+    void create_withExplicitItems_buildsOrderWithoutTouchingCart() {
+        // 直接购买路径:同样的存在/上架/库存校验 + 扣减,但绝不读/清购物车
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        OrderResponse res = service.create("u1", List.of(new CartItemRequest("p1", 2)));
+
+        assertThat(res.id()).isEqualTo("o1");
+        assertThat(res.totalAmount()).isEqualByComparingTo("100.00");
+        assertThat(res.status()).isEqualTo("PENDING");
+        // design D3:direct-buy 路径从不读/清购物车
+        verifyNoInteractions(cartRepo);
+    }
+
+    @Test
+    void create_withEmptyItemsList_fallsBackToCartPath() {
+        // items 传空 list → 回退到现有购物车路径,行为与今天完全一致(含清空购物车)
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(new CartItem("p1", 2, true, Instant.now())));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        OrderResponse res = service.create("u1", List.of());
+
+        assertThat(res.totalAmount()).isEqualByComparingTo("100.00");
+        verify(cartRepo).findById("u1");
+        verify(cartRepo).deleteById("u1");
+    }
+
+    @Test
+    void create_withExplicitItems_insufficientStock_rejectsAndLeavesCartAndProductUntouched() {
+        // items 某行库存不足 → DomainException(GlobalExceptionHandler 映射 409),
+        // 不落库任何订单,不动购物车,商品库存不被扣减
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        ProductDocument prod = activeProduct("p1", "三文鱼", 1);
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(prod));
+
+        assertThatThrownBy(() -> service.create("u1", List.of(new CartItemRequest("p1", 5))))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("库存不足");
+
+        verifyNoInteractions(cartRepo);
+        verify(orderRepo, never()).save(any(OrderDocument.class));
+        verify(productRepo, never()).save(any(ProductDocument.class));
+        assertThat(prod.getStock()).isEqualTo(1);
     }
 
     @Test
