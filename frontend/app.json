@@ -22,9 +22,9 @@
     "bottom": "resizable"
   },
   "tabBar": {
-    "color": "#7E7670",
-    "selectedColor": "#C9744A",
-    "backgroundColor": "#FAF8F4",
+    "color": "#6b615d",
+    "selectedColor": "#db633c",
+    "backgroundColor": "#fffbf8",
     "list": [
       {
         "pagePath": "pages/index/index",
