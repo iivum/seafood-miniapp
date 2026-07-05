@@ -3,7 +3,7 @@
  * tokens 单一源 docs/redesign/tokens.json。
  *
  * mp-04 OD 原型对齐(openspec change mp-od-prototype-alignment,brief
- * `.superpowers/sdd/mp-od-4-cart-brief.md`):.cart-address / .cart-bar /
+ * `.superpowers/sdd/mp-od-4-cart-brief.md`):.address-card / .cart-bar /
  * .cart-checkbox--checked / .cart-item / .cart-summary / .cart-footer /
  * .cart-footer__checkout 的 box-shadow 此前裸写 #231814(违反"不裸写 hex"
  * 约束),改成 var(--shadow-*, fallback) 形式,与 mp-01/02/03(index.wxss /
@@ -11,7 +11,7 @@
  *
  * 第二轮(mp-od-4-cart-styling-brief.md):新增 .cart-topbar(brief §1,与
  * mp-02 category.wxss 的 .cat-topbar 同款圆角/间距/token 惯例)。其余圆角/
- * 间距核对结论:.cart-item/.cart-address/.cart-bar/.cart-footer 已用
+ * 间距核对结论:.cart-item/.address-card/.cart-bar/.cart-footer 已用
  * var(--radius-xl, 14px)/var(--radius-pill, 9999px),与 golden 图贴近,未见
  * 需要改动的裸写值。
  */
@@ -44,7 +44,7 @@
 
 /* ===== 收货地址卡 ===== */
 
-.cart-address {
+.address-card {
   display: flex;
   align-items: center;
   margin: 16rpx 24rpx 0;
@@ -54,7 +54,7 @@
   box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
-.cart-address__main {
+.address-card__body {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -62,24 +62,24 @@
   min-width: 0;
 }
 
-.cart-address__head {
+.address-card__head {
   display: flex;
   align-items: baseline;
   gap: 16rpx;
 }
 
-.cart-address__name {
+.address-card__name {
   font-size: 30rpx;
   font-weight: 600;
   color: var(--fg, #231814);
 }
 
-.cart-address__phone {
+.address-card__phone {
   font-size: 26rpx;
   color: var(--muted, #5a5451);
 }
 
-.cart-address__detail {
+.address-card__detail {
   font-size: 26rpx;
   color: var(--muted, #5a5451);
   line-height: 1.4;
@@ -88,16 +88,16 @@
   white-space: nowrap;
 }
 
-.cart-address__empty {
+.address-card__empty {
   flex: 1;
 }
 
-.cart-address__placeholder {
+.address-card__placeholder {
   font-size: 28rpx;
   color: var(--muted, #5a5451);
 }
 
-.cart-address__arrow {
+.address-card__arrow {
   font-size: 48rpx;
   color: var(--muted, #857f7d);
   margin-left: 16rpx;

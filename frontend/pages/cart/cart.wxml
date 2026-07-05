@@ -34,20 +34,20 @@
 
   <view class="cart-content" wx:else>
     <!-- 收货地址卡(保持数据流,微调视觉) -->
-    <navigator class="cart-address" open-type="navigate" bindtap="selectAddress" hover-class="is-clicked" hover-stay-time="100">
-      <view class="cart-address__main" wx:if="{{selectedAddress}}">
-        <view class="cart-address__head">
-          <text class="cart-address__name">{{selectedAddress.name}}</text>
-          <text class="cart-address__phone">{{selectedAddress.phone}}</text>
+    <navigator class="address-card" open-type="navigate" bindtap="selectAddress" hover-class="is-clicked" hover-stay-time="100">
+      <view class="address-card__body" wx:if="{{selectedAddress}}">
+        <view class="address-card__head">
+          <text class="address-card__name">{{selectedAddress.name}}</text>
+          <text class="address-card__phone">{{selectedAddress.phone}}</text>
         </view>
-        <text class="cart-address__detail">
+        <text class="address-card__detail">
           {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detail}}
         </text>
       </view>
-      <view class="cart-address__empty" wx:else>
-        <text class="cart-address__placeholder">📍 请选择收货地址</text>
+      <view class="address-card__empty" wx:else>
+        <text class="address-card__placeholder">📍 请选择收货地址</text>
       </view>
-      <text class="cart-address__arrow">›</text>
+      <text class="address-card__arrow">›</text>
     </navigator>
 
     <!-- 全选栏 -->
