@@ -20,6 +20,9 @@
  * 全量既有行为,同 cart.test.js 先例)。
  */
 
+const fs = require('fs');
+const path = require('path');
+
 // Mock wx global
 global.wx = {
   showToast: jest.fn(),
@@ -621,6 +624,20 @@ describe('order-confirm', () => {
         jest.advanceTimersByTime(1500);
         expect(wx.redirectTo).toHaveBeenCalledWith({ url: '/pages-sub/order/order-list/order-list' });
       });
+    });
+  });
+
+  describe('order-confirm.wxml 地址渲染字段名(mp-backend-contract-gaps Gap 3 同类问题第三处)', () => {
+    // Address 域响应字段从来只有 detail,没有 detailAddress(那是 mp 编辑页提交请求体的字段名,
+    // 不是后端返回字段名)。address-list.wxml / cart.wxml 已在本 change 修过同一个错误引用,
+    // 这里是第三处同款拼写混淆,一并修掉,避免留一个已知同类 bug 不修。
+    it('不应引用不存在的 selectedAddress.detailAddress 字段', () => {
+      const wxml = fs.readFileSync(
+        path.resolve(__dirname, '../order-confirm.wxml'),
+        'utf8'
+      );
+      expect(wxml).not.toContain('selectedAddress.detailAddress');
+      expect(wxml).toContain('selectedAddress.detail}}');
     });
   });
 });

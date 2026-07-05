@@ -43,7 +43,7 @@
           <text class="address-card__phone">{{selectedAddress.phone}}</text>
         </view>
         <text class="address-card__detail">
-          {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detailAddress}}
+          {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detail}}
         </text>
       </view>
       <text class="address-card__arrow">›</text>
