@@ -64,6 +64,7 @@
 .address-card {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: stretch;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
@@ -125,18 +126,18 @@
 
 .address-card__actions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: space-around;
   gap: 8rpx;
-  padding: 28rpx 20rpx;
-  border-left: 1rpx solid var(--border, #eae3e1);
+  padding: 16rpx 32rpx;
+  border-top: 1rpx dashed var(--border, #eae3e1);
   background: var(--bg, #fffbf8);
 }
 
 .address-card__action {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   gap: 4rpx;
   padding: 8rpx 12rpx;
