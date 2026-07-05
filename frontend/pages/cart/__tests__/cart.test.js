@@ -388,4 +388,17 @@ describe('cart', () => {
       });
     });
   });
+
+  describe('cart.wxml 收货地址详情字段契约（3.8 修复）', () => {
+    it('地址详情文案渲染 domain 返回字段 selectedAddress.detail，不是 mp 请求字段 selectedAddress.detailAddress（detailAddress 从来不是后端返回字段，此前渲染必然是 undefined 插值）', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const wxml = fs.readFileSync(path.resolve(__dirname, '../cart.wxml'), 'utf8');
+
+      expect(wxml).toMatch(
+        /\{\{selectedAddress\.province\}\}\{\{selectedAddress\.city\}\}\{\{selectedAddress\.district\}\}\{\{selectedAddress\.detail\}\}/
+      );
+      expect(wxml).not.toMatch(/\{\{selectedAddress\.detailAddress\}\}/);
+    });
+  });
 });

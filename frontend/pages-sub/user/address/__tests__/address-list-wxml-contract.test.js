@@ -89,4 +89,9 @@ describe('address-list.wxml ↔ address-list.js bindtap 契约（防死绑定回
     expect(guardedCount).toBeGreaterThan(0);
     expect(setDefaultBlockCount).toBeGreaterThan(0);
   });
+
+  it('地址详情文案渲染 domain 返回字段 item.detail，不是 mp 请求字段 item.detailAddress（3.7 修复：detailAddress 从来不是后端返回字段，此前渲染必然是 undefined 插值）', () => {
+    expect(wxml).toMatch(/\{\{item\.province\}\}\{\{item\.city\}\}\{\{item\.district\}\}\{\{item\.detail\}\}/);
+    expect(wxml).not.toMatch(/\{\{item\.detailAddress\}\}/);
+  });
 });

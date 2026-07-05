@@ -44,7 +44,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
           <text class="cart-address__phone">{{selectedAddress.phone}}</text>
         </view>
         <text class="cart-address__detail">
-          {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detailAddress}}
+          {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detail}}
         </text>
       </view>
       <view class="cart-address__empty" wx:else>

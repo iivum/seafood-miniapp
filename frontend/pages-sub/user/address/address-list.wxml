@@ -56,7 +56,7 @@
           <text class="address-card__default" wx:if="{{item.isDefault}}">默认</text>
         </view>
         <text class="address-card__detail">
-          {{item.province}}{{item.city}}{{item.district}}{{item.detailAddress}}
+          {{item.province}}{{item.city}}{{item.district}}{{item.detail}}
         </text>
       </view>
       <view class="address-card__actions">
