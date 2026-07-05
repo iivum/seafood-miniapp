@@ -172,7 +172,7 @@ describe('product-detail (mp-03 商品详情)', () => {
     });
   });
 
-  describe('onBuyNow(mp-03 回归修复 —— 重复定义去重,跳 mp-06 而非购物车)', () => {
+  describe('onBuyNow(mp-backend-contract-gaps D3b —— 直接购买改用显式 items 建单,不再合并进购物车)', () => {
     it('未登录时跳登录页,不加购/不跳转订单确认页', () => {
       mockApp.globalData.userInfo = null;
       ctx.data.product = PRODUCT;
@@ -183,19 +183,31 @@ describe('product-detail (mp-03 商品详情)', () => {
       expect(mockAddItem).not.toHaveBeenCalled();
     });
 
-    it('已登录 + 有库存:加购当前数量后跳订单确认页,带 source=direct_buy', async () => {
+    it('已登录 + 有库存:不再加购,直接带编码后的 items 跳订单确认页(source=direct_buy)', () => {
       ctx.data.product = PRODUCT;
       ctx.data.quantity = 2;
       ctx.onBuyNow();
-      await new Promise((r) => setTimeout(r, 0));
-      expect(mockAddItem).toHaveBeenCalledWith('p-1', 2);
+      expect(mockAddItem).not.toHaveBeenCalled();
+      const expectedItems = encodeURIComponent(JSON.stringify([{ productId: 'p-1', quantity: 2 }]));
       expect(wx.navigateTo).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: '/pages-sub/order/order-confirm/order-confirm?source=direct_buy',
+          url: `/pages-sub/order/order-confirm/order-confirm?source=direct_buy&items=${expectedItems}`,
         })
       );
       expect(wx.switchTab).not.toHaveBeenCalled();
       expect(mockRecordPurchase).toHaveBeenCalledWith(PRODUCT);
+    });
+
+    it('quantity 缺失时兜底为 1', () => {
+      ctx.data.product = PRODUCT;
+      ctx.data.quantity = 0;
+      ctx.onBuyNow();
+      const expectedItems = encodeURIComponent(JSON.stringify([{ productId: 'p-1', quantity: 1 }]));
+      expect(wx.navigateTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: `/pages-sub/order/order-confirm/order-confirm?source=direct_buy&items=${expectedItems}`,
+        })
+      );
     });
 
     it('库存为 0 时展示"已售罄" toast,不加购/不跳转', () => {
@@ -214,19 +226,7 @@ describe('product-detail (mp-03 商品详情)', () => {
       ctx.data.product = null;
       expect(() => ctx.onBuyNow()).not.toThrow();
       expect(mockAddItem).not.toHaveBeenCalled();
-    });
-
-    it('加购失败时提示"请稍后重试",不跳转', async () => {
-      mockAddItem.mockRejectedValueOnce(new Error('net'));
-      ctx.data.product = PRODUCT;
-      ctx.onBuyNow();
-      await new Promise((r) => setTimeout(r, 0));
-      expect(wx.showToast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: expect.stringContaining('请稍后重试') })
-      );
-      expect(wx.navigateTo).not.toHaveBeenCalledWith(
-        expect.objectContaining({ url: expect.stringContaining('order-confirm') })
-      );
+      expect(wx.navigateTo).not.toHaveBeenCalled();
     });
   });
 

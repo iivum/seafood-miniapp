@@ -22,6 +22,7 @@
  */
 const { orderStore } = require('../../../src/features/order/store');
 const { cartStore } = require('../../../src/features/cart/store');
+const { ProductAPI } = require('../../../src/features/product/api');
 const { paymentModule } = require('../../../src/modules/payment/payment.js');
 const { request } = require('../../../utils/request.js');
 
@@ -47,6 +48,9 @@ Page({
     order: null,
     selectedAddress: null,
     cartItems: [],
+    // mp-backend-contract-gaps D3b:mp-03 立即购买带来的原始 items({productId,
+    // quantity}),非空时 onSubmitOrder 走 placeDirectBuyOrder 而非 placeOrder。
+    directBuyItems: null,
     // 3.18 配送方式 3 选
     shippingMethod: 'FREE',
     shippingFee: 0,
@@ -66,6 +70,13 @@ Page({
   onLoad: function (options) {
     if (options && options.id) {
       this.loadExistingOrder(options.id);
+    } else if (options && options.source === 'direct_buy') {
+      // mp-backend-contract-gaps D3b:mp-03"立即购买"带显式 items 跳转过来,
+      // 渲染这些 items 而非用户购物车 —— 全程不调用 cartStore.refresh()/
+      // cartStore 的任何方法,购物车不被触碰。默认地址自动选中与购物车无关,
+      // 直接购买结算同样需要,照常调用。
+      this.loadDirectBuyPreview(options.items);
+      this.autoSelectDefaultAddress();
     } else {
       this.refreshCartPreview();
       // brief §2 真 bug:仅新下单(购物车结算)流程需要自动选默认地址;
@@ -156,6 +167,59 @@ Page({
   },
 
   /**
+   * mp-backend-contract-gaps D3b:mp-03"立即购买"预览 —— 与 refreshCartPreview
+   * 平行的另一条数据源。URL 带来的 rawItems 只有 {productId, quantity},
+   * 逐个 ProductAPI.getById() 补 name/price/imageUrl 后拼成与
+   * refreshCartPreview 完全相同的 {id, name, price, quantity, imageUrl}
+   * 形状,喂进同一套 order/cartItems/recalcAmounts 管线 —— 全程不调用
+   * cartStore 的任何方法,购物车不被读也不被写。
+   * 原始 items 另存 directBuyItems,供 onSubmitOrder 判断走哪条建单分支。
+   */
+  loadDirectBuyPreview: function (rawItems) {
+    let items;
+    try {
+      items = JSON.parse(decodeURIComponent(rawItems));
+    } catch (err) {
+      items = [];
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      return;
+    }
+    Promise.all(
+      items.map((item) =>
+        ProductAPI.getById(item.productId).then((product) => ({
+          id: item.productId,
+          name: (product && product.name) || item.productId,
+          price: (product && product.price) || 0,
+          quantity: item.quantity,
+          imageUrl: (product && product.imageUrl) || '',
+        })),
+      ),
+    )
+      .then((cartItems) => {
+        this.setData({
+          order: {
+            id: null,
+            totalAmount: 0,
+            items: cartItems.map((it) => ({
+              productId: it.id,
+              productName: it.name,
+              unitPrice: it.price,
+              quantity: it.quantity,
+            })),
+            status: 'PENDING',
+          },
+          cartItems,
+          directBuyItems: items,
+        });
+        this.recalcAmounts();
+      })
+      .catch(() => {
+        // best-effort: leave order as null so the empty-state renders(与 refreshCartPreview 一致)
+      });
+  },
+
+  /**
    * 3.17 实时算 4 金额项(总额 / 运费 / 优惠 / 实付)+ mp-06 brief §3 商品件数。
    * 调用时机:refreshCartPreview + onSelectShipping + onRemarkInput(实际不触发金额变,保留)。
    *
@@ -228,11 +292,22 @@ Page({
     this.setData({ isCreating: true });
     wx.showLoading({ title: '正在创建订单...' });
 
-    orderStore
-      .placeOrder({
-        addressId: this.data.selectedAddress.id,
-        remark: this.data.remark || undefined,
-      })
+    // mp-backend-contract-gaps D3b:direct-buy 走显式 items 建单(不清购物车,
+    // 因为从未碰过购物车);其余(购物车结算)分支完全不变。
+    const directBuyItems = this.data.directBuyItems;
+    const hasDirectBuyItems = Array.isArray(directBuyItems) && directBuyItems.length > 0;
+    const placeOrderPromise = hasDirectBuyItems
+      ? orderStore.placeDirectBuyOrder({
+          items: directBuyItems,
+          addressId: this.data.selectedAddress.id,
+          remark: this.data.remark || undefined,
+        })
+      : orderStore.placeOrder({
+          addressId: this.data.selectedAddress.id,
+          remark: this.data.remark || undefined,
+        });
+
+    placeOrderPromise
       .then((order) => {
         this.setData({ isCreating: false, order });
         this.initiatePayment(order);

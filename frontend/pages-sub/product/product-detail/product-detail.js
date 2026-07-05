@@ -17,12 +17,13 @@
  *     openspec/specs/mini-program/spec.md:91-107"Direct buy from product
  *     detail"需求 ——"立即购买"应跳订单确认页,不是购物车。删掉重复定义,
  *     保留跳 mp-06 的语义(回归修复,不是新功能)。
- *     已知缺口(未做,超出本次前端授权范围,见 report):该需求同时要求
- *     "mp-06 不触碰购物车 + items 卡片只显示这一个商品",但后端
- *     `POST /api/orders`(OrderController#create)没有 @RequestBody,只能无条件
- *     从用户服务端购物车建单,不支持传显式 items —— 真正合规需要后端加能力。
- *     这里维持"addItem 合并进现有购物车"语义,不做"先清空购物车"这种有破坏性
- *     副作用的隐式操作。
+ *     mp-backend-contract-gaps Gap 2 / D3b 已关闭该需求剩余的缺口:
+ *     后端 `POST /api/orders` 现已支持可选的显式 `items` 建单(task 2a,
+ *     绕开购物车,完全不读/不清)。onBuyNow 不再调用 cartStore.addItem(),
+ *     改为把 `items = [{productId, quantity}]` 编码进 order-confirm 的
+ *     navigateTo URL(与 order-confirm.js#selectAddress 同款
+ *     `encodeURIComponent(JSON.stringify(...))` hand-off 手法),
+ *     mp-06 据此渲染 + 建单,购物车全程不被触碰。
  */
 const { ProductAPI } = require('../../../src/features/product/api');
 const { cartStore } = require('../../../src/features/cart/store');
@@ -133,12 +134,10 @@ Page({
   },
 
   /**
-   * 立即购买(sprint-1-closure 5.4;mp-03 OD 对齐时修复回归 —— 本文件此前定义
-   * 了两次 onBuyNow,后一份[switchTab 购物车]覆盖了这份[跳 mp-06],违反
-   * openspec/specs/mini-program/spec.md:91-107"Direct buy from product
-   * detail"(立即购买应跳订单确认页,不是购物车)。
-   * 已知缺口见文件头注释:购物车合并语义保留,未做后端 items 隔离
-   * (mp-06 仍会读用户完整购物车,不是"只有这一个商品"的孤立订单)。
+   * 立即购买(sprint-1-closure 5.4;mp-03 OD 对齐时修复回归,
+   * mp-backend-contract-gaps Gap 2 / D3b 关闭购物车隔离缺口)。
+   * 不再调用 cartStore.addItem() —— 直接构造显式 items 编码进 URL,
+   * 跳 mp-06(order-confirm)时带上,购物车全程不被读/不被写。
    */
   onBuyNow: function () {
     const app = getApp();
@@ -152,17 +151,13 @@ Page({
       wx.showToast({ title: '已售罄', icon: 'none' });
       return;
     }
-    cartStore
-      .addItem(product.id, this.data.quantity || 1)
-      .then(() => {
-        recommendationModule.recordPurchase(product);
-        wx.navigateTo({
-          url: '/pages-sub/order/order-confirm/order-confirm?source=direct_buy',
-        });
-      })
-      .catch(() => {
-        wx.showToast({ title: '请稍后重试', icon: 'none' });
-      });
+    recommendationModule.recordPurchase(product);
+    const items = [{ productId: product.id, quantity: this.data.quantity || 1 }];
+    wx.navigateTo({
+      url:
+        '/pages-sub/order/order-confirm/order-confirm?source=direct_buy&items=' +
+        encodeURIComponent(JSON.stringify(items)),
+    });
   },
 
   goToHome: function () {

@@ -44,6 +44,7 @@ jest.mock('../../../../utils/request.js', () => ({ request: mockRequest, authReq
 const mockOrderStore = {
   loadById: jest.fn(),
   placeOrder: jest.fn(),
+  placeDirectBuyOrder: jest.fn(),
 };
 jest.mock('../../../../src/features/order/store', () => ({ orderStore: mockOrderStore }));
 
@@ -51,6 +52,13 @@ const mockCartStore = {
   refresh: jest.fn(),
 };
 jest.mock('../../../../src/features/cart/store', () => ({ cartStore: mockCartStore }));
+
+// mp-backend-contract-gaps D3b:mp-03 立即购买预览需要逐个 ProductAPI.getById
+// 补 name/price/imageUrl。
+const mockProductGetById = jest.fn();
+jest.mock('../../../../src/features/product/api', () => ({
+  ProductAPI: { getById: (...args) => mockProductGetById(...args) },
+}));
 
 const mockPaymentModule = {
   requestPayment: jest.fn(),
@@ -100,6 +108,59 @@ describe('order-confirm', () => {
     mockCartStore.refresh.mockResolvedValue({ items: [] });
     mockApp.globalData.userInfo = { id: 'user-1', nickname: 'Test' };
     ctx = makeCtx();
+  });
+
+  // ===== mp-backend-contract-gaps D3b:mp-03 立即购买 → mp-06 直接建单 =====
+  describe('onLoad(source=direct_buy,mp-backend-contract-gaps D3b)', () => {
+    const encodedItems = encodeURIComponent(
+      JSON.stringify([{ productId: 'p1', quantity: 2 }]),
+    );
+
+    it('从编码后的 items 拉商品详情渲染,不调用 cartStore.refresh()', () => {
+      mockProductGetById.mockResolvedValue({ name: '龙虾', price: 100, imageUrl: 'x.jpg' });
+      mockRequest.mockResolvedValue([]);
+
+      ctx.onLoad({ source: 'direct_buy', items: encodedItems });
+
+      return flushPromises().then(() => {
+        expect(mockProductGetById).toHaveBeenCalledWith('p1');
+        expect(mockCartStore.refresh).not.toHaveBeenCalled();
+        expect(ctx.data.cartItems).toEqual([
+          { id: 'p1', name: '龙虾', price: 100, quantity: 2, imageUrl: 'x.jpg' },
+        ]);
+        expect(ctx.data.order.items).toEqual([
+          { productId: 'p1', productName: '龙虾', unitPrice: 100, quantity: 2 },
+        ]);
+        expect(ctx.data.directBuyItems).toEqual([{ productId: 'p1', quantity: 2 }]);
+        // recalcAmounts 被调用:100 * 2 = 200(满 100 减 10,无运费)= 190
+        expect(ctx.data.subtotal).toBe(200);
+        expect(ctx.data.orderTotal).toBe(190);
+        expect(ctx.data.itemCount).toBe(1);
+      });
+    });
+
+    it('直接购买同样触发默认地址自动选中(与购物车无关)', () => {
+      mockProductGetById.mockResolvedValue({ name: '龙虾', price: 100, imageUrl: 'x.jpg' });
+      mockRequest.mockResolvedValue([
+        { id: 'a1', name: '张三', isDefault: false },
+        { id: 'a2', name: '李四', isDefault: true },
+      ]);
+
+      ctx.onLoad({ source: 'direct_buy', items: encodedItems });
+
+      return flushPromises().then(() => {
+        expect(mockRequest).toHaveBeenCalledWith({ url: '/addresses', needAuth: true });
+        expect(ctx.data.selectedAddress).toEqual({ id: 'a2', name: '李四', isDefault: true });
+      });
+    });
+
+    it('ProductAPI.getById 失败时 best-effort,order 保持 null,不抛异常', () => {
+      mockProductGetById.mockRejectedValue(new Error('network down'));
+      expect(() => ctx.onLoad({ source: 'direct_buy', items: encodedItems })).not.toThrow();
+      return flushPromises().then(() => {
+        expect(ctx.data.order).toBeNull();
+      });
+    });
   });
 
   describe('recalcAmounts 金额精度修复(brief 优先级最高的真 bug)', () => {
@@ -446,6 +507,50 @@ describe('order-confirm', () => {
       ctx.onSubmitOrder();
       return flushPromises().then(() => {
         expect(wx.showToast).toHaveBeenCalledWith({ title: '创建订单失败', icon: 'none' });
+      });
+    });
+
+    // ===== mp-backend-contract-gaps D3b:direct-buy 模式改走 placeDirectBuyOrder =====
+    it('directBuyItems 非空时调用 orderStore.placeDirectBuyOrder(带 items),不调用 placeOrder', () => {
+      ctx.data.order = { items: [{ productId: 'p1', productName: '龙虾', unitPrice: 100, quantity: 2 }] };
+      ctx.data.selectedAddress = { id: 'addr-1' };
+      ctx.data.remark = '轻拿轻放';
+      ctx.data.directBuyItems = [{ productId: 'p1', quantity: 2 }];
+      mockOrderStore.placeDirectBuyOrder.mockResolvedValue({ id: 'order-1', totalAmount: 190 });
+      mockPaymentModule.requestPayment.mockResolvedValue({
+        isSuccess: () => true,
+        isCancelled: () => false,
+      });
+
+      ctx.onSubmitOrder();
+
+      return flushPromises().then(() => {
+        expect(mockOrderStore.placeDirectBuyOrder).toHaveBeenCalledWith({
+          items: [{ productId: 'p1', quantity: 2 }],
+          addressId: 'addr-1',
+          remark: '轻拿轻放',
+        });
+        expect(mockOrderStore.placeOrder).not.toHaveBeenCalled();
+        expect(ctx.data.isCreating).toBe(false);
+        expect(mockPaymentModule.requestPayment).toHaveBeenCalledWith('order-1', 190);
+      });
+    });
+
+    it('directBuyItems 为空数组时仍走 placeOrder(购物车结算,未改动)', () => {
+      ctx.data.order = { items: [{ productId: 'p1' }] };
+      ctx.data.selectedAddress = { id: 'addr-1' };
+      ctx.data.directBuyItems = [];
+      mockOrderStore.placeOrder.mockResolvedValue({ id: 'order-1', totalAmount: 100 });
+      mockPaymentModule.requestPayment.mockResolvedValue({
+        isSuccess: () => true,
+        isCancelled: () => false,
+      });
+
+      ctx.onSubmitOrder();
+
+      return flushPromises().then(() => {
+        expect(mockOrderStore.placeOrder).toHaveBeenCalledWith({ addressId: 'addr-1', remark: undefined });
+        expect(mockOrderStore.placeDirectBuyOrder).not.toHaveBeenCalled();
       });
     });
   });

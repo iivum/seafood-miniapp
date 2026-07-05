@@ -63,6 +63,18 @@ class OrderStore {
     return order;
   }
 
+  // D3b(mp-backend-contract-gaps Gap 2):mp-03 立即购买直接建单,绕开购物车。
+  // 与 placeOrder 唯一区别是不调用 cartStore.clear() —— 这条路径从未写
+  // 购物车,没有东西需要清。
+  async placeDirectBuyOrder(body) {
+    const order = await OrderAPI.create(body);
+    this._setState({
+      orders: [order, ...this.state.orders],
+      current: order,
+    });
+    return order;
+  }
+
   async cancel(id, reason) {
     const order = await OrderAPI.cancel(id, reason);
     this._setState({
