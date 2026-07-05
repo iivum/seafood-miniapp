@@ -9,84 +9,88 @@
       推算 4 节点(已下单/已发货/运输中/已签收),PENDING/PAID/CANCELLED 不展示(组件内 shouldShow 判定)。
     - order-action-row:取代硬编码固定 3 按钮(此前 PENDING 订单也显示"确认收货",语义不通),
       改用状态感知的操作行,spec `mini-program/spec.md:262` 要求。
-  收货人显示裸 order.userId(下方 addr-card)是已知问题,根因是 POST /api/orders 完全不支持
+  收货人显示裸 order.userId(下方地址卡)是已知问题,根因是 POST /api/orders 完全不支持
   addressId、Order 域对象无地址快照字段——需要后端 API 契约变更,已记入遗留清单另开 change,
   本次不做任何相关改动(含不改成中性占位文案)。
+
+  mp-cross-screen-cleanup design.md D3:类名从扁平缩写(.nm/.pr/.act 等,依赖 CSS 嵌套
+  选择器如 `.addr-card .row1` 才能生效)改为 BEM(block__element--modifier),与
+  order-list.wxss 的 .order-card__xxx 风格对齐,类名本身唯一、不再依赖祖先选择器嵌套。
 -->
 <view class="order-detail">
-  <view class="topbar">
-    <view class="back" bindtap="onBack">‹</view>
-    <view class="title">订单详情</view>
-    <view class="placeholder"></view>
+  <view class="order-detail__topbar">
+    <view class="order-detail__back" bindtap="onBack">‹</view>
+    <view class="order-detail__title">订单详情</view>
+    <view class="order-detail__placeholder"></view>
   </view>
 
-  <view wx:if="{{isLoading}}" class="loading">
+  <view wx:if="{{isLoading}}" class="order-detail__loading">
     <shared-loading />
   </view>
 
-  <view wx:elif="{{isError}}" class="error">
-    <view class="error-msg">{{errorMessage}}</view>
-    <button class="retry-btn" bindtap="onRetry">重试</button>
+  <view wx:elif="{{isError}}" class="order-detail__error">
+    <view class="order-detail__error-msg">{{errorMessage}}</view>
+    <button class="order-detail__retry-btn" bindtap="onRetry">重试</button>
   </view>
 
   <block wx:elif="{{order}}">
-    <view class="status-banner status-banner--{{statusBanner.statusColor}}">
-      <view class="status-eyebrow">{{statusBanner.trackingText || '订单状态'}}</view>
-      <view class="status-h">{{statusBanner.statusText}}</view>
-      <view wx:if="{{statusBanner.estimatedText}}" class="status-sub">{{statusBanner.estimatedText}}</view>
+    <view class="order-detail__banner order-detail__banner--{{statusBanner.statusColor}}">
+      <view class="order-detail__banner-eyebrow">{{statusBanner.trackingText || '订单状态'}}</view>
+      <view class="order-detail__banner-title">{{statusBanner.statusText}}</view>
+      <view wx:if="{{statusBanner.estimatedText}}" class="order-detail__banner-sub">{{statusBanner.estimatedText}}</view>
     </view>
 
     <order-tracking-timeline order="{{order}}"></order-tracking-timeline>
 
-    <view class="card addr-card">
-      <view class="row1">
-        <text class="nm">收货人: {{order.userId}}</text>
+    <view class="order-detail__card order-detail__card--address">
+      <view class="order-detail__address-row">
+        <text class="order-detail__address-name">收货人: {{order.userId}}</text>
       </view>
-      <view class="addr">订单 #{{order.id}}</view>
+      <view class="order-detail__address-note">订单 #{{order.id}}</view>
     </view>
 
-    <view class="card items-card">
-      <view class="card-title">商品 · {{order.items.length}} 件</view>
-      <view wx:for="{{order.items}}" wx:key="productId" class="item">
-        <view class="pic"></view>
-        <view class="info">
-          <view class="nm">{{item.productName}}</view>
-          <view class="spec">× {{item.quantity}}</view>
+    <view class="order-detail__card order-detail__card--items">
+      <view class="order-detail__card-title">商品 · {{order.items.length}} 件</view>
+      <view wx:for="{{order.items}}" wx:key="productId" class="order-detail__item">
+        <view class="order-detail__item-pic"></view>
+        <view class="order-detail__item-info">
+          <view class="order-detail__item-name">{{item.productName}}</view>
+          <view class="order-detail__item-spec">× {{item.quantity}}</view>
         </view>
-        <view class="pr">
-          <text class="p">¥{{item.unitPrice}}</text>
+        <view class="order-detail__item-price">
+          <text class="order-detail__item-price-value">¥{{item.unitPrice}}</text>
         </view>
       </view>
     </view>
 
-    <view class="card price-card">
-      <view class="row">
-        <text class="lbl">实付</text>
-        <text class="val">¥{{order.totalAmount}}</text>
+    <view class="order-detail__card order-detail__card--price">
+      <view class="order-detail__price-row">
+        <text class="order-detail__price-label">实付</text>
+        <text class="order-detail__price-value">¥{{order.totalAmount}}</text>
       </view>
     </view>
 
-    <view class="card info-card">
-      <view class="row">
-        <text class="lbl">订单号</text>
-        <text class="val">{{order.id}}</text>
+    <view class="order-detail__card order-detail__card--info">
+      <view class="order-detail__info-row">
+        <text class="order-detail__info-label">订单号</text>
+        <text class="order-detail__info-value">{{order.id}}</text>
       </view>
-      <view class="row">
-        <text class="lbl">下单时间</text>
-        <text class="val">{{order.createdAt}}</text>
+      <view class="order-detail__info-row">
+        <text class="order-detail__info-label">下单时间</text>
+        <text class="order-detail__info-value">{{order.createdAt}}</text>
       </view>
-      <view class="row">
-        <text class="lbl">预计送达</text>
-        <text class="val">{{order.estimatedDelivery || '—'}}</text>
+      <view class="order-detail__info-row">
+        <text class="order-detail__info-label">预计送达</text>
+        <text class="order-detail__info-value">{{order.estimatedDelivery || '—'}}</text>
       </view>
     </view>
 
-    <view class="bottom-bar">
+    <view class="order-detail__bottom-bar">
       <order-action-row status="{{order.status}}" bind:action="onActionTap"></order-action-row>
     </view>
   </block>
 
-  <view wx:else class="empty">
+  <view wx:else class="order-detail__empty">
     <shared-empty description="订单不存在" />
   </view>
 </view>
