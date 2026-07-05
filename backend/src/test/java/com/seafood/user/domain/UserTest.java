@@ -21,7 +21,7 @@ class UserTest {
     }
 
     private Address addr(String id, String detail, boolean def) {
-        return new Address(id, "张三", "13900000000", "上海市", "上海市", detail, def);
+        return new Address(id, "张三", "13900000000", "上海市", "上海市", "某区", detail, def);
     }
 
     @Test
@@ -58,7 +58,7 @@ class UserTest {
     @Test
     void updateAddress_mergesPartialFields() {
         User u = sample().addAddress(addr("a1", "old", true));
-        Address patch = new Address("a1", null, null, "北京市", "北京市", "新地址", false);
+        Address patch = new Address("a1", null, null, "北京市", "北京市", "新区", "新地址", false);
         User updated = u.updateAddress("a1", patch);
         Address a = updated.addresses().get(0);
         assertThat(a.name()).isEqualTo("张三");
@@ -70,7 +70,7 @@ class UserTest {
     void updateAddress_unknown_throws() {
         User u = sample();
         assertThatThrownBy(() -> u.updateAddress("nope",
-                new Address("nope", "x", "x", "x", "x", "x", false)))
+                new Address("nope", "x", "x", "x", "x", "x", "x", false)))
                 .isInstanceOf(NotFoundException.class);
     }
 

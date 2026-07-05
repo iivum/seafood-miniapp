@@ -85,7 +85,7 @@ class UserServiceTest {
         when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AddAddressRequest req = new AddAddressRequest("张三", "13900000000",
-                "上海市", "上海市", "世纪大道 1 号", true);
+                "上海市", "上海市", "浦东新区", "世纪大道 1 号", true);
         UserResponse res = service.addAddress("u1", req, me("u1", Role.CUSTOMER));
 
         assertThat(res.addresses()).hasSize(1);
@@ -94,9 +94,33 @@ class UserServiceTest {
     }
 
     @Test
+    void addAddress_and_updateAddress_roundTripDistrict() {
+        // addAddress:传入的 district 原样出现在返回的 Address 上(design.md D4)
+        when(repo.findById("u1")).thenReturn(Optional.of(docOf("u1", Role.CUSTOMER)));
+        when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AddAddressRequest addReq = new AddAddressRequest("张三", "13900000000",
+                "上海市", "浦东新区", "陆家嘴街道", "世纪大道 1 号", true);
+        UserResponse afterAdd = service.addAddress("u1", addReq, me("u1", Role.CUSTOMER));
+        Address added = afterAdd.addresses().get(0);
+        assertThat(added.district()).isEqualTo("陆家嘴街道");
+
+        // updateAddress:回读时能重新回填(regression:此前折叠进 detail 导致地区选择器
+        // 无法回填,见 design.md D4 与已删除的 AddressUpsertRequest#foldedDetail())
+        UserDocument doc = docOf("u1", Role.CUSTOMER);
+        doc.setAddresses(List.of(added));
+        when(repo.findById("u1")).thenReturn(Optional.of(doc));
+
+        UpdateAddressRequest updateReq = new UpdateAddressRequest(
+                null, null, null, null, "张江镇", null, false);
+        UserResponse afterUpdate = service.updateAddress("u1", added.id(), updateReq, me("u1", Role.CUSTOMER));
+        assertThat(afterUpdate.addresses().get(0).district()).isEqualTo("张江镇");
+    }
+
+    @Test
     void addAddress_otherUser_denied() {
         assertThatThrownBy(() -> service.addAddress("u2",
-                new AddAddressRequest("x", "x", "x", "x", "x", false),
+                new AddAddressRequest("x", "x", "x", "x", "x", "x", false),
                 me("u1", Role.CUSTOMER)))
                 .isInstanceOf(DomainException.class);
     }
@@ -105,7 +129,7 @@ class UserServiceTest {
     void removeAddress_succeeds() {
         UserDocument doc = docOf("u1", Role.CUSTOMER);
         doc.setAddresses(List.of(new Address("a1", "张三", "13900000000",
-                "上海市", "上海市", "某处", true)));
+                "上海市", "上海市", "某区", "某处", true)));
         when(repo.findById("u1")).thenReturn(Optional.of(doc));
         when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -117,12 +141,12 @@ class UserServiceTest {
     void updateAddress_mergesPartial() {
         UserDocument doc = docOf("u1", Role.CUSTOMER);
         doc.setAddresses(List.of(new Address("a1", "张三", "13900000000",
-                "上海市", "上海市", "旧地址", true)));
+                "上海市", "上海市", "旧区", "旧地址", true)));
         when(repo.findById("u1")).thenReturn(Optional.of(doc));
         when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UpdateAddressRequest req = new UpdateAddressRequest(
-                null, null, "北京市", "北京市", "新地址", false);
+                null, null, "北京市", "北京市", null, "新地址", false);
         UserResponse res = service.updateAddress("u1", "a1", req, me("u1", Role.CUSTOMER));
 
         Address a = res.addresses().get(0);

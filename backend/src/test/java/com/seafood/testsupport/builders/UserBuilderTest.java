@@ -30,7 +30,7 @@ class UserBuilderTest {
     @Test
     void withAddresses_addsAddresses() {
         Address addr = new Address(null, "张三", "13800000000",
-            "福建", "厦门", "思明区软件园", true);
+            "福建", "厦门", "思明区", "软件园", true);
         User u = UserBuilder.aUser().withAddresses(List.of(addr)).build();
         assertThat(u.addresses()).hasSize(1);
         assertThat(u.addresses().get(0).name()).isEqualTo("张三");

@@ -45,13 +45,13 @@ public record User(
         String id = newAddr.id() == null || newAddr.id().isBlank()
                 ? UUID.randomUUID().toString() : newAddr.id();
         Address normalized = new Address(id, newAddr.name(), newAddr.phone(),
-                newAddr.province(), newAddr.city(), newAddr.detail(),
+                newAddr.province(), newAddr.city(), newAddr.district(), newAddr.detail(),
                 newAddr.isDefault() || addresses.isEmpty());
 
         List<Address> next = new ArrayList<>(addresses.size() + 1);
         for (Address a : addresses) {
             next.add(new Address(a.id(), a.name(), a.phone(), a.province(),
-                    a.city(), a.detail(), normalized.isDefault() ? false : a.isDefault()));
+                    a.city(), a.district(), a.detail(), normalized.isDefault() ? false : a.isDefault()));
         }
         next.add(normalized);
         return mutateAddresses(next);
@@ -68,6 +68,7 @@ public record User(
                 patch.phone() == null || patch.phone().isBlank() ? existing.phone() : patch.phone(),
                 patch.province() == null ? existing.province() : patch.province(),
                 patch.city() == null ? existing.city() : patch.city(),
+                patch.district() == null ? existing.district() : patch.district(),
                 patch.detail() == null ? existing.detail() : patch.detail(),
                 patch.isDefault() || existing.isDefault()
         );
@@ -77,7 +78,7 @@ public record User(
                 next.add(merged);
             } else {
                 next.add(new Address(a.id(), a.name(), a.phone(), a.province(),
-                        a.city(), a.detail(), merged.isDefault() ? false : a.isDefault()));
+                        a.city(), a.district(), a.detail(), merged.isDefault() ? false : a.isDefault()));
             }
         }
         return mutateAddresses(next);
@@ -101,7 +102,7 @@ public record User(
         List<Address> next = new ArrayList<>(addresses.size());
         for (Address a : addresses) {
             next.add(new Address(a.id(), a.name(), a.phone(), a.province(),
-                    a.city(), a.detail(), a.id().equals(addressId)));
+                    a.city(), a.district(), a.detail(), a.id().equals(addressId)));
         }
         return mutateAddresses(next);
     }

@@ -56,7 +56,7 @@ public class UserService {
         authorize(caller, userId, false);
         User u = loadOrThrow(userId);
         Address newAddr = new Address(null, req.name(), req.phone(),
-                req.province(), req.city(), req.detail(), req.isDefault());
+                req.province(), req.city(), req.district(), req.detail(), req.isDefault());
         return persistAndReturn(u.addAddress(newAddr));
     }
 
@@ -65,7 +65,7 @@ public class UserService {
         authorize(caller, userId, false);
         User u = loadOrThrow(userId);
         Address patch = new Address(addressId, req.name(), req.phone(),
-                req.province(), req.city(), req.detail(), req.isDefault());
+                req.province(), req.city(), req.district(), req.detail(), req.isDefault());
         return persistAndReturn(u.updateAddress(addressId, patch));
     }
 
