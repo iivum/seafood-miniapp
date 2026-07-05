@@ -25,6 +25,7 @@ const { cartStore } = require('../../../src/features/cart/store');
 const { ProductAPI } = require('../../../src/features/product/api');
 const { paymentModule } = require('../../../src/modules/payment/payment.js');
 const { request } = require('../../../utils/request.js');
+const { roundYuan } = require('../../../utils/money.js');
 
 // 3.17 配送方式 → 运费映射
 const SHIPPING_FEE_MAP = {
@@ -36,11 +37,6 @@ const SHIPPING_FEE_MAP = {
 // 3.17 优惠规则(占位,Sprint 3 接真实优惠):满 100 减 10
 function calcDiscount(subtotal) {
   return subtotal >= 100 ? 10 : 0;
-}
-
-// mp-06 金额精度修复:统一在写入 data 前 round 到 2 位小数(brief §"优先修")。
-function roundYuan(amount) {
-  return Math.round(amount * 100) / 100;
 }
 
 Page({

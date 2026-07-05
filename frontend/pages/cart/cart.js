@@ -34,6 +34,7 @@
 const { cartStore } = require('../../src/features/cart/store');
 const cartUtil = require('../../utils/cart.js');
 const { request } = require('../../utils/request.js');
+const { formatYuan } = require('../../utils/money.js');
 
 Page({
   data: {
@@ -178,8 +179,8 @@ Page({
     const annotatedItems = items.map((item) => ({ ...item, selected: selectedSet.has(item.id) }));
     this.setData({
       cartItems: annotatedItems,
-      totalPrice: (selected + shippingFee).toFixed(2),
-      selectedPrice: selected.toFixed(2),
+      totalPrice: formatYuan(selected + shippingFee),
+      selectedPrice: formatYuan(selected),
       shippingFee: shippingFee,
       isAllSelected: isAllSelected,
     });
