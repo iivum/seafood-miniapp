@@ -120,13 +120,16 @@ const PAGES: PageSpec[] = [
       userInfo: { id: 'dev-user-001', openId: 'dev-mock', nickName: '视觉验收' },
       token: 'dev-mock-jwt',
     },
+    // mp-cross-screen-cleanup D3:order-detail.wxss/wxml 类名已改 BEM(order-detail__xxx),
+    // 下方正则同步(此前的 addr-card/items-card/price-card/info-card/status-banner/
+    // bottom-bar 都已改名,不再存在于 wxml 里)。
     wxmlMust: [
-      /status-banner/,
-      /addr-card/,
-      /items-card/,
-      /price-card/,
-      /info-card/,
-      /bottom-bar/,
+      /order-detail__banner/,
+      /order-detail__card--address/,
+      /order-detail__card--items/,
+      /order-detail__card--price/,
+      /order-detail__card--info/,
+      /order-detail__bottom-bar/,
     ],
     dataMust: ['order', 'statusBanner'],
     dataExact: [

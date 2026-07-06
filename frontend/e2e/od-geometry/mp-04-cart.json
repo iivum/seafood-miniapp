@@ -5,7 +5,7 @@
   "note": "OD 期望结构不变量(从 mp-04-cart OD mockup + 路线图 2.4 量出)。cart 主体在 cartItems>0 分支(否则空态),故需鉴权注入 + 后端购物车 seed(harness seedCartFor:carts 集合 _id=userId)。CartService.get 不富集 → items 非空即渲染 cart-item 行。AA/DPR/设备框全免疫。",
   "viewport": { "w": 390, "h": 762 },
   "checks": [
-    { "key": "address-card", "selector": ".cart-address", "metric": "present", "expected": true, "desc": "收货地址卡(OD 顶部)" },
+    { "key": "address-card", "selector": ".address-card", "metric": "present", "expected": true, "desc": "收货地址卡(OD 顶部;mp-cross-screen-cleanup D4:cart-address → address-card)" },
     { "key": "select-bar",   "selector": ".cart-bar",     "metric": "present", "expected": true, "desc": "全选栏(OD 全选 + 已选 N 件)" },
     { "key": "item-rows",    "selector": ".cart-item",    "metric": "count",   "expected": 2,    "desc": "商品行:图+checkbox+信息+stepper+删除(OD 行,seed 2 行)" },
     { "key": "checkout-bar", "selector": ".cart-footer",  "metric": "present", "expected": true, "desc": "底部 sticky 结算 bar(OD 合计 ¥xx + 去结算 pill)" }
