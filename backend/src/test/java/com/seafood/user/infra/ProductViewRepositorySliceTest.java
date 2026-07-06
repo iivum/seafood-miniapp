@@ -1,5 +1,6 @@
 package com.seafood.user.infra;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.mongodb.test.autoconfigure.DataMongoTest;
@@ -14,6 +15,13 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * 收藏 + 浏览足迹(design.md D1/D2)。{@code @Tag("docker")}:同
+ * {@code MongoIntegrationTest}/{@code RevokedTokenRepositoryIT} 等既有 Testcontainers
+ * 测试惯例,起真实 mongo:7 容器,本机无 Docker 或 nightly PIT mutation 跑时
+ * 用 {@code ./gradlew test -PexcludeTags=docker} 排除。
+ */
+@Tag("docker")
 @DataMongoTest
 @Testcontainers
 class ProductViewRepositorySliceTest {
