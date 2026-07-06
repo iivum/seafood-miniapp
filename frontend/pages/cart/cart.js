@@ -274,7 +274,7 @@ Page({
     wx.navigateTo({ url: '/pages-sub/order/order-confirm/order-confirm' });
   },
 
-  selectAddress: function () {
+  onSelectAddress: function () {
     const app = getApp();
     if (!app.globalData.userInfo) {
       wx.showToast({ title: '请先登录', icon: 'none' });

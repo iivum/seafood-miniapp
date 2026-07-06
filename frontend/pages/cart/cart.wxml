@@ -34,7 +34,7 @@
 
   <view class="cart-content" wx:else>
     <!-- 收货地址卡(保持数据流,微调视觉) -->
-    <navigator class="address-card" open-type="navigate" bindtap="selectAddress" hover-class="is-clicked" hover-stay-time="100">
+    <navigator class="address-card" open-type="navigate" bindtap="onSelectAddress" hover-class="is-clicked" hover-stay-time="100">
       <view class="address-card__body" wx:if="{{selectedAddress}}">
         <view class="address-card__head">
           <text class="address-card__name">{{selectedAddress.name}}</text>

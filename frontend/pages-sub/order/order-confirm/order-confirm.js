@@ -349,7 +349,7 @@ Page({
       });
   },
 
-  goBack: function () {
+  onBack: function () {
     wx.navigateBack();
   },
 });

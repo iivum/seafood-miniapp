@@ -19,7 +19,7 @@
   <view class="confirm-topbar safe-area-top">
     <view
       class="confirm-topbar__back"
-      bindtap="goBack"
+      bindtap="onBack"
       hover-class="is-clicked"
       hover-stay-time="100"
     >

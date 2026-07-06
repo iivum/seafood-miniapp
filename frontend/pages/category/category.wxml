@@ -94,7 +94,7 @@
                 <text class="cat-grid__price">¥ {{item.price}}</text>
                 <view
                   class="cat-grid__add"
-                  catchtap="addToCart"
+                  catchtap="onAddToCart"
                   data-product="{{item}}"
                   hover-class="cat-grid__add--hover"
                   hover-stay-time="100"

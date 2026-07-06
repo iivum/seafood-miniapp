@@ -83,7 +83,7 @@ describe('product-detail (mp-03 商品详情)', () => {
       onToggleFavorite: pageConfig.onToggleFavorite,
       goToHome: pageConfig.goToHome,
       goToCart: pageConfig.goToCart,
-      goToProductDetail: pageConfig.goToProductDetail,
+      onGoToProductDetail: pageConfig.onGoToProductDetail,
       onBack: pageConfig.onBack,
       onFavoriteTap: pageConfig.onFavoriteTap,
       onShareAppMessage: pageConfig.onShareAppMessage,
@@ -350,8 +350,8 @@ describe('product-detail (mp-03 商品详情)', () => {
       );
     });
 
-    it('goToProductDetail 用 dataset id 导航到详情页', () => {
-      ctx.goToProductDetail({ currentTarget: { dataset: { id: 'p-2' } } });
+    it('onGoToProductDetail 用 dataset id 导航到详情页', () => {
+      ctx.onGoToProductDetail({ currentTarget: { dataset: { id: 'p-2' } } });
       expect(wx.navigateTo).toHaveBeenCalledWith(
         expect.objectContaining({
           url: '/pages-sub/product/product-detail/product-detail?id=p-2',

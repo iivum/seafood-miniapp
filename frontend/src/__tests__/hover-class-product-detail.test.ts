@@ -8,7 +8,7 @@ describe('mp-03 商品详情 hover-class 覆盖（S-2）', () => {
   beforeAll(() => { wxml = fs.readFileSync(WXML, 'utf8'); });
 
   it('推荐商品项有 hover-class="is-clicked"', () => {
-    const matches = wxml.match(/bindtap="goToProductDetail"[^/]*/g) ?? [];
+    const matches = wxml.match(/bindtap="onGoToProductDetail"[^/]*/g) ?? [];
     expect(matches.length).toBeGreaterThan(0);
     for (const el of matches) {
       expect(el).toMatch(/hover-class="is-clicked"/);

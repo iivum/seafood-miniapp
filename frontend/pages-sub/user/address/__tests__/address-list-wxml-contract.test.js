@@ -60,8 +60,8 @@ describe('address-list.wxml ↔ address-list.js bindtap 契约（防死绑定回
     }
   });
 
-  it('顶部标题栏：非选择模式显示"地址管理" + 返回按钮 bindtap="goBack"', () => {
-    expect(wxml).toMatch(/bindtap="goBack"/);
+  it('顶部标题栏：非选择模式显示"地址管理" + 返回按钮 bindtap="onBack"（mp-cross-screen-cleanup D1:goBack → onBack）', () => {
+    expect(wxml).toMatch(/bindtap="onBack"/);
     expect(wxml).toMatch(/地址管理/);
   });
 
@@ -73,11 +73,11 @@ describe('address-list.wxml ↔ address-list.js bindtap 契约（防死绑定回
     expect(wxml).toMatch(/选择收货地址/);
   });
 
-  it('非默认地址卡片有"设为默认"可点击行，bindtap="setDefaultAddress" + data-address 绑定完整 item', () => {
+  it('非默认地址卡片有"设为默认"可点击行，bindtap="onSetDefaultAddress"（mp-cross-screen-cleanup:setDefaultAddress → onSetDefaultAddress） + data-address 绑定完整 item', () => {
     const tagMatch = wxml.match(/<view[^>]*wx:if="\{\{!item\.isDefault\}\}"[^>]*>/);
     expect(tagMatch).not.toBeNull();
     const tag = tagMatch[0];
-    expect(tag).toMatch(/bindtap="setDefaultAddress"/);
+    expect(tag).toMatch(/bindtap="onSetDefaultAddress"/);
     expect(tag).toMatch(/data-address="\{\{item\}\}"/);
     expect(wxml).toMatch(/设为默认/);
   });

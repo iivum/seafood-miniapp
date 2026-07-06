@@ -148,9 +148,10 @@ Page({
    * Add product to cart — P1 鉴权守卫(Task 4.x follow-up / M8)。
    * 未登录跳 login 页;已登录走 cartApi.addItem(后端 needAuth)。
    * 不再走本地 cartUtil.addToCart(数据永远到不了后端,登录后看不到)。
-   * 与首页 pages/index/index.js addToCart 行为对齐。
+   * 与首页 pages/index/index.js onAddToCart 行为对齐(mp-cross-screen-cleanup
+   * design.md D2:此前两屏都叫裸动词 addToCart,现统一改 onAddToCart)。
    */
-  addToCart(e) {
+  onAddToCart(e) {
     const product = e.currentTarget.dataset.product;
     const productId = product && product.id;
     const token = wx.getStorageSync('accessToken');
@@ -169,7 +170,7 @@ Page({
         wx.showToast({ title: '已加入购物车', icon: 'success' });
       })
       .catch((err) => {
-        console.error('addToCart 失败', err);
+        console.error('onAddToCart 失败', err);
         wx.showToast({ title: '加入失败', icon: 'none' });
       });
   },

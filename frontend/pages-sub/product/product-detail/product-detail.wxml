@@ -108,7 +108,7 @@
         wx:key="id"
         wx:for-item="rec"
         class="detail-recommend__item"
-        bindtap="goToProductDetail"
+        bindtap="onGoToProductDetail"
         data-id="{{rec.id}}"
         hover-class="is-clicked"
         hover-stay-time="100"

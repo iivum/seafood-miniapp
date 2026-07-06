@@ -58,14 +58,14 @@ Page({
   },
 
   // 添加新地址
-  addNewAddress: function() {
+  onAddNewAddress: function() {
     wx.navigateTo({
       url: '/pages-sub/user/address/address-edit'
     });
   },
 
   // 编辑地址
-  editAddress: function(e) {
+  onEditAddress: function(e) {
     const address = e.currentTarget.dataset.address;
     wx.navigateTo({
       url: `/pages-sub/user/address/address-edit?id=${address.id}`
@@ -73,7 +73,7 @@ Page({
   },
 
   // 删除地址
-  deleteAddress: function(e) {
+  onDeleteAddress: function(e) {
     const address = e.currentTarget.dataset.address;
     
     wx.showModal({
@@ -106,7 +106,7 @@ Page({
   },
 
   // 选择地址
-  selectAddress: function(e) {
+  onSelectAddress: function(e) {
     if (!this.data.selectMode) {
       return;
     }
@@ -135,7 +135,7 @@ Page({
   },
 
   // 设置默认地址
-  setDefaultAddress: function(e) {
+  onSetDefaultAddress: function(e) {
     const address = e.currentTarget.dataset.address;
 
     request({
@@ -161,7 +161,7 @@ Page({
 
   // 返回上一页(自定义标题栏返回按钮;navigationStyle:custom 后原生返回按钮
   // 消失,必须自己实现 —— brief `.superpowers/sdd/mp-od-6-address-brief.md` §1)
-  goBack: function() {
+  onBack: function() {
     wx.navigateBack();
   }
 })

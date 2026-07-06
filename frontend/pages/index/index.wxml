@@ -184,7 +184,7 @@
             <text class="home-grid__price">¥ {{item.price}}</text>
             <view
               class="home-grid__add"
-              catchtap="addToCart"
+              catchtap="onAddToCart"
               data-product="{{item}}"
               hover-class="home-grid__add--hover"
               hover-stay-time="100"

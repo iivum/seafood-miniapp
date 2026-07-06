@@ -25,7 +25,7 @@
   <view class="addr-topbar safe-area-top">
     <view
       class="addr-topbar__back"
-      bindtap="goBack"
+      bindtap="onBack"
       hover-class="is-clicked"
       hover-stay-time="100"
     >
@@ -44,7 +44,7 @@
       <!-- 选择模式:radio 选中 + 整卡 tap 触发 selectAddress -->
       <view
         class="address-card__body"
-        bindtap="selectAddress"
+        bindtap="onSelectAddress"
         data-address="{{item}}"
         data-id="{{item.id}}"
         hover-class="is-clicked"
@@ -63,7 +63,7 @@
         <view
           wx:if="{{!item.isDefault}}"
           class="address-card__action"
-          bindtap="setDefaultAddress"
+          bindtap="onSetDefaultAddress"
           data-address="{{item}}"
           hover-class="is-clicked"
           hover-stay-time="100"
@@ -73,7 +73,7 @@
         </view>
         <view
           class="address-card__action"
-          bindtap="editAddress"
+          bindtap="onEditAddress"
           data-address="{{item}}"
           hover-class="is-clicked"
           hover-stay-time="100"
@@ -83,7 +83,7 @@
         </view>
         <view
           class="address-card__action address-card__action--danger"
-          bindtap="deleteAddress"
+          bindtap="onDeleteAddress"
           data-id="{{item.id}}"
           hover-class="is-clicked"
           hover-stay-time="100"
@@ -110,7 +110,7 @@
   <view class="add-bar safe-area-bottom-fixed">
     <view
       class="add-btn"
-      bindtap="addNewAddress"
+      bindtap="onAddNewAddress"
       hover-class="is-clicked"
       hover-stay-time="100"
     >

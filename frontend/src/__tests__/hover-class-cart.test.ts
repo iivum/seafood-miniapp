@@ -8,7 +8,7 @@ describe('mp-04 购物车 hover-class 覆盖（S-2）', () => {
   beforeAll(() => { wxml = fs.readFileSync(WXML, 'utf8'); });
 
   it('收货地址 navigator 有 hover-class="is-clicked"', () => {
-    const matches = wxml.match(/bindtap="selectAddress"[^/]*/g) ?? [];
+    const matches = wxml.match(/bindtap="onSelectAddress"[^/]*/g) ?? [];
     expect(matches.length).toBeGreaterThan(0);
     for (const el of matches) {
       expect(el).toMatch(/hover-class="is-clicked"/);

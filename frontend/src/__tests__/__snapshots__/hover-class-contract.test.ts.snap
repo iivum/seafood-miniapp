@@ -37,7 +37,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
 
   <view class="cart-content" wx:else>
     <!-- 收货地址卡(保持数据流,微调视觉) -->
-    <navigator class="address-card" open-type="navigate" bindtap="selectAddress" hover-class="is-clicked" hover-stay-time="100">
+    <navigator class="address-card" open-type="navigate" bindtap="onSelectAddress" hover-class="is-clicked" hover-stay-time="100">
       <view class="address-card__body" wx:if="{{selectedAddress}}">
         <view class="address-card__head">
           <text class="address-card__name">{{selectedAddress.name}}</text>
@@ -250,7 +250,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/catego
                 <text class="cat-grid__price">¥ {{item.price}}</text>
                 <view
                   class="cat-grid__add"
-                  catchtap="addToCart"
+                  catchtap="onAddToCart"
                   data-product="{{item}}"
                   hover-class="cat-grid__add--hover"
                   hover-stay-time="100"
@@ -462,7 +462,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
             <text class="home-grid__price">¥ {{item.price}}</text>
             <view
               class="home-grid__add"
-              catchtap="addToCart"
+              catchtap="onAddToCart"
               data-product="{{item}}"
               hover-class="home-grid__add--hover"
               hover-stay-time="100"
@@ -733,7 +733,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/pr
         wx:key="id"
         wx:for-item="rec"
         class="detail-recommend__item"
-        bindtap="goToProductDetail"
+        bindtap="onGoToProductDetail"
         data-id="{{rec.id}}"
         hover-class="is-clicked"
         hover-stay-time="100"

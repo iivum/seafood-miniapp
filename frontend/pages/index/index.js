@@ -251,7 +251,7 @@ Page({
    * 未登录跳 login 页;已登录走 cartApi.addItem(后端 needAuth)。
    * 不再走本地 cartUtil.addToCart(数据永远到不了后端,登录后看不到)。
    */
-  addToCart(e) {
+  onAddToCart(e) {
     const product = e.currentTarget.dataset.product;
     const productId = product && product.id;
     const token = wx.getStorageSync('accessToken');

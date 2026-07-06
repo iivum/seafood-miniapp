@@ -362,17 +362,17 @@ describe('cart', () => {
     });
   });
 
-  describe('selectAddress(既有行为,补覆盖率)', () => {
+  describe('onSelectAddress(既有行为,补覆盖率)', () => {
     it('未登录时 toast 提示,不跳转', () => {
       mockApp.globalData.userInfo = null;
-      ctx.selectAddress();
+      ctx.onSelectAddress();
       expect(wx.showToast).toHaveBeenCalledWith({ title: '请先登录', icon: 'none' });
       expect(wx.navigateTo).not.toHaveBeenCalled();
     });
 
     it('已登录且未选地址时跳转带空 selectedAddress', () => {
       ctx.data.selectedAddress = null;
-      ctx.selectAddress();
+      ctx.onSelectAddress();
       expect(wx.navigateTo).toHaveBeenCalledWith({
         url: '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=',
       });
@@ -380,7 +380,7 @@ describe('cart', () => {
 
     it('已登录且已选地址时跳转带编码后的 selectedAddress', () => {
       ctx.data.selectedAddress = { id: 'a1' };
-      ctx.selectAddress();
+      ctx.onSelectAddress();
       expect(wx.navigateTo).toHaveBeenCalledWith({
         url:
           '/pages-sub/user/address/address-list?selectMode=true&selectedAddress=' +

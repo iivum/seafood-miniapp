@@ -168,7 +168,7 @@ Page({
     wx.switchTab({ url: '/pages/cart/cart' });
   },
 
-  goToProductDetail: function (e) {
+  onGoToProductDetail: function (e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
       url: '/pages-sub/product/product-detail/product-detail?id=' + id,

@@ -296,9 +296,9 @@ describe('order-confirm', () => {
     });
   });
 
-  describe('goBack(顶部标题栏返回按钮接线)', () => {
+  describe('onBack(顶部标题栏返回按钮接线)', () => {
     it('调用 wx.navigateBack', () => {
-      ctx.goBack();
+      ctx.onBack();
       expect(wx.navigateBack).toHaveBeenCalled();
     });
   });
