@@ -137,6 +137,33 @@ class SecurityFilterChainOrderIT {
     }
 
     /**
+     * 回归(收藏 + 浏览足迹,同 addressesEndpoint_isAuthenticated_notDenyAll 同一类漏配):
+     * {@code /api/favorites/**}/{@code /api/product-views/**} 两个 self-scoped 门面
+     * (FavoriteController/ProductViewController,身份取自 JWT principal)新增时,
+     * SecurityConfig 白名单忘了加对应 requestMatchers——两个 controller 的方法级
+     * @PreAuthorize("isAuthenticated()") 从未真正生效,因为 URL 层的
+     * anyRequest().denyAll() 兜底先一步把请求拒了(403),controller 代码本身
+     * 从未被真正到达。task-4 全分支 review 发现,同 addresses 那次一样,
+     * 两个 controller 的单元测试都绕过 filter chain,抓不到这条 matcher 漏配。
+     */
+    @Test
+    void favoritesAndProductViewsEndpoints_areAuthenticated_notDenyAll() throws Exception {
+        JwtTokenProvider tokens = ctx.getBean(JwtTokenProvider.class);
+        String token = tokens.issueAccessToken("u-1", Role.CUSTOMER).token();
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(ctx).apply(springSecurity()).build();
+
+        mvc.perform(get("/api/favorites").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());   // 过授权层(白名单),TestApp 无 handler
+        mvc.perform(get("/api/favorites"))
+                .andExpect(status().isForbidden());  // 无 token → 授权层拒
+
+        mvc.perform(get("/api/product-views").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());   // 过授权层(白名单),TestApp 无 handler
+        mvc.perform(get("/api/product-views"))
+                .andExpect(status().isForbidden());  // 无 token → 授权层拒
+    }
+
+    /**
      * 把 FilterChainProxy 内部所有 chain 的所有 filter 摊平到一个 List。Spring Security 在
      * 不同 {@code requestMatchers} 下用不同 chain,但本测试关心"链中存在且相对有序"。
      */
