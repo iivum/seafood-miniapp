@@ -367,6 +367,8 @@ The order list (`pages-sub/order/order-list/order-list`) and order detail MUST r
 
 Tapping any action button MUST show a loading state, call the corresponding endpoint, and on 200 refresh the affected order. On 409 (invalid state) the UI MUST show a toast with the error message and refresh the order to reflect the actual server state.
 
+This requirement's action behavior MUST be identical regardless of which screen (list or detail) the action is triggered from — the two screens MAY have separate page-level code, but MUST NOT diverge in which endpoint an action calls or whether it's a real call versus a placeholder.
+
 #### Scenario: User cancels a PENDING order from the action row
 - **WHEN** the user taps "取消订单" on a PENDING order
 - **THEN** the UI shows a confirm dialog
@@ -383,11 +385,15 @@ Tapping any action button MUST show a loading state, call the corresponding endp
 - **THEN** the action row renders only a disabled "退款处理中" pill
 - **AND** no taps on the row trigger any network call
 
+#### Scenario: User requests a refund from either the list or detail screen
+- **WHEN** the user taps "申请退款" (PAID) or "申请售后" (COMPLETED) from the order list screen, and confirms
+- **THEN** the app calls `POST /api/orders/{id}/refund` — the same real endpoint call the order detail screen's equivalent action makes, not a placeholder message
+
 ---
 
 ### Requirement: Order detail page (mp-09) OD-aligned layout
 The order detail page (`pages-sub/order/order-detail/order-detail`) MUST render, in vertical order, matching the OD golden `frontend/e2e/od-golden/mp-09-order-detail.png` to within a 5% perceptual-diff threshold (`npm run test:visual mp-09-order-detail`) and passing the geometry gate (`npm run test:geometry mp-09-order-detail`):
-- **Status banner**: colored banner (`status-banner--{{statusBanner.statusColor}}`) with the current status text and, when present, an estimated-delivery subtext.
+- **Status banner**: colored banner (`order-detail__banner--{{statusBanner.statusColor}}`) with the current status text and, when present, an estimated-delivery subtext.
 - **Timeline card**: 物流轨迹 — one node per tracking event, each showing a label, time, and description.
 - **Address card**: recipient info for the order.
 - **Items card**: one row per line item (image, name, spec/quantity, unit price).

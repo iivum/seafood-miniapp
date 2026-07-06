@@ -54,7 +54,9 @@
 
 ## 全分支 review 结论
 
-**批准(Approved)**。9 commit 全量 diff 复核(1.1→6 全部 6 个任务组 + 收尾):所有改动均为命名/组织结构/既有能力接线修复,零新增对外行为契约(除「Order list and detail (mp-08) customer action row」delta spec 补的显式约束,verified 与实现一致);6 个任务里 2 个(Task 5/6)独立 dispatch task-reviewer 并 Approved,过程中发现并修复 3 处"测试用虚构 shape/shim 未同步导致真 bug 被掩盖"(退款缺 amount、requestRefund shim 未同步、cartStore.add 不存在),均已妥善修复 + 回归测试锁住;4 个低风险任务(Task 1-4)controller 直接实施,零行为风险(JSON 清理/CSS 改名/util 抽取)。
+**批准(Approved,含一轮 fix-and-re-verify)**。10 commit 全量 diff 复核(opus,1.1→6 全部 6 个任务组 + 收尾):所有改动均为命名/组织结构/既有能力接线修复,零新增对外行为契约(除「Order list and detail (mp-08) customer action row」delta spec 补的显式约束,verified 与实现一致);6 个任务里 2 个(Task 5/6)独立 dispatch task-reviewer 并 Approved,过程中发现并修复 3 处"测试用虚构 shape/shim 未同步导致真 bug 被掩盖"(退款缺 amount、requestRefund shim 未同步、cartStore.add 不存在),均已妥善修复 + 回归测试锁住;4 个低风险任务(Task 1-4)controller 直接实施,零行为风险(JSON 清理/CSS 改名/util 抽取)。
+
+**全分支 review 本身发现 1 个 Important**(单个任务的 review 因为只看各自任务的 diff 范围,看不到这类跨边界问题):Task 2/Task 4 的 class 改名(`cart-address`→`address-card`、order-detail 扁平类名→BEM)完成后,`frontend/e2e/` 下的几何层 SoT JSON(`od-geometry/mp-04-cart.json`/`mp-09-order-detail.json`)+ `mp-3layer.test.ts` 的 `wxmlMust` 正则里还留着改名前的旧 class 名——这些文件不在任何 task 的改动范围内(各 task 只碰了运行时真正加载的 wxml/wxss/js),也不在标准 `npm test`(`e2e/` 被 `testPathIgnorePatterns` 排除)覆盖范围内,加上本轮 6 个任务都没起 DevTools 实机跑视觉验证,所以没被任何一次 task-review 或全量测试抓到。已修复(commit `cc75c22`):3 处 selector/正则同步成新 class 名,逐字核对与真实 wxml 匹配、JSON 语法校验、`tsc --noEmit` 全项目类型检查、标准 `npm test`(600/600)确认无回归——但本次同样没有起 DevTools 实机跑 `test:geometry`/`test:e2e` 做最终执行验证,这是本 change 全程的已知限制,如实披露。
 
 ## 遗留问题清单(本 change 范围外,proposal.md 研究阶段发现,供后续 change 参考)
 
