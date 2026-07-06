@@ -270,7 +270,7 @@ Page({
         wx.showToast({ title: '已加入购物车', icon: 'success' });
       })
       .catch((err) => {
-        console.error('addToCart 失败', err);
+        console.error('onAddToCart 失败', err);
         wx.showToast({ title: '加入失败', icon: 'none' });
       });
   },

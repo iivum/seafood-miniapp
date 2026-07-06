@@ -10,14 +10,15 @@
      "看不见")。非选择模式显示"地址管理",选择模式复用既有"选择收货地址"
      文案,合并进同一个 topbar,不让两个标题同时出现(brief §1)。
   ② "设为默认"接线(brief"好消息"):address-list.js 的 setDefaultAddress
+     (mp-cross-screen-cleanup 后改名 onSetDefaultAddress,design.md D2)
      早已完整实现,只是 wxml 从未绑定过任何 UI 元素;这次加进
      .address-card__actions 列表,复用既有 .address-card__action 样式,
      只对非默认地址(!item.isDefault)显示。
   ③ 额外发现并修复的真 bug(coordinator 2026-07-02 追加授权,同 mp-02/mp-03
      反复出现的 wxml↔JS 死绑定问题的反方向版本):原 bindtap 目标名
      onSelectAddress/onEditAddress/onDeleteAddress/onAddNewAddress 在
-     address-list.js 里根本不存在(真实方法名不带 on 前缀),覆盖本页整卡
-     选择/编辑/删除/添加新地址几乎全部核心交互,此前点击一律无反应。已改绑
+     address-list.js 里根本不存在(真实方法名当时不带 on 前缀),覆盖本页
+     整卡选择/编辑/删除/添加新地址几乎全部核心交互,此前点击一律无反应。已改绑
      真实方法名,回归测试见 `__tests__/address-list-wxml-contract.test.js`。
 -->
 <view class="address-list-container">
@@ -41,7 +42,7 @@
       wx:for="{{addresses}}"
       wx:key="id"
     >
-      <!-- 选择模式:radio 选中 + 整卡 tap 触发 selectAddress -->
+      <!-- 选择模式:radio 选中 + 整卡 tap 触发 onSelectAddress -->
       <view
         class="address-card__body"
         bindtap="onSelectAddress"
