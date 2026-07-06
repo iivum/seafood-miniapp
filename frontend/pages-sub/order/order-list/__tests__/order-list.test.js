@@ -137,6 +137,28 @@ describe('order-list', () => {
       await ctx.onActionTap(e);
       expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '未知操作' }));
     });
+
+    it('订单 id 在 data.orders/filteredOrders 里查不到时提前 return,根本不进入共享分发(task-6 review 发现的守卫缺口)', async () => {
+      // 列表在点击和查找之间被刷新掉这张卡片(真实可能发生的竞态),.find() 查不到
+      // 完整订单对象。风险点在 confirmThenRefund(order) —— 内部裸读
+      // order.id/order.totalAmount,真实 wx.showModal 是异步回调(不像这里的
+      // mock 是同步立即调用 success),回调内抛的 TypeError 不会被
+      // dispatchOrderAction 的 try/catch 捕获(那层 try 早已在真机异步场景下
+      // 执行完毕),会变成未处理异常。断言 wx.showModal 压根没被调用——这是比
+      // "mockRequestRefund 没被调用"更精确的信号:即使守卫缺失,由于本文件
+      // mock 把 success 做成同步调用,抛出会被 Promise executor 的同步语义
+      // "误吞"变成 rejected promise 再被外层 catch 兜住,mockRequestRefund
+      // 确实不会被调,但那是测试 mock 恰好同步执行的假象,不代表真机也安全;
+      // 只有"根本没触发 wx.showModal"才真正证明守卫在 onActionTap 里提前拦下了。
+      wx.showModal.mockImplementation((opts) => opts.success({ confirm: true }));
+      const e = { detail: { id: 'requestRefund' }, currentTarget: { dataset: { id: 'order-does-not-exist' } } };
+      // onActionTap 查不到订单时提前 return undefined(不是 promise),查得到时才
+      // 返回 dispatchOrderAction 的 promise —— 直接 await 即可,抛错的话这行本身
+      // 就会让测试失败,不需要 .resolves 包装(那要求返回值必须是 promise)。
+      await ctx.onActionTap(e);
+      expect(wx.showModal).not.toHaveBeenCalled();
+      expect(mockRequestRefund).not.toHaveBeenCalled();
+    });
   });
 
   describe('onTabTap', () => {

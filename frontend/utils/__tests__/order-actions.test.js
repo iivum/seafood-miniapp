@@ -121,7 +121,7 @@ describe('utils/order-actions.js', () => {
   });
 
   describe('reorder', () => {
-    it('调用 OrderAPI.rebuy,对返回的每个 item 调用 cartStore.add,跳购物车', async () => {
+    it('调用 OrderAPI.rebuy,对返回的每个 item 调用 cartStore.addItem,跳购物车', async () => {
       jest.useFakeTimers();
       mockRebuy.mockResolvedValue([
         { productId: 'p1', quantity: 2 },

@@ -155,6 +155,12 @@ Page({
     const order =
       (this.data.orders || []).find((o) => o.id === orderId) ||
       (this.data.filteredOrders || []).find((o) => o.id === orderId);
+    // task-6 review 发现:order 可能因列表在点击和查找之间被刷新而查不到(与
+    // order-detail.js:106 的 `if (!order) return;` 同款防御——那边订单必然已加载,
+    // 这里则是"卡片列表可能已过期"的真实可能性,此前少了这道守卫,会让
+    // dispatchOrderAction 内部对 order.id/order.totalAmount 的裸解引用抛出未捕获
+    // TypeError,而不是走其它分支已有的"操作失败" toast)。
+    if (!order) return;
     if (action === 'viewTracking') {
       wx.navigateTo({
         url: '/pages-sub/order/order-detail/order-detail?id=' + encodeURIComponent(orderId),
