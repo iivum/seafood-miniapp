@@ -45,9 +45,9 @@ jest.mock('../../../../src/features/order/api', () => ({
   },
 }));
 
-const mockCartAdd = jest.fn().mockResolvedValue({});
+const mockCartAddItem = jest.fn().mockResolvedValue({});
 jest.mock('../../../../src/features/cart/store', () => ({
-  cartStore: { add: (...a) => mockCartAdd(...a) },
+  cartStore: { addItem: (...a) => mockCartAddItem(...a) },
 }));
 
 let pageConfig;
@@ -208,7 +208,7 @@ describe('order-list', () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(mockRebuy).toHaveBeenCalledWith('order-123');
-      expect(mockCartAdd).toHaveBeenCalledWith('p1', 1);
+      expect(mockCartAddItem).toHaveBeenCalledWith('p1', 1);
       jest.runAllTimers();
       await p;
       expect(wx.switchTab).toHaveBeenCalledWith(expect.objectContaining({ url: '/pages/cart/cart' }));

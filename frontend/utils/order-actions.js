@@ -114,10 +114,14 @@ async function handleRebuy(orderId) {
   wx.showLoading({ title: '加入购物车...', mask: true });
   try {
     const items = await OrderAPI.rebuy(orderId);
-    // 把 rebuy 返回的 cart items 加到 cart store
+    // 把 rebuy 返回的 cart items 加到 cart store。
+    // 抽取时发现:cartStore 真实只有 addItem(productId, quantity),没有 add ——
+    // 这里此前(两份原始实现都)一直裸调不存在的 cartStore.add,会 TypeError,
+    // 从改动前就一直是坏的,被测试用同样虚构的 { add: ... } mock 掩盖,同
+    // requestRefund 缺 amount 是同一类"测试 mock 形状不真实"问题,顺带修。
     if (items && items.length) {
       for (const it of items) {
-        await cartStore.add(it.productId, it.quantity);
+        await cartStore.addItem(it.productId, it.quantity);
       }
     }
     wx.hideLoading();

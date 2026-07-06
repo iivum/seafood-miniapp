@@ -52,9 +52,13 @@ jest.mock('../../src/features/order/store', () => ({
   },
 }));
 
-const mockCartAdd = jest.fn();
+// controller 复核发现:cartStore 真实只有 addItem(productId, quantity),没有 add ——
+// 此前 order-list.js/order-detail.js 各自的 handleRebuy 早就在裸调 cartStore.add(不存在
+// 的方法,会 TypeError),这个 bug 从改动前就一直存在,是抽取时顺带发现的另一处"测试用
+// 虚构 shape 掩盖真实缺口"(同 requestRefund 缺 amount 是同一类问题)。这里改用真实方法名。
+const mockCartAddItem = jest.fn();
 jest.mock('../../src/features/cart/store', () => ({
-  cartStore: { add: (...a) => mockCartAdd(...a) },
+  cartStore: { addItem: (...a) => mockCartAddItem(...a) },
 }));
 
 const { dispatchOrderAction } = require('../order-actions.js');
@@ -79,7 +83,7 @@ describe('utils/order-actions.js', () => {
     mockConfirmReceive.mockResolvedValue({});
     mockCancel.mockResolvedValue({});
     mockRequestRefund.mockResolvedValue({ orderStatus: 'REFUNDING', updatedAt: '2026-07-06T00:00:00Z' });
-    mockCartAdd.mockResolvedValue({});
+    mockCartAddItem.mockResolvedValue({});
     mockRefresh = jest.fn().mockResolvedValue(undefined);
   });
 
@@ -128,8 +132,8 @@ describe('utils/order-actions.js', () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(mockRebuy).toHaveBeenCalledWith('order-123');
-      expect(mockCartAdd).toHaveBeenCalledWith('p1', 2);
-      expect(mockCartAdd).toHaveBeenCalledWith('p2', 1);
+      expect(mockCartAddItem).toHaveBeenCalledWith('p1', 2);
+      expect(mockCartAddItem).toHaveBeenCalledWith('p2', 1);
       jest.runAllTimers();
       await p;
       expect(wx.switchTab).toHaveBeenCalledWith(expect.objectContaining({ url: '/pages/cart/cart' }));
