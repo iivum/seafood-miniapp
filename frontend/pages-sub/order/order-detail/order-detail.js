@@ -7,9 +7,15 @@
 // 推算,页面不再自己维护 timeline 字段/调用 derive.deriveTimeline()。deriveBanner 仍在用。
 const derive = require('../../../utils/order-detail-derive.js');
 const { request } = require('../../../utils/request.js');
-const { OrderAPI } = require('../../../src/features/order/api');
-const { orderStore } = require('../../../src/features/order/store');
-const { cartStore } = require('../../../src/features/cart/store');
+const { dispatchOrderAction } = require('../../../utils/order-actions');
+// mp-cross-screen-cleanup D7:pay/cancelOrder/remindShip/reorder/deleteOrder/
+// requestRefund/afterSale 的分发逻辑(含 409/403/404 错误 toast)已抽到
+// utils/order-actions.js,和 order-list.js 共用一份实现——不再各自维护一份近乎
+// 相同的 handleAction/confirmThenCancel/confirmThenDelete/handleRebuy/applyRefund
+// (这份重复正是 mp-backend-contract-gaps 那次 "一边修了 err.status,另一边漏改"
+// bug 的根因)。同时修复了一个此前生产环境会真实 400 的 bug:原 applyRefund() 从
+// 未传后端要求的 amount 字段,现在统一改走
+// orderStore.requestRefund(id, order.totalAmount, reason)。
 
 Page({
   data: {
@@ -87,140 +93,21 @@ Page({
   // order-detail 页面本身就持有当前订单,this.data.order.id 就是订单 id。
   // (mp-08 诊断记录:旧代码曾从 e.detail 解构 { id, action } 两者都取错,
   // action 恒 undefined 落 default「未知操作」——这里从一开始就写对,不重蹈覆辙。)
+  //
+  // mp-cross-screen-cleanup D7:pay/cancelOrder/remindShip/reorder/withdrawRefund/
+  // review/deleteOrder/requestRefund/afterSale 的分发(含 409/403/404 错误 toast)
+  // 已抽到共享 utils/order-actions.js(dispatchOrderAction),和 order-list.js 共用
+  // 一份实现。confirmReceipt(confirmReceive,剪贴板无关,只是这个页面已有的实现跟
+  // OrderAPI.confirmReceive 之外还直接 setData 刷新——保留本地不搬,design.md 未强制
+  // 要求)/viewTracking(viewLogistics,剪贴板复制,页面特有 UI)在调用共享分发前
+  // 自行短路,不进共享 switch。
   onActionTap(e) {
     const action = e.detail.id;
-    this.handleAction(action);
-  },
-
-  /**
-   * action 按钮统一入口,状态矩阵见 OrderActionRow.getActionsFor()(7 状态 × 多按钮)。
-   * 已实现的 3 个方法(applyRefund/confirmReceive/viewLogistics)直接复用——
-   * action id 与方法名不完全一致,映射如下:
-   *   requestRefund(PAID) / afterSale(COMPLETED) → applyRefund()
-   *   confirmReceipt(SHIPPED)                    → confirmReceive()
-   *   viewTracking(SHIPPED)                       → viewLogistics()
-   * 其余分支(pay/cancelOrder/remindShip/reorder/withdrawRefund/review/deleteOrder)
-   * 参照 order-list.js 的 handleAction 调 OrderAPI/orderStore,不重新发明。
-   */
-  async handleAction(action) {
     const order = this.data.order;
     if (!order) return;
-    const orderId = order.id;
-
-    switch (action) {
-      case 'requestRefund':
-      case 'afterSale':
-        return this.applyRefund();
-      case 'confirmReceipt':
-        return this.confirmReceive();
-      case 'viewTracking':
-        return this.viewLogistics();
-      default:
-        break;
-    }
-
-    wx.showLoading({ title: '处理中...', mask: true });
-    try {
-      switch (action) {
-        case 'pay':
-          await OrderAPI.pay(orderId);
-          wx.showToast({ title: '已支付', icon: 'success' });
-          break;
-        case 'cancelOrder':
-          await this.confirmThenCancel(orderId);
-          break;
-        case 'remindShip':
-          await OrderAPI.remindShip(orderId);
-          wx.showToast({ title: '已提醒商家发货', icon: 'success' });
-          break;
-        case 'reorder':
-          await this.handleRebuy(orderId);
-          return; // handleRebuy 自行处理 loading/toast/跳转
-        case 'withdrawRefund':
-          wx.showToast({ title: '撤回功能开发中', icon: 'none' });
-          break;
-        case 'review':
-          wx.showToast({ title: '评价功能开发中', icon: 'none' });
-          break;
-        case 'deleteOrder':
-          await this.confirmThenDelete(orderId);
-          break;
-        default:
-          wx.showToast({ title: '未知操作', icon: 'none' });
-      }
-      wx.hideLoading();
-      await this.refreshOrder();
-    } catch (err) {
-      wx.hideLoading();
-      // OrderAPI(src/shared/api/request.js ApiError)抛 .statusCode;utils/request.js
-      // 的 reject(res) 也带 .statusCode——两条链路统一读 statusCode,兼容 .status 兜底。
-      const status = err && (err.statusCode || err.status);
-      if (status === 409) {
-        wx.showToast({ title: '订单状态已变更', icon: 'none' });
-        await this.refreshOrder();
-      } else if (status === 403 || status === 404) {
-        wx.showToast({ title: '订单不存在或无权限', icon: 'none' });
-      } else {
-        const msg = (err && err.message) || '操作失败';
-        wx.showToast({ title: msg, icon: 'none' });
-      }
-    }
-  },
-
-  confirmThenCancel(orderId) {
-    return new Promise((resolve, reject) => {
-      wx.showModal({
-        title: '确认取消订单',
-        content: '取消后无法恢复,确定要取消吗?',
-        success: (res) => {
-          if (res.confirm) {
-            orderStore.cancel(orderId, '用户取消订单').then(resolve).catch(reject);
-          } else {
-            reject({ message: '用户取消', cancelled: true });
-          }
-        },
-        fail: reject,
-      });
-    });
-  },
-
-  confirmThenDelete(orderId) {
-    return new Promise((resolve, reject) => {
-      wx.showModal({
-        title: '删除订单',
-        content: '删除后无法恢复,确定删除吗?',
-        success: (res) => {
-          if (res.confirm) {
-            // 删除 = 后端 cancel + 隐藏(本迭代没 delete 端点,走 cancel 替代,同 order-list.js 惯例)
-            orderStore.cancel(orderId, '用户删除订单').then(resolve).catch(reject);
-          } else {
-            reject({ message: '用户取消', cancelled: true });
-          }
-        },
-        fail: reject,
-      });
-    });
-  },
-
-  async handleRebuy(orderId) {
-    wx.hideLoading();
-    wx.showLoading({ title: '加入购物车...', mask: true });
-    try {
-      const items = await OrderAPI.rebuy(orderId);
-      if (items && items.length) {
-        for (const it of items) {
-          await cartStore.add(it.productId, it.quantity);
-        }
-      }
-      wx.hideLoading();
-      wx.showToast({ title: `已加入 ${items.length} 件`, icon: 'success' });
-      setTimeout(() => {
-        wx.switchTab({ url: '/pages/cart/cart' });
-      }, 800);
-    } catch (err) {
-      wx.hideLoading();
-      wx.showToast({ title: (err && err.message) || '加入购物车失败', icon: 'none' });
-    }
+    if (action === 'confirmReceipt') return this.confirmReceive();
+    if (action === 'viewTracking') return this.viewLogistics();
+    return dispatchOrderAction(action, order, this.refreshOrder.bind(this));
   },
 
   // 状态机分支(pay/cancelOrder/remindShip/deleteOrder)操作成功后重拉当前订单详情,
@@ -234,35 +121,6 @@ Page({
       this.setData({ order: fresh, statusBanner: derive.deriveBanner(fresh) });
     } catch {
       /* best-effort */
-    }
-  },
-
-  async applyRefund() {
-    const order = this.data.order;
-    if (!order) return;
-    const res = await wx.showModal({
-      title: '申请退款',
-      content: '确定要申请退款?商家将在 24 小时内处理',
-    });
-    if (!res.confirm) return;
-
-    try {
-      wx.showLoading({ title: '提交中...' });
-      const newOrder = await request({
-        url: `/orders/${order.id}/refund`,
-        method: 'POST',
-        data: { reason: '用户主动申请' },
-        needAuth: true,
-      });
-      this.setData({
-        order: newOrder,
-        statusBanner: derive.deriveBanner(newOrder),
-      });
-      wx.showToast({ title: '退款申请已提交', icon: 'success' });
-    } catch (err) {
-      wx.showToast({ title: (err && err.message) || '申请失败,请重试', icon: 'none' });
-    } finally {
-      wx.hideLoading();
     }
   },
 

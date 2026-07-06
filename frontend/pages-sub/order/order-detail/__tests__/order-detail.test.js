@@ -38,8 +38,14 @@ jest.mock('../../../../src/features/order/api', () => ({
 }));
 
 const mockCancel = jest.fn().mockResolvedValue({ id: 'order-detail-1', status: 'CANCELLED' });
+const mockRequestRefund = jest
+  .fn()
+  .mockResolvedValue({ orderStatus: 'REFUNDING', updatedAt: 'now' });
 jest.mock('../../../../src/features/order/store', () => ({
-  orderStore: { cancel: (...a) => mockCancel(...a) },
+  orderStore: {
+    cancel: (...a) => mockCancel(...a),
+    requestRefund: (...a) => mockRequestRefund(...a),
+  },
 }));
 
 const mockCartAdd = jest.fn().mockResolvedValue({});
@@ -153,48 +159,46 @@ describe('order-detail', () => {
   });
 
   describe('onActionTap(事件契约回归锁)', () => {
-    it('从 e.detail.id 取 action 类型,直接用 this.data.order.id,不需要 dataset', () => {
-      ctx.data.order = { id: 'order-detail-1', status: 'PENDING' };
-      ctx.handleAction = jest.fn();
-      const e = { detail: { id: 'cancelOrder' } };
-      ctx.onActionTap(e);
-      expect(ctx.handleAction).toHaveBeenCalledWith('cancelOrder');
+    // mp-cross-screen-cleanup D7:handleAction 已删除,pay/cancelOrder/remindShip/
+    // reorder/withdrawRefund/review/deleteOrder/requestRefund/afterSale 的分发搬进
+    // 共享 utils/order-actions.js(dispatchOrderAction)。这里直接断言端到端效果:
+    // e.detail.id 提供 action 类型,不需要 dataset(order-detail 页面本身持有
+    // this.data.order,同 mp-08 order-list.js 修复后的事件契约保持一致)。
+    it('从 e.detail.id 取 action 类型,直接用 this.data.order,不需要 dataset', async () => {
+      ctx.data.order = { id: 'order-detail-1', status: 'PENDING', totalAmount: 88, items: [] };
+      mockRequest.mockResolvedValueOnce({ id: 'order-detail-1', status: 'PAID' });
+      const e = { detail: { id: 'pay' } };
+      await ctx.onActionTap(e);
+      expect(mockPay).toHaveBeenCalledWith('order-detail-1');
     });
   });
 
-  describe('handleAction 分发', () => {
+  describe('onActionTap 分发(共享 dispatchOrderAction 接线)', () => {
     beforeEach(() => {
-      ctx.data.order = { id: 'order-detail-1', status: 'PENDING', items: [] };
+      ctx.data.order = { id: 'order-detail-1', status: 'PENDING', totalAmount: 88, items: [] };
     });
 
-    it('order 为空时直接返回,不抛错、不调用任何 API', async () => {
+    it('order 为空时直接返回,不抛错、不调用任何 API', () => {
       ctx.data.order = null;
-      await expect(ctx.handleAction('pay')).resolves.toBeUndefined();
+      expect(() => ctx.onActionTap({ detail: { id: 'pay' } })).not.toThrow();
       expect(mockPay).not.toHaveBeenCalled();
     });
 
-    it('confirmReceipt 复用 confirmReceive(action id 与方法名不一致,须映射)', async () => {
+    it('confirmReceipt 复用 confirmReceive(action id 与方法名不一致,须映射;页面本地实现,不进共享 controller)', async () => {
       ctx.confirmReceive = jest.fn();
-      await ctx.handleAction('confirmReceipt');
+      await ctx.onActionTap({ detail: { id: 'confirmReceipt' } });
       expect(ctx.confirmReceive).toHaveBeenCalled();
     });
 
-    it('requestRefund 和 afterSale 都复用 applyRefund', async () => {
-      ctx.applyRefund = jest.fn();
-      await ctx.handleAction('requestRefund');
-      await ctx.handleAction('afterSale');
-      expect(ctx.applyRefund).toHaveBeenCalledTimes(2);
-    });
-
-    it('viewTracking 复用 viewLogistics', async () => {
+    it('viewTracking 复用 viewLogistics(页面本地实现,不进共享 controller)', async () => {
       ctx.viewLogistics = jest.fn();
-      await ctx.handleAction('viewTracking');
+      await ctx.onActionTap({ detail: { id: 'viewTracking' } });
       expect(ctx.viewLogistics).toHaveBeenCalled();
     });
 
     it('pay 触发 OrderAPI.pay,不落 default 分支', async () => {
       mockRequest.mockResolvedValueOnce({ id: 'order-detail-1', status: 'PAID' });
-      await ctx.handleAction('pay');
+      await ctx.onActionTap({ detail: { id: 'pay' } });
       expect(mockPay).toHaveBeenCalledWith('order-detail-1');
       expect(wx.showToast).not.toHaveBeenCalledWith(expect.objectContaining({ title: '未知操作' }));
       // 成功后刷新详情(refreshOrder 内部走 utils/request.js)
@@ -206,25 +210,25 @@ describe('order-detail', () => {
     it('cancelOrder 二次确认后触发 orderStore.cancel', async () => {
       mockShowModal(true);
       mockRequest.mockResolvedValueOnce({ id: 'order-detail-1', status: 'CANCELLED' });
-      await ctx.handleAction('cancelOrder');
+      await ctx.onActionTap({ detail: { id: 'cancelOrder' } });
       expect(mockCancel).toHaveBeenCalledWith('order-detail-1', expect.any(String));
     });
 
     it('取消二次确认弹窗时不调用 orderStore.cancel', async () => {
       mockShowModal(false);
-      await ctx.handleAction('cancelOrder');
+      await ctx.onActionTap({ detail: { id: 'cancelOrder' } });
       expect(mockCancel).not.toHaveBeenCalled();
     });
 
     it('remindShip 触发 OrderAPI.remindShip', async () => {
       mockRequest.mockResolvedValueOnce({ id: 'order-detail-1', status: 'PAID' });
-      await ctx.handleAction('remindShip');
+      await ctx.onActionTap({ detail: { id: 'remindShip' } });
       expect(mockRemindShip).toHaveBeenCalledWith('order-detail-1');
     });
 
     it('reorder 触发 rebuy + 加购 + 跳购物车', async () => {
       jest.useFakeTimers();
-      const p = ctx.handleAction('reorder');
+      const p = ctx.onActionTap({ detail: { id: 'reorder' } });
       await Promise.resolve();
       await Promise.resolve();
       expect(mockRebuy).toHaveBeenCalledWith('order-detail-1');
@@ -238,13 +242,13 @@ describe('order-detail', () => {
     it('deleteOrder 二次确认后复用 orderStore.cancel', async () => {
       mockShowModal(true);
       mockRequest.mockResolvedValueOnce({ id: 'order-detail-1', status: 'CANCELLED' });
-      await ctx.handleAction('deleteOrder');
+      await ctx.onActionTap({ detail: { id: 'deleteOrder' } });
       expect(mockCancel).toHaveBeenCalledWith('order-detail-1', expect.any(String));
     });
 
     it('withdrawRefund 显示开发中占位', async () => {
       mockRequest.mockResolvedValueOnce({ id: 'order-detail-1' });
-      await ctx.handleAction('withdrawRefund');
+      await ctx.onActionTap({ detail: { id: 'withdrawRefund' } });
       expect(wx.showToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: expect.stringContaining('开发中') })
       );
@@ -252,7 +256,7 @@ describe('order-detail', () => {
 
     it('review 显示开发中占位', async () => {
       mockRequest.mockResolvedValueOnce({ id: 'order-detail-1' });
-      await ctx.handleAction('review');
+      await ctx.onActionTap({ detail: { id: 'review' } });
       expect(wx.showToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: expect.stringContaining('开发中') })
       );
@@ -260,28 +264,54 @@ describe('order-detail', () => {
 
     it('真正未知的 action 才落 default「未知操作」', async () => {
       mockRequest.mockResolvedValueOnce({ id: 'order-detail-1' });
-      await ctx.handleAction('someTotallyUnknownAction');
+      await ctx.onActionTap({ detail: { id: 'someTotallyUnknownAction' } });
       expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '未知操作' }));
     });
 
     it('409 冲突:toast 状态已变更 + 刷新详情', async () => {
       mockPay.mockRejectedValueOnce({ statusCode: 409, message: 'conflict' });
       mockRequest.mockResolvedValueOnce({ id: 'order-detail-1', status: 'PAID' });
-      await ctx.handleAction('pay');
+      await ctx.onActionTap({ detail: { id: 'pay' } });
       expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '订单状态已变更' }));
       expect(mockRequest).toHaveBeenCalled();
     });
 
     it('403/404:toast 无权限', async () => {
       mockPay.mockRejectedValueOnce({ statusCode: 404, message: 'not found' });
-      await ctx.handleAction('pay');
+      await ctx.onActionTap({ detail: { id: 'pay' } });
       expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '订单不存在或无权限' }));
     });
 
     it('其它未分类错误:toast 错误信息本身', async () => {
       mockPay.mockRejectedValueOnce({ message: '网络异常' });
-      await ctx.handleAction('pay');
+      await ctx.onActionTap({ detail: { id: 'pay' } });
       expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '网络异常' }));
+    });
+
+    // mp-cross-screen-cleanup D7 关键修复:requestRefund/afterSale 此前走
+    // applyRefund() 的裸 request() 调用,从未传后端要求的 amount 字段,对真实后端
+    // 会 400——只是被这个文件里不校验 request body 内容的 mock 掩盖了。这里改成
+    // 断言 ACTUAL 转发参数:orderStore.requestRefund(id, order.totalAmount, reason)。
+    it('requestRefund 二次确认后调用 orderStore.requestRefund(id, order.totalAmount, reason)——不是裸 request()', async () => {
+      mockShowModal(true);
+      await ctx.onActionTap({ detail: { id: 'requestRefund' } });
+      expect(mockRequestRefund).toHaveBeenCalledWith('order-detail-1', 88, '用户主动申请');
+      // 关键修复:确认不再是原来那个漏传 amount 的裸 request() 调用
+      expect(mockRequest).not.toHaveBeenCalledWith(
+        expect.objectContaining({ url: expect.stringContaining('/refund') })
+      );
+    });
+
+    it('afterSale 和 requestRefund 走同一行为(同一 orderStore.requestRefund 调用)', async () => {
+      mockShowModal(true);
+      await ctx.onActionTap({ detail: { id: 'afterSale' } });
+      expect(mockRequestRefund).toHaveBeenCalledWith('order-detail-1', 88, '用户主动申请');
+    });
+
+    it('requestRefund 取消确认弹窗时不调用 orderStore.requestRefund', async () => {
+      mockShowModal(false);
+      await ctx.onActionTap({ detail: { id: 'requestRefund' } });
+      expect(mockRequestRefund).not.toHaveBeenCalled();
     });
   });
 
@@ -299,25 +329,12 @@ describe('order-detail', () => {
     });
   });
 
-  describe('applyRefund / confirmReceive / viewLogistics(既有方法,未改动逻辑)', () => {
-    it('applyRefund:取消弹窗不发请求', async () => {
-      ctx.data.order = { id: 'order-detail-1' };
-      mockShowModal(false);
-      await ctx.applyRefund();
-      expect(mockRequest).not.toHaveBeenCalled();
-    });
-
-    it('applyRefund:确认后提交退款申请', async () => {
-      ctx.data.order = { id: 'order-detail-1' };
-      mockShowModal(true);
-      mockRequest.mockResolvedValueOnce({ id: 'order-detail-1', status: 'REFUNDING' });
-      await ctx.applyRefund();
-      expect(mockRequest).toHaveBeenCalledWith(
-        expect.objectContaining({ url: '/orders/order-detail-1/refund', method: 'POST' })
-      );
-      expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '退款申请已提交' }));
-    });
-
+  // mp-cross-screen-cleanup D7:applyRefund() 已删除——原来的"确认后提交退款申请"
+  // 测试断言只查了 url/method,从没校验 request body 内容,这正是 amount 字段
+  // 缺失的生产 bug 能一直不被发现的原因。这块行为现在由共享 dispatchOrderAction
+  // 的 requestRefund/afterSale 分支覆盖(见上面"onActionTap 分发"describe 块里
+  // 断言 orderStore.requestRefund(id, order.totalAmount, reason) 的用例)。
+  describe('confirmReceive / viewLogistics(既有方法,未改动逻辑)', () => {
     it('confirmReceive:确认后提交确认收货,不再写 timeline 字段', async () => {
       ctx.data.order = { id: 'order-detail-1' };
       mockShowModal(true);

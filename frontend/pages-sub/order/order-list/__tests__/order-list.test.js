@@ -23,8 +23,13 @@ global.wx = {
 
 const mockRefresh = jest.fn().mockResolvedValue([]);
 const mockCancel = jest.fn().mockResolvedValue({});
+const mockRequestRefund = jest.fn().mockResolvedValue({ orderStatus: 'REFUNDING', updatedAt: 'now' });
 jest.mock('../../../../src/features/order/store', () => ({
-  orderStore: { refresh: (...a) => mockRefresh(...a), cancel: (...a) => mockCancel(...a) },
+  orderStore: {
+    refresh: (...a) => mockRefresh(...a),
+    cancel: (...a) => mockCancel(...a),
+    requestRefund: (...a) => mockRequestRefund(...a),
+  },
 }));
 
 const mockPay = jest.fn().mockResolvedValue({});
@@ -63,6 +68,12 @@ describe('order-list', () => {
     for (const key of Object.keys(pageConfig)) {
       if (typeof pageConfig[key] === 'function') ctx[key] = pageConfig[key].bind(ctx);
     }
+    // mp-cross-screen-cleanup D7:共享 dispatchOrderAction(action, order, refresh)
+    // 需要完整订单对象(退款分支要读 order.totalAmount),onActionTap 现在按
+    // dataset.id 去 this.data.orders 里查——测试要提前把这张卡片对应的完整订单
+    // 放进 data.orders,否则查不到,dispatchOrderAction 会收到 undefined。
+    ctx.data.orders = [{ id: 'order-123', status: 'PAID', totalAmount: 128.5, items: [] }];
+    ctx.data.filteredOrders = ctx.data.orders;
   });
 
   describe('onShow', () => {
@@ -83,10 +94,14 @@ describe('order-list', () => {
 
   describe('onActionTap(事件契约回归锁)', () => {
     it('从 e.detail.id 取 action 类型、从 dataset.id 取订单 id,不是反过来', async () => {
-      ctx.handleAction = jest.fn();
-      const e = { detail: { id: 'cancelOrder' }, currentTarget: { dataset: { id: 'order-123' } } };
-      ctx.onActionTap(e);
-      expect(ctx.handleAction).toHaveBeenCalledWith('cancelOrder', 'order-123');
+      // mp-cross-screen-cleanup D7:handleAction 已删除,分发逻辑搬进共享
+      // utils/order-actions.js——这里改成直接断言端到端效果:e.detail.id 提供
+      // action 类型('pay'),currentTarget.dataset.id 提供订单 id('order-123'),
+      // 不是反过来(旧代码从 e.detail 解构 {id, action} 两者都取错的那个回归)。
+      const e = { detail: { id: 'pay' }, currentTarget: { dataset: { id: 'order-123' } } };
+      await ctx.onActionTap(e);
+      expect(mockPay).toHaveBeenCalledWith('order-123');
+      expect(wx.showToast).not.toHaveBeenCalledWith(expect.objectContaining({ title: '未知操作' }));
     });
 
     it('端到端:cancelOrder 触发 confirmThenCancel → orderStore.cancel,不落 default 分支', async () => {
@@ -200,10 +215,33 @@ describe('order-list', () => {
       jest.useRealTimers();
     });
 
-    it('requestRefund 打开退款 sheet(占位 modal),不调 API', async () => {
+    // mp-cross-screen-cleanup D7 TDD RED-first 修正:这条测试原来锁的是
+    // "requestRefund 打开退款 sheet(占位 modal),不调 API" —— 一个从没真正调用
+    // 后端的假实现。design 研究阶段发现两个页面的"申请退款"其实都是错的(不只
+    // order-list 这边是占位),真正的修复是统一走 orderStore.requestRefund(id,
+    // order.totalAmount, reason)。这里改成断言真实行为:二次确认后调用
+    // orderStore.requestRefund,带上订单的 id/totalAmount/固定 reason ——
+    // 这条测试在改动 order-list.js 前是 RED(旧代码只弹"开发中"占位 modal,从不调
+    // orderStore.requestRefund),order-list.js 接线共享 dispatchOrderAction 后转 GREEN。
+    it('requestRefund 二次确认后调用 orderStore.requestRefund(id, order.totalAmount, reason)', async () => {
+      wx.showModal.mockImplementation((opts) => opts.success({ confirm: true }));
       const e = { detail: { id: 'requestRefund' }, currentTarget: { dataset: { id: 'order-123' } } };
       await ctx.onActionTap(e);
-      expect(wx.showModal).toHaveBeenCalledWith(expect.objectContaining({ title: '申请退款' }));
+      expect(mockRequestRefund).toHaveBeenCalledWith('order-123', 128.5, '用户主动申请');
+    });
+
+    it('afterSale 和 requestRefund 走同一行为(同一 orderStore.requestRefund 调用)', async () => {
+      wx.showModal.mockImplementation((opts) => opts.success({ confirm: true }));
+      const e = { detail: { id: 'afterSale' }, currentTarget: { dataset: { id: 'order-123' } } };
+      await ctx.onActionTap(e);
+      expect(mockRequestRefund).toHaveBeenCalledWith('order-123', 128.5, '用户主动申请');
+    });
+
+    it('requestRefund 取消确认弹窗时不调用 orderStore.requestRefund', async () => {
+      wx.showModal.mockImplementation((opts) => opts.success({ confirm: false }));
+      const e = { detail: { id: 'requestRefund' }, currentTarget: { dataset: { id: 'order-123' } } };
+      await ctx.onActionTap(e);
+      expect(mockRequestRefund).not.toHaveBeenCalled();
     });
 
     it('409 冲突:toast 状态已变更 + 刷新', async () => {
