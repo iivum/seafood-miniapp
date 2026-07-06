@@ -22,6 +22,7 @@ public record User(
         Role role,
         String phone,
         List<Address> addresses,
+        List<String> favoriteProductIds,
         Instant createdAt
 ) {
 
@@ -33,6 +34,7 @@ public record User(
             throw new DomainException("role 不能为空");
         }
         addresses = addresses == null ? List.of() : List.copyOf(addresses);
+        favoriteProductIds = favoriteProductIds == null ? List.of() : List.copyOf(favoriteProductIds);
     }
 
     // ----- 地址管理 -----
@@ -112,7 +114,42 @@ public record User(
     }
 
     private User mutateAddresses(List<Address> next) {
-        return new User(id, openId, nickname, avatarUrl, role, phone, next, createdAt);
+        return new User(id, openId, nickname, avatarUrl, role, phone, next, favoriteProductIds, createdAt);
+    }
+
+    // ----- 收藏(mp-cross-screen-cleanup 之后的下一个 change:收藏 + 浏览足迹)-----
+
+    /**
+     * 收藏商品,幂等(已收藏时原样返回,不重复插入)。新收藏插入列表头部——
+     * "最近收藏优先",{@code GET /api/favorites} 按列表原始顺序返回即为该排序,
+     * 不需要额外时间戳字段或运行时排序。
+     */
+    public User addFavorite(String productId) {
+        if (productId == null || productId.isBlank()) {
+            throw new DomainException("商品 id 不能为空");
+        }
+        if (favoriteProductIds.contains(productId)) {
+            return this;
+        }
+        List<String> next = new ArrayList<>(favoriteProductIds.size() + 1);
+        next.add(productId);
+        next.addAll(favoriteProductIds);
+        return mutateFavorites(next);
+    }
+
+    /** 取消收藏,幂等(未收藏时原样返回)。 */
+    public User removeFavorite(String productId) {
+        if (!favoriteProductIds.contains(productId)) {
+            return this;
+        }
+        List<String> next = favoriteProductIds.stream()
+                .filter(id -> !id.equals(productId))
+                .toList();
+        return mutateFavorites(next);
+    }
+
+    private User mutateFavorites(List<String> next) {
+        return new User(id, openId, nickname, avatarUrl, role, phone, addresses, next, createdAt);
     }
 
     // ----- role helpers -----

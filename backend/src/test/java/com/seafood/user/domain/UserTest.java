@@ -17,7 +17,7 @@ class UserTest {
 
     private User sample() {
         return new User("u1", "open-1", "nick", "http://a", Role.CUSTOMER,
-                "13900000000", List.of(), t0);
+                "13900000000", List.of(), List.of(), t0);
     }
 
     private Address addr(String id, String detail, boolean def) {
@@ -26,14 +26,14 @@ class UserTest {
 
     @Test
     void constructor_rejectsNullRole() {
-        assertThatThrownBy(() -> new User("u1", "open-1", "n", "u", null, null, List.of(), t0))
+        assertThatThrownBy(() -> new User("u1", "open-1", "n", "u", null, null, List.of(), List.of(), t0))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("role");
     }
 
     @Test
     void constructor_rejectsBlankOpenId() {
-        assertThatThrownBy(() -> new User("u1", " ", "n", "u", Role.CUSTOMER, null, List.of(), t0))
+        assertThatThrownBy(() -> new User("u1", " ", "n", "u", Role.CUSTOMER, null, List.of(), List.of(), t0))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("openId");
     }
@@ -91,7 +91,41 @@ class UserTest {
 
     @Test
     void isAdmin_andIsCustomer() {
-        assertThat(new User("a", "o", "n", "u", Role.ADMIN, null, List.of(), t0).isAdmin()).isTrue();
+        assertThat(new User("a", "o", "n", "u", Role.ADMIN, null, List.of(), List.of(), t0).isAdmin()).isTrue();
         assertThat(sample().isCustomer()).isTrue();
+    }
+
+    @Test
+    void addFavorite_insertsAtHead_mostRecentFirst() {
+        User u = sample().addFavorite("p1").addFavorite("p2");
+        assertThat(u.favoriteProductIds()).containsExactly("p2", "p1");
+    }
+
+    @Test
+    void addFavorite_alreadyFavorited_isNoOp() {
+        User u = sample().addFavorite("p1");
+        User again = u.addFavorite("p1");
+        assertThat(again.favoriteProductIds()).containsExactly("p1");
+        assertThat(again).isSameAs(u);
+    }
+
+    @Test
+    void addFavorite_blankProductId_throws() {
+        assertThatThrownBy(() -> sample().addFavorite(" "))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void removeFavorite_removesById() {
+        User u = sample().addFavorite("p1").addFavorite("p2").removeFavorite("p1");
+        assertThat(u.favoriteProductIds()).containsExactly("p2");
+    }
+
+    @Test
+    void removeFavorite_notFavorited_isNoOp() {
+        User u = sample().addFavorite("p1");
+        User again = u.removeFavorite("nope");
+        assertThat(again.favoriteProductIds()).containsExactly("p1");
+        assertThat(again).isSameAs(u);
     }
 }

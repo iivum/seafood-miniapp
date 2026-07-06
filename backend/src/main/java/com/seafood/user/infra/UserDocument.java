@@ -26,6 +26,7 @@ public class UserDocument {
     private String role;        // CUSTOMER | ADMIN
     private String phone;
     private List<Address> addresses;
+    private List<String> favoriteProductIds;
     private Instant createdAt;
 
     public String getId() { return id; }
@@ -48,6 +49,9 @@ public class UserDocument {
 
     public List<Address> getAddresses() { return addresses; }
     public void setAddresses(List<Address> addresses) { this.addresses = addresses; }
+
+    public List<String> getFavoriteProductIds() { return favoriteProductIds; }
+    public void setFavoriteProductIds(List<String> favoriteProductIds) { this.favoriteProductIds = favoriteProductIds; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

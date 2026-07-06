@@ -20,6 +20,7 @@ public final class UserMapper {
                 role,
                 d.getPhone(),
                 d.getAddresses(),
+                d.getFavoriteProductIds(),
                 d.getCreatedAt());
     }
 
@@ -32,6 +33,7 @@ public final class UserMapper {
         d.setRole(u.role().name());
         d.setPhone(u.phone());
         d.setAddresses(u.addresses() == null ? java.util.List.of() : u.addresses());
+        d.setFavoriteProductIds(u.favoriteProductIds() == null ? java.util.List.of() : u.favoriteProductIds());
         d.setCreatedAt(u.createdAt() == null ? Instant.now() : u.createdAt());
         return d;
     }
