@@ -48,7 +48,7 @@ class AddressControllerTest {
 
     private static UserResponse userWith(List<Address> addrs) {
         return new UserResponse("u-1", "openid-1", "昵称", null, "CUSTOMER",
-                "13800000000", addrs, Instant.parse("2026-06-20T00:00:00Z"));
+                "13800000000", addrs, Instant.parse("2026-06-20T00:00:00Z"), 0, 0);
     }
 
     private static AddressUpsertRequest mpBody() {

@@ -25,11 +25,12 @@ import static org.mockito.Mockito.when;
 class UserServiceSliceTest {
 
     @Mock private UserRepository userRepository;
+    @Mock private ProductViewService productViewService;
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository);
+        userService = new UserService(userRepository, productViewService);
     }
 
     private static final UserPrincipal ADMIN = new UserPrincipal("admin-1", Role.ADMIN);

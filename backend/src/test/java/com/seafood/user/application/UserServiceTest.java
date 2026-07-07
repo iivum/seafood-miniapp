@@ -10,6 +10,7 @@ import com.seafood.user.api.dto.UserResponse;
 import com.seafood.user.domain.Address;
 import com.seafood.user.domain.User;
 import com.seafood.user.infra.UserDocument;
+import com.seafood.user.infra.UserMapper;
 import com.seafood.user.infra.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,12 +28,14 @@ import static org.mockito.Mockito.when;
 class UserServiceTest {
 
     private UserRepository repo;
+    private ProductViewService productViewService;
     private UserService service;
 
     @BeforeEach
     void setUp() {
         repo = mock(UserRepository.class);
-        service = new UserService(repo);
+        productViewService = mock(ProductViewService.class);
+        service = new UserService(repo, productViewService);
     }
 
     private UserPrincipal me(String id, Role role) {
@@ -77,6 +80,21 @@ class UserServiceTest {
         when(repo.findById("u1")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.get("u1", me("u1", Role.CUSTOMER)))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void get_includesFavoriteAndViewCounts() {
+        User u = com.seafood.testsupport.builders.UserBuilder.aUser()
+                .withId("u1")
+                .withFavoriteProductIds(java.util.List.of("p1", "p2"))
+                .build();
+        when(repo.findById("u1")).thenReturn(Optional.of(UserMapper.toDocument(u)));
+        when(productViewService.countForUser("u1")).thenReturn(5L);
+
+        UserResponse result = service.get("u1", me("u1", Role.CUSTOMER));
+
+        assertThat(result.favoriteCount()).isEqualTo(2);
+        assertThat(result.viewCount()).isEqualTo(5);
     }
 
     @Test

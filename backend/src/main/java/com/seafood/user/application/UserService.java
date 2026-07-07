@@ -28,16 +28,19 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository users;
+    private final ProductViewService productViews;
 
-    public UserService(UserRepository users) {
+    public UserService(UserRepository users, ProductViewService productViews) {
         this.users = users;
+        this.productViews = productViews;
     }
 
     // ----- 读 -----
 
     public UserResponse get(String userId, UserPrincipal caller) {
         authorize(caller, userId, true);
-        return UserResponse.from(loadOrThrow(userId));
+        User u = loadOrThrow(userId);
+        return UserResponse.from(u, productViews.countForUser(userId));
     }
 
     public Page<UserResponse> list(Pageable pageable, UserPrincipal caller) {
@@ -45,7 +48,7 @@ public class UserService {
         Page<UserDocument> page = users.findAll(pageable);
         List<UserResponse> mapped = page.getContent().stream()
                 .map(UserMapper::toDomain)
-                .map(UserResponse::from)
+                .map(u -> UserResponse.from(u, productViews.countForUser(u.id())))
                 .toList();
         return new PageImpl<>(mapped, pageable, page.getTotalElements());
     }
@@ -91,7 +94,8 @@ public class UserService {
 
     private UserResponse persistAndReturn(User u) {
         UserDocument saved = users.save(UserMapper.toDocument(u));
-        return UserResponse.from(UserMapper.toDomain(saved));
+        User reloaded = UserMapper.toDomain(saved);
+        return UserResponse.from(reloaded, productViews.countForUser(reloaded.id()));
     }
 
     private static void authorize(UserPrincipal caller, String targetUserId, boolean readOnly) {
