@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MongoUriValidator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.config</a> &gt; <span class="el_source">MongoUriValidator.java</span></div><h1>MongoUriValidator.java</h1><pre class="source lang-java linenums">package com.seafood.shared.config;
+
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.util.regex.Pattern;
+
+/**
+ * Sprint 2 §1.2 — MongoDB URI 启动期 fail-fast 校验。
+ *
+ * &lt;p&gt;Spring Boot 4 自带 {@code MongoProperties} 已绑定 {@code spring.mongodb.*};
+ * 这里不再重复绑定,只读同一属性并在 {@code @PostConstruct} 做模式校验,缺失或不匹配
+ * 即抛 {@link IllegalStateException},Spring 启动 fail-fast 退出非 0。
+ *
+ * &lt;p&gt;对应 spec: scenarios &quot;Invalid MongoDB URI&quot;。
+ */
+@Component
+public class MongoUriValidator {
+
+    /** 接受 {@code mongodb://…} 与 {@code mongodb+srv://…},后续字符任意但需非空。 */
+<span class="fc" id="L22">    private static final Pattern MONGODB_URI_PATTERN = Pattern.compile(&quot;^mongodb(\\+srv)?://.+&quot;);</span>
+
+    private final String uri;
+
+<span class="fc" id="L26">    public MongoUriValidator(@Value(&quot;${spring.mongodb.uri:}&quot;) String uri) {</span>
+<span class="fc" id="L27">        this.uri = uri;</span>
+<span class="fc" id="L28">    }</span>
+
+    public String getUri() {
+<span class="fc" id="L31">        return uri;</span>
+    }
+
+    @PostConstruct
+    public void validate() {
+<span class="pc bpc" id="L36" title="1 of 4 branches missed.">        if (uri == null || uri.isBlank()) {</span>
+<span class="fc" id="L37">            throw new IllegalStateException(</span>
+                    &quot;spring.mongodb.uri must not be blank — set MONGODB_URI environment variable &quot;
+                            + &quot;to a value starting with mongodb:// or mongodb+srv://&quot;);
+        }
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        if (!MONGODB_URI_PATTERN.matcher(uri).matches()) {</span>
+            // PR review #9:不要把 URI 的任何子串回显到错误消息。
+            // 原实现 `uri.substring(0, 16)` 会泄漏 username(`mongodb://user:...` 前 16 字符
+            // 就包含 user),密码虽然在第一个 @ 之后,但 username 本身已是 PII。
+            // 错误消息只描述&quot;应当是什么格式&quot;和&quot;环境变量名&quot;,让运维自行查 ——
+            // 这与 {code @ConfigurationProperties} 校验异常的脱敏惯例一致。
+<span class="fc" id="L47">            throw new IllegalStateException(</span>
+                    &quot;spring.mongodb.uri must start with mongodb:// or mongodb+srv://. &quot;
+                            + &quot;Check the MONGODB_URI environment variable (value not echoed to avoid &quot;
+                            + &quot;leaking embedded credentials).&quot;);
+        }
+<span class="fc" id="L52">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

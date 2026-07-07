@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FeatureFlagCache.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.featureflag.application</a> &gt; <span class="el_source">FeatureFlagCache.java</span></div><h1>FeatureFlagCache.java</h1><pre class="source lang-java linenums">package com.seafood.featureflag.application;
+
+import com.seafood.featureflag.domain.FeatureFlag;
+import com.seafood.featureflag.infra.FeatureFlagMapper;
+import com.seafood.featureflag.infra.FeatureFlagRepository;
+import jakarta.annotation.PostConstruct;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
+import java.util.Optional;
+
+import static java.util.stream.Collectors.toUnmodifiableMap;
+
+/**
+ * Feature flag 内存缓存，启动预加载 + 定时刷新（每 60 秒），避免每次请求查 DB。
+ *
+ * &lt;p&gt;缓存&lt;strong&gt;所有&lt;/strong&gt; flag（含 disabled），否则 Service 无法区分
+ * &quot;flag 不存在&quot;（默认 false）与&quot;flag 存在但被禁用&quot;（同样 false 但语义不同）。
+ *
+ * &lt;p&gt;不引入动态刷新 Bean（GraalVM Native 不兼容，参见 CLAUDE.md 硬规则）。
+ */
+@Component
+public class FeatureFlagCache {
+
+    private final FeatureFlagRepository repository;
+<span class="fc" id="L27">    private volatile Map&lt;String, FeatureFlag&gt; cache = Map.of();</span>
+
+<span class="fc" id="L29">    public FeatureFlagCache(FeatureFlagRepository repository) {</span>
+<span class="fc" id="L30">        this.repository = repository;</span>
+<span class="fc" id="L31">    }</span>
+
+    /**
+     * 启动时预加载缓存（fail-fast：MongoDB 不可用时直接抛出，阻断应用 ready）。
+     */
+    @PostConstruct
+    void load() {
+<span class="fc" id="L38">        refresh();</span>
+<span class="fc" id="L39">    }</span>
+
+    /**
+     * 每 60 秒定时刷新缓存，确保管理员操作后的变更最终可见。
+     * Service 层在写操作后会立即调用此方法以实现近实时更新。
+     */
+    @Scheduled(fixedDelay = 60_000)
+    public void refresh() {
+<span class="fc" id="L47">        cache = repository.findAll().stream()</span>
+<span class="fc" id="L48">                .collect(toUnmodifiableMap(</span>
+<span class="fc" id="L49">                        d -&gt; FeatureFlagMapper.toDomain(d).flagKey(),</span>
+                        FeatureFlagMapper::toDomain));
+<span class="fc" id="L51">    }</span>
+
+    /**
+     * 从内存缓存中查询指定 flagKey 对应的 FeatureFlag。
+     *
+     * @param flagKey flag 唯一标识
+     * @return 缓存中的 flag，不存在时返回 {@code Optional.empty()}
+     */
+    public Optional&lt;FeatureFlag&gt; get(String flagKey) {
+<span class="fc" id="L60">        return Optional.ofNullable(cache.get(flagKey));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

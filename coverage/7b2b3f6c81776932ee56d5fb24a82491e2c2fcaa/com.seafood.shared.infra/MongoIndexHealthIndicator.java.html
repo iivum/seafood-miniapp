@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MongoIndexHealthIndicator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.infra</a> &gt; <span class="el_source">MongoIndexHealthIndicator.java</span></div><h1>MongoIndexHealthIndicator.java</h1><pre class="source lang-java linenums">package com.seafood.shared.infra;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.stereotype.Component;
+
+/**
+ * Sprint 2 push-sweep #2 — {@code /actuator/health/mongoIndexes} 暴露关键索引状态。
+ *
+ * &lt;p&gt;背景:{@link MongoIndexInitializer#init()} 用
+ * {@code @EventListener(ApplicationReadyEvent.class)} 启动,这是设计权衡:
+ * &lt;ul&gt;
+ *   &lt;li&gt;ready 事件后跑,意味着 critical 索引(TTL + openId unique)创建失败时,
+ *       {@code /actuator/health} 仍可能短暂返 UP — 直到下一次 health probe&lt;/li&gt;
+ *   &lt;li&gt;抛 {@link IndexInitializationException} 只能进 ERROR 日志,不能阻止 ready&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;缓解:本 indicator 在每次 health probe 时&lt;em&gt;实时&lt;/em&gt;检查关键索引是否存在,
+ * 缺失立即报 DOWN,触发 Kubernetes readinessProbe 失败,Pod 不会被路由。
+ * 这样即便 ready 时索引存在,后续被运维误删也能在秒级被探测到。
+ *
+ * &lt;p&gt;健康检查查询很轻量(只 listIndex 一次),不会影响生产吞吐。
+ */
+@Component(&quot;mongoIndexes&quot;)
+public class MongoIndexHealthIndicator implements HealthIndicator {
+
+<span class="fc" id="L30">    private static final Logger log = LoggerFactory.getLogger(MongoIndexHealthIndicator.class);</span>
+
+    private final MongoTemplate mongo;
+    /** 启动期 init 完成后写 true;若 init() 抛过或尚未跑完,health probe 报 UNKNOWN。 */
+<span class="fc" id="L34">    private volatile boolean criticalIndexesEnsured = false;</span>
+
+<span class="fc" id="L36">    public MongoIndexHealthIndicator(MongoTemplate mongo) {</span>
+<span class="fc" id="L37">        this.mongo = mongo;</span>
+<span class="fc" id="L38">    }</span>
+
+    /** 由 {@link MongoIndexInitializer#init()} 完成后调用,标记 ready。 */
+    void onCriticalIndexesEnsured() {
+<span class="fc" id="L42">        this.criticalIndexesEnsured = true;</span>
+<span class="fc" id="L43">    }</span>
+
+    @Override
+    public Health health() {
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (!criticalIndexesEnsured) {</span>
+            // 启动期 index init 还没跑完(还在 init 抛错,或 ApplicationReady 还没触发)。
+            // 报 UNKNOWN — readiness 应等 init 完成,避免错把&quot;启动中&quot;标 UP。
+<span class="fc" id="L50">            return Health.unknown()</span>
+<span class="fc" id="L51">                    .withDetail(&quot;reason&quot;, &quot;MongoIndexInitializer has not completed; &quot;</span>
+                            + &quot;ApplicationReadyEvent not yet fired or init() failed&quot;)
+<span class="fc" id="L53">                    .build();</span>
+        }
+        // 实时 listIndex 验证 — 索引可能被运维误删
+<span class="fc" id="L56">        boolean usersOk = hasIndex(&quot;users&quot;, &quot;uk_openId&quot;);</span>
+<span class="fc" id="L57">        boolean revokedOk = hasIndex(&quot;revoked_tokens&quot;, &quot;ttl_expiresAt&quot;);</span>
+<span class="fc bfc" id="L58" title="All 4 branches covered.">        if (usersOk &amp;&amp; revokedOk) {</span>
+<span class="fc" id="L59">            return Health.up()</span>
+<span class="fc" id="L60">                    .withDetail(&quot;users.uk_openId&quot;, &quot;present&quot;)</span>
+<span class="fc" id="L61">                    .withDetail(&quot;revoked_tokens.ttl_expiresAt&quot;, &quot;present&quot;)</span>
+<span class="fc" id="L62">                    .build();</span>
+        }
+<span class="fc" id="L64">        return Health.down()</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">                .withDetail(&quot;users.uk_openId&quot;, usersOk ? &quot;present&quot; : &quot;MISSING&quot;)</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">                .withDetail(&quot;revoked_tokens.ttl_expiresAt&quot;, revokedOk ? &quot;present&quot; : &quot;MISSING&quot;)</span>
+<span class="fc" id="L67">                .withDetail(&quot;action&quot;, &quot;critical index missing; &quot;</span>
+                        + &quot;revoked tokens may accumulate unbounded or openId duplicates allowed. &quot;
+                        + &quot;Re-run MongoIndexInitializer or restore from backup.&quot;)
+<span class="fc" id="L70">                .build();</span>
+    }
+
+    private boolean hasIndex(String collection, String indexName) {
+        try {
+<span class="fc" id="L75">            return mongo.indexOps(collection).getIndexInfo().stream()</span>
+<span class="fc" id="L76">                    .anyMatch(i -&gt; indexName.equals(i.getName()));</span>
+<span class="fc" id="L77">        } catch (Exception e) {</span>
+<span class="fc" id="L78">            log.warn(&quot;[mongo-health] failed to list indexes for {}: {}&quot;, collection, e.getMessage());</span>
+<span class="fc" id="L79">            return false;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

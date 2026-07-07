@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LoginAttemptService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.application</a> &gt; <span class="el_source">LoginAttemptService.java</span></div><h1>LoginAttemptService.java</h1><pre class="source lang-java linenums">package com.seafood.user.application;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * 登录失败计数 + 锁定判定(Sprint 2 §3.9,specs/auth §Login lockout,design §3 decision 3)。
+ *
+ * &lt;p&gt;数据结构:每个 account(用 userId 或 username 作为 key)维护一个
+ * {@link FailureCounter},记录:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code failures} — 滚动窗口内的连续失败次数&lt;/li&gt;
+ *   &lt;li&gt;{@code firstFailureAtMillis} — 第一次失败时间;窗口起点&lt;/li&gt;
+ *   &lt;li&gt;{@code lockedUntilMillis} — 锁定到期时间(0 表示未锁)&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Caffeine 用 {@code expireAfterAccess(windowMinutes)} 滚动回收未活动 key,
+ * 防内存泄漏。
+ *
+ * &lt;p&gt;所有时间单位用 millis 统一(nanos 容易混淆)。
+ */
+@Service
+public class LoginAttemptService {
+
+    private final LoginAttemptProperties props;
+    private final Cache&lt;String, AtomicReference&lt;FailureCounter&gt;&gt; counters;
+    private final Ticker ticker;
+
+    /**
+     * CI 修复:同 {@link com.seafood.shared.security.AdminRateLimiter} ——
+     * 两个 constructor 触发 Spring 6 AOT 的 &quot;No constructor or factory method
+     * candidate found&quot; 失败。{@code @Autowired} 显式标记 1-arg 为首选。
+     */
+    @Autowired
+    public LoginAttemptService(LoginAttemptProperties props) {
+<span class="fc" id="L42">        this(props, Ticker.systemTicker());</span>
+<span class="fc" id="L43">    }</span>
+
+    /** 测试用:注入假 {@link Ticker} 以快进时间。 */
+<span class="fc" id="L46">    LoginAttemptService(LoginAttemptProperties props, Ticker ticker) {</span>
+<span class="fc" id="L47">        this.props = props;</span>
+<span class="fc" id="L48">        this.ticker = ticker;</span>
+<span class="fc" id="L49">        this.counters = Caffeine.newBuilder()</span>
+<span class="fc" id="L50">                .expireAfterAccess(Duration.ofMinutes(Math.max(props.getWindowMinutes(), props.getLockMinutes())))</span>
+<span class="fc" id="L51">                .ticker(ticker)</span>
+<span class="fc" id="L52">                .build();</span>
+<span class="fc" id="L53">    }</span>
+
+    /**
+     * 检查账号是否被锁;若被锁,返回剩余秒数(供 {@code Retry-After});否则 0。
+     */
+    public int isLocked(String account) {
+<span class="fc bfc" id="L59" title="All 4 branches covered.">        if (account == null || account.isBlank()) return 0;</span>
+<span class="fc" id="L60">        AtomicReference&lt;FailureCounter&gt; ref = counters.getIfPresent(account);</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        if (ref == null) return 0;</span>
+<span class="fc" id="L62">        FailureCounter c = ref.get();</span>
+<span class="fc" id="L63">        long nowMs = nowMs();</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        if (c.lockedUntilMillis &gt; nowMs) {</span>
+<span class="fc" id="L65">            long remain = c.lockedUntilMillis - nowMs;</span>
+<span class="fc" id="L66">            return (int) Math.max(1L, (remain + 999) / 1000); // 上取整,至少 1</span>
+        }
+<span class="fc" id="L68">        return 0;</span>
+    }
+
+    /**
+     * 记录一次失败;若累计到 {@code maxFailures} 则标记锁定。
+     *
+     * @return 锁定后的剩余秒数(若刚刚被锁),否则 0
+     */
+    public int recordFailure(String account) {
+<span class="fc bfc" id="L77" title="All 4 branches covered.">        if (account == null || account.isBlank()) return 0;</span>
+<span class="fc" id="L78">        long nowMs = nowMs();</span>
+<span class="fc" id="L79">        long windowMs = Duration.ofMinutes(props.getWindowMinutes()).toMillis();</span>
+<span class="fc" id="L80">        long lockMs = Duration.ofMinutes(props.getLockMinutes()).toMillis();</span>
+
+<span class="fc" id="L82">        AtomicReference&lt;FailureCounter&gt; ref = counters.get(account,</span>
+<span class="fc" id="L83">                k -&gt; new AtomicReference&lt;&gt;(new FailureCounter(0, 0L, 0L)));</span>
+        for (;;) {
+<span class="fc" id="L85">            FailureCounter cur = ref.get();</span>
+            FailureCounter next;
+            // 锁定期已过 → 解锁 + 计数清零,作为新一次失败
+<span class="pc bpc" id="L88" title="1 of 4 branches missed.">            if (cur.lockedUntilMillis &gt; 0 &amp;&amp; cur.lockedUntilMillis &lt;= nowMs) {</span>
+<span class="fc" id="L89">                next = new FailureCounter(1, nowMs, 0L);</span>
+            }
+            // 全新账号(没失败过)或窗口已过 → 重新计数
+<span class="pc bpc" id="L92" title="1 of 4 branches missed.">            else if (cur.failures == 0</span>
+                    || (nowMs - cur.firstFailureAtMillis) &gt; windowMs) {
+<span class="fc" id="L94">                next = new FailureCounter(1, nowMs, 0L);</span>
+            }
+            // 窗口内累计
+            else {
+<span class="fc" id="L98">                int newFailures = cur.failures + 1;</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">                long lockedUntil = (newFailures &gt;= props.getMaxFailures())</span>
+<span class="fc" id="L100">                        ? nowMs + lockMs</span>
+<span class="fc" id="L101">                        : cur.lockedUntilMillis;</span>
+<span class="fc" id="L102">                next = new FailureCounter(newFailures, cur.firstFailureAtMillis, lockedUntil);</span>
+            }
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">            if (ref.compareAndSet(cur, next)) {</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">                if (next.lockedUntilMillis &gt; nowMs) {</span>
+<span class="fc" id="L106">                    return (int) Math.max(1L, ((next.lockedUntilMillis - nowMs) + 999) / 1000);</span>
+                }
+<span class="fc" id="L108">                return 0;</span>
+            }
+<span class="nc" id="L110">        }</span>
+    }
+
+    /** 登录成功 → 清零计数与锁定。 */
+    public void recordSuccess(String account) {
+<span class="pc bpc" id="L115" title="1 of 4 branches missed.">        if (account == null || account.isBlank()) return;</span>
+<span class="fc" id="L116">        counters.invalidate(account);</span>
+<span class="fc" id="L117">    }</span>
+
+    private long nowMs() {
+<span class="fc" id="L120">        return ticker.read() / 1_000_000L;</span>
+    }
+
+<span class="fc" id="L123">    private record FailureCounter(int failures, long firstFailureAtMillis, long lockedUntilMillis) {</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
