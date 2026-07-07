@@ -81,7 +81,8 @@
         "login/login",
         "address/address-list",
         "address/address-edit",
-        "favorites/favorites-list"
+        "favorites/favorites-list",
+        "footprints/footprints-list"
       ]
     }
   ]

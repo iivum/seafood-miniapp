@@ -1,0 +1,113 @@
+.footprints-container {
+  min-height: 100vh;
+  background: var(--bg, #fffbf8);
+}
+
+.footprints-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx;
+  background: var(--surface, #fff);
+}
+
+.footprints-topbar__back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footprints-topbar__back-icon {
+  font-size: 44rpx;
+  color: var(--fg, #231814);
+}
+
+.footprints-topbar__title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
+}
+
+.footprints-topbar__placeholder {
+  width: 64rpx;
+}
+
+.footprints-list {
+  padding: 16rpx 24rpx;
+}
+
+.footprints-item {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 16rpx;
+  margin-bottom: 12rpx;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
+}
+
+.footprints-item__img {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg, #fffbf8);
+  flex-shrink: 0;
+}
+
+.footprints-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.footprints-item__name {
+  font-size: 28rpx;
+  color: var(--fg, #231814);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.footprints-item__price {
+  font-family: var(--font-display, serif);
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--accent, #db633c);
+  margin-top: 8rpx;
+  display: block;
+}
+
+.footprints-item__unavailable {
+  font-size: 24rpx;
+  color: var(--muted, #8a7a70);
+  margin-top: 8rpx;
+  display: block;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 0;
+}
+
+.empty-state__icon {
+  font-size: 80rpx;
+}
+
+.empty-state__title {
+  font-size: 30rpx;
+  color: var(--fg, #231814);
+  margin-top: 24rpx;
+}
+
+.empty-state__sub {
+  font-size: 26rpx;
+  color: var(--muted, #8a7a70);
+  margin-top: 8rpx;
+}
