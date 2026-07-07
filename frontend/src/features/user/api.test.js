@@ -14,10 +14,11 @@
  */
 jest.mock('../../shared/api/request', () => ({
   get: jest.fn(),
+  patch: jest.fn(),
 }));
 
 const { UserAPI } = require('./api.js');
-const { get } = require('../../shared/api/request');
+const { get, patch } = require('../../shared/api/request');
 
 describe('user/api.js shim', () => {
   beforeEach(() => {
@@ -41,5 +42,19 @@ describe('user/api.js shim', () => {
 
     expect(get).toHaveBeenCalledWith('/users/me', { needAuth: true });
     expect(user).toEqual(backendUser);
+  });
+
+  it('导出 bindPhone 方法(函数)', () => {
+    expect(typeof UserAPI.bindPhone).toBe('function');
+  });
+
+  it('bindPhone(code) 调 PATCH /users/me/phone 且带 needAuth: true', async () => {
+    const updated = { id: 'u-1', nickname: '小明', role: 'CUSTOMER', phone: '13711112222' };
+    patch.mockResolvedValue(updated);
+
+    const user = await UserAPI.bindPhone('dev-abc');
+
+    expect(patch).toHaveBeenCalledWith('/users/me/phone', { code: 'dev-abc' }, { needAuth: true });
+    expect(user).toEqual(updated);
   });
 });

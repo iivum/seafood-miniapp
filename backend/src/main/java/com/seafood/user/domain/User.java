@@ -152,6 +152,16 @@ public record User(
         return new User(id, openId, nickname, avatarUrl, role, phone, addresses, next, createdAt);
     }
 
+    // ----- 手机号绑定(align-mp-login-with-od)-----
+
+    /** 绑定/更新登录手机号(来源:微信 getPhoneNumber 授权换号)。 */
+    public User bindPhone(String newPhone) {
+        if (newPhone == null || newPhone.isBlank()) {
+            throw new DomainException("手机号不能为空");
+        }
+        return new User(id, openId, nickname, avatarUrl, role, newPhone, addresses, favoriteProductIds, createdAt);
+    }
+
     // ----- role helpers -----
 
     public boolean isAdmin() { return role == Role.ADMIN; }

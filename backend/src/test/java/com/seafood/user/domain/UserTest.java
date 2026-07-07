@@ -128,4 +128,26 @@ class UserTest {
         assertThat(again.favoriteProductIds()).containsExactly("p1");
         assertThat(again).isSameAs(u);
     }
+
+    @Test
+    void bindPhone_nullPhone_throws() {
+        assertThatThrownBy(() -> sample().bindPhone(null))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void bindPhone_blankPhone_throws() {
+        assertThatThrownBy(() -> sample().bindPhone(" "))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void bindPhone_updatesPhone_keepsOtherFieldsUnchanged() {
+        User u = sample().bindPhone("13711112222");
+        assertThat(u.phone()).isEqualTo("13711112222");
+        assertThat(u.id()).isEqualTo("u1");
+        assertThat(u.openId()).isEqualTo("open-1");
+        assertThat(u.nickname()).isEqualTo("nick");
+        assertThat(u.addresses()).isEmpty();
+    }
 }

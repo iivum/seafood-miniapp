@@ -29,10 +29,13 @@ public class UserService {
 
     private final UserRepository users;
     private final ProductViewService productViews;
+    private final WechatPhoneNumberExchanger phoneExchanger;
 
-    public UserService(UserRepository users, ProductViewService productViews) {
+    public UserService(UserRepository users, ProductViewService productViews,
+                       WechatPhoneNumberExchanger phoneExchanger) {
         this.users = users;
         this.productViews = productViews;
+        this.phoneExchanger = phoneExchanger;
     }
 
     // ----- 读 -----
@@ -82,6 +85,15 @@ public class UserService {
         authorize(caller, userId, false);
         User u = loadOrThrow(userId);
         return persistAndReturn(u.setDefaultAddress(addressId));
+    }
+
+    // ----- 手机号绑定(self-scoped,同 FavoriteService 惯例——身份取自 JWT principal,
+    // 不接受外部 userId 参数,故不需要 authorize)-----
+
+    public UserResponse bindPhone(String userId, String code) {
+        User u = loadOrThrow(userId);
+        String phone = phoneExchanger.exchange(code);
+        return persistAndReturn(u.bindPhone(phone));
     }
 
     // ----- helpers -----

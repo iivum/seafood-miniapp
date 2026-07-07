@@ -7,8 +7,9 @@
  *   POST  /api/users/me/addresses    — add address
  *   PUT   /api/users/me/addresses/{id} — update address
  *   DELETE /api/users/me/addresses/{id} — remove address
+ *   PATCH  /api/users/me/phone       — bind/update phone via WeChat getPhoneNumber code
  */
-import { del, get, post, put } from '../../shared/api/request';
+import { del, get, patch, post, put } from '../../shared/api/request';
 
 export interface Address {
   id?: string;
@@ -36,5 +37,8 @@ export const UserAPI = {
   },
   removeAddress(id: string): Promise<void> {
     return del<void>(`/users/me/addresses/${encodeURIComponent(id)}`, { needAuth: true });
+  },
+  bindPhone(code: string): Promise<{ id: string; nickname?: string; avatarUrl?: string; role: string; phone?: string }> {
+    return patch('/users/me/phone', { code }, { needAuth: true });
   },
 };

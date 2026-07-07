@@ -162,6 +162,36 @@ describe('features/auth/store', () => {
     expect(store.getState().isAuthenticated).toBe(false);
   });
 
+  describe('bindPhone', () => {
+    it('PATCH /api/users/me/phone → merges phone into state.user', async () => {
+      setWxLoginCode('wx-code-1');
+      setNextWxRequestResponse(sampleLoginRes);
+      await authStore.login();
+
+      setNextWxRequestResponse({ ...sampleLoginRes.user, phone: '13711112222' });
+      const user = await authStore.bindPhone('dev-abc');
+
+      expect(user?.phone).toBe('13711112222');
+      expect(authStore.getState().user?.phone).toBe('13711112222');
+
+      const calls = (wx.request as jest.Mock).mock.calls;
+      const bindCall = calls[calls.length - 1][0];
+      expect(bindCall.url).toBe('http://test.local/api/users/me/phone');
+      expect(bindCall.method).toBe('PATCH');
+      expect(bindCall.data).toEqual({ code: 'dev-abc' });
+    });
+
+    it('propagates errors without corrupting existing state.user', async () => {
+      setWxLoginCode('wx-code-1');
+      setNextWxRequestResponse(sampleLoginRes);
+      await authStore.login();
+
+      setNextWxRequestResponse({ errMsg: 'network error' });
+      await expect(authStore.bindPhone('bad-code')).rejects.toThrow();
+      expect(authStore.getState().user).toEqual(sampleLoginRes.user);
+    });
+  });
+
   describe('wx.login edge cases', () => {
     it('login() rejects when wx is undefined', async () => {
       const origWx = (globalThis as Record<string, unknown>).wx;

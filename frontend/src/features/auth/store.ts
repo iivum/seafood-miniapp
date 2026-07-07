@@ -281,6 +281,22 @@ class AuthStore {
   }
 
   /**
+   * Bind/update the current user's phone number via a WeChat
+   * `getPhoneNumber` authorization code (dev-login synthesizes a
+   * `dev-` prefixed code the same way `loginWithCode` does).
+   * Merges the returned `phone` into the existing stored user rather
+   * than replacing it wholesale — this endpoint only ever changes
+   * the phone field.
+   */
+  async bindPhone(code: string): Promise<StoredUser | null> {
+    const updated = await UserAPI.bindPhone(code);
+    const merged: StoredUser = { ...(this.state.user ?? { id: updated.id }), phone: updated.phone };
+    persistUser(merged);
+    this.setState({ user: merged });
+    return merged;
+  }
+
+  /**
    * Synchronous state reset for tests. Does NOT touch wx storage or
    * call the backend. Use `logout()` for the real flow.
    */

@@ -29,13 +29,15 @@ class UserServiceTest {
 
     private UserRepository repo;
     private ProductViewService productViewService;
+    private WechatPhoneNumberExchanger phoneExchanger;
     private UserService service;
 
     @BeforeEach
     void setUp() {
         repo = mock(UserRepository.class);
         productViewService = mock(ProductViewService.class);
-        service = new UserService(repo, productViewService);
+        phoneExchanger = mock(WechatPhoneNumberExchanger.class);
+        service = new UserService(repo, productViewService, phoneExchanger);
     }
 
     private UserPrincipal me(String id, Role role) {
@@ -188,5 +190,33 @@ class UserServiceTest {
         var page = service.list(org.springframework.data.domain.PageRequest.of(0, 20),
                 me("admin", Role.ADMIN));
         assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    void bindPhone_exchangesCodeThenPersists() {
+        when(repo.findById("u1")).thenReturn(Optional.of(docOf("u1", Role.CUSTOMER)));
+        when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(phoneExchanger.exchange("dev-abc")).thenReturn("13711112222");
+
+        UserResponse res = service.bindPhone("u1", "dev-abc");
+
+        assertThat(res.phone()).isEqualTo("13711112222");
+    }
+
+    @Test
+    void bindPhone_exchangerThrows_propagatesAndDoesNotPersist() {
+        when(repo.findById("u1")).thenReturn(Optional.of(docOf("u1", Role.CUSTOMER)));
+        when(phoneExchanger.exchange("bad-code")).thenThrow(new DomainException("微信手机号换取失败"));
+
+        assertThatThrownBy(() -> service.bindPhone("u1", "bad-code"))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void bindPhone_unknownUser_throwsNotFound() {
+        when(repo.findById("nope")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.bindPhone("nope", "dev-abc"))
+                .isInstanceOf(NotFoundException.class);
     }
 }

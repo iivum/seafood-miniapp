@@ -160,6 +160,20 @@ class AuthStore {
     this._setState({ user, isAuthenticated: true });
   }
 
+  /**
+   * 手机号绑定:调 UserAPI.bindPhone(code)(dev fallback 合成 dev- 前缀 code,
+   * 同 loginWithCode 惯例),把返回的 phone 合并进现有 state.user(只改 phone
+   * 字段,不整体替换)。
+   */
+  async bindPhone(code) {
+    const { UserAPI } = require('../user/api');
+    const updated = await UserAPI.bindPhone(code);
+    const merged = Object.assign({}, this.state.user || { id: updated.id }, { phone: updated.phone });
+    persistUser(merged);
+    this._setState({ user: merged });
+    return merged;
+  }
+
   async silentRelogin() {
     try {
       return await this.login();

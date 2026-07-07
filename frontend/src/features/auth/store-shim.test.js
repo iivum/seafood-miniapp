@@ -16,7 +16,7 @@
  * 解析到同一个绝对路径,mock 才能真正拦截 store.js 实际加载的依赖链路。
  */
 jest.mock('./api', () => ({ AuthAPI: { wechatLogin: jest.fn() } }));
-jest.mock('../user/api', () => ({ UserAPI: { me: jest.fn() } }));
+jest.mock('../user/api', () => ({ UserAPI: { me: jest.fn(), bindPhone: jest.fn() } }));
 // 发现:'../../shared/api/request' 在 Jest 下(moduleFileExtensions ts 优先)解析到
 // request.ts,而 request.ts 不导出 tokenStorage(store.ts 改从 '../../shared/api/storage'
 // 单独 import 它);store.js 却是从 request 这一路径解构 tokenStorage(mp 运行时真实的
@@ -106,5 +106,32 @@ describe('features/auth/store.js(mp 运行时真实 shim)', () => {
     await store.login();
 
     expect(store.getState().user).toEqual(realUser);
+  });
+
+  describe('bindPhone', () => {
+    it('调 UserAPI.bindPhone(code),把返回的 phone 合并进 state.user', async () => {
+      AuthAPI.wechatLogin.mockResolvedValue(backendTokenResponse);
+      UserAPI.me.mockResolvedValue(realUser);
+      await store.loginWithCode('dev-123');
+
+      UserAPI.bindPhone.mockResolvedValue({ ...realUser, phone: '13711112222' });
+      const user = await store.bindPhone('dev-phone-abc');
+
+      expect(UserAPI.bindPhone).toHaveBeenCalledWith('dev-phone-abc');
+      expect(user.phone).toBe('13711112222');
+      expect(store.getState().user.phone).toBe('13711112222');
+      expect(store.getState().user.id).toBe(realUser.id);
+    });
+
+    it('UserAPI.bindPhone 失败时抛出,不改动已有 state.user', async () => {
+      AuthAPI.wechatLogin.mockResolvedValue(backendTokenResponse);
+      UserAPI.me.mockResolvedValue(realUser);
+      await store.loginWithCode('dev-123');
+
+      UserAPI.bindPhone.mockRejectedValue(new Error('绑定失败'));
+
+      await expect(store.bindPhone('bad-code')).rejects.toThrow('绑定失败');
+      expect(store.getState().user).toEqual(realUser);
+    });
   });
 });

@@ -164,6 +164,24 @@ class SecurityFilterChainOrderIT {
     }
 
     /**
+     * 回归(align-mp-login-with-od 新增 self-scoped 门面 {@code UserPhoneController}):
+     * {@code /api/users/me/phone} 落在既有 {@code requestMatchers("/api/users/**")} 白名单内,
+     * 不需要新增 matcher —— 与 addresses/favorites 那两次"漏配"不同,这里是防御性回归锁,
+     * 确认既有 matcher 确实覆盖了新路径,而不是巧合地漏测才没暴露问题。
+     */
+    @Test
+    void usersMePhoneEndpoint_isAuthenticated_notDenyAll() throws Exception {
+        JwtTokenProvider tokens = ctx.getBean(JwtTokenProvider.class);
+        String token = tokens.issueAccessToken("u-1", Role.CUSTOMER).token();
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(ctx).apply(springSecurity()).build();
+
+        mvc.perform(get("/api/users/me/phone").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());   // 过授权层(白名单),TestApp 无 handler
+        mvc.perform(get("/api/users/me/phone"))
+                .andExpect(status().isForbidden());  // 无 token → 授权层拒
+    }
+
+    /**
      * 把 FilterChainProxy 内部所有 chain 的所有 filter 摊平到一个 List。Spring Security 在
      * 不同 {@code requestMatchers} 下用不同 chain,但本测试关心"链中存在且相对有序"。
      */

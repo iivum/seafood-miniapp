@@ -978,6 +978,16 @@
         },
         "type" : "object"
       },
+      "PhoneBindRequest" : {
+        "properties" : {
+          "code" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code" ],
+        "type" : "object"
+      },
       "ProductRequest" : {
         "properties" : {
           "category" : {
@@ -3166,6 +3176,34 @@
           }
         },
         "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/me/phone" : {
+      "patch" : {
+        "operationId" : "bindPhone",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PhoneBindRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-phone-controller" ]
       }
     },
     "/api/users/{userId}" : {

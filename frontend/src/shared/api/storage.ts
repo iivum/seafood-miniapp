@@ -17,6 +17,7 @@ export interface StoredUser {
   avatarUrl?: string;
   role?: 'CUSTOMER' | 'ADMIN' | string;
   openId?: string;
+  phone?: string;
 }
 
 const hasWx = (): boolean => typeof wx !== 'undefined' && !!wx.getStorageSync;
