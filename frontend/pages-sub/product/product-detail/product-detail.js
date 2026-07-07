@@ -28,6 +28,8 @@
 const { ProductAPI } = require('../../../src/features/product/api');
 const { cartStore } = require('../../../src/features/cart/store');
 const { recommendationModule } = require('../../../src/modules/recommendation/recommendation.js');
+const { FavoriteAPI } = require('../../../src/features/favorite/api');
+const { ProductViewAPI } = require('../../../src/features/productView/api');
 
 Page({
   data: {
@@ -36,7 +38,7 @@ Page({
     isLoading: true,
     isError: false,
     errorMessage: '',
-    /** 收藏状态(本地,无后端)— 占位 */
+    /** 收藏状态,来自 FavoriteAPI 真实数据(fetchProductDetail 加载成功后初始化)。 */
     favorited: false,
     isAdding: false,
     /** mp-03 数量 stepper(死绑定修复):默认 1,上限 product.stock。 */
@@ -45,16 +47,26 @@ Page({
 
   onLoad: function (options) {
     if (options && options.id) {
-      this.fetchProductDetail(options.id);
+      return this.fetchProductDetail(options.id);
     }
   },
 
   fetchProductDetail: function (id) {
     this.setData({ isLoading: true, isError: false });
-    ProductAPI.getById(id)
+    return ProductAPI.getById(id)
       .then((product) => {
         this.setData({ product, isLoading: false });
         this.fetchRecommendations(product);
+        // 收藏 + 浏览足迹:静默记一条足迹(design.md D6,best-effort,失败不
+        // 影响页面渲染、不 toast——记录浏览足迹不是用户当前任务的关键路径)。
+        ProductViewAPI.record(id).catch(() => {});
+        // 查当前商品是否已收藏,初始化 favorited(不是本地纯 toggle 的假状态)。
+        return FavoriteAPI.list()
+          .then((items) => {
+            const favorited = (items || []).some((it) => it.productId === id);
+            this.setData({ favorited });
+          })
+          .catch(() => {});
       })
       .catch((err) => {
         this.setData({
@@ -126,11 +138,7 @@ Page({
   },
 
   onToggleFavorite: function () {
-    this.setData({ favorited: !this.data.favorited });
-    wx.showToast({
-      title: this.data.favorited ? '已收藏' : '已取消收藏',
-      icon: 'none',
-    });
+    return this._toggleFavorite();
   },
 
   /**
@@ -183,12 +191,34 @@ Page({
   },
 
   /**
-   * mp-03 悬浮顶栏收藏(brief §1)。纯装饰,参考 mp-01 onBellTap 模式 —— 与
-   * 底部操作栏已有的 onToggleFavorite(本地可切换 ♥/♡ 状态)是两个独立入口,
-   * 互不影响;这个不接后端(真实收藏能力不存在)。
+   * mp-03 悬浮顶栏收藏(brief §1)。收藏 + 浏览足迹改造前是纯装饰 toast、
+   * 和底部 onToggleFavorite 刻意解耦("两个独立入口,互不影响")——收藏能力
+   * 变真实后继续解耦会是真实的 UX 矛盾(点一个显示"已收藏",点另一个显示
+   * "功能开发中"),design.md D5:两个入口统一驱动同一个真实状态。
    */
   onFavoriteTap: function () {
-    wx.showToast({ title: '功能开发中', icon: 'none' });
+    return this._toggleFavorite();
+  },
+
+  /**
+   * 抽出的私有实现,供 onToggleFavorite/onFavoriteTap 共用(design.md D5)。
+   * 返回 promise 链是纯新增(同 onLoad/fetchProductDetail 的补 return 逻辑),
+   * 真机 bindtap 生命周期从不读事件处理函数返回值,不影响真实行为,只是让
+   * 测试能 `await` 到状态更新真正落地之后再断言。
+   */
+  _toggleFavorite: function () {
+    const product = this.data.product;
+    if (!product || !product.id) return;
+    const wasFavorited = this.data.favorited;
+    const call = wasFavorited ? FavoriteAPI.remove(product.id) : FavoriteAPI.add(product.id);
+    return call
+      .then(() => {
+        this.setData({ favorited: !wasFavorited });
+        wx.showToast({ title: wasFavorited ? '已取消收藏' : '已收藏', icon: 'success' });
+      })
+      .catch(() => {
+        wx.showToast({ title: '操作失败,请重试', icon: 'none' });
+      });
   },
 
   /**

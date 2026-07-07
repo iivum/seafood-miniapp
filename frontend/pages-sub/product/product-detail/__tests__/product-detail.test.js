@@ -5,8 +5,9 @@
  *
  * 覆盖本次新增/修复的逻辑:
  *  1. onBack:悬浮顶栏返回,真实 wx.navigateBack()(非装饰)。
- *  2. onFavoriteTap:悬浮顶栏收藏,纯装饰 toast(参考 mp-01 onBellTap 模式;
- *     与底部 onToggleFavorite 是两个独立入口,互不影响)。
+ *  2. onFavoriteTap:悬浮顶栏收藏 —— 收藏 + 浏览足迹接线(task 8)后不再是纯
+ *     装饰 toast,和底部 onToggleFavorite 共用同一个真实 FavoriteAPI 驱动的
+ *     favorited 状态(design.md D5),见下方"收藏(收藏 + 浏览足迹接线)"块。
  *  3. onShareAppMessage:小程序原生分享生命周期,标题/图片取当前商品真实字段。
  *  4. onIncrement/onDecrement:数量 stepper 死绑定修复 —— 此前 wxml 引用
  *     bindtap="onIncrement"/"onDecrement" 但从未定义,+/− 完全不响应。
@@ -55,6 +56,25 @@ jest.mock('../../../../src/modules/recommendation/recommendation.js', () => ({
   },
 }));
 
+const mockFavoriteAdd = jest.fn();
+const mockFavoriteRemove = jest.fn();
+const mockFavoriteList = jest.fn();
+jest.mock('../../../../src/features/favorite/api', () => ({
+  FavoriteAPI: {
+    add: (...a) => mockFavoriteAdd(...a),
+    remove: (...a) => mockFavoriteRemove(...a),
+    list: (...a) => mockFavoriteList(...a),
+  },
+}));
+
+const mockRecordView = jest.fn();
+jest.mock('../../../../src/features/productView/api', () => ({
+  ProductViewAPI: {
+    record: (...a) => mockRecordView(...a),
+    list: jest.fn(),
+  },
+}));
+
 let pageConfig;
 global.Page = (config) => { pageConfig = config; };
 require('../product-detail.js');
@@ -70,6 +90,8 @@ describe('product-detail (mp-03 商品详情)', () => {
     mockGetById.mockResolvedValue(PRODUCT);
     mockAddItem.mockResolvedValue();
     mockGetProductRecommendations.mockResolvedValue([]);
+    mockFavoriteList.mockResolvedValue([]);
+    mockRecordView.mockResolvedValue(undefined);
     ctx = {
       data: JSON.parse(JSON.stringify(pageConfig.data)),
       onLoad: pageConfig.onLoad,
@@ -86,6 +108,7 @@ describe('product-detail (mp-03 商品详情)', () => {
       onGoToProductDetail: pageConfig.onGoToProductDetail,
       onBack: pageConfig.onBack,
       onFavoriteTap: pageConfig.onFavoriteTap,
+      _toggleFavorite: pageConfig._toggleFavorite,
       onShareAppMessage: pageConfig.onShareAppMessage,
     };
     ctx.setData = jest.fn(function (patch) { Object.assign(this.data, patch); }.bind(ctx));
@@ -101,21 +124,6 @@ describe('product-detail (mp-03 商品详情)', () => {
     it('调用真实 wx.navigateBack()(非装饰)', () => {
       ctx.onBack();
       expect(wx.navigateBack).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('onFavoriteTap(mp-03 悬浮顶栏 §1)', () => {
-    it('展示"功能开发中" toast(纯装饰,参考 onBellTap 模式,不接后端)', () => {
-      ctx.onFavoriteTap();
-      expect(wx.showToast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: expect.stringContaining('开发中') })
-      );
-    });
-
-    it('不修改 favorited 状态(与底部 onToggleFavorite 是独立入口)', () => {
-      ctx.data.favorited = false;
-      ctx.onFavoriteTap();
-      expect(ctx.data.favorited).toBe(false);
     });
   });
 
@@ -327,15 +335,6 @@ describe('product-detail (mp-03 商品详情)', () => {
       expect(wx.showModal).toHaveBeenCalled();
     });
 
-    it('onToggleFavorite 切换 favorited 并 toast(与顶栏 onFavoriteTap 独立)', () => {
-      ctx.data.favorited = false;
-      ctx.onToggleFavorite();
-      expect(ctx.data.favorited).toBe(true);
-      expect(wx.showToast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '已收藏' })
-      );
-    });
-
     it('goToHome 切到首页 tab', () => {
       ctx.goToHome();
       expect(wx.switchTab).toHaveBeenCalledWith(
@@ -357,6 +356,80 @@ describe('product-detail (mp-03 商品详情)', () => {
           url: '/pages-sub/product/product-detail/product-detail?id=p-2',
         })
       );
+    });
+  });
+
+  describe('收藏(收藏 + 浏览足迹接线)', () => {
+    it('onLoad 时若已收藏该商品,favorited 初始为 true', async () => {
+      mockGetById.mockResolvedValueOnce({ id: 'p1', name: 'x', stock: 5 });
+      mockFavoriteList.mockResolvedValueOnce([{ productId: 'p1', productName: 'x', price: 1, imageUrl: '', available: true }]);
+
+      await ctx.onLoad({ id: 'p1' });
+
+      expect(ctx.data.favorited).toBe(true);
+    });
+
+    it('onToggleFavorite:未收藏时调用 FavoriteAPI.add,favorited 变 true', async () => {
+      ctx.setData({ favorited: false, product: { id: 'p1' } });
+      mockFavoriteAdd.mockResolvedValueOnce(['p1']);
+
+      await ctx.onToggleFavorite();
+
+      expect(mockFavoriteAdd).toHaveBeenCalledWith('p1');
+      expect(ctx.data.favorited).toBe(true);
+    });
+
+    it('onToggleFavorite:已收藏时调用 FavoriteAPI.remove,favorited 变 false', async () => {
+      ctx.setData({ favorited: true, product: { id: 'p1' } });
+      mockFavoriteRemove.mockResolvedValueOnce([]);
+
+      await ctx.onToggleFavorite();
+
+      expect(mockFavoriteRemove).toHaveBeenCalledWith('p1');
+      expect(ctx.data.favorited).toBe(false);
+    });
+
+    it('onFavoriteTap 和 onToggleFavorite 驱动同一个真实状态(design.md D5,不再各自独立)', async () => {
+      ctx.setData({ favorited: false, product: { id: 'p1' } });
+      mockFavoriteAdd.mockResolvedValueOnce(['p1']);
+
+      await ctx.onFavoriteTap();
+
+      expect(mockFavoriteAdd).toHaveBeenCalledWith('p1');
+      expect(ctx.data.favorited).toBe(true);
+    });
+
+    it('收藏失败时 toast 提示,favorited 状态不变', async () => {
+      ctx.setData({ favorited: false, product: { id: 'p1' } });
+      mockFavoriteAdd.mockRejectedValueOnce(new Error('network'));
+
+      await ctx.onToggleFavorite();
+
+      expect(ctx.data.favorited).toBe(false);
+      expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ icon: 'none' }));
+    });
+  });
+
+  describe('浏览足迹静默记录(design.md D6)', () => {
+    it('onLoad 成功加载商品后静默调用 ProductViewAPI.record,不 toast', async () => {
+      mockGetById.mockResolvedValueOnce({ id: 'p1', name: 'x', stock: 5 });
+      mockFavoriteList.mockResolvedValueOnce([]);
+      mockRecordView.mockResolvedValueOnce(undefined);
+
+      await ctx.onLoad({ id: 'p1' });
+
+      expect(mockRecordView).toHaveBeenCalledWith('p1');
+    });
+
+    it('记录足迹失败不影响页面渲染、不 toast(best-effort)', async () => {
+      mockGetById.mockResolvedValueOnce({ id: 'p1', name: 'x', stock: 5 });
+      mockFavoriteList.mockResolvedValueOnce([]);
+      mockRecordView.mockRejectedValueOnce(new Error('network'));
+
+      await ctx.onLoad({ id: 'p1' });
+
+      expect(ctx.data.isError).toBeFalsy();
+      expect(wx.showToast).not.toHaveBeenCalledWith(expect.objectContaining({ title: expect.stringContaining('足迹') }));
     });
   });
 });
