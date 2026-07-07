@@ -1,0 +1,133 @@
+.favorites-container {
+  min-height: 100vh;
+  background: var(--bg, #fffbf8);
+}
+
+.favorites-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx;
+  background: var(--surface, #fff);
+}
+
+.favorites-topbar__back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favorites-topbar__back-icon {
+  font-size: 44rpx;
+  color: var(--fg, #231814);
+}
+
+.favorites-topbar__title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
+}
+
+.favorites-topbar__placeholder {
+  width: 64rpx;
+}
+
+/* 2 列 grid(同 pages/index 首页 home-grid 惯例:WeChat mp display:grid 不生效,
+   用 flex wrap 退化实现 2 列瀑布)。 */
+.favorites-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 16rpx;
+}
+
+.favorites-grid__cell {
+  position: relative;
+  width: calc(50% - 8rpx);
+  margin-bottom: 16rpx;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 14px);
+  overflow: hidden;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
+}
+
+.favorites-grid__nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.favorites-grid__img {
+  width: 100%;
+  height: 320rpx;
+  background: var(--bg, #fffbf8);
+}
+
+.favorites-grid__body {
+  padding: 16rpx 20rpx 20rpx;
+}
+
+.favorites-grid__name {
+  font-size: 28rpx;
+  color: var(--fg, #231814);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.favorites-grid__price {
+  font-family: var(--font-display, serif);
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--accent, #db633c);
+  margin-top: 8rpx;
+  display: block;
+}
+
+.favorites-grid__unavailable {
+  font-size: 24rpx;
+  color: var(--muted, #8a7a70);
+  margin-top: 8rpx;
+  display: block;
+}
+
+.favorites-grid__remove {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent, #db633c);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 0;
+}
+
+.empty-state__icon {
+  font-size: 80rpx;
+}
+
+.empty-state__title {
+  font-size: 30rpx;
+  color: var(--fg, #231814);
+  margin-top: 24rpx;
+}
+
+.empty-state__sub {
+  font-size: 26rpx;
+  color: var(--muted, #8a7a70);
+  margin-top: 8rpx;
+}

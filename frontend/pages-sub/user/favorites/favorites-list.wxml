@@ -1,0 +1,42 @@
+<view class="favorites-container">
+  <view class="favorites-topbar safe-area-top">
+    <view class="favorites-topbar__back" bindtap="onBack" hover-class="is-clicked" hover-stay-time="100">
+      <text class="favorites-topbar__back-icon">‹</text>
+    </view>
+    <text class="favorites-topbar__title">我的收藏</text>
+    <view class="favorites-topbar__placeholder"></view>
+  </view>
+
+  <view class="favorites-grid" wx:if="{{items.length > 0}}">
+    <view class="favorites-grid__cell" wx:for="{{items}}" wx:key="productId">
+      <view
+        class="favorites-grid__nav"
+        bindtap="onItemTap"
+        data-id="{{item.productId}}"
+        data-available="{{item.available}}"
+      >
+        <image class="favorites-grid__img" src="{{item.imageUrl}}" mode="aspectFill"></image>
+        <view class="favorites-grid__body">
+          <text class="favorites-grid__name">{{item.productName}}</text>
+          <text class="favorites-grid__price" wx:if="{{item.available}}">¥ {{item.price}}</text>
+          <text class="favorites-grid__unavailable" wx:else>已下架</text>
+        </view>
+      </view>
+      <view
+        class="favorites-grid__remove"
+        bindtap="onRemoveFavorite"
+        data-id="{{item.productId}}"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text>♥</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{items.length === 0 && !isLoading}}">
+    <text class="empty-state__icon">🤍</text>
+    <text class="empty-state__title">还没有收藏商品哦</text>
+    <text class="empty-state__sub">看到喜欢的商品点个心形收藏吧</text>
+  </view>
+</view>
