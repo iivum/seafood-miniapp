@@ -16,6 +16,18 @@
     </view>
   </view>
 
+  <!-- 收藏 / 足迹 数字行(收藏 + 浏览足迹,OD 原型仪表盘惯例;优惠券数字位暂不接入,遗留问题清单已记) -->
+  <view class="stats-row">
+    <view class="stats-row__item" bindtap="onGoFavorites" hover-class="is-clicked" hover-stay-time="100">
+      <text class="stats-row__num">{{favoriteCount}}</text>
+      <text class="stats-row__label">收藏</text>
+    </view>
+    <view class="stats-row__item" bindtap="onGoFootprints" hover-class="is-clicked" hover-stay-time="100">
+      <text class="stats-row__num">{{viewCount}}</text>
+      <text class="stats-row__label">足迹</text>
+    </view>
+  </view>
+
   <!-- 4 状态卡(待付款 / 待发货 / 待收货 / 已完成) -->
   <view class="status-card">
     <view class="status-card__title" bindtap="onGoAllOrders">

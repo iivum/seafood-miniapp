@@ -22,6 +22,11 @@ jest.mock('../../../src/features/auth/store', () => ({
   },
 }));
 
+const mockUserApiMe = jest.fn().mockResolvedValue({});
+jest.mock('../../../src/features/user/api', () => ({
+  UserAPI: { me: (...a) => mockUserApiMe(...a) },
+}));
+
 let pageConfig;
 global.Page = (config) => {
   pageConfig = config;
@@ -58,6 +63,37 @@ describe('profile', () => {
       ctx.onShow();
       expect(ctx.data.userInfo).toEqual(user);
     });
+
+    it('已登录时额外拉 UserAPI.me() 刷新 favoriteCount/viewCount', async () => {
+      const user = { nickname: '林一帆', avatarUrl: 'https://x/a.png', role: 'CUSTOMER' };
+      mockGetState.mockReturnValue({ user, isAuthenticated: true });
+      mockUserApiMe.mockResolvedValueOnce({ ...user, favoriteCount: 12, viewCount: 38 });
+
+      ctx.onShow();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(ctx.data.favoriteCount).toBe(12);
+      expect(ctx.data.viewCount).toBe(38);
+    });
+
+    it('未登录时不调用 UserAPI.me()', () => {
+      ctx.onShow();
+      expect(mockUserApiMe).not.toHaveBeenCalled();
+    });
+
+    it('UserAPI.me() 失败时静默降级,不 toast、不影响页面其它渲染', async () => {
+      mockGetState.mockReturnValue({ user: { nickname: 'x' }, isAuthenticated: true });
+      mockUserApiMe.mockRejectedValueOnce(new Error('network'));
+
+      ctx.onShow();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(ctx.data.favoriteCount).toBe(0);
+      expect(ctx.data.viewCount).toBe(0);
+      expect(wx.showToast).not.toHaveBeenCalled();
+    });
   });
 
   describe('死链接修复回归锁(mp-05 视觉对齐)', () => {
@@ -90,6 +126,30 @@ describe('profile', () => {
       ctx.goToOrderList();
       expect(wx.navigateTo).toHaveBeenCalledWith(
         expect.objectContaining({ url: '/pages-sub/order/order-list/order-list' }),
+      );
+    });
+  });
+
+  describe('onGoFavorites / onGoFootprints', () => {
+    it('未登录时提示先登录,不跳转', () => {
+      ctx.onGoFavorites();
+      expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '请先登录' }));
+      expect(wx.navigateTo).not.toHaveBeenCalled();
+    });
+
+    it('已登录时跳收藏列表页', () => {
+      mockGetState.mockReturnValue({ user: { nickname: 'x' }, isAuthenticated: true });
+      ctx.onGoFavorites();
+      expect(wx.navigateTo).toHaveBeenCalledWith(
+        expect.objectContaining({ url: '/pages-sub/user/favorites/favorites-list' }),
+      );
+    });
+
+    it('已登录时跳足迹列表页', () => {
+      mockGetState.mockReturnValue({ user: { nickname: 'x' }, isAuthenticated: true });
+      ctx.onGoFootprints();
+      expect(wx.navigateTo).toHaveBeenCalledWith(
+        expect.objectContaining({ url: '/pages-sub/user/footprints/footprints-list' }),
       );
     });
   });
