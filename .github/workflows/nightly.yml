@@ -33,11 +33,16 @@ jobs:
         working-directory: backend
         run: |
           java -jar build/libs/*.jar &
-          until curl -sf http://localhost:8080/api/products?page=0&size=1; do sleep 2; done
+          until curl -sf "http://localhost:8080/api/products?page=0&size=1"; do sleep 2; done
         env:
           MONGODB_URI: mongodb://localhost:27017/seafood
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'nightly-ci-placeholder-secret-key-32bytes' }}
           JWT_ADMIN_SECRET: ${{ secrets.JWT_ADMIN_SECRET || 'nightly-ci-admin-secret-key-32bytes' }}
+          # PR review #8 同款漏配:admin.bootstrap.password 无默认值(AuthService.java:60),
+          # ci.yml/native.yml 当时都补了这条,nightly.yml 漏了 —— 缺失时 ApplicationContext
+          # 启动直接失败(UnsatisfiedDependencyException → authService 创建失败),backend
+          # 进程崩溃退出,后续 k6-run.sh 探测到端口不通报 "backend not reachable"。
+          ADMIN_BOOTSTRAP_PASSWORD: nightly-ci-admin-bootstrap-password-not-the-default
           WECHAT_ENABLED: 'false'
 
       - name: Install k6
