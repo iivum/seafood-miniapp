@@ -2,7 +2,8 @@
   "navigationBarTitleText": "商品分类",
   "usingComponents": {
     "shared-empty": "@vant/weapp/empty/index",
-    "shared-loading": "@vant/weapp/loading/index"
+    "shared-loading": "@vant/weapp/loading/index",
+    "van-icon": "@vant/weapp/icon/index"
   },
   "navigationStyle": "custom"
 }
