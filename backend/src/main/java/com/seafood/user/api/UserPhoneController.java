@@ -13,9 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 手机号绑定 API(self-scoped 门面,同 {@code AddressController}/{@code FavoriteController}
- * 既有惯例——身份取自 JWT principal,不接受外部 userId 参数)。参见 specs/backend-api
- * §Customer phone number binding。
+ * 手机号绑定 API(self-scoped 门面——身份取自 JWT principal,不接受外部 userId 参数)。
+ * 参见 specs/backend-api §Customer phone number binding。
  */
 @RestController
 @RequestMapping("/api/users/me")
@@ -31,6 +30,6 @@ public class UserPhoneController {
     @PreAuthorize("isAuthenticated()")
     public UserResponse bindPhone(@Valid @RequestBody PhoneBindRequest req,
                                   @AuthenticationPrincipal UserPrincipal me) {
-        return users.bindPhone(me.getId(), req.code());
+        return users.bindPhone(me.getId(), req.code(), me);
     }
 }

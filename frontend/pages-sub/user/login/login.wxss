@@ -202,11 +202,19 @@
   font-weight: 500;
 }
 
+.login-avatar-info {
+  flex: 1;
+  min-width: 0;
+}
+
 .login-avatar-name {
   display: block;
   font-size: 27rpx;
   font-weight: 600;
   color: var(--fg, #231814);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .login-avatar-sub {

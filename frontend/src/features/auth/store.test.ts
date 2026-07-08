@@ -190,6 +190,22 @@ describe('features/auth/store', () => {
       await expect(authStore.bindPhone('bad-code')).rejects.toThrow();
       expect(authStore.getState().user).toEqual(sampleLoginRes.user);
     });
+
+    it('when state.user was null (e.g. earlier best-effort /users/me fetch failed), uses the full bindPhone response instead of dropping nickname/avatarUrl/role', async () => {
+      authStore.resetForTest();
+      expect(authStore.getState().user).toBeNull();
+
+      setNextWxRequestResponse({
+        id: 'u-9', nickname: '张三', avatarUrl: 'https://cdn/u-9.png', role: 'CUSTOMER', phone: '13900001111',
+      });
+      const user = await authStore.bindPhone('dev-abc');
+
+      expect(user).toEqual({
+        id: 'u-9', nickname: '张三', avatarUrl: 'https://cdn/u-9.png', role: 'CUSTOMER', phone: '13900001111',
+      });
+      expect(authStore.getState().user?.nickname).toBe('张三');
+    });
+
   });
 
   describe('wx.login edge cases', () => {

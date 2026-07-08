@@ -284,15 +284,25 @@ class AuthStore {
    * Bind/update the current user's phone number via a WeChat
    * `getPhoneNumber` authorization code (dev-login synthesizes a
    * `dev-` prefixed code the same way `loginWithCode` does).
-   * Merges the returned `phone` into the existing stored user rather
-   * than replacing it wholesale — this endpoint only ever changes
-   * the phone field.
+   *
+   * `updated` is spread LAST so its fields win over any stale
+   * `state.user` — the backend's PATCH response is a full UserResponse
+   * (id/nickname/avatarUrl/role/phone), not just a phone patch. Spreading
+   * `state.user` first only as a base (rather than merging `phone` on top
+   * of it) matters when `state.user` is null — e.g. the best-effort
+   * `GET /users/me` fetch in `applyLoginResponse` failed earlier — in
+   * which case the old code silently produced `{id, phone}`, discarding
+   * nickname/avatarUrl/role that `updated` actually had.
    */
   async bindPhone(code: string): Promise<StoredUser | null> {
     const updated = await UserAPI.bindPhone(code);
-    const merged: StoredUser = { ...(this.state.user ?? { id: updated.id }), phone: updated.phone };
+    const merged: StoredUser = { ...(this.state.user ?? {}), ...updated };
     persistUser(merged);
-    this.setState({ user: merged });
+    // Defensive, same as applyLoginResponse/logout: not currently reachable
+    // with a stale lastError (any successful login preceding Step2 already
+    // clears it), but keeps the invariant true if a future entry point ever
+    // reaches bindPhone without going through login first.
+    this.setState({ user: merged, lastError: null });
     return merged;
   }
 

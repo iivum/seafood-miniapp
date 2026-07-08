@@ -23,6 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class UserServiceTest {
@@ -198,25 +201,45 @@ class UserServiceTest {
         when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
         when(phoneExchanger.exchange("dev-abc")).thenReturn("13711112222");
 
-        UserResponse res = service.bindPhone("u1", "dev-abc");
+        UserResponse res = service.bindPhone("u1", "dev-abc", me("u1", Role.CUSTOMER));
 
         assertThat(res.phone()).isEqualTo("13711112222");
     }
 
     @Test
     void bindPhone_exchangerThrows_propagatesAndDoesNotPersist() {
-        when(repo.findById("u1")).thenReturn(Optional.of(docOf("u1", Role.CUSTOMER)));
         when(phoneExchanger.exchange("bad-code")).thenThrow(new DomainException("微信手机号换取失败"));
 
-        assertThatThrownBy(() -> service.bindPhone("u1", "bad-code"))
+        assertThatThrownBy(() -> service.bindPhone("u1", "bad-code", me("u1", Role.CUSTOMER)))
                 .isInstanceOf(DomainException.class);
+
+        verify(repo, never()).save(any());
     }
 
     @Test
     void bindPhone_unknownUser_throwsNotFound() {
         when(repo.findById("nope")).thenReturn(Optional.empty());
+        when(phoneExchanger.exchange("dev-abc")).thenReturn("13711112222");
 
-        assertThatThrownBy(() -> service.bindPhone("nope", "dev-abc"))
+        assertThatThrownBy(() -> service.bindPhone("nope", "dev-abc", me("nope", Role.CUSTOMER)))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void bindPhone_otherUser_denied() {
+        assertThatThrownBy(() -> service.bindPhone("u2", "dev-abc", me("u1", Role.CUSTOMER)))
+                .isInstanceOf(DomainException.class);
+        verifyNoInteractions(phoneExchanger);
+    }
+
+    @Test
+    void bindPhone_asAdminOnBehalfOfOther_succeeds() {
+        when(repo.findById("u2")).thenReturn(Optional.of(docOf("u2", Role.CUSTOMER)));
+        when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(phoneExchanger.exchange("dev-abc")).thenReturn("13711112222");
+
+        UserResponse res = service.bindPhone("u2", "dev-abc", me("admin", Role.ADMIN));
+
+        assertThat(res.phone()).isEqualTo("13711112222");
     }
 }

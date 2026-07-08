@@ -35,11 +35,11 @@ class UserPhoneControllerTest {
 
     @Test
     void bindPhone_delegatesWithPrincipalIdAndCode() {
-        when(userService.bindPhone("u-1", "dev-abc")).thenReturn(userWith("13711112222"));
+        when(userService.bindPhone("u-1", "dev-abc", me)).thenReturn(userWith("13711112222"));
 
         UserResponse result = controller.bindPhone(new PhoneBindRequest("dev-abc"), me);
 
         assertThat(result.phone()).isEqualTo("13711112222");
-        verify(userService).bindPhone(eq("u-1"), eq("dev-abc"));
+        verify(userService).bindPhone(eq("u-1"), eq("dev-abc"), eq(me));
     }
 }

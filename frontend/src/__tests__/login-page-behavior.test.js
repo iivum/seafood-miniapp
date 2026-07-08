@@ -100,6 +100,18 @@ describe('login.js 行为(hand-rolled Page harness)', () => {
       expect(page.data.step).toBe(1);
       expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '后端拒绝' }));
     });
+
+    it('登录成功但用户此前已绑定手机号时,直接完成登录,不再弹 Step2(不应该每次登录都重新要求绑定)', async () => {
+      page.data.agreed = true;
+      wx.login.mockImplementation((opts) => opts.success({ code: 'wx-real-code' }));
+      authStore.loginWithCode.mockResolvedValue({ nickname: '张三', phone: '13800001111' });
+
+      page.onWxLogin();
+      await flushPromises();
+
+      expect(page.data.step).toBe(1);
+      expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '登录成功' }));
+    });
   });
 
   it('onSkipLogin 直接 reLaunch 到 redirect,不触发任何登录调用', () => {
@@ -144,6 +156,42 @@ describe('login.js 行为(hand-rolled Page harness)', () => {
       page.onSkipPhoneBind();
       expect(authStore.bindPhone).not.toHaveBeenCalled();
       expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '登录成功' }));
+    });
+
+    it('onGetPhoneNumber 双击(bindPhone 未 resolve 前再次触发)只调用一次 bindPhone(loading 守卫)', async () => {
+      let resolveBindPhone;
+      authStore.bindPhone.mockReturnValue(new Promise((resolve) => { resolveBindPhone = resolve; }));
+
+      page.onGetPhoneNumber({ detail: { code: 'wx-phone-code' } });
+      page.onGetPhoneNumber({ detail: { code: 'wx-phone-code' } });
+      resolveBindPhone({ phone: '13800001111' });
+      await flushPromises();
+
+      expect(authStore.bindPhone).toHaveBeenCalledTimes(1);
+    });
+
+    it('onDevBindPhone 双击(bindPhone 未 resolve 前再次触发)只调用一次 bindPhone(loading 守卫)', async () => {
+      let resolveBindPhone;
+      authStore.bindPhone.mockReturnValue(new Promise((resolve) => { resolveBindPhone = resolve; }));
+
+      page.onDevBindPhone();
+      page.onDevBindPhone();
+      resolveBindPhone({ phone: '13800002222' });
+      await flushPromises();
+
+      expect(authStore.bindPhone).toHaveBeenCalledTimes(1);
+    });
+
+    it('onGetPhoneNumber 绑定失败后重置 loading,允许再次尝试', async () => {
+      authStore.bindPhone.mockRejectedValueOnce(new Error('绑定失败'));
+      page.onGetPhoneNumber({ detail: { code: 'wx-phone-code' } });
+      await flushPromises();
+
+      authStore.bindPhone.mockResolvedValueOnce({ phone: '13800001111' });
+      page.onGetPhoneNumber({ detail: { code: 'wx-phone-code' } });
+      await flushPromises();
+
+      expect(authStore.bindPhone).toHaveBeenCalledTimes(2);
     });
   });
 });

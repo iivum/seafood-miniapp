@@ -12,6 +12,14 @@
  */
 const { authStore } = require('../../../src/features/auth/store');
 
+/**
+ * 合成 dev- 前缀 code(dev-login / 开发者手机号绑定共用):不依赖真实微信返回值
+ * (开发工具/真机都可能不返回真值),后端在 wechat.enabled=false 时认这个走通。
+ */
+function synthDevCode() {
+  return 'dev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+}
+
 Page({
   data: {
     loading: false,
@@ -51,15 +59,8 @@ Page({
     this.setData({ loading: true });
     wx.login({
       success: () => {
-        // dev-login 协议:不依赖 wx.login 返回的 code(开发工具/真机都可能不返回真值),
-        // 合成一个 dev- 前缀 code,后端在 wechat.enabled=false 时认这个走通。
-        const devCode =
-          'dev-' +
-          Date.now() +
-          '-' +
-          Math.random().toString(36).slice(2, 8);
         authStore
-          .loginWithCode(devCode)
+          .loginWithCode(synthDevCode())
           .then(() => this.handleLoginSuccess())
           .catch((err) => this.handleLoginFail(err));
       },
@@ -69,7 +70,9 @@ Page({
 
   /**
    * 微信一键登录:需先勾选用户协议/隐私政策;真机扫码,wx.login 拿真 code →
-   * 后端 jscode2session。成功后进入 Step2(手机号绑定引导),不直接跳首页。
+   * 后端 jscode2session。成功后:此前已绑定过手机号的老用户直接完成登录
+   * (不应该每次登录都重新弹一遍绑定引导);首次登录/尚未绑定的用户进入
+   * Step2(手机号绑定引导)。
    */
   onWxLogin() {
     if (this.data.loading) return;
@@ -86,7 +89,13 @@ Page({
         }
         authStore
           .loginWithCode(code)
-          .then((user) => this.enterPhoneBindStep(user))
+          .then((user) => {
+            if (user && user.phone) {
+              this.handleLoginSuccess();
+            } else {
+              this.enterPhoneBindStep(user);
+            }
+          })
           .catch((err) => this.handleLoginFail(err));
       },
       fail: (err) => this.handleLoginFail(err),
@@ -111,38 +120,34 @@ Page({
   /**
    * 真实微信手机号授权回调(button open-type="getPhoneNumber")。
    * 用户拒绝授权/前端拿不到 code 时降级为 toast 提示,不阻断——用户仍可点
-   * "暂不绑定"跳过,登录态不受影响。
+   * "暂不绑定"跳过,登录态不受影响。loading 守卫防止双击触发两次并发 PATCH。
    */
   onGetPhoneNumber(e) {
+    if (this.data.loading) return;
     const detail = (e && e.detail) || {};
     if (!detail.code) {
       wx.showToast({ title: detail.errMsg || '未获取到手机号授权', icon: 'none' });
       return;
     }
+    this.setData({ loading: true });
     authStore
       .bindPhone(detail.code)
       .then(() => this.handleLoginSuccess())
-      .catch((err) => {
-        wx.showToast({ title: (err && err.message) || '手机号绑定失败', icon: 'none' });
-      });
+      .catch((err) => this.handleLoginFail(err));
   },
 
   /**
    * 开发者:测试手机号绑定。devtools 无法触发真实 getPhoneNumber 授权流程
    * (需企业资质),合成 dev- 前缀 code 走后端 dev 模式,供本地/e2e 覆盖 Step2。
+   * loading 守卫防止双击触发两次并发 PATCH。
    */
   onDevBindPhone() {
-    const devCode =
-      'dev-' +
-      Date.now() +
-      '-' +
-      Math.random().toString(36).slice(2, 8);
+    if (this.data.loading) return;
+    this.setData({ loading: true });
     authStore
-      .bindPhone(devCode)
+      .bindPhone(synthDevCode())
       .then(() => this.handleLoginSuccess())
-      .catch((err) => {
-        wx.showToast({ title: (err && err.message) || '手机号绑定失败', icon: 'none' });
-      });
+      .catch((err) => this.handleLoginFail(err));
   },
 
   /** 暂不绑定,进入首页:不调用 bindPhone,登录态(已由 Step1 建立)不受影响。 */

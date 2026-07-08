@@ -133,5 +133,19 @@ describe('features/auth/store.js(mp 运行时真实 shim)', () => {
       await expect(store.bindPhone('bad-code')).rejects.toThrow('绑定失败');
       expect(store.getState().user).toEqual(realUser);
     });
+
+    it('state.user 为 null 时(此前 UserAPI.me() 静默失败),用 bindPhone 完整响应而非只留 {id, phone}', async () => {
+      AuthAPI.wechatLogin.mockResolvedValue(backendTokenResponse);
+      UserAPI.me.mockRejectedValue(new Error('network error'));
+      await store.loginWithCode('dev-123');
+      expect(store.getState().user).toBeNull();
+
+      UserAPI.bindPhone.mockResolvedValue({ ...realUser, phone: '13900001111' });
+      const user = await store.bindPhone('dev-phone-abc');
+
+      expect(user.nickname).toBe(realUser.nickname);
+      expect(user.avatarUrl).toBe(realUser.avatarUrl);
+      expect(store.getState().user.nickname).toBe(realUser.nickname);
+    });
   });
 });

@@ -162,15 +162,17 @@ class AuthStore {
 
   /**
    * 手机号绑定:调 UserAPI.bindPhone(code)(dev fallback 合成 dev- 前缀 code,
-   * 同 loginWithCode 惯例),把返回的 phone 合并进现有 state.user(只改 phone
-   * 字段,不整体替换)。
+   * 同 loginWithCode 惯例)。updated 后展开覆盖 state.user——后端 PATCH 响应是
+   * 完整 UserResponse(id/nickname/avatarUrl/role/phone),不只是一个 phone 补丁;
+   * state.user 为 null 时(此前 UserAPI.me() 静默失败)直接采信 updated 的完整字段,
+   * 而不是退化成只有 {id, phone}。
    */
   async bindPhone(code) {
     const { UserAPI } = require('../user/api');
     const updated = await UserAPI.bindPhone(code);
-    const merged = Object.assign({}, this.state.user || { id: updated.id }, { phone: updated.phone });
+    const merged = Object.assign({}, this.state.user || {}, updated);
     persistUser(merged);
-    this._setState({ user: merged });
+    this._setState({ user: merged, lastError: null });
     return merged;
   }
 

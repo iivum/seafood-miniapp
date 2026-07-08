@@ -128,11 +128,15 @@ describe('login.wxml/js 对齐 OD mp-10-login(align-mp-login-with-od)', () => {
     expect(agreedCheckIdx).toBeLessThan(wxLoginIdx);
   });
 
-  it('onDevBindPhone 合成 dev- 前缀 code 调 authStore.bindPhone(不依赖真实微信授权)', () => {
+  it('onDevBindPhone 用共享的 synthDevCode() 合成 dev- 前缀 code 调 authStore.bindPhone(不依赖真实微信授权,且不与 onDevLogin 重复实现)', () => {
     const src = readLoginJs();
     const body = extractFn(src, 'onDevBindPhone');
-    expect(/['"]dev-['"]/.test(body) || /`dev-/.test(body)).toBe(true);
+    expect(/synthDevCode\(\)/.test(body)).toBe(true);
     expect(/bindPhone\(/.test(body)).toBe(true);
+
+    // synthDevCode() 本身(而不是每个调用方各自内联)才是 dev- 前缀真正的来源
+    const synthBody = extractFn(src, 'function synthDevCode');
+    expect(/['"]dev-['"]/.test(synthBody)).toBe(true);
   });
 
   it('onGetPhoneNumber 调 authStore.bindPhone 并处理拒绝授权的分支', () => {

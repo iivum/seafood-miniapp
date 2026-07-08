@@ -123,5 +123,77 @@ class WechatPhoneNumberExchangerTest {
 
         assertThatThrownBy(() -> exchanger.exchange("bad-code"))
                 .isInstanceOf(DomainException.class);
+        // 非 token 失效类错误码(40029=invalid code)不应触发重试——只打了 1 次 token + 1 次换号
+        server.verify();
+    }
+
+    @Test
+    void exchange_prodMode_accessTokenNonStringValue_throwsDomainExceptionNotClassCast() {
+        ReflectionTestUtils.setField(exchanger, "enabled", true);
+
+        server.expect(requestTo("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxapp&secret=wxsecret"))
+                .andRespond(withSuccess("{\"access_token\":12345,\"expires_in\":7200}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> exchanger.exchange("real-code"))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void exchange_prodMode_phoneNumberNonStringValue_throwsDomainExceptionNotClassCast() {
+        ReflectionTestUtils.setField(exchanger, "enabled", true);
+
+        server.expect(requestTo("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxapp&secret=wxsecret"))
+                .andRespond(withSuccess("{\"access_token\":\"tok-x\",\"expires_in\":7200}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=tok-x"))
+                .andRespond(withSuccess("{\"errcode\":0,\"phone_info\":{\"phoneNumber\":12345}}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> exchanger.exchange("real-code"))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void exchange_prodMode_wechatRejectsCachedToken_retriesOnceWithFreshToken() {
+        ReflectionTestUtils.setField(exchanger, "enabled", true);
+
+        server.expect(requestTo("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxapp&secret=wxsecret"))
+                .andRespond(withSuccess("{\"access_token\":\"tok-stale\",\"expires_in\":7200}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=tok-stale"))
+                .andRespond(withSuccess("{\"errcode\":42001,\"errmsg\":\"access_token expired\"}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxapp&secret=wxsecret"))
+                .andRespond(withSuccess("{\"access_token\":\"tok-fresh\",\"expires_in\":7200}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=tok-fresh"))
+                .andRespond(withSuccess(
+                        "{\"errcode\":0,\"errmsg\":\"ok\",\"phone_info\":{\"phoneNumber\":\"13800004444\"}}",
+                        MediaType.APPLICATION_JSON));
+
+        String phone = exchanger.exchange("real-code");
+
+        assertThat(phone).isEqualTo("13800004444");
+        server.verify();
+    }
+
+    @Test
+    void exchange_prodMode_wechatRejectsFreshTokenToo_throwsWithoutInfiniteRetry() {
+        ReflectionTestUtils.setField(exchanger, "enabled", true);
+
+        server.expect(requestTo("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxapp&secret=wxsecret"))
+                .andRespond(withSuccess("{\"access_token\":\"tok-a\",\"expires_in\":7200}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=tok-a"))
+                .andRespond(withSuccess("{\"errcode\":40001,\"errmsg\":\"invalid credential\"}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=wxapp&secret=wxsecret"))
+                .andRespond(withSuccess("{\"access_token\":\"tok-b\",\"expires_in\":7200}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=tok-b"))
+                .andRespond(withSuccess("{\"errcode\":40001,\"errmsg\":\"invalid credential\"}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> exchanger.exchange("real-code"))
+                .isInstanceOf(DomainException.class);
+        // 恰好 2 次 token + 2 次换号(重试 1 次后放弃,不无限重试)
+        server.verify();
+    }
+
+    @Test
+    void phoneFromHash_integerMinValue_neverProducesNegativeOrMalformedDigits() {
+        String phone = WechatPhoneNumberExchanger.phoneFromHash(Integer.MIN_VALUE);
+        assertThat(phone).matches("^1\\d{10}$");
     }
 }

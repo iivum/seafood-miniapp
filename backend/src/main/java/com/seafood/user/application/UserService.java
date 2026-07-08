@@ -87,12 +87,17 @@ public class UserService {
         return persistAndReturn(u.setDefaultAddress(addressId));
     }
 
-    // ----- 手机号绑定(self-scoped,同 FavoriteService 惯例——身份取自 JWT principal,
-    // 不接受外部 userId 参数,故不需要 authorize)-----
+    // ----- 手机号绑定 -----
 
-    public UserResponse bindPhone(String userId, String code) {
-        User u = loadOrThrow(userId);
+    /**
+     * 先换号再加载用户:code 无效/过期时不必浪费一次 DB 读(code review 效率发现)。
+     * authorize 与其它写操作一致——今天调用方(UserPhoneController)只会传 me.getId(),
+     * 但服务层仍应独立守住"自己或 ADMIN"不变量,不依赖调用方永远正确传参。
+     */
+    public UserResponse bindPhone(String userId, String code, UserPrincipal caller) {
+        authorize(caller, userId, false);
         String phone = phoneExchanger.exchange(code);
+        User u = loadOrThrow(userId);
         return persistAndReturn(u.bindPhone(phone));
     }
 
