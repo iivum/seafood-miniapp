@@ -32,7 +32,7 @@
 
 ### D2: 空状态图标 —— 不用 `van-empty` 内置预设字符串,改用具名 slot 塞 `van-icon`
 
-`van-empty` 自带的 `image` 预设值(`error`/`search`/`default`/`network`)在源码(`node_modules/@vant/weapp/lib/empty/index.wxs`)里实际解析成 `https://img.yzcdn.cn/vant/empty-image-*.png` —— 一个外部有赞 CDN 域名。生产环境小程序要求所有 `<image>` 加载的域名必须在微信公众平台后台的"download 合法域名"白名单里,否则图片静默不显示。为避免引入这个不受控的外部网络依赖,空状态一律不使用这 4 个预设字符串,改用 `van-empty` 已支持的具名 slot(`<van-icon slot="image" name="..." />`),图标来源仍是本地图标字体,不发任何网络请求。
+`van-empty` 自带的 `image` 预设值(`error`/`search`/`default`/`network`)在源码(`node_modules/@vant/weapp/lib/empty/index.wxs`)里实际解析成 `https://img.yzcdn.cn/vant/empty-image-*.png` —— 一个外部有赞 CDN 域名。生产环境小程序要求所有 `<image>` 加载的域名必须在微信公众平台后台的"download 合法域名"白名单里,否则图片静默不显示。为避免引入这个不受控的外部网络依赖,空状态一律不使用这 4 个预设字符串,改用 `van-empty` 已支持的具名 slot(`<van-icon slot="image" name="..." />`),图标来源仍是本地图标字体,不发任何网络请求。**必须显式传 `image=""`**——`van-empty` 组件的 `image` prop 默认值是字符串 `'default'`(非空、真值),不显式覆盖的话,组件自带的 `<image wx:if="{{image}}">` 分支依然会渲染,和 slot 里的 `van-icon` 同时出现两个图标叠在一起,且那个默认分支本身还是会去请求外部 CDN——`image=""` 是让它连同这条网络请求一起关掉的必需条件,不是可选项。
 
 ### D3: 图标语义映射 —— 复用小词表,不为每个空状态场景造一个新名字
 
