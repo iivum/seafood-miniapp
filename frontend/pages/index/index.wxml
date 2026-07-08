@@ -14,7 +14,7 @@
   <view class="home-header safe-area-top">
     <view class="home-location-row">
       <view class="home-location">
-        <text class="home-location__icon">📍</text>
+        <van-icon class="home-location__icon" name="location-o" size="18px" />
         <text class="home-location__text">厦门·高崎码头</text>
       </view>
       <view
@@ -23,11 +23,11 @@
         hover-class="is-clicked"
         hover-stay-time="100"
       >
-        <text class="home-bell__icon">🔔</text>
+        <van-icon class="home-bell__icon" name="bell" size="18px" />
       </view>
     </view>
     <view class="home-search">
-      <text class="home-search__icon">🔍</text>
+      <van-icon class="home-search__icon" name="search" size="18px" />
       <input
         class="home-search__input"
         placeholder="试试「波龙」「黄花鱼」"
@@ -143,21 +143,25 @@
   <!-- 错误状态 -->
   <view class="home-state" wx:elif="{{isError}}">
     <shared-empty
-      icon="⚠️"
+      image=""
       message="{{errorMessage || '加载失败'}}"
       retry-text="重新加载"
       bind:retry="onRetry"
-    ></shared-empty>
+    >
+      <van-icon slot="image" name="warning-o" size="48px" />
+    </shared-empty>
   </view>
 
   <!-- 空状态(过滤后无产品) -->
   <view class="home-state" wx:elif="{{isEmpty}}">
     <shared-empty
-      icon="🦐"
+      image=""
       message="该分类暂无商品"
       retry-text="查看全部"
       bind:retry="onClearFilter"
-    ></shared-empty>
+    >
+      <van-icon slot="image" name="search" size="48px" />
+    </shared-empty>
   </view>
 
   <!-- 2 列商品 grid(瀑布) -->
