@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "地址管理",
-  "navigationStyle": "custom"
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "van-icon": "@vant/weapp/icon/index"
+  }
 }
