@@ -44,7 +44,10 @@
         <view class="login-avatar">{{userAvatarInitial}}</view>
         <view class="login-avatar-info">
           <text class="login-avatar-name">{{userNickname}}</text>
-          <text class="login-avatar-sub">✓ 微信授权成功</text>
+          <view class="login-avatar-sub">
+            <van-icon name="success" size="14px" />
+            <text>微信授权成功</text>
+          </view>
         </view>
       </view>
 

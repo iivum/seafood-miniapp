@@ -218,7 +218,9 @@
 }
 
 .login-avatar-sub {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
   font-size: 21rpx;
   color: var(--success, #318f5a);
   margin-top: 4rpx;
