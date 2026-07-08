@@ -63,6 +63,22 @@ The system SHALL provide per-user cart endpoints that are accessible only to the
 - **WHEN** a CUSTOMER calls `GET /api/cart?userId=<otherUserId>`
 - **THEN** the system ignores the query parameter and returns the caller's own cart with status 200
 
+#### Scenario: CUSTOMER updates a cart item's quantity
+- **WHEN** a CUSTOMER calls `PUT /api/cart/items/{productId}` with a positive `quantity`
+- **THEN** the system replaces that line's quantity (does not add to it) and returns the updated cart with status 200
+
+#### Scenario: CUSTOMER updates the quantity of a line that is not in their cart
+- **WHEN** a CUSTOMER calls `PUT /api/cart/items/{productId}` for a productId not present in their cart
+- **THEN** the system returns HTTP 404 with `code=NOT_FOUND` and does not mutate the cart
+
+#### Scenario: CUSTOMER toggles a cart item's selected state
+- **WHEN** a CUSTOMER calls `PATCH /api/cart/items/{productId}` with no body
+- **THEN** the system flips that line's `selected` boolean (true→false or false→true) and returns the updated cart with status 200
+
+#### Scenario: CUSTOMER toggles selection of a line that is not in their cart
+- **WHEN** a CUSTOMER calls `PATCH /api/cart/items/{productId}` for a productId not present in their cart
+- **THEN** the system returns HTTP 404 with `code=NOT_FOUND` and does not mutate the cart
+
 ### Requirement: Order lifecycle
 The system SHALL let CUSTOMERs place orders from their cart and read their own orders, while ADMINs SHALL be able to read all orders and advance order status.
 
@@ -85,6 +101,18 @@ The system SHALL let CUSTOMERs place orders from their cart and read their own o
 #### Scenario: Admin ships a PENDING order
 - **WHEN** an ADMIN calls `POST /api/orders/{id}/ship` on a `PENDING` order
 - **THEN** the system returns HTTP 409 with `code=DOMAIN` describing the invalid transition
+
+#### Scenario: CUSTOMER places a direct-buy order with explicit items
+- **WHEN** a CUSTOMER calls `POST /api/orders` with a non-empty `items` array (each `{productId, quantity}`)
+- **THEN** the system creates an Order from exactly those items (captures price/stock snapshots, decrements product stock, returns 201), and does NOT read from or mutate the CUSTOMER's cart
+
+#### Scenario: CUSTOMER places a direct-buy order with insufficient stock
+- **WHEN** a CUSTOMER calls `POST /api/orders` with an explicit `items` array where any line's quantity exceeds available stock
+- **THEN** the system returns HTTP 409 with `code=DOMAIN`, does not mutate any document, and does not touch the cart
+
+#### Scenario: CUSTOMER places an order without an items body
+- **WHEN** a CUSTOMER calls `POST /api/orders` with no request body (or an empty/absent `items` field)
+- **THEN** the system falls back to the existing cart-checkout behavior unchanged
 
 ### Requirement: Admin BFF aggregation
 The system SHALL expose three aggregated read endpoints under `/api/admin/**` for the admin UI; each endpoint SHALL assemble data by calling the in-process application services (no network calls) and SHALL be restricted to ADMIN role.

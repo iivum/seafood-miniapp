@@ -24,6 +24,7 @@ public final class UserBuilder {
     private Role role = Role.CUSTOMER;
     private String phone = null;
     private List<Address> addresses = List.of();
+    private List<String> favoriteProductIds = List.of();
     private Instant createdAt = DEFAULT_T;
 
     private UserBuilder() {}
@@ -39,8 +40,9 @@ public final class UserBuilder {
     public UserBuilder withRole(Role role) { this.role = role; return this; }
     public UserBuilder withPhone(String phone) { this.phone = phone; return this; }
     public UserBuilder withAddresses(List<Address> addresses) { this.addresses = addresses; return this; }
+    public UserBuilder withFavoriteProductIds(List<String> favoriteProductIds) { this.favoriteProductIds = favoriteProductIds; return this; }
 
     public User build() {
-        return new User(id, openId, nickname, avatarUrl, role, phone, addresses, createdAt);
+        return new User(id, openId, nickname, avatarUrl, role, phone, addresses, favoriteProductIds, createdAt);
     }
 }

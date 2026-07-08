@@ -105,6 +105,21 @@ public class MongoIndexInitializer {
             criticalFailures.add(e);
         }
 
+        // 收藏 + 浏览足迹 —— product_views.userId+productId 复合唯一索引:
+        // 缺失会让"同一商品反复查看只保留最新一条"的去重/裁剪语义失效(退化成每次
+        // 都新增一条记录,ProductViewService 的 upsert 逻辑依赖这条唯一约束防止竞态
+        // 下的重复插入)。design.md D2。
+        try {
+            ensureCritical("product_views",
+                    new Index().on("userId", org.springframework.data.domain.Sort.Direction.ASC)
+                            .on("productId", org.springframework.data.domain.Sort.Direction.ASC)
+                            .unique()
+                            .named("uk_userId_productId"),
+                    "unique userId+productId — required for view-dedup/prune correctness");
+        } catch (IndexInitializationException e) {
+            criticalFailures.add(e);
+        }
+
         // Sprint 2 §3.3 — revoked_tokens TTL index:文档到期后 MongoDB 后台线程
         // 自动删除(每 60s 扫一次),无需应用层清理。expireAfterSeconds=0 表示
         // "expiresAt 字段本身的取值即为到期时间"。design.md §3 decision 3。

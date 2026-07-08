@@ -59,6 +59,31 @@ npm run test:geometry mp-01-home    # 几何单屏
 退出码:任一屏 diff% > 阈值 → 非零(RED,驱动修复);全 ≤ 阈值 → 0(GREEN,防偏)。
 产物:`screenshots/<screen>-diff.png`(差异图,定位偏离区域)。
 
+## mp DevTools console 实时监控（console-watch.cjs）
+
+诊断/复验 mp 端行为时(尤其是接线新组件、修事件契约类 bug 后),不要只靠肉眼看截图 ——
+静默失败(如未注册的自定义标签、事件 detail 解构错误)往往**不抛异常也不报 console 错误**,
+但也有一部分问题会在 console 留痕(`console.warn`/`console.error`/未捕获异常)。
+
+```bash
+cd frontend
+# 先起 DevTools 自动化端口(同上)
+npm run watch:console                 # 常驻监控,warn/error/exception 逐行输出到 stdout
+CONSOLE_WATCH_ALL=1 npm run watch:console   # 连 console.log 也要看时
+```
+
+原理:`miniprogram-automator` 的 `MiniProgram` 实例内部把 DevTools 协议的
+`App.logAdded` / `App.exceptionThrown` 桥接成 `mp.on('console', ...)` /
+`mp.on('exception', ...)` 两个 EventEmitter 事件(已读源码确认,只有这两个事件,
+没有 `close`/`disconnect` 可订阅)。本脚本订阅后逐行打印,可以喂给任意"tail 一个
+命令的 stdout"式监控工具(如 Claude Code 的 Monitor),做到"小程序端一报错就实时
+知道",比手动轮询 `weapp-dev` MCP 的 `mp_getLogs` 更不容易漏掉检查点之间发生的异常。
+
+已知限制:DevTools 自动化端口长时间运行后偶尔会进异常状态(实测:跑几十次截图后
+`mp.screenshot()` 开始报 "fail to capture screenshot",但这不会触发本脚本的任何
+事件,因为库本身没有断连通知)。如果长时间没输出但明确知道 mp 端有操作发生,
+先确认自动化端口本身健康(必要时重启 `cli auto` 进程),再重启本脚本。
+
 ## OD golden 怎么来(SoT = Open Design 项目)
 
 golden = OD 项目 `686e3434`(9 张 mp HTML mockup)渲染到 mp viewport 的参照图,提交在 `e2e/od-golden/`。
@@ -76,3 +101,4 @@ golden = OD 项目 `686e3434`(9 张 mp HTML mockup)渲染到 mp viewport 的参�
 - `visual-diff.cjs` — harness:capture mp 实截 → sips 归一化 → odiff vs golden → 阈值 gate + 报告
 - `capture-mp.cjs` — 单独捕获某屏 mp 实截图(调试用)
 - `spike-c5.cjs` — §1 spike 探针(DevTools 自起 + automator 链路验证)
+- `console-watch.cjs` — mp DevTools console 实时监控(warn/error/exception 逐行输出),见上方独立章节

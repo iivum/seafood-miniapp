@@ -296,6 +296,11 @@ dependencies {
     // into per-feature modules — webmvc-test ships the @WebMvcTest annotation in package
     // org.springframework.boot.webmvc.test.autoconfigure).
     testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
+    // 收藏 + 浏览足迹 Task 2 — @DataMongoTest slice + @ServiceConnection 自动装配
+    // Testcontainers 容器连接串,同 spring-boot-webmvc-test 一样是 Boot 4 per-feature
+    // test 模块拆分的产物(不在 spring-boot-starter-test 里)。
+    testImplementation 'org.springframework.boot:spring-boot-data-mongodb-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.assertj:assertj-core'
     // Sprint 1: Testcontainers + ArchUnit (DDD layer guardrails)

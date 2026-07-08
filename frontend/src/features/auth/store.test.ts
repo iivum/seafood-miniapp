@@ -72,6 +72,41 @@ describe('features/auth/store', () => {
     expect(calls[0][0].data).toEqual({ code: 'wx-code-1' });
   });
 
+  it('login(): 真实后端响应体无 user 字段时补调 GET /users/me 拿真实用户信息', async () => {
+    // TokenResponse.java 真实形状:只有 token 相关字段,从来没有 user。
+    const realBackendTokenResponse = {
+      accessToken: 'a-2',
+      refreshToken: 'r-2',
+    };
+    const realUser = { id: 'u-2', nickname: 'Real User', avatarUrl: null, role: 'CUSTOMER' };
+    setWxLoginCode('wx-code-2');
+    setNextWxRequestResponse([realBackendTokenResponse, realUser]);
+
+    const user = await authStore.login();
+
+    expect(user).toEqual(realUser);
+    expect(authStore.getState().user).toEqual(realUser);
+    expect(authStore.getState().isAuthenticated).toBe(true);
+
+    const calls = (wx.request as jest.Mock).mock.calls;
+    expect(calls[0][0].url).toBe('http://test.local/api/auth/wechat-login');
+    expect(calls[1][0].url).toBe('http://test.local/api/users/me');
+    expect(calls[1][0].method).toBe('GET');
+  });
+
+  it('login(): GET /users/me 补拉失败时静默降级,登录仍成功完成,user 为 null', async () => {
+    const realBackendTokenResponse = { accessToken: 'a-3', refreshToken: 'r-3' };
+    setWxLoginCode('wx-code-3');
+    setNextWxRequestResponse([realBackendTokenResponse, { errMsg: 'network error' }]);
+
+    const user = await authStore.login();
+
+    expect(user).toBeNull();
+    expect(tokenStorage.getAccessToken()).toBe('a-3');
+    expect(authStore.getState().isAuthenticated).toBe(true);
+    expect(authStore.getState().user).toBeNull();
+  });
+
   it('login() rejects when wx.login fails', async () => {
     setWxLoginCode(null);
     await expect(authStore.login()).rejects.toThrow();
@@ -125,6 +160,52 @@ describe('features/auth/store', () => {
   it('AuthStore is constructible independently', () => {
     const store = new AuthStore();
     expect(store.getState().isAuthenticated).toBe(false);
+  });
+
+  describe('bindPhone', () => {
+    it('PATCH /api/users/me/phone → merges phone into state.user', async () => {
+      setWxLoginCode('wx-code-1');
+      setNextWxRequestResponse(sampleLoginRes);
+      await authStore.login();
+
+      setNextWxRequestResponse({ ...sampleLoginRes.user, phone: '13711112222' });
+      const user = await authStore.bindPhone('dev-abc');
+
+      expect(user?.phone).toBe('13711112222');
+      expect(authStore.getState().user?.phone).toBe('13711112222');
+
+      const calls = (wx.request as jest.Mock).mock.calls;
+      const bindCall = calls[calls.length - 1][0];
+      expect(bindCall.url).toBe('http://test.local/api/users/me/phone');
+      expect(bindCall.method).toBe('PATCH');
+      expect(bindCall.data).toEqual({ code: 'dev-abc' });
+    });
+
+    it('propagates errors without corrupting existing state.user', async () => {
+      setWxLoginCode('wx-code-1');
+      setNextWxRequestResponse(sampleLoginRes);
+      await authStore.login();
+
+      setNextWxRequestResponse({ errMsg: 'network error' });
+      await expect(authStore.bindPhone('bad-code')).rejects.toThrow();
+      expect(authStore.getState().user).toEqual(sampleLoginRes.user);
+    });
+
+    it('when state.user was null (e.g. earlier best-effort /users/me fetch failed), uses the full bindPhone response instead of dropping nickname/avatarUrl/role', async () => {
+      authStore.resetForTest();
+      expect(authStore.getState().user).toBeNull();
+
+      setNextWxRequestResponse({
+        id: 'u-9', nickname: '张三', avatarUrl: 'https://cdn/u-9.png', role: 'CUSTOMER', phone: '13900001111',
+      });
+      const user = await authStore.bindPhone('dev-abc');
+
+      expect(user).toEqual({
+        id: 'u-9', nickname: '张三', avatarUrl: 'https://cdn/u-9.png', role: 'CUSTOMER', phone: '13900001111',
+      });
+      expect(authStore.getState().user?.nickname).toBe('张三');
+    });
+
   });
 
   describe('wx.login edge cases', () => {

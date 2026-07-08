@@ -14,6 +14,20 @@ App({
       // The new request layer isn't required at runtime; fall back
       // to the legacy utils/request.js path.
     }
+    // mp-backend-contract-gaps Gap 4 / D5:冷启动时若用户是上一次 session
+    // 遗留下来的登录态(accessToken 已经在 storage 里,但本次冷启动没有
+    // 触发新的 login() 调用),globalData.token 此前会一直停在初始值
+    // null —— utils/request.js 只在 globalData.token 为真值时才附加
+    // Authorization 头,导致已登录接口静默不带 token(已确认影响 mp-04
+    // 购物车 / mp-06 订单确认页默认地址自动选)。这里直接、同步地把
+    // storage 里现有的 accessToken 桥接过来,不做网络校验 —— 无效/过期
+    // token 会照旧走现有的 401 → authStore 静默重登录路径。
+    try {
+      const { tokenStorage } = require('./src/shared/api/storage.js');
+      this.globalData.token = tokenStorage.getAccessToken();
+    } catch (e) {
+      // storage shim 不可用时不阻塞冷启动;globalData.token 保持默认值。
+    }
     // 拉取最新 feature flags 并缓存（失败时静默保留旧缓存）
     refreshFlags();
   },

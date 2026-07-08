@@ -1,6 +1,7 @@
 package com.seafood.order.api;
 
 import com.seafood.order.api.dto.CartItemResponse;
+import com.seafood.order.api.dto.CreateOrderRequest;
 import com.seafood.order.api.dto.OrderResponse;
 import com.seafood.order.api.dto.RefundRequest;
 import com.seafood.order.api.dto.RefundResponse;
@@ -48,10 +49,17 @@ public class OrderController {
         this.orders = orders;
     }
 
+    /**
+     * mp-backend-contract-gaps Task 2a(design.md Gap 2 / D3):body 可选。无 body / items
+     * 为 null 或空 → 现有购物车路径(未变);带非空 items → 显式直接购买建单,绕开购物车。
+     */
     @PostMapping
     @PreAuthorize("hasAnyRole('CUSTOMER','ADMIN')")
-    public ResponseEntity<OrderResponse> create(@AuthenticationPrincipal UserPrincipal me) {
-        OrderResponse created = orders.create(me.getId());
+    public ResponseEntity<OrderResponse> create(@AuthenticationPrincipal UserPrincipal me,
+                                                 @Valid @RequestBody(required = false) CreateOrderRequest body) {
+        OrderResponse created = (body != null && body.items() != null && !body.items().isEmpty())
+                ? orders.create(me.getId(), body.items())
+                : orders.create(me.getId());
         return ResponseEntity.created(URI.create("/api/orders/" + created.id())).body(created);
     }
 

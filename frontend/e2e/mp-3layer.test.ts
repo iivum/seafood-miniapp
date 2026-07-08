@@ -54,7 +54,11 @@ const PAGES: PageSpec[] = [
   {
     name: 'mp-01-home',
     tab: '/pages/index/index',
-    wxmlMust: [/home-banner/, /home-chips/, /今日推荐/],
+    // mp-od-prototype-alignment mp-01:文案改"今日 {N} 款推荐"(真实 totalProducts,
+    // 见 frontend/e2e/od-golden/mp-01-home.png)。outerWxml 是原始标签串,数字外
+    // 包了一层 <text class="home-section-title__count"> 做 accent 高亮,故"今日"
+    // 与"款推荐"之间允许任意字符(含标签),不再是连续四字"今日推荐"。
+    wxmlMust: [/home-banner/, /home-chips/, /今日[\s\S]*?\d+[\s\S]*?款推荐/],
     dataMust: ['products', 'categories'],
     fromBackend: { path: 'products.0', fields: ['name', 'price', 'stock', 'category', 'imageUrl'] },
   },
@@ -104,23 +108,30 @@ const PAGES: PageSpec[] = [
     fromBackend: { path: 'addresses.0', fields: ['name', 'phone', 'detail', 'isDefault'] },
   },
   {
+    // mp-od-prototype-alignment mp-09(brief `.superpowers/sdd/mp-od-8-order-detail-brief.md`)
+    // 接线 order-tracking-timeline + order-action-row 组件后:硬编码的 .timeline-card/.tl-node
+    // 已不存在(时间线交给组件内部渲染,seed 订单 PENDING 状态下组件 shouldShow() 判定不展示,
+    // 断言组件内部标签会对这条 seed 数据产生假阴性,故不再断言其 markup,同 mp-08-order-list
+    // 对 order-action-row 的处理惯例——只断言宿主页面自己拥有的结构);page.data 不再有
+    // timeline 字段(交给组件 property 消费 order 自行计算)。
     name: 'mp-09-order-detail',
     url: '/pages-sub/order/order-detail/order-detail?id=v2.1-closure-order-001',
     storage: {
       userInfo: { id: 'dev-user-001', openId: 'dev-mock', nickName: '视觉验收' },
       token: 'dev-mock-jwt',
     },
+    // mp-cross-screen-cleanup D3:order-detail.wxss/wxml 类名已改 BEM(order-detail__xxx),
+    // 下方正则同步(此前的 addr-card/items-card/price-card/info-card/status-banner/
+    // bottom-bar 都已改名,不再存在于 wxml 里)。
     wxmlMust: [
-      /status-banner/,
-      /timeline-card/,
-      /tl-node/,
-      /addr-card/,
-      /items-card/,
-      /price-card/,
-      /info-card/,
-      /bottom-bar/,
+      /order-detail__banner/,
+      /order-detail__card--address/,
+      /order-detail__card--items/,
+      /order-detail__card--price/,
+      /order-detail__card--info/,
+      /order-detail__bottom-bar/,
     ],
-    dataMust: ['order', 'statusBanner', 'timeline'],
+    dataMust: ['order', 'statusBanner'],
     dataExact: [
       { path: 'order.id', equals: 'v2.1-closure-order-001' },
       { path: 'order.status', equals: 'PENDING' },

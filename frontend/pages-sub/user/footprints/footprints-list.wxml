@@ -1,0 +1,35 @@
+<view class="footprints-container">
+  <view class="footprints-topbar safe-area-top">
+    <view class="footprints-topbar__back" bindtap="onBack" hover-class="is-clicked" hover-stay-time="100">
+      <text class="footprints-topbar__back-icon">‹</text>
+    </view>
+    <text class="footprints-topbar__title">浏览足迹</text>
+    <view class="footprints-topbar__placeholder"></view>
+  </view>
+
+  <view class="footprints-list" wx:if="{{items.length > 0}}">
+    <view
+      class="footprints-item"
+      wx:for="{{items}}"
+      wx:key="productId"
+      bindtap="onItemTap"
+      data-id="{{item.productId}}"
+      data-available="{{item.available}}"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <image class="footprints-item__img" src="{{item.imageUrl}}" mode="aspectFill"></image>
+      <view class="footprints-item__body">
+        <text class="footprints-item__name">{{item.productName}}</text>
+        <text class="footprints-item__price" wx:if="{{item.available}}">¥ {{item.price}}</text>
+        <text class="footprints-item__unavailable" wx:else>已下架</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{items.length === 0 && !isLoading}}">
+    <text class="empty-state__icon">👣</text>
+    <text class="empty-state__title">还没有浏览记录哦</text>
+    <text class="empty-state__sub">去逛逛感兴趣的商品吧</text>
+  </view>
+</view>

@@ -15,19 +15,19 @@
   display: flex;
   align-items: center;
   margin: 24rpx 24rpx 0;
-  padding: 36rpx 32rpx;
-  background: linear-gradient(135deg, var(--accent, #db633c) 0%, var(--accent-strong, #b83300) 100%);
-  border-radius: var(--radius-xl, 14px);
+  padding: 44rpx 36rpx;
+  background: linear-gradient(135deg, var(--accent-deep, #64230d) 0%, var(--accent-strong, #b83300) 100%);
+  border-radius: var(--radius-2xl, 16px);
   box-shadow: 0 4rpx 16rpx #231814;
 }
 
 .user-avatar {
-  width: 120rpx;
-  height: 120rpx;
+  width: 112rpx;
+  height: 112rpx;
   border-radius: 50%;
   border: 4rpx solid var(--surface, #fff);
   background: var(--bg, #fffbf8);
-  margin-right: 28rpx;
+  margin-right: 32rpx;
   flex-shrink: 0;
 }
 
@@ -35,16 +35,16 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  gap: 16rpx;
   min-width: 0;
 }
 
 .user-nickname {
   font-family: var(--font-display, serif);
-  font-size: 36rpx;
-  font-weight: 600;
+  font-size: 44rpx;
+  font-weight: 700;
   color: var(--surface, #fff);
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .user-role {
@@ -53,7 +53,7 @@
 
 .role-badge {
   display: inline-block;
-  padding: 4rpx 16rpx;
+  padding: 6rpx 20rpx;
   font-size: 22rpx;
   font-weight: 500;
   color: var(--accent-strong, #b83300);
@@ -83,7 +83,7 @@
 }
 
 .status-card__more {
-  font-family: var(--font-sans, sans-serif);
+  font-family: var(--font-body, sans-serif);
   font-size: 24rpx;
   font-weight: 400;
   color: var(--muted, #5a5451);
@@ -119,10 +119,15 @@
 .status-item__icon--shipped { background: var(--accent-soft, #ffe7d9); }
 .status-item__icon--completed { background: var(--success-soft, #e2f9e2); }
 
-.status-item__emoji {
-  font-size: 48rpx;
+.status-item__icon-glyph {
+  font-size: 44rpx;
   line-height: 1;
 }
+
+.status-item__icon-glyph--pending { color: var(--warning, #df911a); }
+.status-item__icon-glyph--paid { color: var(--info, #1988a3); }
+.status-item__icon-glyph--shipped { color: var(--accent, #db633c); }
+.status-item__icon-glyph--completed { color: var(--success, #318f5a); }
 
 .status-item__label {
   font-size: 24rpx;
@@ -171,6 +176,7 @@
 
 .tool-item__icon {
   font-size: 36rpx;
+  color: var(--accent, #db633c);
   line-height: 1;
 }
 
@@ -185,4 +191,34 @@
   font-size: 36rpx;
   color: var(--muted, #857f7d);
   line-height: 1;
+}
+
+/* 收藏 / 足迹 数字行(收藏 + 浏览足迹) */
+.stats-row {
+  display: flex;
+  background: var(--surface, #fff);
+  border-radius: var(--radius-xl, 14px);
+  margin: 0 24rpx 20rpx;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
+}
+
+.stats-row__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 0;
+}
+
+.stats-row__num {
+  font-family: var(--font-display, serif);
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
+}
+
+.stats-row__label {
+  font-size: 24rpx;
+  color: var(--muted, #8a7a70);
+  margin-top: 4rpx;
 }

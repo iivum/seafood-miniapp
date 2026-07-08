@@ -28,7 +28,8 @@ import static org.mockito.Mockito.when;
  * <ol>
  *   <li>身份取自 {@code principal.getId()},委托现有 {@link UserService}(不开第二条写路径);</li>
  *   <li>返回从 {@link UserResponse} 解包的 {@code List<Address>}(mp 直接当数组用);</li>
- *   <li>mp 的 {@code district + detailAddress} 折进 domain 的 {@code detail}。</li>
+ *   <li>mp 的 {@code district}/{@code detailAddress} 原样透传给 domain 的
+ *       {@code district}/{@code detail}(design.md D4,不折叠)。</li>
  * </ol>
  *
  * <p>用纯 Mockito 直测 controller,不走 {@code @WebMvcTest} —— 该 slice 经 controller 调
@@ -42,12 +43,12 @@ class AddressControllerTest {
     private final UserPrincipal me = new UserPrincipal("u-1", Role.CUSTOMER);
 
     private static Address addr(String id, String name, boolean def) {
-        return new Address(id, name, "13800000000", "广东省", "深圳市", "南山区 科技园1号", def);
+        return new Address(id, name, "13800000000", "广东省", "深圳市", "南山区", "科技园1号", def);
     }
 
     private static UserResponse userWith(List<Address> addrs) {
         return new UserResponse("u-1", "openid-1", "昵称", null, "CUSTOMER",
-                "13800000000", addrs, Instant.parse("2026-06-20T00:00:00Z"));
+                "13800000000", addrs, Instant.parse("2026-06-20T00:00:00Z"), 0, 0);
     }
 
     private static AddressUpsertRequest mpBody() {
@@ -82,7 +83,7 @@ class AddressControllerTest {
     }
 
     @Test
-    void add_delegatesWithPrincipalId_andFoldsDistrictIntoDetail() {
+    void add_delegatesWithPrincipalId_andPassesDistrictThroughWithoutFolding() {
         when(userService.addAddress(eq("u-1"), any(), eq(me)))
                 .thenReturn(userWith(List.of(addr("a1", "张三", true))));
 
@@ -91,11 +92,12 @@ class AddressControllerTest {
         assertThat(result).extracting(Address::id).containsExactly("a1");
         ArgumentCaptor<AddAddressRequest> captor = ArgumentCaptor.forClass(AddAddressRequest.class);
         verify(userService).addAddress(eq("u-1"), captor.capture(), eq(me));
-        assertThat(captor.getValue().detail()).isEqualTo("南山区 科技园1号");
+        assertThat(captor.getValue().district()).isEqualTo("南山区");
+        assertThat(captor.getValue().detail()).isEqualTo("科技园1号");
     }
 
     @Test
-    void update_delegatesWithPrincipalId_andFoldsDistrict() {
+    void update_delegatesWithPrincipalId_andPassesDistrictThroughWithoutFolding() {
         when(userService.updateAddress(eq("u-1"), eq("a1"), any(), eq(me)))
                 .thenReturn(userWith(List.of(addr("a1", "张三改", true))));
 
@@ -104,7 +106,8 @@ class AddressControllerTest {
         assertThat(result).extracting(Address::name).containsExactly("张三改");
         ArgumentCaptor<UpdateAddressRequest> captor = ArgumentCaptor.forClass(UpdateAddressRequest.class);
         verify(userService).updateAddress(eq("u-1"), eq("a1"), captor.capture(), eq(me));
-        assertThat(captor.getValue().detail()).isEqualTo("南山区 科技园1号");
+        assertThat(captor.getValue().district()).isEqualTo("南山区");
+        assertThat(captor.getValue().detail()).isEqualTo("科技园1号");
     }
 
     @Test

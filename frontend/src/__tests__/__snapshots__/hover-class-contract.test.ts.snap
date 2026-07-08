@@ -6,8 +6,25 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
   商品行(图 + checkbox + 信息 + stepper + 删除 ×)+ 底部结算 bar(已选 N 件 · 合计 ¥xx +
   结算按钮 pill 风格)。空购物车显示 Empty OD 组件(1.7)。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+
+  mp-04 OD 对齐第二轮(brief \`.superpowers/sdd/mp-od-4-cart-styling-brief.md\`):
+  ① 新增顶部标题栏"购物车 (N)"(brief §1;navigationStyle:custom 此前从未渲染
+     替代标题栏,真实遗漏,同 mp-02 category.wxml 的 cat-topbar 模式)。不做
+     OD 图里的"编辑"批量删除模式(已有单行 × 删除达到类似效果,避免过度设计)。
+  ② 商品行 checkbox 从 \`isItemSelected(item.id)\`(WXML 不支持任意函数调用
+     当表达式,此前一直是非法写法,渲染必坏)改成直接绑 \`item.selected\`
+     (cart.js computeTotals() 统一派生写回);全选栏 \`isAllSelected\` 本身是
+     合法的 data 属性引用,此前只是 data 里缺这个字段(cart.js 已补)。
+     checkbox 点击死绑定详见 cart.js 文件头注释。
+  ③ 划线原价 / "海港直营"商家分组标题 / "常一起买"推荐区 / SKU 规格 chip
+     明确排除,不做(brief 范围边界)。
 -->
 <view class="cart-container">
+  <!-- 顶部标题栏(brief §1) -->
+  <view class="cart-topbar safe-area-top">
+    <text class="cart-topbar__title">购物车 ({{cartItems.length}})</text>
+  </view>
+
   <!-- 空购物车 -->
   <view class="cart-empty" wx:if="{{cartItems.length === 0}}">
     <shared-empty
@@ -20,20 +37,20 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
 
   <view class="cart-content" wx:else>
     <!-- 收货地址卡(保持数据流,微调视觉) -->
-    <navigator class="cart-address" open-type="navigate" bindtap="selectAddress" hover-class="is-clicked" hover-stay-time="100">
-      <view class="cart-address__main" wx:if="{{selectedAddress}}">
-        <view class="cart-address__head">
-          <text class="cart-address__name">{{selectedAddress.name}}</text>
-          <text class="cart-address__phone">{{selectedAddress.phone}}</text>
+    <navigator class="address-card" open-type="navigate" bindtap="onSelectAddress" hover-class="is-clicked" hover-stay-time="100">
+      <view class="address-card__body" wx:if="{{selectedAddress}}">
+        <view class="address-card__head">
+          <text class="address-card__name">{{selectedAddress.name}}</text>
+          <text class="address-card__phone">{{selectedAddress.phone}}</text>
         </view>
-        <text class="cart-address__detail">
-          {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detailAddress}}
+        <text class="address-card__detail">
+          {{selectedAddress.province}}{{selectedAddress.city}}{{selectedAddress.district}}{{selectedAddress.detail}}
         </text>
       </view>
-      <view class="cart-address__empty" wx:else>
-        <text class="cart-address__placeholder">📍 请选择收货地址</text>
+      <view class="address-card__empty" wx:else>
+        <text class="address-card__placeholder">📍 请选择收货地址</text>
       </view>
-      <text class="cart-address__arrow">›</text>
+      <text class="address-card__arrow">›</text>
     </navigator>
 
     <!-- 全选栏 -->
@@ -61,8 +78,8 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
           hover-class="is-clicked"
           hover-stay-time="100"
         >
-          <view class="cart-checkbox {{isItemSelected(item.id) ? 'cart-checkbox--checked' : ''}}">
-            <text wx:if="{{isItemSelected(item.id)}}" class="cart-checkbox__icon">✓</text>
+          <view class="cart-checkbox {{item.selected ? 'cart-checkbox--checked' : ''}}">
+            <text wx:if="{{item.selected}}" class="cart-checkbox__icon">✓</text>
           </view>
         </view>
         <image
@@ -138,102 +155,121 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
 
 exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/category/category.wxml 快照 1`] = `
 "<!--
-  路线图 2.2 — mp-02 分类列表 OD v2 视觉重写。
-  双栏布局:左侧 sidebar(分类列表,active 状态 accent + 内描边) + 右侧 2 列商品 grid
-  (复用 2.1 网格 + ProductCard 1.9 OD 风格)。顶部 sticky 分类名(衬线 display)。
+  mp-02 分类页 —— 对齐 OD 原型(openspec change mp-od-prototype-alignment)。
+  范围已确认:保留现有"5 类目侧栏 + 商品网格筛选"信息架构,不扩展到 OD 的
+  11 类目 / Featured banner / 人气榜 / 新品榜(那些需要当前领域模型没有的
+  后端聚合能力,超出这次前端近似范围)。只对齐两处纯视觉细节:
+    ① 顶部标题栏(category.json 的 navigationStyle:custom 禁用了原生导航栏,
+       但此前从未渲染替代标题栏 —— 真实遗漏 bug,非样式改动)
+    ② 侧栏行从"icon 在上文字在下"纵向堆叠改成 OD 风格横向单行文字列表
+  active 态左侧 accent 竖条(::before)沿用既有实现,未改动。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
 -->
 <view class="cat-container">
-  <!-- 左侧分类 sidebar -->
-  <scroll-view class="cat-sidebar" scroll-y="true" enhanced="true" show-scrollbar="{{false}}">
+  <!-- 顶部标题栏(brief §1;搜索按钮纯装饰,参考 mp-01 onBellTap 处理方式) -->
+  <view class="cat-topbar safe-area-top">
+    <text class="cat-topbar__title">分类</text>
     <view
-      wx:for="{{categories}}"
-      wx:key="id"
-      class="cat-sidebar__item {{activeCategoryId === item.id ? 'cat-sidebar__item--active' : ''}}"
-      bindtap="onCategoryTap"
-      data-category-id="{{item.id}}"
+      class="cat-topbar__search"
+      bindtap="onSearchTap"
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="cat-sidebar__emoji">{{item.icon}}</text>
-      <text class="cat-sidebar__name">{{item.name}}</text>
+      <text class="cat-topbar__search-icon">🔍</text>
     </view>
-  </scroll-view>
+  </view>
 
-  <!-- 右侧商品区 -->
-  <view class="cat-main">
-    <!-- sticky 分类名头 -->
-    <view class="cat-header">
-      <text class="cat-header__title">{{selectedCategoryName}}</text>
-      <text class="cat-header__subtitle">{{selectedCategoryDesc || '每日新鲜直送'}}</text>
-    </view>
-
-    <!-- 加载中 -->
-    <view class="cat-state" wx:if="{{isLoading && products.length === 0}}">
-      <shared-loading message="加载中..."></shared-loading>
-    </view>
-
-    <!-- 错误状态 -->
-    <view class="cat-state" wx:elif="{{isError}}">
-      <shared-empty
-        icon="⚠️"
-        message="{{errorMessage || '加载失败'}}"
-        retry-text="重新加载"
-        bind:retry="onRetry"
-      ></shared-empty>
-    </view>
-
-    <!-- 空状态 -->
-    <view class="cat-state" wx:elif="{{isEmpty}}">
-      <shared-empty
-        icon="🦐"
-        message="该分类暂无商品"
-      ></shared-empty>
-    </view>
-
-    <!-- 2 列商品 grid -->
-    <view class="cat-grid" wx:else>
+  <view class="cat-body">
+    <!-- 左侧分类 sidebar -->
+    <scroll-view class="cat-sidebar" scroll-y="true" enhanced="true" show-scrollbar="{{false}}">
       <view
-        wx:for="{{products}}"
+        wx:for="{{categories}}"
         wx:key="id"
-        class="cat-grid__cell"
+        class="cat-sidebar__item {{selectedCategory === item.id ? 'cat-sidebar__item--active' : ''}}"
+        bindtap="onCategoryTap"
+        data-id="{{item.id}}"
+        hover-class="is-clicked"
+        hover-stay-time="100"
       >
-        <navigator
-          class="cat-grid__nav"
-          url="/pages-sub/product/product-detail/product-detail?id={{item.id}}"
-          open-type="navigate"
+        <text class="cat-sidebar__name">{{item.name}}</text>
+      </view>
+    </scroll-view>
+
+    <!-- 右侧商品区 -->
+    <view class="cat-main">
+      <!-- sticky 分类名头 -->
+      <view class="cat-header">
+        <text class="cat-header__title">{{selectedCategoryName}}</text>
+        <text class="cat-header__subtitle">{{selectedCategoryDesc || '每日新鲜直送'}}</text>
+      </view>
+
+      <!-- 加载中 -->
+      <view class="cat-state" wx:if="{{isLoading && products.length === 0}}">
+        <shared-loading message="加载中..."></shared-loading>
+      </view>
+
+      <!-- 错误状态 -->
+      <view class="cat-state" wx:elif="{{isError}}">
+        <shared-empty
+          icon="⚠️"
+          message="{{errorMessage || '加载失败'}}"
+          retry-text="重新加载"
+          bind:retry="onRetry"
+        ></shared-empty>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="cat-state" wx:elif="{{isEmpty}}">
+        <shared-empty
+          icon="🦐"
+          message="该分类暂无商品"
+        ></shared-empty>
+      </view>
+
+      <!-- 2 列商品 grid -->
+      <view class="cat-grid" wx:else>
+        <view
+          wx:for="{{products}}"
+          wx:key="id"
+          class="cat-grid__cell"
         >
-          <image
-            class="cat-grid__img"
-            src="{{item.imageUrl}}"
-            mode="aspectFill"
-            lazy-load="true"
-          ></image>
-          <view class="cat-grid__body">
-            <text class="cat-grid__name">{{item.name}}</text>
-            <view class="cat-grid__foot">
-              <text class="cat-grid__price">¥ {{item.price}}</text>
-              <view
-                class="cat-grid__add"
-                catchtap="addToCart"
-                data-product="{{item}}"
-                hover-class="cat-grid__add--hover"
-                hover-stay-time="100"
-              >
-                <text>+</text>
+          <navigator
+            class="cat-grid__nav"
+            url="/pages-sub/product/product-detail/product-detail?id={{item.id}}"
+            open-type="navigate"
+          >
+            <image
+              class="cat-grid__img"
+              src="{{item.imageUrl}}"
+              mode="aspectFill"
+              lazy-load="true"
+            ></image>
+            <view class="cat-grid__body">
+              <text class="cat-grid__name">{{item.name}}</text>
+              <view class="cat-grid__foot">
+                <text class="cat-grid__price">¥ {{item.price}}</text>
+                <view
+                  class="cat-grid__add"
+                  catchtap="onAddToCart"
+                  data-product="{{item}}"
+                  hover-class="cat-grid__add--hover"
+                  hover-stay-time="100"
+                >
+                  <text>+</text>
+                </view>
               </view>
             </view>
-          </view>
-        </navigator>
+          </navigator>
+        </view>
       </view>
-    </view>
 
-    <!-- 加载更多 / 没有更多 -->
-    <view class="cat-loadmore" wx:if="{{isLoadingMore}}">
-      <shared-loading message="加载更多..." variant="inline"></shared-loading>
-    </view>
-    <view class="cat-nomore" wx:elif="{{!hasMore && products.length > 0}}">
-      <text>— 没有更多了 —</text>
+      <!-- 加载更多 / 没有更多 -->
+      <view class="cat-loadmore" wx:if="{{isLoadingMore}}">
+        <shared-loading message="加载更多..." variant="inline"></shared-loading>
+      </view>
+      <view class="cat-nomore" wx:elif="{{!hasMore && products.length > 0}}">
+        <text>— 没有更多了 —</text>
+      </view>
     </view>
   </view>
 </view>"
@@ -241,17 +277,57 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/catego
 
 exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/index.wxml 快照 1`] = `
 "<!--
-  路线图 2.1 — mp-01 首页 OD v2 视觉重写。
-  5 分类 chips(chip pill 风格 + accent active) + 顶部 banner(swiper indicator 蓝调) +
-  「今日推荐」瀑布(2 列 grid,ProductCard OD 1.9 组件)+ 加载/错误/空状态。
+  mp-01 首页 —— 对齐 OD 原型(openspec change mp-od-prototype-alignment)。
+  唯一真值 = frontend/e2e/od-golden/mp-01-home.png(非本文件早期注释描述的旧结构)。
+  6 区块:① 定位 + 搜索(复用已有 onSearchInput/onSearch,首次接入 UI)
+         ② 深色沉浸 hero banner(前端近似,不编造后端没有的 LIVE/价格/CTA 字段)
+         ③ 5 分类圆形导航(真实可筛选类目,非 OD 营销文案标签)
+         ④ filter chip 行(只有"全部"功能性,其余 3 项占位 + toast)
+         ⑤ 动态"今日 {N} 款推荐" + 查看全部
+         ⑥ 2 列商品 grid(结构基本不变)
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
 -->
 <view class="home-container">
-  <!-- Banner 轮播(蓝调 indicator) -->
+  <!-- ① 定位 + 通知 + 搜索(brief §1) -->
+  <view class="home-header safe-area-top">
+    <view class="home-location-row">
+      <view class="home-location">
+        <text class="home-location__icon">📍</text>
+        <text class="home-location__text">厦门·高崎码头</text>
+      </view>
+      <view
+        class="home-bell"
+        bindtap="onBellTap"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text class="home-bell__icon">🔔</text>
+      </view>
+    </view>
+    <view class="home-search">
+      <text class="home-search__icon">🔍</text>
+      <input
+        class="home-search__input"
+        placeholder="试试「波龙」「黄花鱼」"
+        value="{{searchKeyword}}"
+        confirm-type="search"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+      />
+      <text
+        class="home-search__btn"
+        bindtap="onSearch"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >搜索</text>
+    </view>
+  </view>
+
+  <!-- ② Hero banner(brief §2;深色沉浸卡片 —— 只用 title/subtitle/emoji 现有字段近似) -->
   <swiper
     class="home-banner"
     indicator-dots="true"
-    indicator-color="rgba(200, 195, 190, 0.4)"
+    indicator-color="rgba(255, 255, 255, 0.4)"
     indicator-active-color="var(--accent, #db633c)"
     autoplay="true"
     interval="3500"
@@ -269,27 +345,73 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
     </swiper-item>
   </swiper>
 
-  <!-- 5 分类 chips(横向 scroll,active 状态 accent) -->
-  <scroll-view scroll-x="true" class="home-chips" enhanced="true" show-scrollbar="{{false}}">
+  <!-- ③ 5 分类圆形导航(brief §3;先修 4→5 类目数据 bug,真实类目名,非 OD 营销文案) -->
+  <scroll-view scroll-x="true" class="home-category-row" enhanced="true" show-scrollbar="{{false}}">
     <view
       wx:for="{{categories}}"
       wx:key="id"
-      class="home-chip {{activeCategory === item.id ? 'home-chip--active' : ''}}"
+      class="home-category"
       bindtap="onCategoryTap"
       data-category="{{item.id}}"
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="home-chip__emoji">{{item.icon}}</text>
-      <text class="home-chip__label">{{item.name}}</text>
+      <view class="home-category__icon">
+        <text>{{item.icon}}</text>
+      </view>
+      <text class="home-category__label">{{item.name}}</text>
     </view>
   </scroll-view>
 
-  <!-- 今日推荐 section header(衬线 display) -->
+  <!-- ⑤ 今日推荐 section header(brief §5;真实 totalProducts,非硬编码文案) -->
   <view class="home-section-header">
-    <text class="home-section-title">今日推荐</text>
-    <text class="home-section-subtitle">每日 10 款 · 限时优惠</text>
+    <text class="home-section-title">今日 <text class="home-section-title__count">{{totalProducts}}</text> 款推荐</text>
+    <text
+      class="home-section-link"
+      bindtap="onClearFilter"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >查看全部→</text>
   </view>
+
+  <!-- ④ Filter chip 行(brief §4;只有"全部"功能性,其余 3 项视觉占位 + toast) -->
+  <scroll-view scroll-x="true" class="home-chips" enhanced="true" show-scrollbar="{{false}}">
+    <view
+      class="home-chip {{!activeCategory ? 'home-chip--active' : ''}}"
+      bindtap="onClearFilter"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="home-chip__label">全部</text>
+    </view>
+    <view
+      class="home-chip"
+      bindtap="onFilterPlaceholderTap"
+      data-label="捕捞当日"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="home-chip__label">捕捞当日</text>
+    </view>
+    <view
+      class="home-chip"
+      bindtap="onFilterPlaceholderTap"
+      data-label="限量拾"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="home-chip__label">限量拾</text>
+    </view>
+    <view
+      class="home-chip"
+      bindtap="onFilterPlaceholderTap"
+      data-label="满199减30"
+      hover-class="is-clicked"
+      hover-stay-time="100"
+    >
+      <text class="home-chip__label">满199减30</text>
+    </view>
+  </scroll-view>
 
   <!-- 加载中(首屏,无 products) -->
   <view class="home-state" wx:if="{{isLoading && products.length === 0}}">
@@ -340,7 +462,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
             <text class="home-grid__price">¥ {{item.price}}</text>
             <view
               class="home-grid__add"
-              catchtap="addToCart"
+              catchtap="onAddToCart"
               data-product="{{item}}"
               hover-class="home-grid__add--hover"
               hover-stay-time="100"
@@ -475,9 +597,12 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
         </view>
       </view>
 
-      <!-- 订单号 + 合计 -->
+      <!-- 订单号 + 共N件 + 合计(mp-08 OD 对齐 brief §1:"共 N 件商品" 真实种类数) -->
       <view class="order-card__summary">
-        <text class="order-card__order-no">订单号：#{{item.id}}</text>
+        <view class="order-card__summary-left">
+          <text class="order-card__order-no">订单号：#{{item.id}}</text>
+          <text class="order-card__item-count">共 {{item.items.length}} 件商品</text>
+        </view>
         <view class="order-card__total-row">
           <text class="order-card__total-label">合计</text>
           <text class="order-card__total-price">¥ {{item.totalAmount}}</text>
@@ -504,15 +629,59 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/pr
   衬线 36rpx)+ 数量 stepper(− / 数字 / + 圆形)+ 推荐商品横向 scroll + 底部 sticky
   「加入购物车」主按钮(沿用 1.6 shared-button primary 风格)。
   tokens 全部走 var(--token, fallback) — 单一源 docs/redesign/tokens.json。
+
+  mp-03 OD 原型对齐(openspec change mp-od-prototype-alignment,brief
+  \`.superpowers/sdd/mp-od-3-product-detail-brief.md\`):
+    ① 悬浮顶栏(新增)—— 原生导航栏是不透明实体条,不会悬浮在图片上,与 OD
+       图不符;product-detail.json 加 navigationStyle:custom 后在这里补一个
+       绝对定位悬浮在大图顶部的操作栏:返回(真实 navigateBack)/收藏(收藏 +
+       浏览足迹接线后,与下面 detail-footer 里的 onToggleFavorite 共用同一个
+       真实 favorited 状态,design.md D5)/分享
+       (小程序原生 open-type="share",触发 onShareAppMessage)。
+    ② OD 图里还有原价划线、"捕捞当日/顺丰冷链/死蟹包赔"标签行、"规格/冰鲜链/
+       评价"统计行 —— 后端 Product 领域模型没有对应字段,不编造,详见 brief。
 -->
 <view class="detail-container">
-  <!-- 大图(无圆角顶,通顶) -->
-  <image
-    class="detail-image"
-    src="{{product.imageUrl}}"
-    mode="aspectFill"
-    lazy-load="{{true}}"
-  ></image>
+  <!-- 大图(无圆角顶,通顶)+ 悬浮顶栏(brief §1) -->
+  <view class="detail-hero">
+    <image
+      class="detail-image"
+      src="{{product.imageUrl}}"
+      mode="aspectFill"
+      lazy-load="{{true}}"
+    ></image>
+
+    <view class="detail-topbar safe-area-top">
+      <view
+        class="detail-topbar__btn"
+        bindtap="onBack"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text class="detail-topbar__icon">‹</text>
+      </view>
+      <view class="detail-topbar__actions">
+        <view
+          class="detail-topbar__btn"
+          bindtap="onFavoriteTap"
+          hover-class="is-clicked"
+          hover-stay-time="100"
+        >
+          <text class="detail-topbar__icon">{{favorited ? '♥' : '♡'}}</text>
+        </view>
+        <button
+          class="detail-topbar__btn-reset"
+          open-type="share"
+          hover-class="is-clicked"
+          hover-stay-time="100"
+        >
+          <view class="detail-topbar__btn">
+            <text class="detail-topbar__icon">⤴</text>
+          </view>
+        </button>
+      </view>
+    </view>
+  </view>
 
   <!-- 商品信息卡片(上角 radius-xl 与大图无连接 — 中间留 gap 模拟 separation) -->
   <view class="detail-info">
@@ -565,7 +734,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/pr
         wx:key="id"
         wx:for-item="rec"
         class="detail-recommend__item"
-        bindtap="goToProductDetail"
+        bindtap="onGoToProductDetail"
         data-id="{{rec.id}}"
         hover-class="is-clicked"
         hover-stay-time="100"

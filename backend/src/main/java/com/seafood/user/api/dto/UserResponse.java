@@ -15,12 +15,15 @@ public record UserResponse(
         String role,
         String phone,
         List<Address> addresses,
-        Instant createdAt
+        Instant createdAt,
+        int favoriteCount,
+        int viewCount
 ) {
-    public static UserResponse from(User u) {
+    public static UserResponse from(User u, long viewCount) {
         return new UserResponse(
                 u.id(), u.openId(), u.nickname(), u.avatarUrl(),
-                u.role().name(), u.phone(), u.addresses(), u.createdAt());
+                u.role().name(), u.phone(), u.addresses(), u.createdAt(),
+                u.favoriteProductIds().size(), (int) viewCount);
     }
 
     public static Role roleOf(UserResponse r) {

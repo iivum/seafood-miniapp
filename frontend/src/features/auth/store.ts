@@ -24,6 +24,7 @@ import {
 } from '../../shared/api/request';
 import { tokenStorage, type StoredUser } from '../../shared/api/storage';
 import { AuthAPI } from './api';
+import { UserAPI } from '../user/api';
 
 type Listener = (state: AuthState) => void;
 
@@ -75,7 +76,7 @@ class AuthStore {
   private listeners = new Set<Listener>();
   /** Single in-flight login promise, so concurrent `login()` calls
    *  share the same `wx.login` + `/auth/wechat-login` round-trip. */
-  private loginInFlight: Promise<StoredUser> | null = null;
+  private loginInFlight: Promise<StoredUser | null> | null = null;
   /** Single in-flight silentRelogin promise, so concurrent
    *  setOnAuthFailure callbacks share one attempt. */
   private silentReloginInFlight: Promise<StoredUser | null> | null = null;
@@ -130,7 +131,7 @@ class AuthStore {
    *
    * Persists tokens and the user, then returns the user.
    */
-  async login(): Promise<StoredUser> {
+  async login(): Promise<StoredUser | null> {
     if (this.loginInFlight) return this.loginInFlight;
     this.loginInFlight = this.doLogin().finally(() => {
       this.loginInFlight = null;
@@ -151,7 +152,7 @@ class AuthStore {
    * Single-flight deduped against concurrent `login()` calls so the
    * dev-login path shares the same in-flight promise as the regular path.
    */
-  async loginWithCode(code: string): Promise<StoredUser> {
+  async loginWithCode(code: string): Promise<StoredUser | null> {
     if (!code || typeof code !== 'string') {
       throw new Error('loginWithCode requires a non-empty code');
     }
@@ -162,14 +163,14 @@ class AuthStore {
     return this.loginInFlight;
   }
 
-  private async doLogin(): Promise<StoredUser> {
+  private async doLogin(): Promise<StoredUser | null> {
     this.setState({ isLoggingIn: true, lastError: null });
     try {
       const code = await this.wxLogin();
       const res = await AuthAPI.wechatLogin({ code });
-      this.applyLoginResponse(res);
+      await this.applyLoginResponse(res);
       this.setState({ isLoggingIn: false, lastError: null });
-      return res.user;
+      return this.state.user;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'WeChat login failed';
       this.setState({ isLoggingIn: false, lastError: message });
@@ -177,13 +178,13 @@ class AuthStore {
     }
   }
 
-  private async doLoginWithCode(code: string): Promise<StoredUser> {
+  private async doLoginWithCode(code: string): Promise<StoredUser | null> {
     this.setState({ isLoggingIn: true, lastError: null });
     try {
       const res = await AuthAPI.wechatLogin({ code });
-      this.applyLoginResponse(res);
+      await this.applyLoginResponse(res);
       this.setState({ isLoggingIn: false, lastError: null });
-      return res.user;
+      return this.state.user;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'WeChat login failed';
       this.setState({ isLoggingIn: false, lastError: message });
@@ -208,16 +209,32 @@ class AuthStore {
     });
   }
 
-  private applyLoginResponse(res: WechatLoginResponse): void {
+  /**
+   * 真实后端 POST /auth/wechat-login 响应体(TokenResponse.java)从来没有
+   * user 字段——res.user 恒为 undefined。这里补调 GET /users/me 拿真实
+   * 用户信息。该附加请求是非致命性的:失败(网络错误等)时静默降级为
+   * user: null,不 throw,不阻断登录主流程(token 已拿到,核心功能应可用,
+   * 只是用户信息展示缺失)。mp 运行时 store.js 是这个修复的原版,此处保持
+   * 两者行为一致,避免 .ts/.js 再次漂移(mp-od-10 login-userinfo)。
+   */
+  private async applyLoginResponse(res: WechatLoginResponse): Promise<void> {
     tokenStorage.setTokens(res.accessToken, res.refreshToken);
-    persistUser(res.user);
+    let user: StoredUser | null = res.user ?? null;
+    if (!user) {
+      try {
+        user = await UserAPI.me();
+      } catch {
+        user = null; // best-effort:附加请求失败不阻断登录
+      }
+    }
+    persistUser(user);
     // A successful login resets the silent-relogin failure counter
     // and clears any prior hard lock.
     this.consecutiveReloginFailures = 0;
     this.reloginLocked = false;
     this.recentReloginAt = 0;
     this.setState({
-      user: res.user,
+      user,
       isAuthenticated: true,
     });
   }
@@ -261,6 +278,32 @@ class AuthStore {
       }
       return null;
     }
+  }
+
+  /**
+   * Bind/update the current user's phone number via a WeChat
+   * `getPhoneNumber` authorization code (dev-login synthesizes a
+   * `dev-` prefixed code the same way `loginWithCode` does).
+   *
+   * `updated` is spread LAST so its fields win over any stale
+   * `state.user` — the backend's PATCH response is a full UserResponse
+   * (id/nickname/avatarUrl/role/phone), not just a phone patch. Spreading
+   * `state.user` first only as a base (rather than merging `phone` on top
+   * of it) matters when `state.user` is null — e.g. the best-effort
+   * `GET /users/me` fetch in `applyLoginResponse` failed earlier — in
+   * which case the old code silently produced `{id, phone}`, discarding
+   * nickname/avatarUrl/role that `updated` actually had.
+   */
+  async bindPhone(code: string): Promise<StoredUser | null> {
+    const updated = await UserAPI.bindPhone(code);
+    const merged: StoredUser = { ...(this.state.user ?? {}), ...updated };
+    persistUser(merged);
+    // Defensive, same as applyLoginResponse/logout: not currently reachable
+    // with a stale lastError (any successful login preceding Step2 already
+    // clears it), but keeps the invariant true if a future entry point ever
+    // reaches bindPhone without going through login first.
+    this.setState({ user: merged, lastError: null });
+    return merged;
   }
 
   /**

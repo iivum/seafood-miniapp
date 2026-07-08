@@ -82,7 +82,7 @@ class AdminBffServiceSliceTest {
         when(userService.get(any(), any())).thenReturn(
             new com.seafood.user.api.dto.UserResponse(
                 "u-1", "open-1", "test", null, "CUSTOMER", null, java.util.List.of(),
-                java.time.Instant.parse("2026-06-19T00:00:00Z")));
+                java.time.Instant.parse("2026-06-19T00:00:00Z"), 0, 0));
 
         OrderDetailResponse resp = bffService.orderDetail("o-1");
 

@@ -1,11 +1,7 @@
 {
   "navigationBarTitleText": "登录",
-  "navigationBarBackgroundColor": "#667eea",
+  "navigationBarBackgroundColor": "#64230d",
   "navigationBarTextStyle": "white",
-  "backgroundColor": "#667eea",
-  "enablePullDownRefresh": false,
-  "usingComponents": {
-    "van-checkbox": "@vant/weapp/checkbox/index",
-    "van-field": "@vant/weapp/field/index"
-  }
+  "backgroundColor": "#fffbf8",
+  "enablePullDownRefresh": false
 }

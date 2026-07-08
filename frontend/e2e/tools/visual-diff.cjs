@@ -43,7 +43,12 @@ const SCREENS = [
   // 异步取数(order-list 实证),截到空态假信号。数据屏给谓词,非数据屏走固定 sleep。
   { name: 'mp-03-product-detail', path: '/pages-sub/product/product-detail/product-detail', productDetail: true,
     waitFor: (d) => !d.isLoading && !!d.product },
-  { name: 'mp-04-cart', path: '/pages/cart/cart' },
+  // mp-od-prototype-alignment mp-04 诊断时发现:此前缺 auth:true,cart 是 needAuth
+  // 页面,未注入登录态时重定向/渲染未登录态,截图实际是登录页而非购物车(假信号,
+  // 感知 diff 因此虚低)。补 auth + waitFor(同 od-geometry/mp-04-cart.json 的
+  // auth:true 配置,geometry 脚本本来就是对的,是 visual-diff.cjs 这边漏了)。
+  { name: 'mp-04-cart', path: '/pages/cart/cart', auth: true,
+    waitFor: (d) => !d.isLoading && Array.isArray(d.cartItems) && d.cartItems.length > 0 },
   { name: 'mp-05-profile', path: '/pages/profile/profile' },
   { name: 'mp-06-order-confirm', path: '/pages-sub/order/order-confirm/order-confirm', auth: true },
   { name: 'mp-07-address', path: '/pages-sub/user/address/address-list', auth: true,

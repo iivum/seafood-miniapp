@@ -22,6 +22,7 @@ public record User(
         Role role,
         String phone,
         List<Address> addresses,
+        List<String> favoriteProductIds,
         Instant createdAt
 ) {
 
@@ -33,6 +34,7 @@ public record User(
             throw new DomainException("role 不能为空");
         }
         addresses = addresses == null ? List.of() : List.copyOf(addresses);
+        favoriteProductIds = favoriteProductIds == null ? List.of() : List.copyOf(favoriteProductIds);
     }
 
     // ----- 地址管理 -----
@@ -45,13 +47,13 @@ public record User(
         String id = newAddr.id() == null || newAddr.id().isBlank()
                 ? UUID.randomUUID().toString() : newAddr.id();
         Address normalized = new Address(id, newAddr.name(), newAddr.phone(),
-                newAddr.province(), newAddr.city(), newAddr.detail(),
+                newAddr.province(), newAddr.city(), newAddr.district(), newAddr.detail(),
                 newAddr.isDefault() || addresses.isEmpty());
 
         List<Address> next = new ArrayList<>(addresses.size() + 1);
         for (Address a : addresses) {
             next.add(new Address(a.id(), a.name(), a.phone(), a.province(),
-                    a.city(), a.detail(), normalized.isDefault() ? false : a.isDefault()));
+                    a.city(), a.district(), a.detail(), normalized.isDefault() ? false : a.isDefault()));
         }
         next.add(normalized);
         return mutateAddresses(next);
@@ -68,6 +70,7 @@ public record User(
                 patch.phone() == null || patch.phone().isBlank() ? existing.phone() : patch.phone(),
                 patch.province() == null ? existing.province() : patch.province(),
                 patch.city() == null ? existing.city() : patch.city(),
+                patch.district() == null ? existing.district() : patch.district(),
                 patch.detail() == null ? existing.detail() : patch.detail(),
                 patch.isDefault() || existing.isDefault()
         );
@@ -77,7 +80,7 @@ public record User(
                 next.add(merged);
             } else {
                 next.add(new Address(a.id(), a.name(), a.phone(), a.province(),
-                        a.city(), a.detail(), merged.isDefault() ? false : a.isDefault()));
+                        a.city(), a.district(), a.detail(), merged.isDefault() ? false : a.isDefault()));
             }
         }
         return mutateAddresses(next);
@@ -101,7 +104,7 @@ public record User(
         List<Address> next = new ArrayList<>(addresses.size());
         for (Address a : addresses) {
             next.add(new Address(a.id(), a.name(), a.phone(), a.province(),
-                    a.city(), a.detail(), a.id().equals(addressId)));
+                    a.city(), a.district(), a.detail(), a.id().equals(addressId)));
         }
         return mutateAddresses(next);
     }
@@ -111,7 +114,52 @@ public record User(
     }
 
     private User mutateAddresses(List<Address> next) {
-        return new User(id, openId, nickname, avatarUrl, role, phone, next, createdAt);
+        return new User(id, openId, nickname, avatarUrl, role, phone, next, favoriteProductIds, createdAt);
+    }
+
+    // ----- 收藏(mp-cross-screen-cleanup 之后的下一个 change:收藏 + 浏览足迹)-----
+
+    /**
+     * 收藏商品,幂等(已收藏时原样返回,不重复插入)。新收藏插入列表头部——
+     * "最近收藏优先",{@code GET /api/favorites} 按列表原始顺序返回即为该排序,
+     * 不需要额外时间戳字段或运行时排序。
+     */
+    public User addFavorite(String productId) {
+        if (productId == null || productId.isBlank()) {
+            throw new DomainException("商品 id 不能为空");
+        }
+        if (favoriteProductIds.contains(productId)) {
+            return this;
+        }
+        List<String> next = new ArrayList<>(favoriteProductIds.size() + 1);
+        next.add(productId);
+        next.addAll(favoriteProductIds);
+        return mutateFavorites(next);
+    }
+
+    /** 取消收藏,幂等(未收藏时原样返回)。 */
+    public User removeFavorite(String productId) {
+        if (!favoriteProductIds.contains(productId)) {
+            return this;
+        }
+        List<String> next = favoriteProductIds.stream()
+                .filter(id -> !id.equals(productId))
+                .toList();
+        return mutateFavorites(next);
+    }
+
+    private User mutateFavorites(List<String> next) {
+        return new User(id, openId, nickname, avatarUrl, role, phone, addresses, next, createdAt);
+    }
+
+    // ----- 手机号绑定(align-mp-login-with-od)-----
+
+    /** 绑定/更新登录手机号(来源:微信 getPhoneNumber 授权换号)。 */
+    public User bindPhone(String newPhone) {
+        if (newPhone == null || newPhone.isBlank()) {
+            throw new DomainException("手机号不能为空");
+        }
+        return new User(id, openId, nickname, avatarUrl, role, newPhone, addresses, favoriteProductIds, createdAt);
     }
 
     // ----- role helpers -----

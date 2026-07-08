@@ -7,6 +7,7 @@ public record UpdateAddressRequest(
         String phone,
         String province,
         String city,
+        String district,
         String detail,
         boolean isDefault
 ) {

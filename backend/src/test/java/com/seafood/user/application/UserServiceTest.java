@@ -10,6 +10,7 @@ import com.seafood.user.api.dto.UserResponse;
 import com.seafood.user.domain.Address;
 import com.seafood.user.domain.User;
 import com.seafood.user.infra.UserDocument;
+import com.seafood.user.infra.UserMapper;
 import com.seafood.user.infra.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,17 +23,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class UserServiceTest {
 
     private UserRepository repo;
+    private ProductViewService productViewService;
+    private WechatPhoneNumberExchanger phoneExchanger;
     private UserService service;
 
     @BeforeEach
     void setUp() {
         repo = mock(UserRepository.class);
-        service = new UserService(repo);
+        productViewService = mock(ProductViewService.class);
+        phoneExchanger = mock(WechatPhoneNumberExchanger.class);
+        service = new UserService(repo, productViewService, phoneExchanger);
     }
 
     private UserPrincipal me(String id, Role role) {
@@ -80,12 +88,27 @@ class UserServiceTest {
     }
 
     @Test
+    void get_includesFavoriteAndViewCounts() {
+        User u = com.seafood.testsupport.builders.UserBuilder.aUser()
+                .withId("u1")
+                .withFavoriteProductIds(java.util.List.of("p1", "p2"))
+                .build();
+        when(repo.findById("u1")).thenReturn(Optional.of(UserMapper.toDocument(u)));
+        when(productViewService.countForUser("u1")).thenReturn(5L);
+
+        UserResponse result = service.get("u1", me("u1", Role.CUSTOMER));
+
+        assertThat(result.favoriteCount()).isEqualTo(2);
+        assertThat(result.viewCount()).isEqualTo(5);
+    }
+
+    @Test
     void addAddress_appendsAndPersists() {
         when(repo.findById("u1")).thenReturn(Optional.of(docOf("u1", Role.CUSTOMER)));
         when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AddAddressRequest req = new AddAddressRequest("张三", "13900000000",
-                "上海市", "上海市", "世纪大道 1 号", true);
+                "上海市", "上海市", "浦东新区", "世纪大道 1 号", true);
         UserResponse res = service.addAddress("u1", req, me("u1", Role.CUSTOMER));
 
         assertThat(res.addresses()).hasSize(1);
@@ -94,9 +117,33 @@ class UserServiceTest {
     }
 
     @Test
+    void addAddress_and_updateAddress_roundTripDistrict() {
+        // addAddress:传入的 district 原样出现在返回的 Address 上(design.md D4)
+        when(repo.findById("u1")).thenReturn(Optional.of(docOf("u1", Role.CUSTOMER)));
+        when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        AddAddressRequest addReq = new AddAddressRequest("张三", "13900000000",
+                "上海市", "浦东新区", "陆家嘴街道", "世纪大道 1 号", true);
+        UserResponse afterAdd = service.addAddress("u1", addReq, me("u1", Role.CUSTOMER));
+        Address added = afterAdd.addresses().get(0);
+        assertThat(added.district()).isEqualTo("陆家嘴街道");
+
+        // updateAddress:回读时能重新回填(regression:此前折叠进 detail 导致地区选择器
+        // 无法回填,见 design.md D4 与已删除的 AddressUpsertRequest#foldedDetail())
+        UserDocument doc = docOf("u1", Role.CUSTOMER);
+        doc.setAddresses(List.of(added));
+        when(repo.findById("u1")).thenReturn(Optional.of(doc));
+
+        UpdateAddressRequest updateReq = new UpdateAddressRequest(
+                null, null, null, null, "张江镇", null, false);
+        UserResponse afterUpdate = service.updateAddress("u1", added.id(), updateReq, me("u1", Role.CUSTOMER));
+        assertThat(afterUpdate.addresses().get(0).district()).isEqualTo("张江镇");
+    }
+
+    @Test
     void addAddress_otherUser_denied() {
         assertThatThrownBy(() -> service.addAddress("u2",
-                new AddAddressRequest("x", "x", "x", "x", "x", false),
+                new AddAddressRequest("x", "x", "x", "x", "x", "x", false),
                 me("u1", Role.CUSTOMER)))
                 .isInstanceOf(DomainException.class);
     }
@@ -105,7 +152,7 @@ class UserServiceTest {
     void removeAddress_succeeds() {
         UserDocument doc = docOf("u1", Role.CUSTOMER);
         doc.setAddresses(List.of(new Address("a1", "张三", "13900000000",
-                "上海市", "上海市", "某处", true)));
+                "上海市", "上海市", "某区", "某处", true)));
         when(repo.findById("u1")).thenReturn(Optional.of(doc));
         when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -117,12 +164,12 @@ class UserServiceTest {
     void updateAddress_mergesPartial() {
         UserDocument doc = docOf("u1", Role.CUSTOMER);
         doc.setAddresses(List.of(new Address("a1", "张三", "13900000000",
-                "上海市", "上海市", "旧地址", true)));
+                "上海市", "上海市", "旧区", "旧地址", true)));
         when(repo.findById("u1")).thenReturn(Optional.of(doc));
         when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UpdateAddressRequest req = new UpdateAddressRequest(
-                null, null, "北京市", "北京市", "新地址", false);
+                null, null, "北京市", "北京市", null, "新地址", false);
         UserResponse res = service.updateAddress("u1", "a1", req, me("u1", Role.CUSTOMER));
 
         Address a = res.addresses().get(0);
@@ -146,5 +193,53 @@ class UserServiceTest {
         var page = service.list(org.springframework.data.domain.PageRequest.of(0, 20),
                 me("admin", Role.ADMIN));
         assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    void bindPhone_exchangesCodeThenPersists() {
+        when(repo.findById("u1")).thenReturn(Optional.of(docOf("u1", Role.CUSTOMER)));
+        when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(phoneExchanger.exchange("dev-abc")).thenReturn("13711112222");
+
+        UserResponse res = service.bindPhone("u1", "dev-abc", me("u1", Role.CUSTOMER));
+
+        assertThat(res.phone()).isEqualTo("13711112222");
+    }
+
+    @Test
+    void bindPhone_exchangerThrows_propagatesAndDoesNotPersist() {
+        when(phoneExchanger.exchange("bad-code")).thenThrow(new DomainException("微信手机号换取失败"));
+
+        assertThatThrownBy(() -> service.bindPhone("u1", "bad-code", me("u1", Role.CUSTOMER)))
+                .isInstanceOf(DomainException.class);
+
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    void bindPhone_unknownUser_throwsNotFound() {
+        when(repo.findById("nope")).thenReturn(Optional.empty());
+        when(phoneExchanger.exchange("dev-abc")).thenReturn("13711112222");
+
+        assertThatThrownBy(() -> service.bindPhone("nope", "dev-abc", me("nope", Role.CUSTOMER)))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void bindPhone_otherUser_denied() {
+        assertThatThrownBy(() -> service.bindPhone("u2", "dev-abc", me("u1", Role.CUSTOMER)))
+                .isInstanceOf(DomainException.class);
+        verifyNoInteractions(phoneExchanger);
+    }
+
+    @Test
+    void bindPhone_asAdminOnBehalfOfOther_succeeds() {
+        when(repo.findById("u2")).thenReturn(Optional.of(docOf("u2", Role.CUSTOMER)));
+        when(repo.save(any(UserDocument.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(phoneExchanger.exchange("dev-abc")).thenReturn("13711112222");
+
+        UserResponse res = service.bindPhone("u2", "dev-abc", me("admin", Role.ADMIN));
+
+        assertThat(res.phone()).isEqualTo("13711112222");
     }
 }

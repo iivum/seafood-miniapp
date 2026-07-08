@@ -61,6 +61,12 @@ export interface Order {
 export interface CreateOrderRequest {
   addressId: string;
   remark?: string;
+  /**
+   * D3b(mp-backend-contract-gaps Gap 2):直接购买建单绕开购物车。
+   * 非空时后端直接用这些行项建单,完全不读/不清用户购物车;
+   * 留空/不传时行为不变,仍从购物车建单。
+   */
+  items?: Array<{ productId: string; quantity: number }>;
 }
 
 /**

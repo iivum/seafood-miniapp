@@ -6,6 +6,7 @@ public record Address(
         String phone,
         String province,
         String city,
+        String district,
         String detail,
         boolean isDefault
 ) {

@@ -47,11 +47,12 @@ describe('address-list', () => {
       data: { ...pageConfig.data },
       setData: jest.fn(function(patch) { Object.assign(this.data, patch); }.bind(ctx)),
       loadAddresses: pageConfig.loadAddresses,
-      addNewAddress: pageConfig.addNewAddress,
-      editAddress: pageConfig.editAddress,
-      deleteAddress: pageConfig.deleteAddress,
-      selectAddress: pageConfig.selectAddress,
-      setDefaultAddress: pageConfig.setDefaultAddress,
+      onAddNewAddress: pageConfig.onAddNewAddress,
+      onEditAddress: pageConfig.onEditAddress,
+      onDeleteAddress: pageConfig.onDeleteAddress,
+      onSelectAddress: pageConfig.onSelectAddress,
+      onSetDefaultAddress: pageConfig.onSetDefaultAddress,
+      onBack: pageConfig.onBack,
       onLoad: pageConfig.onLoad,
       onShow: pageConfig.onShow,
     };
@@ -94,35 +95,35 @@ describe('address-list', () => {
     });
   });
 
-  it('addNewAddress navigates to edit page', () => {
-    ctx.addNewAddress();
+  it('onAddNewAddress navigates to edit page', () => {
+    ctx.onAddNewAddress();
     expect(wx.navigateTo).toHaveBeenCalledWith({
       url: '/pages-sub/user/address/address-edit',
     });
   });
 
-  it('editAddress navigates with id', () => {
-    ctx.editAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
+  it('onEditAddress navigates with id', () => {
+    ctx.onEditAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     expect(wx.navigateTo).toHaveBeenCalledWith({
       url: '/pages-sub/user/address/address-edit?id=a1',
     });
   });
 
-  it('selectAddress does nothing when not in selectMode', () => {
+  it('onSelectAddress does nothing when not in selectMode', () => {
     ctx.data.selectMode = false;
-    ctx.selectAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
+    ctx.onSelectAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     expect(wx.navigateBack).not.toHaveBeenCalled();
   });
 
-  it('selectAddress navigates back in selectMode', () => {
+  it('onSelectAddress navigates back in selectMode', () => {
     ctx.data.selectMode = true;
-    ctx.selectAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
+    ctx.onSelectAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     expect(wx.navigateBack).toHaveBeenCalled();
   });
 
-  it('setDefaultAddress calls PUT endpoint', () => {
+  it('onSetDefaultAddress calls PUT endpoint', () => {
     mockRequest.mockResolvedValueOnce({});
-    ctx.setDefaultAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
+    ctx.onSetDefaultAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     expect(mockRequest).toHaveBeenCalledWith({
       url: '/addresses/a1/default',
       method: 'PUT',
@@ -130,12 +131,12 @@ describe('address-list', () => {
     });
   });
 
-  it('deleteAddress shows modal and deletes on confirm', () => {
+  it('onDeleteAddress shows modal and deletes on confirm', () => {
     wx.showModal.mockImplementation((opts) => {
       opts.success({ confirm: true });
     });
     mockRequest.mockResolvedValueOnce({});
-    ctx.deleteAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
+    ctx.onDeleteAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     expect(wx.showModal).toHaveBeenCalled();
     expect(mockRequest).toHaveBeenCalledWith({
       url: '/addresses/a1',
@@ -144,19 +145,19 @@ describe('address-list', () => {
     });
   });
 
-  it('deleteAddress does nothing on cancel', () => {
+  it('onDeleteAddress does nothing on cancel', () => {
     wx.showModal.mockImplementation((opts) => {
       opts.success({ confirm: false });
     });
-    ctx.deleteAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
+    ctx.onDeleteAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     expect(wx.showModal).toHaveBeenCalled();
     expect(mockRequest).not.toHaveBeenCalled();
   });
 
-  it('selectAddress navigates back when no prev page', () => {
+  it('onSelectAddress navigates back when no prev page', () => {
     getCurrentPages.mockReturnValueOnce([{ route: 'pages/index/index' }]);
     ctx.data.selectMode = true;
-    ctx.selectAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
+    ctx.onSelectAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     expect(wx.navigateBack).toHaveBeenCalled();
   });
 
@@ -168,10 +169,18 @@ describe('address-list', () => {
     expect(wx.showToast).toHaveBeenCalledWith({ title: '加载地址失败', icon: 'none' });
   });
 
-  it('setDefaultAddress handles failure', async () => {
+  it('onSetDefaultAddress handles failure', async () => {
     mockRequest.mockRejectedValueOnce(new Error('network error'));
-    ctx.setDefaultAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
+    ctx.onSetDefaultAddress({ currentTarget: { dataset: { address: { id: 'a1' } } } });
     await new Promise(r => setTimeout(r, 50));
     expect(wx.showToast).toHaveBeenCalledWith({ title: '设置失败', icon: 'none' });
+  });
+
+  // mp-07 OD 对齐(brief `.superpowers/sdd/mp-od-6-address-brief.md` §1):
+  // navigationStyle:custom 替代原生导航栏后,原生返回按钮消失,自定义
+  // topbar 的返回按钮必须真实调用 wx.navigateBack()。
+  it('onBack navigates back', () => {
+    ctx.onBack();
+    expect(wx.navigateBack).toHaveBeenCalled();
   });
 });

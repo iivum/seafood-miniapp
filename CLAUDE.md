@@ -182,6 +182,9 @@ MONGODB_URI=mongodb://localhost:27017/seafood
 WECHAT_ENABLED=false       # dev 期可 false,但 wechat login code 必须以 dev- 开头
 WECHAT_APPID=...           # WECHAT_ENABLED=true 时必填
 WECHAT_SECRET=...          # WECHAT_ENABLED=true 时必填
+WECHAT_PHONE_BINDING_ENABLED=false  # 手机号绑定(getPhoneNumber)独立开关,默认 false;
+                                     # 生产开通"手机号快速验证组件"资质前保持关闭,
+                                     # 仅在 WECHAT_ENABLED=true 时生效(dev 模式不受影响)
 
 # 前端
 API_BASE_URL=http://localhost:8080

@@ -73,7 +73,11 @@ export class ApiError extends Error {
 export interface WechatLoginResponse {
   accessToken: string;
   refreshToken: string;
-  user: StoredUser;
+  // 真实后端 TokenResponse.java 从来不带这个字段(只有 token 相关字段)——
+  // mp-od-10 login-userinfo 修复前这里错误标成必填,认为 res.user 恒有值。
+  // 保留 user 可选是为了兼容"响应已带 user"这个防御性分支(当前真实后端
+  // 不会走到,见 AuthStore.applyLoginResponse)。
+  user?: StoredUser;
 }
 
 export interface RefreshResponse {

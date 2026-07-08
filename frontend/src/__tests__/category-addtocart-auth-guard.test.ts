@@ -28,7 +28,7 @@ describe('分类页 addToCart 鉴权拦截(P1 守卫 / M8)', () => {
   it('addToCart 函数体内调 wx.getStorageSync("accessToken") 或 isAuthenticated()', () => {
     const src = readCategory();
     // 找到 addToCart 函数体
-    const match = src.match(/addToCart\s*\([^)]*\)\s*\{([\s\S]*?)\n\s*\}/);
+    const match = src.match(/onAddToCart\s*\([^)]*\)\s*\{([\s\S]*?)\n\s*\}/);
     expect(match).not.toBeNull();
     const body = match![1];
     // 必须检查 token
@@ -39,7 +39,7 @@ describe('分类页 addToCart 鉴权拦截(P1 守卫 / M8)', () => {
 
   it('未登录分支应 wx.navigateTo 跳 login', () => {
     const src = readCategory();
-    const match = src.match(/addToCart\s*\([^)]*\)\s*\{([\s\S]*?)\n\s*\}/);
+    const match = src.match(/onAddToCart\s*\([^)]*\)\s*\{([\s\S]*?)\n\s*\}/);
     expect(match).not.toBeNull();
     const body = match![1];
     // 未登录时必须跳 login 页(支持 ?redirect= 形式)
@@ -50,7 +50,7 @@ describe('分类页 addToCart 鉴权拦截(P1 守卫 / M8)', () => {
 
   it('已登录分支应调 cartApi.addItem 而非本地 cartUtil', () => {
     const src = readCategory();
-    const match = src.match(/addToCart\s*\([^)]*\)\s*\{([\s\S]*?)\n\s*\}/);
+    const match = src.match(/onAddToCart\s*\([^)]*\)\s*\{([\s\S]*?)\n\s*\}/);
     expect(match).not.toBeNull();
     const body = match![1];
     // 必须 require cartApi(支持 features/cart/api 或 cart/api 相对路径)

@@ -82,9 +82,10 @@ describe('category', () => {
       onPullDownRefresh: pageConfig.onPullDownRefresh,
       onReachBottom: pageConfig.onReachBottom,
       goToDetail: pageConfig.goToDetail,
-      addToCart: pageConfig.addToCart,
+      onAddToCart: pageConfig.onAddToCart,
       onRetry: pageConfig.onRetry,
       onBackToCategories: pageConfig.onBackToCategories,
+      onSearchTap: pageConfig.onSearchTap,
     };
     ctx.setData = jest.fn(function (patch) { Object.assign(this.data, patch); }.bind(ctx));
   });
@@ -162,8 +163,8 @@ describe('category', () => {
     expect(wx.navigateTo).toHaveBeenCalledWith({ url: '/pages-sub/user/login/login' });
   });
 
-  it('addToCart 已登录调 CartAPI.addItem 并提示', async () => {
-    ctx.addToCart({ currentTarget: { dataset: { product: { id: 'p1' } } } });
+  it('onAddToCart 已登录调 CartAPI.addItem 并提示', async () => {
+    ctx.onAddToCart({ currentTarget: { dataset: { product: { id: 'p1' } } } });
     // 让 CartAPI.addItem 的 .then 跑完,触发 toast
     await new Promise((r) => setTimeout(r, 0));
     expect(mockAddItem).toHaveBeenCalledWith({ productId: 'p1', quantity: 1 });
@@ -171,9 +172,9 @@ describe('category', () => {
     expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '已加入购物车' }));
   });
 
-  it('addToCart 未登录跳 login 页(带 redirect)且不走 CartAPI', () => {
+  it('onAddToCart 未登录跳 login 页(带 redirect)且不走 CartAPI', () => {
     wx.getStorageSync.mockReturnValue('');
-    ctx.addToCart({ currentTarget: { dataset: { product: { id: 'p1' } } } });
+    ctx.onAddToCart({ currentTarget: { dataset: { product: { id: 'p1' } } } });
     expect(mockAddItem).not.toHaveBeenCalled();
     expect(cartUtil.addToCart).not.toHaveBeenCalled();
     expect(wx.navigateTo).toHaveBeenCalledWith(
@@ -193,5 +194,14 @@ describe('category', () => {
     ctx.onBackToCategories();
     expect(ctx.data.selectedCategory).toBeNull();
     expect(ctx.data.products).toEqual([]);
+  });
+
+  /**
+   * mp-02 顶部标题栏搜索按钮(OD 对齐,brief §1)—— 纯装饰,不伪造跨页搜索状态管理。
+   * 与首页 onBellTap 处理方式一致:toast "功能开发中"。
+   */
+  it('onSearchTap 提示功能开发中(装饰性,不实现真实搜索交互)', () => {
+    ctx.onSearchTap();
+    expect(wx.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '功能开发中', icon: 'none' }));
   });
 });

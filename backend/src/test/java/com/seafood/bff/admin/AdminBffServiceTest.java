@@ -74,7 +74,7 @@ class AdminBffServiceTest {
         when(orders.get("o1")).thenReturn(order);
         when(users.get(eq("u1"), any(UserPrincipal.class)))
                 .thenReturn(new UserResponse("u1", "open-1", "张三", "http://a",
-                        "CUSTOMER", "13900000000", List.of(), Instant.parse("2026-06-01T00:00:00Z")));
+                        "CUSTOMER", "13900000000", List.of(), Instant.parse("2026-06-01T00:00:00Z"), 0, 0));
         when(products.get("p1")).thenReturn(sampleProduct("p1"));
         when(products.get("p2")).thenReturn(sampleProduct("p2"));
 
@@ -95,7 +95,7 @@ class AdminBffServiceTest {
                 new BigDecimal("297.00"));
         when(orders.get("o1")).thenReturn(order);
         when(users.get(eq("u1"), any())).thenReturn(new UserResponse("u1", "open-1", "n", "u",
-                "CUSTOMER", null, List.of(), Instant.now()));
+                "CUSTOMER", null, List.of(), Instant.now(), 0, 0));
         when(products.get("p1")).thenReturn(sampleProduct("p1"));
         when(products.get("gone")).thenThrow(new NotFoundException("商品不存在:gone"));
 

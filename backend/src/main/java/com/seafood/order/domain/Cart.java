@@ -53,6 +53,44 @@ public record Cart(
         return new Cart(userId, next, Instant.now());
     }
 
+    /**
+     * 把指定行的数量替换成 {@code quantity}(design D2:整数替换,不是累加 —— 区别于
+     * {@link #addItem} 的 upsert-merge 语义)。行不存在时抛 {@link CartItemNotFoundException}
+     * (design D1:read-modify-write 操作对不存在的行返回查找失败,不像 {@link #removeItem}
+     * 那样静默 no-op)。
+     */
+    public Cart updateQuantity(String productId, int quantity) {
+        if (quantity <= 0) {
+            throw new DomainException("数量必须大于 0");
+        }
+        int idx = indexOf(productId);
+        List<CartItem> next = new ArrayList<>(items);
+        CartItem existing = next.get(idx);
+        next.set(idx, new CartItem(productId, quantity, existing.selected(), existing.addedAt()));
+        return new Cart(userId, next, Instant.now());
+    }
+
+    /**
+     * 翻转指定行的 {@code selected}。行不存在时抛 {@link CartItemNotFoundException}
+     * (design D1,同 {@link #updateQuantity})。
+     */
+    public Cart toggleSelected(String productId) {
+        int idx = indexOf(productId);
+        List<CartItem> next = new ArrayList<>(items);
+        CartItem existing = next.get(idx);
+        next.set(idx, new CartItem(productId, existing.quantity(), !existing.selected(), existing.addedAt()));
+        return new Cart(userId, next, Instant.now());
+    }
+
+    private int indexOf(String productId) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).productId().equals(productId)) {
+                return i;
+            }
+        }
+        throw new CartItemNotFoundException(productId);
+    }
+
     public Cart removeItem(String productId) {
         List<CartItem> next = items.stream()
                 .filter(i -> !i.productId().equals(productId))

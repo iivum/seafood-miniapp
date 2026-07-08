@@ -17,15 +17,28 @@ const HOT_SEARCH_KEYWORDS = [
   { id: 8, keyword: '扇贝', count: 2600 }
 ];
 
+// mp-01 首页 5 分类,与后端 ProductCategory(sealed interface)displayName 一一对应
+// (参见 pages/category/category.js 同一契约)。id 必须用中文 displayName ——
+// repo.findByCategory 精确匹配商品 category 字段,英文/自造 id 会匹配 0 商品。
+// 旧 bug:硬编码 4 项(fish/shrimp/shell/live),且 "活鲜" 不在后端 5 类目里,
+// 与 OD 原型(frontend/e2e/od-golden/mp-01-home.png)的 5 类目也不符。
+const CATEGORIES = [
+  { id: '鱼类', name: '鱼类', icon: '🐟' },
+  { id: '虾蟹', name: '虾蟹', icon: '🦐' },
+  { id: '贝类', name: '贝类', icon: '🐚' },
+  { id: '软体', name: '软体', icon: '🦑' },
+  { id: '海藻', name: '海藻', icon: '🌿' },
+];
+
 Page({
   data: {
-    categories: [
-        {id: 'fish', name: '鱼类', icon: '🐟'},
-        {id: 'shrimp', name: '虾蟹', icon: '🦐'},
-        {id: 'shell', name: '贝类', icon: '🐚'},
-        {id: 'live', name: '活鲜', icon: '🦞'}
-    ],
+    categories: CATEGORIES,
+    // 当前生效的分类筛选;空串 = 未筛选(filter chip "全部" 高亮态)。
+    activeCategory: '',
     products: [],
+    // section header "今日 {N} 款推荐" 用的真实商品总数(来自后端分页 totalProducts),
+    // 不再硬编码"每日 10 款 · 限时优惠"。
+    totalProducts: 0,
     // home hero 轮播(后端驱动,GET /api/banners;空则 swiper 不渲染)
     banners: [],
     // Loading states
@@ -151,6 +164,7 @@ Page({
 
     this.setData({
       products: productsWithHighlight,
+      totalProducts: this.productModule.state.pagination.totalProducts,
       isLoading: this.productModule.state.isLoading,
       isError: this.productModule.state.isError,
       isEmpty: this.productModule.isEmpty,
@@ -237,7 +251,7 @@ Page({
    * 未登录跳 login 页;已登录走 cartApi.addItem(后端 needAuth)。
    * 不再走本地 cartUtil.addToCart(数据永远到不了后端,登录后看不到)。
    */
-  addToCart(e) {
+  onAddToCart(e) {
     const product = e.currentTarget.dataset.product;
     const productId = product && product.id;
     const token = wx.getStorageSync('accessToken');
@@ -256,7 +270,7 @@ Page({
         wx.showToast({ title: '已加入购物车', icon: 'success' });
       })
       .catch((err) => {
-        console.error('addToCart 失败', err);
+        console.error('onAddToCart 失败', err);
         wx.showToast({ title: '加入失败', icon: 'none' });
       });
   },
@@ -303,12 +317,48 @@ Page({
    */
   onCategoryTap: function (e) {
     const category = e.currentTarget.dataset.category;
+    // 同步 activeCategory:供 filter chip "全部" 判断激活态(!activeCategory)。
+    this.setData({ activeCategory: category });
     wx.showLoading({ title: '加载中...' });
 
     this.productModule.loadProducts({ page: 0, category: category })
       .then(() => this.updateViewFromModule())
       .catch(err => this.handleError(err))
       .finally(() => wx.hideLoading());
+  },
+
+  /**
+   * 清空当前分类筛选,展示全部商品。三处复用:
+   *   ① filter chip "全部" bindtap(OD 唯一功能性 chip)
+   *   ② section header "查看全部→" 链接
+   *   ③ 空态 shared-empty 的 retry —— wxml 此前已绑定 bind:retry="onClearFilter",
+   *      但该方法从未定义(死绑定 bug),点击"查看全部"重试按钮会直接报错。
+   */
+  onClearFilter: function () {
+    this.setData({ activeCategory: '' });
+    wx.showLoading({ title: '加载中...' });
+
+    this.productModule.loadProducts({ page: 0, category: '' })
+      .then(() => this.updateViewFromModule())
+      .catch(err => this.handleError(err))
+      .finally(() => wx.hideLoading());
+  },
+
+  /**
+   * Filter chip 占位项(捕捞当日 / 限量拾 / 满199减30)。
+   * 后端 Product 领域没有对应字段,不能做成真筛选;点击给明确 toast 反馈,
+   * 不静默无动作、也不伪造筛选行为。
+   */
+  onFilterPlaceholderTap: function (e) {
+    const label = e.currentTarget.dataset.label;
+    wx.showToast({ title: `${label} 功能开发中`, icon: 'none' });
+  },
+
+  /**
+   * 通知铃铛(纯装饰,无后端通知能力)。
+   */
+  onBellTap: function () {
+    wx.showToast({ title: '功能开发中', icon: 'none' });
   },
 
   /**

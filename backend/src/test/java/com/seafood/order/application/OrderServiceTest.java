@@ -1,5 +1,6 @@
 package com.seafood.order.application;
 
+import com.seafood.order.api.dto.CartItemRequest;
 import com.seafood.order.api.dto.OrderResponse;
 import com.seafood.order.domain.CartItem;
 import com.seafood.order.infra.CartDocument;
@@ -31,6 +32,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class OrderServiceTest {
@@ -143,6 +147,99 @@ class OrderServiceTest {
 
         assertThat(prod.getStock()).isEqualTo(0);
         assertThat(prod.getStatus()).isEqualTo(ProductStatus.OUT_OF_STOCK);
+    }
+
+    @Test
+    void create_cartHasUnselectedItemPointingAtMissingProduct_failsWholeCheckout() {
+        // Regression(mp-backend-contract-gaps Task 2a review 修复):cart 里一个已勾选
+        // 的有效商品 + 一个未勾选、指向不存在/已下架商品的行。pre-diff(ade2df2)行为是
+        // 存在性校验跑在全量 cart items 上(不看 selected),所以整单应该建不了 ——
+        // 而不是静默忽略那行未勾选商品、只用已勾选行成功下单。
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(
+                new CartItem("p1", 2, true, Instant.now()),       // 已勾选,有效商品
+                new CartItem("p-deleted", 1, false, Instant.now()) // 未勾选,商品已不存在
+        ));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        // findAllById 对全量 productIds(p1, p-deleted)查询,只有 p1 存在 → size 不匹配
+        when(productRepo.findAllById(List.of("p1", "p-deleted")))
+                .thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+
+        assertThatThrownBy(() -> service.create("u1"))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("商品不存在或已下架");
+
+        // 整单应该建不了:不落库订单,不清购物车,不扣任何库存
+        verify(orderRepo, never()).save(any(OrderDocument.class));
+        verify(cartRepo, never()).deleteById(anyString());
+        verify(productRepo, never()).save(any(ProductDocument.class));
+    }
+
+    // === mp-backend-contract-gaps Task 2a(design.md Gap 2 / D3):
+    // 显式 items 直接购买建单,绕开购物车 ===
+
+    @Test
+    void create_withExplicitItems_buildsOrderWithoutTouchingCart() {
+        // 直接购买路径:同样的存在/上架/库存校验 + 扣减,但绝不读/清购物车
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        OrderResponse res = service.create("u1", List.of(new CartItemRequest("p1", 2)));
+
+        assertThat(res.id()).isEqualTo("o1");
+        assertThat(res.totalAmount()).isEqualByComparingTo("100.00");
+        assertThat(res.status()).isEqualTo("PENDING");
+        // design D3:direct-buy 路径从不读/清购物车
+        verifyNoInteractions(cartRepo);
+    }
+
+    @Test
+    void create_withEmptyItemsList_fallsBackToCartPath() {
+        // items 传空 list → 回退到现有购物车路径,行为与今天完全一致(含清空购物车)
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(new CartItem("p1", 2, true, Instant.now())));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        OrderResponse res = service.create("u1", List.of());
+
+        assertThat(res.totalAmount()).isEqualByComparingTo("100.00");
+        verify(cartRepo).findById("u1");
+        verify(cartRepo).deleteById("u1");
+    }
+
+    @Test
+    void create_withExplicitItems_insufficientStock_rejectsAndLeavesCartAndProductUntouched() {
+        // items 某行库存不足 → DomainException(GlobalExceptionHandler 映射 409),
+        // 不落库任何订单,不动购物车,商品库存不被扣减
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        ProductDocument prod = activeProduct("p1", "三文鱼", 1);
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(prod));
+
+        assertThatThrownBy(() -> service.create("u1", List.of(new CartItemRequest("p1", 5))))
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("库存不足");
+
+        verifyNoInteractions(cartRepo);
+        verify(orderRepo, never()).save(any(OrderDocument.class));
+        verify(productRepo, never()).save(any(ProductDocument.class));
+        assertThat(prod.getStock()).isEqualTo(1);
     }
 
     @Test

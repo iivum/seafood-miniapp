@@ -100,6 +100,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/**").authenticated()
                 // 地址 self-scoped 门面(身份取自 JWT principal,细粒度在 @PreAuthorize)
                 .requestMatchers("/api/addresses/**").authenticated()
+                // 收藏 / 浏览足迹 self-scoped 门面(同 /api/addresses 惯例——task-4 全分支
+                // review 发现:FavoriteController/ProductViewController 新增时漏配了这两条,
+                // 两边方法级 @PreAuthorize("isAuthenticated()") 从未真正生效,anyRequest()
+                // .denyAll() 兜底先一步把请求全部拒了(403)——同 2026-06-21 /api/addresses
+                // 那次一模一样的漏配类型,SecurityFilterChainOrderIT 已加对应回归测试)
+                .requestMatchers("/api/favorites/**", "/api/product-views/**").authenticated()
                 // 兜底
                 .anyRequest().denyAll()
             )

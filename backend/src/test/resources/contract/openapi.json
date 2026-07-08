@@ -11,6 +11,9 @@
             "minLength" : 1,
             "type" : "string"
           },
+          "district" : {
+            "type" : "string"
+          },
           "isDefault" : {
             "type" : "boolean"
           },
@@ -36,6 +39,9 @@
             "type" : "string"
           },
           "detail" : {
+            "type" : "string"
+          },
+          "district" : {
             "type" : "string"
           },
           "id" : {
@@ -271,25 +277,6 @@
         },
         "type" : "object"
       },
-      "CartItem" : {
-        "properties" : {
-          "addedAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "productId" : {
-            "type" : "string"
-          },
-          "quantity" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
-          "selected" : {
-            "type" : "boolean"
-          }
-        },
-        "type" : "object"
-      },
       "CartItemRequest" : {
         "properties" : {
           "productId" : {
@@ -323,11 +310,51 @@
         },
         "type" : "object"
       },
+      "CartLineItemResponse" : {
+        "properties" : {
+          "addedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "available" : {
+            "type" : "boolean"
+          },
+          "imageUrl" : {
+            "type" : "string"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "selected" : {
+            "type" : "boolean"
+          },
+          "unitPrice" : {
+            "type" : "number"
+          }
+        },
+        "type" : "object"
+      },
+      "CartQuantityUpdateRequest" : {
+        "properties" : {
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "CartResponse" : {
         "properties" : {
           "items" : {
             "items" : {
-              "$ref" : "#/components/schemas/CartItem"
+              "$ref" : "#/components/schemas/CartLineItemResponse"
             },
             "type" : "array"
           },
@@ -348,6 +375,17 @@
           },
           "flagKey" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CreateOrderRequest" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CartItemRequest"
+            },
+            "type" : "array"
           }
         },
         "type" : "object"
@@ -393,6 +431,26 @@
             "type" : "string"
           },
           "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "FavoriteItemResponse" : {
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "imageUrl" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "productName" : {
             "type" : "string"
           }
         },
@@ -920,6 +978,16 @@
         },
         "type" : "object"
       },
+      "PhoneBindRequest" : {
+        "properties" : {
+          "code" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "code" ],
+        "type" : "object"
+      },
       "ProductRequest" : {
         "properties" : {
           "category" : {
@@ -1006,6 +1074,30 @@
           "total" : {
             "format" : "int64",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ProductViewResponse" : {
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "imageUrl" : {
+            "type" : "string"
+          },
+          "price" : {
+            "type" : "number"
+          },
+          "productId" : {
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "viewedAt" : {
+            "format" : "date-time",
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -1153,6 +1245,9 @@
           "detail" : {
             "type" : "string"
           },
+          "district" : {
+            "type" : "string"
+          },
           "isDefault" : {
             "type" : "boolean"
           },
@@ -1235,6 +1330,10 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "favoriteCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "id" : {
             "type" : "string"
           },
@@ -1249,6 +1348,10 @@
           },
           "role" : {
             "type" : "string"
+          },
+          "viewCount" : {
+            "format" : "int32",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -1317,7 +1420,7 @@
         "tags" : [ "address-controller" ]
       },
       "post" : {
-        "operationId" : "add",
+        "operationId" : "add_1",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -2366,6 +2469,141 @@
           }
         },
         "tags" : [ "cart-controller" ]
+      },
+      "patch" : {
+        "operationId" : "toggleSelected",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CartResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cart-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateQuantity",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CartQuantityUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CartResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "cart-controller" ]
+      }
+    },
+    "/api/favorites" : {
+      "get" : {
+        "operationId" : "list_6",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/FavoriteItemResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "favorite-controller" ]
+      }
+    },
+    "/api/favorites/{productId}" : {
+      "delete" : {
+        "operationId" : "remove_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "type" : "string"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "favorite-controller" ]
+      },
+      "post" : {
+        "operationId" : "add",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "type" : "string"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "favorite-controller" ]
       }
     },
     "/api/featureflags" : {
@@ -2423,6 +2661,15 @@
       },
       "post" : {
         "operationId" : "create_1",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          }
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -2685,6 +2932,46 @@
         "tags" : [ "order-controller" ]
       }
     },
+    "/api/product-views" : {
+      "get" : {
+        "operationId" : "list_5",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ProductViewResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-view-controller" ]
+      }
+    },
+    "/api/product-views/{productId}" : {
+      "post" : {
+        "operationId" : "record",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-view-controller" ]
+      }
+    },
     "/api/products" : {
       "get" : {
         "operationId" : "list",
@@ -2889,6 +3176,34 @@
           }
         },
         "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/me/phone" : {
+      "patch" : {
+        "operationId" : "bindPhone",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PhoneBindRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-phone-controller" ]
       }
     },
     "/api/users/{userId}" : {

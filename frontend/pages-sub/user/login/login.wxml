@@ -1,31 +1,70 @@
 <view class="login-page">
-  <image class="login-logo" src="/images/logo.png" mode="aspectFit" />
-  <text class="login-title">海鲜生鲜商城</text>
-  <text class="login-subtitle">登录后开始购物</text>
-
-  <view class="login-actions">
-    <!-- 开发者登录:本地 + e2e 用,后端 dev-login(code 以 dev- 开头即走通) -->
-    <button
-      class="login-btn login-btn--dev"
-      bindtap="onDevLogin"
-      hover-class="is-clicked"
-      hover-stay-time="100"
-    >
-      <icon type="download" size="20" />
-      <text>开发者登录</text>
-    </button>
-
-    <!-- 微信登录:真机扫码,后端走 wx.login code → jscode2session -->
-    <button
-      class="login-btn login-btn--wechat"
-      bindtap="onWxLogin"
-      hover-class="is-clicked"
-      hover-stay-time="100"
-    >
-      <icon type="wechat" size="20" color="#07c160" />
-      <text>微信登录</text>
-    </button>
+  <view class="login-hero">
+    <view class="login-hero-scrim"></view>
+    <view class="login-brand">
+      <view class="login-brand-row">
+        <image class="login-brand-icon" src="/images/logo.png" mode="aspectFit" />
+        <text class="login-brand-name">海鲜商城</text>
+      </view>
+      <text class="login-brand-eyebrow">FRESH · DIRECT · DAILY</text>
+      <text class="login-brand-headline">新鲜直达\n从一次授权开始</text>
+    </view>
   </view>
 
-  <text class="login-tip">首次使用将自动创建账号</text>
+  <view class="login-panel">
+    <block wx:if="{{step === 1}}">
+      <text class="login-lede">授权登录后可查看订单、收货地址与专属会员价</text>
+
+      <view class="login-consent {{shakeConsent ? 'is-shaking' : ''}}" bindtap="onToggleAgree">
+        <view class="login-consent-box {{agreed ? 'is-checked' : ''}}"></view>
+        <text class="login-consent-text">我已阅读并同意《用户协议》与《隐私政策》</text>
+      </view>
+
+      <!-- 微信一键登录:需先勾选协议;未勾选点击时 shake + toast 阻断(align-mp-login-with-od) -->
+      <button
+        class="login-btn login-btn--wechat"
+        bindtap="onWxLogin"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text>微信一键登录</text>
+      </button>
+
+      <text class="login-skip" bindtap="onSkipLogin">暂不登录，先逛逛 →</text>
+
+      <text class="login-tip">首次使用将自动创建账号</text>
+
+      <!-- 开发者登录:本地 + e2e 用,后端 dev-login(code 以 dev- 开头即走通);
+           视觉收敛为不显眼小字入口,不占主视觉(design.md 决策 6) -->
+      <text class="login-dev-link" bindtap="onDevLogin">开发者登录</text>
+    </block>
+
+    <block wx:if="{{step === 2}}">
+      <view class="login-avatar-row">
+        <view class="login-avatar">{{userAvatarInitial}}</view>
+        <view class="login-avatar-info">
+          <text class="login-avatar-name">{{userNickname}}</text>
+          <text class="login-avatar-sub">✓ 微信授权成功</text>
+        </view>
+      </view>
+
+      <text class="login-lede">再绑定手机号，接收订单进度与到货提醒</text>
+
+      <!-- 真实微信手机号授权:需企业资质,仅真机/生产可用(design.md 决策 4) -->
+      <button
+        class="login-btn login-btn--phone"
+        open-type="getPhoneNumber"
+        bindgetphonenumber="onGetPhoneNumber"
+        hover-class="is-clicked"
+        hover-stay-time="100"
+      >
+        <text>一键获取手机号</text>
+      </button>
+
+      <text class="login-skip" bindtap="onSkipPhoneBind">暂不绑定，进入首页 →</text>
+
+      <!-- devtools 无法触发真实 getPhoneNumber 授权,合成 dev- 前缀 code 覆盖 e2e -->
+      <text class="login-dev-link" bindtap="onDevBindPhone">开发者：测试手机号绑定</text>
+    </block>
+  </view>
 </view>

@@ -70,6 +70,23 @@ describe('features/order/store', () => {
     expect(o).toEqual(sampleOrder);
   });
 
+  // ===== D3b(mp-backend-contract-gaps Gap 2):直接购买建单绕开购物车 =====
+
+  it('placeDirectBuyOrder(): prepends to orders, does NOT touch the cart', async () => {
+    // 只排一个响应(建单本身)。若实现误加了 cartStore.clear() 调用,
+    // 会多发一次 wx.request 消耗掉队列外的 fallback { errMsg: 'no more' }
+    // ——下面的 calls.length 断言就会失败,锁住"direct-buy 不清购物车"这条契约。
+    setWxResponseSequence([{ statusCode: 200, data: sampleOrder }]);
+    const o = await orderStore.placeDirectBuyOrder({
+      addressId: 'a1',
+      items: [{ productId: 'p1', quantity: 2 }],
+    });
+    expect(o).toEqual(sampleOrder);
+    expect(orderStore.getState().orders[0]).toEqual(sampleOrder);
+    expect(orderStore.getState().current).toEqual(sampleOrder);
+    expect((wx.request as jest.Mock).mock.calls.length).toBe(1);
+  });
+
   it('cancel(): updates the matching order in the list', async () => {
     setWxResponseSequence([
       { statusCode: 200, data: [sampleOrder] },

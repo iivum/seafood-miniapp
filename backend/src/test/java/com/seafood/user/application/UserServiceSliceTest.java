@@ -25,11 +25,13 @@ import static org.mockito.Mockito.when;
 class UserServiceSliceTest {
 
     @Mock private UserRepository userRepository;
+    @Mock private ProductViewService productViewService;
+    @Mock private WechatPhoneNumberExchanger phoneExchanger;
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository);
+        userService = new UserService(userRepository, productViewService, phoneExchanger);
     }
 
     private static final UserPrincipal ADMIN = new UserPrincipal("admin-1", Role.ADMIN);

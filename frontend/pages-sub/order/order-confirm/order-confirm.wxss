@@ -2,12 +2,56 @@
  * 路线图 3.14 / 3.17 / 3.18 — mp-06 订单确认 OD v2 视觉。
  * 5 段:地址 / 商品 / 配送 / 备注 / 金额明细 + 底部结算 sticky。
  * tokens 单一源 docs/redesign/tokens.json。
+ *
+ * mp-06 OD 原型对齐(brief `.superpowers/sdd/mp-od-5-order-confirm-brief.md`):
+ * 新增 .confirm-topbar(brief §1,与 order-detail.wxss 的 .topbar / mp-02
+ * category.wxss 的 .cat-topbar 同款圆角/间距/token 惯例)+ .summary-count
+ * (brief §3 "共 N 件",复用 .remark-counter 同款次要文案字号/颜色惯例)。
  */
 
 .order-confirm-container {
   min-height: 100vh;
   background: var(--bg, #fffbf8);
   padding-bottom: 180rpx;
+}
+
+/* ===== 0. 顶部标题栏(brief §1;navigationStyle:custom 替代原生导航栏) ===== */
+
+.confirm-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx 20rpx;
+  background: var(--bg, #fffbf8);
+}
+
+.confirm-topbar__back {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: var(--radius-pill, 9999px);
+  background: var(--surface, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2rpx 8rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
+}
+
+.confirm-topbar__back-icon {
+  font-size: 36rpx;
+  color: var(--fg, #231814);
+  line-height: 1;
+}
+
+.confirm-topbar__title {
+  font-family: var(--font-display, serif);
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--fg, #231814);
+}
+
+.confirm-topbar__placeholder {
+  width: 64rpx;
+  height: 64rpx;
 }
 
 .card-title {
@@ -19,6 +63,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+/* brief §3 "共 N 件"(金额明细卡标题行,同 .remark-counter 次要文案惯例) */
+.summary-count {
+  font-size: 24rpx;
+  font-weight: 400;
+  color: var(--muted, #5a5451);
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, sans-serif);
 }
 
 /* ===== 1. 地址选择器 ===== */

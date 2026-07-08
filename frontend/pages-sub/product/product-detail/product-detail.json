@@ -3,5 +3,6 @@
   "usingComponents": {
     "shared-empty": "@vant/weapp/empty/index",
     "shared-loading": "@vant/weapp/loading/index"
-  }
+  },
+  "navigationStyle": "custom"
 }

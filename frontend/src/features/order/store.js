@@ -63,6 +63,18 @@ class OrderStore {
     return order;
   }
 
+  // D3b(mp-backend-contract-gaps Gap 2):mp-03 立即购买直接建单,绕开购物车。
+  // 与 placeOrder 唯一区别是不调用 cartStore.clear() —— 这条路径从未写
+  // 购物车,没有东西需要清。
+  async placeDirectBuyOrder(body) {
+    const order = await OrderAPI.create(body);
+    this._setState({
+      orders: [order, ...this.state.orders],
+      current: order,
+    });
+    return order;
+  }
+
   async cancel(id, reason) {
     const order = await OrderAPI.cancel(id, reason);
     this._setState({
@@ -70,6 +82,36 @@ class OrderStore {
       current: this.state.current && this.state.current.id === id ? order : this.state.current,
     });
     return order;
+  }
+
+  /**
+   * 4.10:申请退款。乐观更新本地 Order.status = REFUNDING(后端同步会改,
+   * 失败时回滚),再 await 后端响应后用真实状态覆盖。后端响应只返 Refund 单,
+   * Order 状态需重新拉一次;这里用响应时间戳 + 一个合成 status 更新本地。
+   *
+   * mp-cross-screen-cleanup D7 诊断发现:store.ts 早就实现且测试过这个方法
+   * (store.test.ts),但这份 mp 运行时真正加载的 .js shim 此前一直没同步补上——
+   * 同 order/api.js 顶部注释记录的 "mp-08 状态机 5 操作端点漏同步" 是同一类
+   * "ts 有、js shim 没有" 的 drift,这里补上,否则 order-actions.js 调用
+   * orderStore.requestRefund 在真实 mp 运行时会直接 TypeError。
+   */
+  async requestRefund(id, amount, reason) {
+    const prevOrders = this.state.orders;
+    const prevCurrent = this.state.current;
+    this._setState({
+      orders: this.state.orders.map((o) => (o.id === id ? { ...o, status: 'REFUNDING' } : o)),
+      current:
+        this.state.current && this.state.current.id === id
+          ? { ...this.state.current, status: 'REFUNDING' }
+          : this.state.current,
+    });
+    try {
+      const refund = await OrderAPI.requestRefund(id, { amount, reason });
+      return { orderStatus: 'REFUNDING', updatedAt: refund.updatedAt };
+    } catch (err) {
+      this._setState({ orders: prevOrders, current: prevCurrent });
+      throw err;
+    }
   }
 
   filter(status) {

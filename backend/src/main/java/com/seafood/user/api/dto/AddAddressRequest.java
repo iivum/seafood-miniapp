@@ -7,6 +7,7 @@ public record AddAddressRequest(
         @NotBlank String phone,
         @NotBlank String province,
         @NotBlank String city,
+        String district,
         @NotBlank String detail,
         boolean isDefault
 ) {
