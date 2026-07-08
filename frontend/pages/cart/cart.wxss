@@ -95,6 +95,9 @@
 .address-card__placeholder {
   font-size: 28rpx;
   color: var(--muted, #5a5451);
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
 }
 
 .address-card__arrow {

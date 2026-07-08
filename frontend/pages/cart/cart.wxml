@@ -25,11 +25,13 @@
   <!-- 空购物车 -->
   <view class="cart-empty" wx:if="{{cartItems.length === 0}}">
     <shared-empty
-      icon="🛒"
+      image=""
       message="购物车空空如也"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
-    ></shared-empty>
+    >
+      <van-icon slot="image" name="cart-o" size="48px" />
+    </shared-empty>
   </view>
 
   <view class="cart-content" wx:else>
@@ -45,7 +47,10 @@
         </text>
       </view>
       <view class="address-card__empty" wx:else>
-        <text class="address-card__placeholder">📍 请选择收货地址</text>
+        <view class="address-card__placeholder">
+          <van-icon name="location-o" size="14px" />
+          <text>请选择收货地址</text>
+        </view>
       </view>
       <text class="address-card__arrow">›</text>
     </navigator>
@@ -54,7 +59,7 @@
     <view class="cart-bar">
       <view class="cart-bar__select-all" bindtap="onSelectAllTap" hover-class="is-clicked" hover-stay-time="100">
         <view class="cart-checkbox {{isAllSelected ? 'cart-checkbox--checked' : ''}}">
-          <text wx:if="{{isAllSelected}}" class="cart-checkbox__icon">✓</text>
+          <van-icon wx:if="{{isAllSelected}}" class="cart-checkbox__icon" name="success" size="16px" />
         </view>
         <text class="cart-bar__label">全选</text>
       </view>
@@ -76,7 +81,7 @@
           hover-stay-time="100"
         >
           <view class="cart-checkbox {{item.selected ? 'cart-checkbox--checked' : ''}}">
-            <text wx:if="{{item.selected}}" class="cart-checkbox__icon">✓</text>
+            <van-icon wx:if="{{item.selected}}" class="cart-checkbox__icon" name="success" size="16px" />
           </view>
         </view>
         <image
