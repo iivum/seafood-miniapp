@@ -3,6 +3,7 @@
   "usingComponents": {
     "shared-empty": "@vant/weapp/empty/index",
     "shared-loading": "@vant/weapp/loading/index",
-    "order-action-row": "../../../src/features/order/components/OrderActionRow/index"
+    "order-action-row": "../../../src/features/order/components/OrderActionRow/index",
+    "van-icon": "@vant/weapp/icon/index"
   }
 }

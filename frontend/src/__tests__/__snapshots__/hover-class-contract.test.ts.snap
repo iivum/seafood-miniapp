@@ -516,7 +516,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
     </view>
     <text class="order-list__title">我的订单</text>
     <view class="order-list__search" bindtap="onSearch" hover-class="order-list__search--hover">
-      <text class="order-list__search-icon">⌕</text>
+      <van-icon class="order-list__search-icon" name="search" size="18px" />
     </view>
   </view>
 
@@ -544,21 +544,25 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
   <!-- 错误状态 -->
   <view class="order-list__state" wx:elif="{{isError}}">
     <shared-empty
-      icon="⚠️"
+      image=""
       message="{{errorMessage || '加载失败'}}"
       retry-text="重新加载"
       bind:retry="onRetry"
-    ></shared-empty>
+    >
+      <van-icon slot="image" name="warning-o" size="48px" />
+    </shared-empty>
   </view>
 
   <!-- 空状态 -->
   <view class="order-list__state" wx:elif="{{filteredOrders.length === 0}}">
     <shared-empty
-      icon="📦"
+      image=""
       message="还没有相关订单哦"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
-    ></shared-empty>
+    >
+      <van-icon slot="image" name="orders-o" size="48px" />
+    </shared-empty>
   </view>
 
   <!-- 订单卡片列表 -->
@@ -575,7 +579,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
       <!-- 商家行 + 状态徽标 -->
       <view class="order-card__top">
         <view class="order-card__shop">
-          <text class="order-card__shop-icon">⌂</text>
+          <van-icon class="order-card__shop-icon" name="shop-o" size="16px" />
           <text class="order-card__shop-name">海鲜商城</text>
         </view>
         <text class="order-card__status order-card__status--{{item.status}}">{{statusTextMap[item.status]}}</text>
