@@ -10,6 +10,8 @@
 
 用户确认本次**只做第 1 类(UI 微图标)**,第 2/3 类各自的改动性质和影响面都不同,留作后续独立 change。
 
+**范围修正**:写实现计划时逐文件全文重读,发现最初的定向扫描漏了几个不属于 emoji/常见 dingbat 词表、但同属"纯 Unicode 字符充当图标"这一类问题的字符:`‹`(返回箭头,`order-confirm.wxml`/`address-list.wxml`/`favorites-list.wxml` 三处标题栏的返回按钮)、`⌕`(`order-list.wxml` 顶部搜索图标)、`⌂`(`order-list.wxml` 商家行的店铺符号)、`♥`(`favorites-list.wxml` 收藏格子上的实心取消收藏按钮)。这 4 类全部落在本次已经要改的 4 个文件内(`order-confirm`/`order-list`/`address-list`/`favorites-list`),不新增文件,并入本次范围一起做,已补进下面的 D3 语义映射表和改动文件清单。
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -26,7 +28,7 @@
 
 ### D1: 技术方案 —— 复用 `@vant/weapp` 的 `van-icon`,不新建资源
 
-对比过三个方案:(a) `van-icon` 复用现有依赖,(b) 从 OD mockup 导出真实 SVG 为本地 PNG/SVG 资源,(c) 用 OD 图形自建图标字体。选 (a):零新增资源文件、零新增依赖、和 `profile.wxml` 已有的 `van-icon` 用法保持一致,`search`/`location-o`/`bell`/`success`/`edit`/`delete-o`/`warning-o`/`cart-o`/`orders-o`/`like-o` 这 10 个图标名已在本仓安装的 `@vant/weapp@1.11.7` 图标字体(`node_modules/@vant/weapp/lib/icon/index.wxss`)里逐一核实存在。方案 (b)/(c) 能做到像素级复刻 OD 手绘图形,但要么需要新建"小尺寸 UI 图标 PNG"资源流水线(本仓目前只有 tabbar 那种大图标 PNG 先例,没有小图标先例),要么需要图标字体生成工具链,对这几个通用图形(搜索/定位/勾选/警告/爱心)收益有限,拒绝。
+对比过三个方案:(a) `van-icon` 复用现有依赖,(b) 从 OD mockup 导出真实 SVG 为本地 PNG/SVG 资源,(c) 用 OD 图形自建图标字体。选 (a):零新增资源文件、零新增依赖、和 `profile.wxml` 已有的 `van-icon` 用法保持一致,`search`/`location-o`/`bell`/`success`/`edit`/`delete-o`/`warning-o`/`cart-o`/`orders-o`/`like-o`/`arrow-left`/`shop-o`/`like` 这 12 个图标名已在本仓安装的 `@vant/weapp@1.11.7` 图标字体(`node_modules/@vant/weapp/lib/icon/index.wxss`)里逐一核实存在。方案 (b)/(c) 能做到像素级复刻 OD 手绘图形,但要么需要新建"小尺寸 UI 图标 PNG"资源流水线(本仓目前只有 tabbar 那种大图标 PNG 先例,没有小图标先例),要么需要图标字体生成工具链,对这几个通用图形(搜索/定位/勾选/警告/爱心)收益有限,拒绝。
 
 ### D2: 空状态图标 —— 不用 `van-empty` 内置预设字符串,改用具名 slot 塞 `van-icon`
 
@@ -48,8 +50,12 @@
 | 空订单列表 | `orders-o` |
 | 空收藏列表 | `like-o` |
 | 空地址列表 | `location-o`(和定位图标共用同一个名字) |
+| 返回箭头(标题栏返回按钮) | `arrow-left` |
+| 搜索(订单列表顶部,原 `⌕`) | `search`(和搜索图标共用同一个名字) |
+| 店铺符号(订单卡片商家行,原 `⌂`) | `shop-o` |
+| 取消收藏(收藏格子实心爱心按钮,原 `♥`) | `like`(实心变体,和空态用的 `like-o` 描边变体区分"已收藏可点击移除" vs "尚未收藏的空状态提示") |
 
-10 个不重复的图标名覆盖 11 处替换点,刻意压缩词表而不是每个场景发明一个专属图标名,降低认知负担。
+12 个不重复的图标名覆盖 15 处替换点,刻意压缩词表而不是每个场景发明一个专属图标名,降低认知负担。
 
 ### D4: 测试方式 —— 沿用本仓已有的 WXML 源码文本断言风格(参考 `login-flow.test.ts`)
 
@@ -70,8 +76,10 @@
 | `pages/index/index.wxml` | 17, 26, 30 | 📍→`location-o`,🔔→`bell`,🔍→`search` |
 | `pages/category/category.wxml` | 22 | 🔍→`search` |
 | `pages/cart/cart.wxml` | 48, 57, 79 | 📍→`location-o`(需拆出独立 icon 节点,原来和文字拼在同一个 `<text>` 里),✓→`success`(×2) |
-| `pages-sub/order/order-confirm/order-confirm.wxml` | 53, 89, 100, 111 | 📍→`location-o`(同上需拆分),✓→`success`(×3) |
-| `pages-sub/user/address/address-list.wxml` | 82, 92, 98 | ✏️→`edit`,🗑️→`delete-o`,✓→`success` |
+| `pages-sub/order/order-confirm/order-confirm.wxml` | 26, 53, 89, 100, 111 | ‹→`arrow-left`,📍→`location-o`(同上需拆分),✓→`success`(×3) |
+| `pages-sub/order/order-list/order-list.wxml` | 18, 77 | ⌕→`search`,⌂→`shop-o` |
+| `pages-sub/user/address/address-list.wxml` | 33, 82, 92, 98 | ‹→`arrow-left`,✏️→`edit`,🗑️→`delete-o`,✓→`success` |
+| `pages-sub/user/favorites/favorites-list.wxml` | 4, 32 | ‹→`arrow-left`,♥→`like` |
 | `pages-sub/user/login/login.wxml` | 47 | ✓→`success` |
 
 **空状态图标(死 prop 修复 + 真实渲染替换)**
