@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProductViewController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.api</a> &gt; <span class="el_source">ProductViewController.java</span></div><h1>ProductViewController.java</h1><pre class="source lang-java linenums">package com.seafood.user.api;
+
+import com.seafood.shared.security.UserPrincipal;
+import com.seafood.user.api.dto.ProductViewResponse;
+import com.seafood.user.application.ProductViewService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+/**
+ * 浏览足迹 API(self-scoped 门面,同 {@link FavoriteController} 惯例)。
+ * {@link #record} 是 best-effort 记录(design.md D6:失败不影响商品详情页渲染),
+ * 204 No Content——前端不关心返回体。
+ */
+@RestController
+@RequestMapping(&quot;/api/product-views&quot;)
+public class ProductViewController {
+
+    private final ProductViewService productViews;
+
+<span class="fc" id="L28">    public ProductViewController(ProductViewService productViews) {</span>
+<span class="fc" id="L29">        this.productViews = productViews;</span>
+<span class="fc" id="L30">    }</span>
+
+    @PostMapping(&quot;/{productId}&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public ResponseEntity&lt;Void&gt; record(@PathVariable String productId, @AuthenticationPrincipal UserPrincipal me) {
+<span class="fc" id="L35">        productViews.record(me.getId(), productId);</span>
+<span class="fc" id="L36">        return ResponseEntity.noContent().build();</span>
+    }
+
+    @GetMapping
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public List&lt;ProductViewResponse&gt; list(@AuthenticationPrincipal UserPrincipal me) {
+<span class="fc" id="L42">        return productViews.list(me.getId());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

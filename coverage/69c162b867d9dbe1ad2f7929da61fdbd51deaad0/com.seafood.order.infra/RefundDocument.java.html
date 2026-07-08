@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefundDocument.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.infra</a> &gt; <span class="el_source">RefundDocument.java</span></div><h1>RefundDocument.java</h1><pre class="source lang-java linenums">package com.seafood.order.infra;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+/**
+ * refunds collection(参见 design.md §6.1 + specs/admin-batch-operations)。
+ *
+ * &lt;p&gt;索引策略:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code orderId} 索引 — 按订单反查退款单(4.7「创建退款单 + 改 Order 状态」同步落);&lt;/li&gt;
+ *   &lt;li&gt;{@code userId} 索引 — mp 端「我的退款」按用户过滤(Sprint 3 4.10 UI 用);&lt;/li&gt;
+ *   &lt;li&gt;{@code status} 索引 — admin 端「待审核退款」列表(4.11 UI 用)。&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@Document(collection = &quot;refunds&quot;)
+<span class="fc" id="L21">public class RefundDocument {</span>
+
+    @Id
+    private String id;
+
+    @Indexed
+    private String orderId;
+
+    @Indexed
+    private String userId;
+
+    @Indexed
+    private String status;
+
+    private BigDecimal amount;
+    private String reason;
+    private Instant createdAt;
+    private Instant updatedAt;
+
+<span class="fc" id="L40">    public String getId() { return id; }</span>
+<span class="fc" id="L41">    public void setId(String id) { this.id = id; }</span>
+
+<span class="fc" id="L43">    public String getOrderId() { return orderId; }</span>
+<span class="fc" id="L44">    public void setOrderId(String orderId) { this.orderId = orderId; }</span>
+
+<span class="fc" id="L46">    public String getUserId() { return userId; }</span>
+<span class="fc" id="L47">    public void setUserId(String userId) { this.userId = userId; }</span>
+
+<span class="fc" id="L49">    public String getStatus() { return status; }</span>
+<span class="fc" id="L50">    public void setStatus(String status) { this.status = status; }</span>
+
+<span class="fc" id="L52">    public BigDecimal getAmount() { return amount; }</span>
+<span class="fc" id="L53">    public void setAmount(BigDecimal amount) { this.amount = amount; }</span>
+
+<span class="fc" id="L55">    public String getReason() { return reason; }</span>
+<span class="fc" id="L56">    public void setReason(String reason) { this.reason = reason; }</span>
+
+<span class="fc" id="L58">    public Instant getCreatedAt() { return createdAt; }</span>
+<span class="fc" id="L59">    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }</span>
+
+<span class="fc" id="L61">    public Instant getUpdatedAt() { return updatedAt; }</span>
+<span class="fc" id="L62">    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IndexInitializationException.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.infra</a> &gt; <span class="el_source">IndexInitializationException.java</span></div><h1>IndexInitializationException.java</h1><pre class="source lang-java linenums">package com.seafood.shared.infra;
+
+/**
+ * 启动期&lt;em&gt;关键&lt;/em&gt;索引创建失败 — 阻止应用进入 ready 状态(Sprint 2 PR review #6)。
+ *
+ * &lt;p&gt;与 {@code @ConfigurationProperties} 校验异常一样,这是 fail-fast 异常:
+ * 抛在 {@code ApplicationReadyEvent} 监听器里不会回滚已发出的 ready 事件,但会让进程
+ * 继续带着该异常跑到主线程,触发 {@code @EventListener} 默认的 {@code ERROR} 日志;
+ * 实际生产部署应配合 {@code /actuator/health/readiness} 的额外保护(参见 design §5.3)。
+ */
+public class IndexInitializationException extends RuntimeException {
+
+    public IndexInitializationException(String message, Throwable cause) {
+<span class="fc" id="L14">        super(message, cause);</span>
+<span class="fc" id="L15">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

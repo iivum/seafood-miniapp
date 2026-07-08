@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminRateLimitProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.security</a> &gt; <span class="el_source">AdminRateLimitProperties.java</span></div><h1>AdminRateLimitProperties.java</h1><pre class="source lang-java linenums">package com.seafood.shared.security;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Admin 路径限流配置(Sprint 2 §2.4,specs/runtime-security §Admin endpoints enforce
+ * a rate limit,design §4 decision)。
+ *
+ * &lt;p&gt;默认 60 rpm,够 admin-ui 正常使用 1 个数量级,挡 brute-force 撞库与爬取;
+ * Customer-facing {@code /api/products} 不在限流范围(spec scenarios)。
+ */
+@ConfigurationProperties(prefix = &quot;security.rate-limit&quot;)
+@Validated
+<span class="fc" id="L15">public class AdminRateLimitProperties {</span>
+
+    /** 每分钟允许请求数。 */
+<span class="fc" id="L18">    private int requestsPerMinute = 60;</span>
+
+    /**
+     * 桶条目在 Caffeine 里的过期时间(秒)。空桶持续空闲后被回收,防内存泄漏;
+     * 设大于 60 s 以容忍时钟漂移,设小于过大值以防恶意 IP 占内存。
+     */
+<span class="fc" id="L24">    private int bucketTtlSeconds = 120;</span>
+
+<span class="fc" id="L26">    public int getRequestsPerMinute() { return requestsPerMinute; }</span>
+<span class="fc" id="L27">    public void setRequestsPerMinute(int v) { this.requestsPerMinute = v; }</span>
+
+<span class="fc" id="L29">    public int getBucketTtlSeconds() { return bucketTtlSeconds; }</span>
+<span class="fc" id="L30">    public void setBucketTtlSeconds(int v) { this.bucketTtlSeconds = v; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

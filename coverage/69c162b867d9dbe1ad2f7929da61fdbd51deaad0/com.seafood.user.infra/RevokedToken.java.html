@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RevokedToken.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.infra</a> &gt; <span class="el_source">RevokedToken.java</span></div><h1>RevokedToken.java</h1><pre class="source lang-java linenums">package com.seafood.user.infra;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
+import java.time.Instant;
+
+/**
+ * 撤销的 access token 记录(参见 design.md §3,specs/auth §Token revocation)。
+ *
+ * &lt;p&gt;字段:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code _id = jti} — JWT 唯一 id,既是 MongoDB 主键也是 Caffeine cache 的 key&lt;/li&gt;
+ *   &lt;li&gt;{@code userId} — 主体,供 admin 端点审计 / force-logout 使用&lt;/li&gt;
+ *   &lt;li&gt;{@code expiresAt} — 与原 token 的 exp 一致;MongoDB TTL 索引
+ *       ({@code { expiresAt: 1 }, expireAfterSeconds: 0}) 会在到期后自动删
+ *       除,避免无限堆积(design §3 决策 3)&lt;/li&gt;
+ *   &lt;li&gt;{@code revokedAt} — 服务端记录时间,用于审计&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;为什么用 jti 自身作主键:访问模式是&quot;按 jti 查存在性&quot;,{@code _id} 索引就是
+ * 主键索引,1 次 lookup 即命中,无需再单独建 unique index。
+ */
+@Document(collection = &quot;revoked_tokens&quot;)
+public class RevokedToken {
+
+    @Id
+    private String jti;
+
+    @Field(&quot;userId&quot;)
+    private String userId;
+
+    private Instant expiresAt;
+    private Instant revokedAt;
+
+<span class="nc" id="L37">    public RevokedToken() {</span>
+<span class="nc" id="L38">    }</span>
+
+<span class="fc" id="L40">    public RevokedToken(String jti, String userId, Instant expiresAt) {</span>
+<span class="fc" id="L41">        this.jti = jti;</span>
+<span class="fc" id="L42">        this.userId = userId;</span>
+<span class="fc" id="L43">        this.expiresAt = expiresAt;</span>
+<span class="fc" id="L44">        this.revokedAt = Instant.now();</span>
+<span class="fc" id="L45">    }</span>
+
+<span class="fc" id="L47">    public String getJti() { return jti; }</span>
+<span class="nc" id="L48">    public void setJti(String jti) { this.jti = jti; }</span>
+
+<span class="fc" id="L50">    public String getUserId() { return userId; }</span>
+<span class="nc" id="L51">    public void setUserId(String userId) { this.userId = userId; }</span>
+
+<span class="fc" id="L53">    public Instant getExpiresAt() { return expiresAt; }</span>
+<span class="nc" id="L54">    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }</span>
+
+<span class="nc" id="L56">    public Instant getRevokedAt() { return revokedAt; }</span>
+<span class="nc" id="L57">    public void setRevokedAt(Instant revokedAt) { this.revokedAt = revokedAt; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

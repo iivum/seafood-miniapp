@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProductService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.product.application</a> &gt; <span class="el_source">ProductService.java</span></div><h1>ProductService.java</h1><pre class="source lang-java linenums">package com.seafood.product.application;
+
+import com.seafood.product.api.dto.ProductRequest;
+import com.seafood.product.api.dto.ProductResponse;
+import com.seafood.product.domain.Product;
+import com.seafood.product.domain.ProductCategory;
+import com.seafood.product.domain.ProductStatus;
+import com.seafood.product.domain.Sku;
+import com.seafood.product.infra.ProductDocument;
+import com.seafood.product.infra.ProductMapper;
+import com.seafood.product.infra.ProductRepository;
+import com.seafood.shared.error.DomainException;
+import com.seafood.shared.error.NotFoundException;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * 商品写服务 + 公共读(参见 specs/backend-api §Public product browsing / §Admin product management)。
+ *
+ * &lt;p&gt;约束:
+ * &lt;ul&gt;
+ *   &lt;li&gt;所有写操作要求 {@code hasRole('ADMIN')},由 Controller @PreAuthorize 守门&lt;/li&gt;
+ *   &lt;li&gt;公共读不强制登录,但只返回 status == ACTIVE 的商品&lt;/li&gt;
+ *   &lt;li&gt;{@link #decrementStock} 是给订单服务用的入口,跨模块唯一接口&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;OpenSpec setup-observability-stack PR #3 — {@link #listPublic} 成功路径对每个返回的商品
+ * 累加 {@code products.queried{category=...}} 计数器,tag value 是分类的中文 displayName
+ * (与 {@link ProductResponse#category()} 一致)。category 维度基数 = 5(sealed interface),
+ * 满足 design §D5 标签白名单约束(参见 ArchUnit
+ * {@code MetricsCardinalityTest})。
+ */
+@Service
+public class ProductService {
+
+    private final ProductRepository repo;
+    private final MeterRegistry meterRegistry;
+
+<span class="fc" id="L45">    public ProductService(ProductRepository repo, MeterRegistry meterRegistry) {</span>
+<span class="fc" id="L46">        this.repo = repo;</span>
+<span class="fc" id="L47">        this.meterRegistry = meterRegistry;</span>
+<span class="fc" id="L48">    }</span>
+
+    // ----- 写(ADMIN)-----
+
+    public ProductResponse create(ProductRequest req) {
+<span class="fc" id="L53">        Instant now = Instant.now();</span>
+<span class="fc" id="L54">        Product p = new Product(</span>
+<span class="fc" id="L55">                null, req.name(), req.description(), req.price(), req.stock(),</span>
+<span class="fc" id="L56">                ProductCategory.of(req.category()), req.imageUrl(),</span>
+                ProductStatus.ACTIVE, now, now);
+<span class="fc" id="L58">        ProductDocument saved = repo.save(ProductMapper.toDocument(p));</span>
+<span class="fc" id="L59">        return ProductResponse.from(ProductMapper.toDomain(saved));</span>
+    }
+
+    public ProductResponse update(String id, ProductRequest req) {
+<span class="fc" id="L63">        ProductDocument d = repo.findById(id)</span>
+<span class="fc" id="L64">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + id));</span>
+<span class="fc" id="L65">        Product current = ProductMapper.toDomain(d);</span>
+<span class="fc" id="L66">        Product updated = current.updateBasics(req.name(), req.description(), req.price(), req.imageUrl());</span>
+        // stock 走专用方法
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        if (req.stock() != current.stock()) {</span>
+<span class="fc" id="L69">            int delta = req.stock() - current.stock();</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">            if (delta &lt; 0) {</span>
+<span class="fc" id="L71">                updated = updated.decrementStock(-delta);</span>
+            } else {
+<span class="fc" id="L73">                updated = new Product(updated.id(), updated.name(), updated.description(),</span>
+<span class="fc" id="L74">                        updated.price(), req.stock(), updated.category(),</span>
+<span class="fc" id="L75">                        updated.imageUrl(), updated.status(),</span>
+<span class="fc" id="L76">                        updated.createdAt(), Instant.now());</span>
+            }
+        }
+<span class="fc" id="L79">        ProductDocument saved = repo.save(ProductMapper.toDocument(updated));</span>
+<span class="fc" id="L80">        return ProductResponse.from(ProductMapper.toDomain(saved));</span>
+    }
+
+    public void delete(String id) {
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (!repo.existsById(id)) {</span>
+<span class="fc" id="L85">            throw new NotFoundException(&quot;商品不存在:&quot; + id);</span>
+        }
+<span class="fc" id="L87">        repo.deleteById(id);</span>
+<span class="fc" id="L88">    }</span>
+
+    public ProductResponse discontinue(String id) {
+<span class="fc" id="L91">        ProductDocument d = repo.findById(id)</span>
+<span class="fc" id="L92">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + id));</span>
+<span class="fc" id="L93">        Product current = ProductMapper.toDomain(d);</span>
+<span class="fc" id="L94">        Product updated = current.withStatus(ProductStatus.DISCONTINUED);</span>
+<span class="fc" id="L95">        ProductDocument saved = repo.save(ProductMapper.toDocument(updated));</span>
+<span class="fc" id="L96">        return ProductResponse.from(ProductMapper.toDomain(saved));</span>
+    }
+
+    /**
+     * 路线图 3.1:复制商品(为 ad-03 表格&quot;复制&quot;按钮 + 3.4 E2E 铺路)。
+     *
+     * &lt;p&gt;行为:
+     * &lt;ul&gt;
+     *   &lt;li&gt;新商品 id 由 Mongo 自增(传 null 让 spring-data 分配);&lt;/li&gt;
+     *   &lt;li&gt;name 追加 &quot; (副本)&quot; 后缀,避免与原商品重名被 findFirstByName 命中;&lt;/li&gt;
+     *   &lt;li&gt;stock 强制置 0 — 库存不应该随原商品&quot;复制&quot;过来(防误判);&lt;/li&gt;
+     *   &lt;li&gt;status 强制置 ACTIVE — 不继承 DISCONTINUED(避免新商品天生&quot;已下架&quot;);&lt;/li&gt;
+     *   &lt;li&gt;createdAt / updatedAt 戳 now,非原值 — 审计语义上是新商品。&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * &lt;p&gt;价格 / 描述 / 图片 / 分类都原样复制 — 用户期望&quot;复制&quot;就是改改名称和库存,其他不动。
+     */
+    public ProductResponse duplicate(String sourceId) {
+<span class="fc" id="L114">        ProductDocument src = repo.findById(sourceId)</span>
+<span class="fc" id="L115">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + sourceId));</span>
+<span class="fc" id="L116">        Product current = ProductMapper.toDomain(src);</span>
+<span class="fc" id="L117">        Instant now = Instant.now();</span>
+<span class="fc" id="L118">        Product copy = new Product(</span>
+                null,                                            // id 留给 Mongo
+<span class="fc" id="L120">                current.name() + &quot; (副本)&quot;,                       // 改名,避免与原商品重名</span>
+<span class="fc" id="L121">                current.description(),</span>
+<span class="fc" id="L122">                current.price(),</span>
+                0,                                                // 库存不复位(防误判)
+<span class="fc" id="L124">                current.category(),</span>
+<span class="fc" id="L125">                current.imageUrl(),</span>
+                ProductStatus.ACTIVE,                              // 强制上架
+                now,                                              // 新建时间
+                now);
+<span class="fc" id="L129">        ProductDocument saved = repo.save(ProductMapper.toDocument(copy));</span>
+<span class="fc" id="L130">        return ProductResponse.from(ProductMapper.toDomain(saved));</span>
+    }
+
+    // ----- 公共读 -----
+
+    public ProductResponse get(String id) {
+<span class="fc" id="L136">        ProductDocument d = repo.findById(id)</span>
+<span class="fc" id="L137">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + id));</span>
+<span class="fc" id="L138">        return ProductResponse.from(ProductMapper.toDomain(d));</span>
+    }
+
+    public Page&lt;ProductResponse&gt; listPublic(String category, Pageable pageable) {
+<span class="pc bpc" id="L142" title="1 of 4 branches missed.">        Page&lt;ProductDocument&gt; page = (category == null || category.isBlank())</span>
+<span class="fc" id="L143">                ? repo.findByStatus(ProductStatus.ACTIVE, pageable)</span>
+<span class="fc" id="L144">                : repo.findByCategory(category, pageable)</span>
+<span class="fc" id="L145">                        .map(d -&gt; { d.setStatus(ProductStatus.ACTIVE); return d; });</span>
+<span class="fc" id="L146">        List&lt;ProductResponse&gt; mapped = page.getContent().stream()</span>
+<span class="fc" id="L147">                .map(ProductMapper::toDomain)</span>
+<span class="fc" id="L148">                .map(ProductResponse::from)</span>
+<span class="fc" id="L149">                .toList();</span>
+        // 业务埋点:每个被浏览的商品 +1。tag value 是分类 displayName(5 档 sealed
+        // interface,低基数),不用 category filter 维度。无结果时 0 增量,
+        // 计数器只在真正被消费时增长,避免 0/全量导致 PromQL `rate()` 分母为零。
+<span class="fc bfc" id="L153" title="All 2 branches covered.">        for (ProductResponse r : mapped) {</span>
+<span class="fc" id="L154">            meterRegistry.counter(&quot;products.queried&quot;, &quot;category&quot;, r.category()).increment();</span>
+<span class="fc" id="L155">        }</span>
+<span class="fc" id="L156">        return new PageImpl&lt;&gt;(mapped, pageable, page.getTotalElements());</span>
+    }
+
+    public Page&lt;ProductResponse&gt; listAdmin(String category, Pageable pageable) {
+<span class="pc bpc" id="L160" title="1 of 4 branches missed.">        Page&lt;ProductDocument&gt; page = (category == null || category.isBlank())</span>
+<span class="fc" id="L161">                ? repo.findAll(pageable)</span>
+<span class="fc" id="L162">                : repo.findByCategory(category, pageable);</span>
+<span class="fc" id="L163">        List&lt;ProductResponse&gt; mapped = page.getContent().stream()</span>
+<span class="fc" id="L164">                .map(ProductMapper::toDomain)</span>
+<span class="fc" id="L165">                .map(ProductResponse::from)</span>
+<span class="fc" id="L166">                .toList();</span>
+<span class="fc" id="L167">        return new PageImpl&lt;&gt;(mapped, pageable, page.getTotalElements());</span>
+    }
+
+    /**
+     * 3.2 后端商品导出 CSV(同 4.15 订单导出同形):UTF-8 BOM + RFC 4180
+     * 转义,8 列(商品ID / 名称 / 分类 / 价格 / 库存 / 状态 / 创建时间 / 更新时间)。
+     *
+     * &lt;p&gt;注意:本迭代(3.2)采用简化方案 — 全表读 + 内存拼字符串,适合 ≤ 1 万行;
+     * 超 1 万行应换 Mongo aggregation pipeline 流式输出(参见 3.5 性能 spike)。
+     */
+    public String exportRecentProductsAsCsv() {
+<span class="fc" id="L178">        List&lt;ProductDocument&gt; all = repo.findAll();</span>
+<span class="fc" id="L179">        StringBuilder sb = new StringBuilder();</span>
+        // UTF-8 BOM:Excel 打开 CSV 不乱码
+<span class="fc" id="L181">        sb.append('﻿');</span>
+        // 表头
+<span class="fc" id="L183">        sb.append(&quot;商品ID,名称,分类,价格(元),库存,状态,创建时间,更新时间\n&quot;);</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        for (ProductDocument d : all) {</span>
+<span class="fc" id="L185">            sb.append(csvEscape(d.getId())).append(',')</span>
+<span class="fc" id="L186">              .append(csvEscape(d.getName())).append(',')</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">              .append(csvEscape(d.getCategory() == null ? &quot;&quot; : d.getCategory())).append(',')</span>
+<span class="fc bfc" id="L188" title="All 2 branches covered.">              .append(d.getPrice() == null ? &quot;&quot; : d.getPrice().toPlainString()).append(',')</span>
+<span class="fc" id="L189">              .append(d.getStock()).append(',')</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">              .append(csvEscape(d.getStatus() == null ? &quot;&quot; : d.getStatus().name())).append(',')</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">              .append(d.getCreatedAt() == null ? &quot;&quot; : d.getCreatedAt().toString()).append(',')</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">              .append(d.getUpdatedAt() == null ? &quot;&quot; : d.getUpdatedAt().toString())</span>
+<span class="fc" id="L193">              .append('\n');</span>
+<span class="fc" id="L194">        }</span>
+<span class="fc" id="L195">        return sb.toString();</span>
+    }
+
+    private static String csvEscape(String value) {
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">        if (value == null) return &quot;&quot;;</span>
+        // RFC 4180:含 , &quot; \r \n 的字段必须用双引号包裹,字段内双引号用 &quot;&quot; 转义
+<span class="fc bfc" id="L201" title="All 4 branches covered.">        if (value.indexOf(',') &lt; 0 &amp;&amp; value.indexOf('&quot;') &lt; 0</span>
+<span class="pc bpc" id="L202" title="1 of 4 branches missed.">                &amp;&amp; value.indexOf('\r') &lt; 0 &amp;&amp; value.indexOf('\n') &lt; 0) {</span>
+<span class="fc" id="L203">            return value;</span>
+        }
+<span class="fc" id="L205">        return &quot;\&quot;&quot; + value.replace(&quot;\&quot;&quot;, &quot;\&quot;\&quot;&quot;) + &quot;\&quot;&quot;;</span>
+    }
+
+    // ----- 跨模块入口(给 OrderService 调)-----
+
+    /**
+     * 3.3 ad-03 批量状态变更入口 — 单商品改状态。
+     * 校验:商品存在(否则 404 NotFoundException);状态转换合法性由 {@code Product.withStatus()} 保证。
+     */
+    public Product updateStatus(String productId, ProductStatus newStatus) {
+<span class="fc" id="L215">        ProductDocument d = repo.findById(productId)</span>
+<span class="fc" id="L216">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + productId));</span>
+<span class="fc" id="L217">        Product updated = ProductMapper.toDomain(d).withStatus(newStatus);</span>
+<span class="fc" id="L218">        ProductDocument saved = repo.save(ProductMapper.toDocument(updated));</span>
+<span class="fc" id="L219">        return ProductMapper.toDomain(saved);</span>
+    }
+
+    /**
+     * 3.8 SKU 列表查询:返回 product 的整张 SKU 列表(空 list = 用默认 SKU)。
+     * 嵌入存储,等价于 {@code repo.findById(productId).map(d -&gt; d.getSkus())}。
+     */
+    public List&lt;Sku&gt; listSkus(String productId) {
+<span class="fc" id="L227">        return repo.findById(productId)</span>
+<span class="fc" id="L228">                .map(ProductDocument::getSkus)</span>
+<span class="fc" id="L229">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + productId));</span>
+    }
+
+    /**
+     * 3.8 SKU 整张替换(ad-04 行内编辑保存入口):删除现有 SKU 列表,写入新列表。
+     * 校验在 {@code Product.replaceSkus()} 紧凑构造器(防 price / stock 与第一 SKU 不一致 +
+     * 数量 0-50 上限)。
+     */
+    public Product replaceSkus(String productId, List&lt;Sku&gt; newSkus) {
+<span class="fc" id="L238">        ProductDocument d = repo.findById(productId)</span>
+<span class="fc" id="L239">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + productId));</span>
+<span class="fc" id="L240">        Product updated = ProductMapper.toDomain(d).replaceSkus(newSkus);</span>
+<span class="fc" id="L241">        ProductDocument saved = repo.save(ProductMapper.toDocument(updated));</span>
+<span class="fc" id="L242">        return ProductMapper.toDomain(saved);</span>
+    }
+
+    /**
+     * 3.8 单 SKU 添加(增量 API,ad-04 表单&quot;添加 1 行&quot;按钮)。
+     * 走 replaceSkus 实现,等价合并:旧 SKU + 新 SKU,自动重排 sortOrder。
+     */
+    public Product addSku(String productId, Sku sku) {
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">        if (sku == null) {</span>
+<span class="nc" id="L251">            throw new DomainException(&quot;SKU 不能为 null&quot;);</span>
+        }
+<span class="fc" id="L253">        ProductDocument d = repo.findById(productId)</span>
+<span class="fc" id="L254">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + productId));</span>
+<span class="fc" id="L255">        Product p = ProductMapper.toDomain(d);</span>
+<span class="pc bpc" id="L256" title="1 of 2 branches missed.">        List&lt;Sku&gt; existing = p.skus() == null ? List.of() : p.skus();</span>
+        // 新 SKU sortOrder = max(existing.sortOrder) + 1,空 list 时 0
+<span class="fc" id="L258">        int nextOrder = existing.stream().mapToInt(Sku::sortOrder).max().orElse(-1) + 1;</span>
+<span class="fc" id="L259">        Sku withOrder = new Sku(sku.id(), sku.name(), sku.specs(), sku.price(), sku.stock(), nextOrder);</span>
+<span class="fc" id="L260">        List&lt;Sku&gt; merged = new java.util.ArrayList&lt;&gt;(existing);</span>
+<span class="fc" id="L261">        merged.add(withOrder);</span>
+        // 同步默认 price / stock = 第一 SKU(插入后第一行是新加的)
+        // 注:这里第一 SKU 仍是原 p 默认,merged[0] 还是原第一;新 SKU sortOrder 最大在末尾
+        // 若想让新加的 SKU 作默认,得改 sortOrder 让它到 0;本批保持 append 语义,Sprint 4 升级
+<span class="fc" id="L265">        return replaceSkus(productId, merged);</span>
+    }
+
+    /**
+     * 3.8 单 SKU 更新(增量 API):同 productId 下,按 id 查找替换。
+     * 找不到 SKU 抛 NotFoundException(防 enumeration)。
+     */
+    public Product updateSku(String productId, String skuId, Sku updated) {
+<span class="fc bfc" id="L273" title="All 2 branches covered.">        if (updated == null) {</span>
+<span class="fc" id="L274">            throw new DomainException(&quot;SKU 不能为 null&quot;);</span>
+        }
+<span class="fc" id="L276">        ProductDocument d = repo.findById(productId)</span>
+<span class="fc" id="L277">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + productId));</span>
+<span class="fc" id="L278">        Product p = ProductMapper.toDomain(d);</span>
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">        List&lt;Sku&gt; existing = p.skus() == null ? List.of() : p.skus();</span>
+<span class="fc" id="L280">        int idx = -1;</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        for (int i = 0; i &lt; existing.size(); i++) {</span>
+<span class="fc bfc" id="L282" title="All 2 branches covered.">            if (skuId.equals(existing.get(i).id())) {</span>
+<span class="fc" id="L283">                idx = i;</span>
+<span class="fc" id="L284">                break;</span>
+            }
+        }
+<span class="fc bfc" id="L287" title="All 2 branches covered.">        if (idx &lt; 0) {</span>
+<span class="fc" id="L288">            throw new NotFoundException(&quot;SKU 不存在:&quot; + skuId);</span>
+        }
+        // 保持 sortOrder 不变(更新不重排)
+<span class="fc" id="L291">        Sku merged = new Sku(updated.id(), updated.name(), updated.specs(),</span>
+<span class="fc" id="L292">                updated.price(), updated.stock(), existing.get(idx).sortOrder());</span>
+<span class="fc" id="L293">        List&lt;Sku&gt; next = new java.util.ArrayList&lt;&gt;(existing);</span>
+<span class="fc" id="L294">        next.set(idx, merged);</span>
+<span class="fc" id="L295">        return replaceSkus(productId, next);</span>
+    }
+
+    /**
+     * 3.8 单 SKU 删除(增量 API):按 id 删除,自动重排 sortOrder(0..N-1)。
+     * 注意:删完若空 list,Product.replaceSkus 接受(空 list = 用默认 SKU)。
+     */
+    public Product removeSku(String productId, String skuId) {
+<span class="fc" id="L303">        ProductDocument d = repo.findById(productId)</span>
+<span class="fc" id="L304">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + productId));</span>
+<span class="fc" id="L305">        Product p = ProductMapper.toDomain(d);</span>
+<span class="pc bpc" id="L306" title="1 of 2 branches missed.">        List&lt;Sku&gt; existing = p.skus() == null ? List.of() : p.skus();</span>
+<span class="fc" id="L307">        List&lt;Sku&gt; next = new java.util.ArrayList&lt;&gt;();</span>
+<span class="fc" id="L308">        boolean found = false;</span>
+<span class="fc bfc" id="L309" title="All 2 branches covered.">        for (Sku s : existing) {</span>
+<span class="fc bfc" id="L310" title="All 2 branches covered.">            if (skuId.equals(s.id())) {</span>
+<span class="fc" id="L311">                found = true;</span>
+<span class="fc" id="L312">                continue;</span>
+            }
+<span class="fc" id="L314">            next.add(s);</span>
+<span class="fc" id="L315">        }</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">        if (!found) {</span>
+<span class="fc" id="L317">            throw new NotFoundException(&quot;SKU 不存在:&quot; + skuId);</span>
+        }
+        // 重排 sortOrder(0..N-1)
+<span class="fc" id="L320">        List&lt;Sku&gt; reordered = new java.util.ArrayList&lt;&gt;(next.size());</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">        for (int i = 0; i &lt; next.size(); i++) {</span>
+<span class="fc" id="L322">            Sku s = next.get(i);</span>
+<span class="fc" id="L323">            reordered.add(new Sku(s.id(), s.name(), s.specs(), s.price(), s.stock(), i));</span>
+        }
+<span class="fc" id="L325">        return replaceSkus(productId, reordered);</span>
+    }
+
+    public Product decrementStock(String productId, int quantity) {
+<span class="fc" id="L329">        ProductDocument d = repo.findById(productId)</span>
+<span class="fc" id="L330">                .orElseThrow(() -&gt; new NotFoundException(&quot;商品不存在:&quot; + productId));</span>
+<span class="fc" id="L331">        Product updated = ProductMapper.toDomain(d).decrementStock(quantity);</span>
+<span class="fc" id="L332">        ProductDocument saved = repo.save(ProductMapper.toDocument(updated));</span>
+<span class="fc" id="L333">        return ProductMapper.toDomain(saved);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

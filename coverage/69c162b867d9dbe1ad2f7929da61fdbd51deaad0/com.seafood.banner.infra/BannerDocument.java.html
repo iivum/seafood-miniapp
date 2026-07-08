@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BannerDocument.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.banner.infra</a> &gt; <span class="el_source">BannerDocument.java</span></div><h1>BannerDocument.java</h1><pre class="source lang-java linenums">package com.seafood.banner.infra;
+
+import com.seafood.banner.domain.BannerStatus;
+import com.seafood.banner.domain.BannerTone;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.time.Instant;
+
+/**
+ * banners 集合(参见 specs/banner-management,design §D4)。
+ * sortOrder 升序索引(公共列表按序返回);tone/status 枚举默认存字符串。
+ */
+@Document(collection = &quot;banners&quot;)
+<span class="fc" id="L16">public class BannerDocument {</span>
+
+    @Id
+    private String id;
+
+    private BannerTone tone;
+
+    private String emoji;
+
+    private String title;
+
+    private String subtitle;
+
+    /** 可空:点击跳商品详情的目标商品 id(存在性由 BannerService 写入期校验)。 */
+    private String targetProductId;
+
+    @Indexed
+    private int sortOrder;
+
+    @Indexed
+    private BannerStatus status;
+
+    private Instant createdAt;
+
+    private Instant updatedAt;
+
+<span class="fc" id="L42">    public String getId() { return id; }</span>
+<span class="fc" id="L43">    public void setId(String id) { this.id = id; }</span>
+
+<span class="fc" id="L45">    public BannerTone getTone() { return tone; }</span>
+<span class="fc" id="L46">    public void setTone(BannerTone tone) { this.tone = tone; }</span>
+
+<span class="fc" id="L48">    public String getEmoji() { return emoji; }</span>
+<span class="fc" id="L49">    public void setEmoji(String emoji) { this.emoji = emoji; }</span>
+
+<span class="fc" id="L51">    public String getTitle() { return title; }</span>
+<span class="fc" id="L52">    public void setTitle(String title) { this.title = title; }</span>
+
+<span class="fc" id="L54">    public String getSubtitle() { return subtitle; }</span>
+<span class="fc" id="L55">    public void setSubtitle(String subtitle) { this.subtitle = subtitle; }</span>
+
+<span class="fc" id="L57">    public String getTargetProductId() { return targetProductId; }</span>
+<span class="fc" id="L58">    public void setTargetProductId(String targetProductId) { this.targetProductId = targetProductId; }</span>
+
+<span class="fc" id="L60">    public int getSortOrder() { return sortOrder; }</span>
+<span class="fc" id="L61">    public void setSortOrder(int sortOrder) { this.sortOrder = sortOrder; }</span>
+
+<span class="fc" id="L63">    public BannerStatus getStatus() { return status; }</span>
+<span class="fc" id="L64">    public void setStatus(BannerStatus status) { this.status = status; }</span>
+
+<span class="fc" id="L66">    public Instant getCreatedAt() { return createdAt; }</span>
+<span class="fc" id="L67">    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }</span>
+
+<span class="fc" id="L69">    public Instant getUpdatedAt() { return updatedAt; }</span>
+<span class="fc" id="L70">    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

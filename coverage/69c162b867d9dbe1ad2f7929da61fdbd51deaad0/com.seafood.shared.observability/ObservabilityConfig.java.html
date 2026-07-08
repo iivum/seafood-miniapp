@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ObservabilityConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.observability</a> &gt; <span class="el_source">ObservabilityConfig.java</span></div><h1>ObservabilityConfig.java</h1><pre class="source lang-java linenums">package com.seafood.shared.observability;
+
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+
+/**
+ * 可观测性配置(OpenSpec setup-observability-stack PR #1,design §D3 / §D4)。
+ *
+ * &lt;p&gt;显式 {@link FilterRegistrationBean} 注册 {@link RequestIdFilter} 走 servlet
+ * filter 链 — &lt;em&gt;早于&lt;/em&gt; Spring Security 的 {@code FilterChainProxy},保证
+ * JWT 鉴权失败 / 限流 429 / 全局异常 500 这三条路径的响应都带
+ * {@code X-Request-Id} 头。设计意图见 design §D4 + spec §Filter ordering。
+ *
+ * &lt;p&gt;顺序契约(design §D4 + spec §Filter ordering):
+ * &lt;pre&gt;
+ *   RequestIdFilter.order = Ordered.HIGHEST_PRECEDENCE + 100
+ *     ↓
+ *   Spring Security FilterChainProxy(包含 SecurityHeadersFilter / JwtAuthenticationFilter / AdminRateLimitFilter)
+ *     ↓
+ *   DispatcherServlet → Controller
+ * &lt;/pre&gt;
+ * 这样 401 / 429 / 500 响应在写回 client 之前,RequestIdFilter 早已把 X-Request-Id
+ * 写到 response headers。
+ */
+@Configuration
+<span class="fc" id="L28">public class ObservabilityConfig {</span>
+
+    /**
+     * 单独注册 {@link RequestIdFilter} 为 Spring bean ——
+     * {@link FilterRegistrationBean} 只是 servlet 注册 holder,不会把内嵌 filter
+     * 暴露为 Spring bean。{@code RequestIdFilterOrderIT} 等测试需要 {@code @Autowired
+     * RequestIdFilter},必须有这个独立 bean。
+     */
+    @Bean
+    public RequestIdFilter requestIdFilterInstance() {
+<span class="fc" id="L38">        return new RequestIdFilter();</span>
+    }
+
+    /**
+     * 把 {@link RequestIdFilter} 装到 servlet 链,URL pattern {@code /*},order 见类注释。
+     */
+    @Bean
+    public FilterRegistrationBean&lt;RequestIdFilter&gt; requestIdFilter() {
+<span class="fc" id="L46">        FilterRegistrationBean&lt;RequestIdFilter&gt; registration = new FilterRegistrationBean&lt;&gt;();</span>
+<span class="fc" id="L47">        registration.setFilter(requestIdFilterInstance());</span>
+<span class="fc" id="L48">        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 100);</span>
+<span class="fc" id="L49">        registration.addUrlPatterns(&quot;/*&quot;);</span>
+<span class="fc" id="L50">        registration.setName(&quot;requestIdFilter&quot;);</span>
+<span class="fc" id="L51">        return registration;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

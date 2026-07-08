@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FeatureFlag.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.featureflag.domain</a> &gt; <span class="el_source">FeatureFlag.java</span></div><h1>FeatureFlag.java</h1><pre class="source lang-java linenums">package com.seafood.featureflag.domain;
+
+import com.seafood.shared.error.DomainException;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * FeatureFlag 聚合根（零 Spring import，纯 Java 25 record）。
+ *
+ * &lt;p&gt;灰度逻辑：
+ * &lt;ol&gt;
+ *   &lt;li&gt;flag 禁用 → false&lt;/li&gt;
+ *   &lt;li&gt;已过期（expiresAt 非 null 且在过去）→ false&lt;/li&gt;
+ *   &lt;li&gt;userId 在白名单 → true&lt;/li&gt;
+ *   &lt;li&gt;MurmurHash3(userId:flagKey) % 100 &amp;lt; rolloutPercentage → true&lt;/li&gt;
+ * &lt;/ol&gt;
+ */
+public record FeatureFlag(
+        String flagKey,
+        boolean enabled,
+        int rolloutPercentage,
+        List&lt;String&gt; userSegments,
+        Instant expiresAt,
+        String description,
+        String createdBy,
+        Instant createdAt,
+        Instant updatedAt
+) {
+<span class="fc" id="L31">    public FeatureFlag {</span>
+<span class="fc bfc" id="L32" title="All 4 branches covered.">        if (flagKey == null || flagKey.isBlank()) {</span>
+<span class="fc" id="L33">            throw new DomainException(&quot;flagKey must not be blank&quot;);</span>
+        }
+<span class="fc bfc" id="L35" title="All 4 branches covered.">        if (rolloutPercentage &lt; 0 || rolloutPercentage &gt; 100) {</span>
+<span class="fc" id="L36">            throw new DomainException(&quot;rolloutPercentage must be 0-100&quot;);</span>
+        }
+<span class="fc" id="L38">        userSegments = Collections.unmodifiableList(</span>
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">                new ArrayList&lt;&gt;(userSegments == null ? List.of() : userSegments));</span>
+<span class="fc" id="L40">    }</span>
+
+    /**
+     * 求值指定用户是否命中该 flag，并携带命中原因（便于调试日志）。
+     *
+     * @param userId 当前用户 id，null 表示匿名用户（走灰度分桶，不走白名单）
+     * @return {@link FlagValue}，包含 enabled 结论与 {@link FlagValue.EvalReason}
+     */
+    public FlagValue evaluate(String userId) {
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (!enabled) return new FlagValue(false, FlagValue.EvalReason.DISABLED);</span>
+<span class="pc bpc" id="L50" title="1 of 4 branches missed.">        if (expiresAt != null &amp;&amp; Instant.now().isAfter(expiresAt))</span>
+<span class="fc" id="L51">            return new FlagValue(false, FlagValue.EvalReason.EXPIRED);</span>
+<span class="fc bfc" id="L52" title="All 4 branches covered.">        if (userId != null &amp;&amp; userSegments.contains(userId))</span>
+<span class="fc" id="L53">            return new FlagValue(true, FlagValue.EvalReason.WHITELIST);</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        boolean inRollout = MurmurHash3Util.hash32(</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">                (userId != null ? userId : &quot;anonymous&quot;) + &quot;:&quot; + flagKey) % 100 &lt; rolloutPercentage;</span>
+<span class="fc" id="L56">        return new FlagValue(inRollout, FlagValue.EvalReason.ROLLOUT);</span>
+    }
+
+    /**
+     * 判断指定用户是否命中该 flag。
+     *
+     * @param userId 当前用户 id，null 表示匿名用户（走灰度分桶，不走白名单）
+     * @return true 表示 flag 对该用户生效
+     */
+    public boolean isEnabled(String userId) {
+<span class="fc" id="L66">        return evaluate(userId).enabled();</span>
+    }
+
+    /** 启用 flag，返回新实例。 */
+    public FeatureFlag enable() {
+<span class="fc" id="L71">        return new FeatureFlag(flagKey, true, rolloutPercentage, userSegments,</span>
+<span class="fc" id="L72">                expiresAt, description, createdBy, createdAt, Instant.now());</span>
+    }
+
+    /** 禁用 flag，返回新实例。 */
+    public FeatureFlag disable() {
+<span class="fc" id="L77">        return new FeatureFlag(flagKey, false, rolloutPercentage, userSegments,</span>
+<span class="fc" id="L78">                expiresAt, description, createdBy, createdAt, Instant.now());</span>
+    }
+
+    /** 更新灰度比例，返回新实例。 */
+    public FeatureFlag updateRollout(int newPct) {
+<span class="fc" id="L83">        return new FeatureFlag(flagKey, enabled, newPct, userSegments,</span>
+<span class="fc" id="L84">                expiresAt, description, createdBy, createdAt, Instant.now());</span>
+    }
+
+    /** 加入白名单，返回新实例（幂等）。 */
+    public FeatureFlag addToWhitelist(String userId) {
+<span class="fc" id="L89">        List&lt;String&gt; updated = new ArrayList&lt;&gt;(userSegments);</span>
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        if (!updated.contains(userId)) updated.add(userId);</span>
+<span class="fc" id="L91">        return new FeatureFlag(flagKey, enabled, rolloutPercentage, updated,</span>
+<span class="fc" id="L92">                expiresAt, description, createdBy, createdAt, Instant.now());</span>
+    }
+
+    /** 移出白名单，返回新实例。 */
+    public FeatureFlag removeFromWhitelist(String userId) {
+<span class="fc" id="L97">        List&lt;String&gt; updated = new ArrayList&lt;&gt;(userSegments);</span>
+<span class="fc" id="L98">        updated.remove(userId);</span>
+<span class="fc" id="L99">        return new FeatureFlag(flagKey, enabled, rolloutPercentage, updated,</span>
+<span class="fc" id="L100">                expiresAt, description, createdBy, createdAt, Instant.now());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
