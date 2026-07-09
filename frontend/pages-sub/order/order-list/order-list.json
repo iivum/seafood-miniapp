@@ -1,7 +1,7 @@
 {
   "navigationBarTitleText": "我的订单",
   "usingComponents": {
-    "shared-empty": "@vant/weapp/empty/index",
+    "shared-empty": "/src/shared/components/Empty/index",
     "shared-loading": "@vant/weapp/loading/index",
     "order-action-row": "../../../src/features/order/components/OrderActionRow/index",
     "van-icon": "@vant/weapp/icon/index"

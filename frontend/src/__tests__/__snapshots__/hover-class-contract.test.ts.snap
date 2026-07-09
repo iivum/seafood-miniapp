@@ -534,25 +534,21 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
   <!-- 错误状态 -->
   <view class="order-list__state" wx:elif="{{isError}}">
     <shared-empty
-      image=""
+      icon="warning-o"
       message="{{errorMessage || '加载失败'}}"
       retry-text="重新加载"
       bind:retry="onRetry"
-    >
-      <van-icon slot="image" name="warning-o" size="48px" />
-    </shared-empty>
+    ></shared-empty>
   </view>
 
   <!-- 空状态 -->
   <view class="order-list__state" wx:elif="{{filteredOrders.length === 0}}">
     <shared-empty
-      image=""
+      icon="orders-o"
       message="还没有相关订单哦"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
-    >
-      <van-icon slot="image" name="orders-o" size="48px" />
-    </shared-empty>
+    ></shared-empty>
   </view>
 
   <!-- 订单卡片列表 -->

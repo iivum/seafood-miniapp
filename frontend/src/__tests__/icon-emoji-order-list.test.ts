@@ -23,22 +23,27 @@ describe('mp-08 订单列表 UI 微图标 emoji → van-icon(mp-icon-emoji-repla
     expect(wxml).toMatch(/<van-icon\s+class="order-card__shop-icon"\s+name="shop-o"/);
   });
 
-  it('错误态 shared-empty 不再传死 icon prop,改用具名 slot 塞 van-icon name="warning-o",且显式 image=""', () => {
+  it('错误态 shared-empty 用 icon="warning-o" prop(本地组件真正支持,不再需要 vant 的 image=""/slot 绕过写法)', () => {
     const blocks = wxml.match(/<shared-empty[\s\S]*?<\/shared-empty>/g) ?? [];
     const errorBlock = blocks.find((b) => b.includes('errorMessage'));
     expect(errorBlock).toBeDefined();
-    expect(errorBlock).not.toMatch(/\bicon="/);
-    expect(errorBlock).toMatch(/image=""/);
-    expect(errorBlock).toMatch(/<van-icon\s+slot="image"\s+name="warning-o"/);
+    expect(errorBlock).not.toMatch(/image=""/);
+    expect(errorBlock).not.toMatch(/slot="image"/);
+    expect(errorBlock).toMatch(/icon="warning-o"/);
   });
 
-  it('空订单列表 shared-empty 不再传死 icon prop,改用具名 slot 塞 van-icon name="orders-o",且显式 image=""', () => {
+  it('空订单列表 shared-empty 用 icon="orders-o" prop', () => {
     const blocks = wxml.match(/<shared-empty[\s\S]*?<\/shared-empty>/g) ?? [];
     const emptyBlock = blocks.find((b) => b.includes('还没有相关订单哦'));
     expect(emptyBlock).toBeDefined();
-    expect(emptyBlock).not.toMatch(/\bicon="/);
-    expect(emptyBlock).toMatch(/image=""/);
-    expect(emptyBlock).toMatch(/<van-icon\s+slot="image"\s+name="orders-o"/);
+    expect(emptyBlock).not.toMatch(/image=""/);
+    expect(emptyBlock).not.toMatch(/slot="image"/);
+    expect(emptyBlock).toMatch(/icon="orders-o"/);
+  });
+
+  it('order-list.json 的 shared-empty 指向本地组件', () => {
+    const parsed = JSON.parse(fs.readFileSync(JSON_PATH, 'utf8'));
+    expect(parsed.usingComponents['shared-empty']).toBe('/src/shared/components/Empty/index');
   });
 
   it('order-list.json 注册了 van-icon 组件', () => {
