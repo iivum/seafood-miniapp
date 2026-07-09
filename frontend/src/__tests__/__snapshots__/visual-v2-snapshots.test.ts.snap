@@ -560,13 +560,13 @@ exports[`OD v2 视觉契约(7 个组件) shared/components/Button WXSS 视觉快
 exports[`OD v2 视觉契约(7 个组件) shared/components/Empty WXML 结构快照: wxml:shared/components/Empty 1`] = `
 "<!-- shared/components/Empty/index.wxml -->
 <view class="empty">
-  <van-icon class="empty__icon" name="search" size="48px" />
+  <van-icon class="empty__icon" name="{{icon}}" size="48px" />
   <view class="empty__message">{{message}}</view>
   <button
     wx:if="{{retryable}}"
     class="empty__retry btn"
     bindtap="onRetry"
-  >重试</button>
+  >{{retryText}}</button>
 </view>"
 `;
 
