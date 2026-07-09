@@ -84,6 +84,14 @@ CONSOLE_WATCH_ALL=1 npm run watch:console   # 连 console.log 也要看时
 事件,因为库本身没有断连通知)。如果长时间没输出但明确知道 mp 端有操作发生,
 先确认自动化端口本身健康(必要时重启 `cli auto` 进程),再重启本脚本。
 
+## DevTools 进程日志监控(编译期错误,devtools-log-watch.cjs)
+
+为什么需要:编译期/组件解析错误(如 `miniprogram_npm` 缺失)不经过 automator 运行时事件桥,只写进 DevTools 自身进程日志 `WeappLog/stderr.log`——`console-watch.cjs` 完全够不到,本工具直接 tail 该文件补上。
+
+怎么跑:`node e2e/tools/devtools-log-watch.cjs`(`WEAPP_WATCH_STDOUT=1` 连 stdout.log;`WEAPP_LOG_DIR=...` 显式指定目录)。
+
+分工:`console-watch.cjs` 盯运行时,本工具盯编译期,建议配 Monitor 工具并列常驻。
+
 ## OD golden 怎么来(SoT = Open Design 项目)
 
 golden = OD 项目 `686e3434`(9 张 mp HTML mockup)渲染到 mp viewport 的参照图,提交在 `e2e/od-golden/`。
@@ -102,3 +110,4 @@ golden = OD 项目 `686e3434`(9 张 mp HTML mockup)渲染到 mp viewport 的参�
 - `capture-mp.cjs` — 单独捕获某屏 mp 实截图(调试用)
 - `spike-c5.cjs` — §1 spike 探针(DevTools 自起 + automator 链路验证)
 - `console-watch.cjs` — mp DevTools console 实时监控(warn/error/exception 逐行输出),见上方独立章节
+- `devtools-log-watch.cjs` — DevTools 进程日志(编译期错误)tail 工具,补 console-watch.cjs 的盲区,见上方独立章节
