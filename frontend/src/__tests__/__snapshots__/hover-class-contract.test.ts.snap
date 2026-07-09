@@ -430,25 +430,21 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
   <!-- 错误状态 -->
   <view class="home-state" wx:elif="{{isError}}">
     <shared-empty
-      image=""
+      icon="warning-o"
       message="{{errorMessage || '加载失败'}}"
       retry-text="重新加载"
       bind:retry="onRetry"
-    >
-      <van-icon slot="image" name="warning-o" size="48px" />
-    </shared-empty>
+    ></shared-empty>
   </view>
 
   <!-- 空状态(过滤后无产品) -->
   <view class="home-state" wx:elif="{{isEmpty}}">
     <shared-empty
-      image=""
+      icon="search"
       message="该分类暂无商品"
       retry-text="查看全部"
       bind:retry="onClearFilter"
-    >
-      <van-icon slot="image" name="search" size="48px" />
-    </shared-empty>
+    ></shared-empty>
   </view>
 
   <!-- 2 列商品 grid(瀑布) -->

@@ -1,7 +1,7 @@
 {
   "navigationBarTitleText": "海鲜生鲜商城",
   "usingComponents": {
-    "shared-empty": "@vant/weapp/empty/index",
+    "shared-empty": "/src/shared/components/Empty/index",
     "shared-loading": "@vant/weapp/loading/index",
     "van-icon": "@vant/weapp/icon/index"
   },
