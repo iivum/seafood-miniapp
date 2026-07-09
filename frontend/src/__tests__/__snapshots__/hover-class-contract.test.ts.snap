@@ -28,13 +28,11 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
   <!-- 空购物车 -->
   <view class="cart-empty" wx:if="{{cartItems.length === 0}}">
     <shared-empty
-      image=""
+      icon="cart-o"
       message="购物车空空如也"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
-    >
-      <van-icon slot="image" name="cart-o" size="48px" />
-    </shared-empty>
+    ></shared-empty>
   </view>
 
   <view class="cart-content" wx:else>

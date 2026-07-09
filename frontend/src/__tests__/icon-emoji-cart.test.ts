@@ -15,12 +15,17 @@ describe('mp-04 购物车 UI 微图标 emoji → van-icon(mp-icon-emoji-replacem
     expect(wxml).not.toMatch(/🛒|📍|✓/);
   });
 
-  it('空购物车 shared-empty 不再传死 icon prop,改用具名 slot 塞 van-icon name="cart-o",且显式 image=""', () => {
+  it('空购物车 shared-empty 用 icon="cart-o" prop(本地组件真正支持,不再需要 vant 的 image=""/slot 绕过写法)', () => {
     const blocks = wxml.match(/<shared-empty[\s\S]*?<\/shared-empty>/g) ?? [];
     expect(blocks.length).toBe(1);
-    expect(blocks[0]).not.toMatch(/\bicon="/);
-    expect(blocks[0]).toMatch(/image=""/);
-    expect(blocks[0]).toMatch(/<van-icon\s+slot="image"\s+name="cart-o"/);
+    expect(blocks[0]).not.toMatch(/image=""/);
+    expect(blocks[0]).not.toMatch(/slot="image"/);
+    expect(blocks[0]).toMatch(/icon="cart-o"/);
+  });
+
+  it('cart.json 的 shared-empty 指向本地组件', () => {
+    const parsed = JSON.parse(fs.readFileSync(JSON_PATH, 'utf8'));
+    expect(parsed.usingComponents['shared-empty']).toBe('/src/shared/components/Empty/index');
   });
 
   it('收货地址占位行用 van-icon name="location-o" + 独立文本节点(不再是 emoji 拼在一个 text 里)', () => {
