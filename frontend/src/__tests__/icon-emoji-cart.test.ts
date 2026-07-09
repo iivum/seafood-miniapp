@@ -23,6 +23,12 @@ describe('mp-04 购物车 UI 微图标 emoji → van-icon(mp-icon-emoji-replacem
     expect(blocks[0]).toMatch(/icon="cart-o"/);
   });
 
+  it('空购物车 shared-empty 带 retryable="{{true}}"(否则本地组件的重试按钮 wx:if="{{retryable}}" 不渲染)', () => {
+    const blocks = wxml.match(/<shared-empty[\s\S]*?<\/shared-empty>/g) ?? [];
+    expect(blocks.length).toBe(1);
+    expect(blocks[0]).toMatch(/retryable="\{\{true\}\}"/);
+  });
+
   it('cart.json 的 shared-empty 指向本地组件', () => {
     const parsed = JSON.parse(fs.readFileSync(JSON_PATH, 'utf8'));
     expect(parsed.usingComponents['shared-empty']).toBe('/src/shared/components/Empty/index');

@@ -30,6 +30,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
     <shared-empty
       icon="cart-o"
       message="购物车空空如也"
+      retryable="{{true}}"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
     ></shared-empty>
@@ -216,6 +217,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/catego
         <shared-empty
           icon="warning-o"
           message="{{errorMessage || '加载失败'}}"
+          retryable="{{true}}"
           retry-text="重新加载"
           bind:retry="onRetry"
         ></shared-empty>
@@ -426,6 +428,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
     <shared-empty
       icon="warning-o"
       message="{{errorMessage || '加载失败'}}"
+      retryable="{{true}}"
       retry-text="重新加载"
       bind:retry="onRetry"
     ></shared-empty>
@@ -436,6 +439,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
     <shared-empty
       icon="search"
       message="该分类暂无商品"
+      retryable="{{true}}"
       retry-text="查看全部"
       bind:retry="onClearFilter"
     ></shared-empty>
@@ -536,6 +540,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
     <shared-empty
       icon="warning-o"
       message="{{errorMessage || '加载失败'}}"
+      retryable="{{true}}"
       retry-text="重新加载"
       bind:retry="onRetry"
     ></shared-empty>
@@ -546,6 +551,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
     <shared-empty
       icon="orders-o"
       message="还没有相关订单哦"
+      retryable="{{true}}"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
     ></shared-empty>

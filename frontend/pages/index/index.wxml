@@ -145,6 +145,7 @@
     <shared-empty
       icon="warning-o"
       message="{{errorMessage || '加载失败'}}"
+      retryable="{{true}}"
       retry-text="重新加载"
       bind:retry="onRetry"
     ></shared-empty>
@@ -155,6 +156,7 @@
     <shared-empty
       icon="search"
       message="该分类暂无商品"
+      retryable="{{true}}"
       retry-text="查看全部"
       bind:retry="onClearFilter"
     ></shared-empty>

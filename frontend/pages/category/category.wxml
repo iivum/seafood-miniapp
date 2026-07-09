@@ -57,6 +57,7 @@
         <shared-empty
           icon="warning-o"
           message="{{errorMessage || '加载失败'}}"
+          retryable="{{true}}"
           retry-text="重新加载"
           bind:retry="onRetry"
         ></shared-empty>

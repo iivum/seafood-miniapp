@@ -32,6 +32,13 @@ describe('mp-08 订单列表 UI 微图标 emoji → van-icon(mp-icon-emoji-repla
     expect(errorBlock).toMatch(/icon="warning-o"/);
   });
 
+  it('错误态 shared-empty 带 retryable="{{true}}"(否则本地组件的重试按钮 wx:if="{{retryable}}" 不渲染)', () => {
+    const blocks = wxml.match(/<shared-empty[\s\S]*?<\/shared-empty>/g) ?? [];
+    const errorBlock = blocks.find((b) => b.includes('errorMessage'));
+    expect(errorBlock).toBeDefined();
+    expect(errorBlock).toMatch(/retryable="\{\{true\}\}"/);
+  });
+
   it('空订单列表 shared-empty 用 icon="orders-o" prop', () => {
     const blocks = wxml.match(/<shared-empty[\s\S]*?<\/shared-empty>/g) ?? [];
     const emptyBlock = blocks.find((b) => b.includes('还没有相关订单哦'));
@@ -39,6 +46,13 @@ describe('mp-08 订单列表 UI 微图标 emoji → van-icon(mp-icon-emoji-repla
     expect(emptyBlock).not.toMatch(/image=""/);
     expect(emptyBlock).not.toMatch(/slot="image"/);
     expect(emptyBlock).toMatch(/icon="orders-o"/);
+  });
+
+  it('空订单列表 shared-empty 带 retryable="{{true}}"(否则本地组件的重试按钮 wx:if="{{retryable}}" 不渲染)', () => {
+    const blocks = wxml.match(/<shared-empty[\s\S]*?<\/shared-empty>/g) ?? [];
+    const emptyBlock = blocks.find((b) => b.includes('还没有相关订单哦'));
+    expect(emptyBlock).toBeDefined();
+    expect(emptyBlock).toMatch(/retryable="\{\{true\}\}"/);
   });
 
   it('order-list.json 的 shared-empty 指向本地组件', () => {

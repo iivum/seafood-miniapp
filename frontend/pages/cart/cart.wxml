@@ -27,6 +27,7 @@
     <shared-empty
       icon="cart-o"
       message="购物车空空如也"
+      retryable="{{true}}"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
     ></shared-empty>
