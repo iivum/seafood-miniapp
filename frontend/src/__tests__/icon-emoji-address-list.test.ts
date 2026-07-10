@@ -28,7 +28,8 @@ describe('mp-07 地址管理 UI 微图标 emoji → van-icon(mp-icon-emoji-repla
   });
 
   it('选择模式 radio 勾选态用 van-icon name="success"', () => {
-    expect(wxml).toMatch(/<van-icon\s+wx:if="\{\{selectedId === item\.id\}\}"\s+class="address-card__radio-check"\s+name="success"/);
+    // 绑定源是 selectedAddress.id(selectedId 是从未定义过的死绑定,2026-07-10 修复)
+    expect(wxml).toMatch(/<van-icon\s+wx:if="\{\{selectedAddress\.id === item\.id\}\}"\s+class="address-card__radio-check"\s+name="success"/);
   });
 
   it('空地址列表图标用 van-icon name="location-o"', () => {
