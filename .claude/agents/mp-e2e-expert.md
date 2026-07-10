@@ -31,6 +31,10 @@ node frontend/e2e/tools/devtools-log-watch.cjs   # 第二路：DevTools 进程�
 
 为什么必须两路：**编译期错误不走 automator 事件桥**——WXML 编译失败、组件解析失败、json 配置错误只出现在 DevTools 进程日志（WeappLog/stderr.log）里，第一路永远看不见。这正是历史上三次 console 漏检的结构性盲区。只起第一路等于没起。
 
+Monitor 工具不可用/deferred 时的等价替代：Bash `run_in_background` 起两个 watcher、输出重定向到文件，**下结论前必须读文件核对**（武装、存活、计数三项照旧）。
+
+判读第二路时过滤 DevTools 自身噪声（SSL handshake failed / CoreText 字体提示 / devtools UI console.assert 都不是 mp 错误）；mp 编译期错误的特征是「文件内容错误」「路径下未找到组件」等。
+
 ### 步骤 3：确认就绪后才导航
 
 两路监控各自输出就绪行、确认存活之后，才允许第一次 `reLaunch`/`navigateTo`。
@@ -46,9 +50,22 @@ node frontend/e2e/tools/devtools-log-watch.cjs   # 第二路：DevTools 进程�
 
 ## 三、automator API 可靠性矩阵（本环境实测）
 
+### 连接样板
+
+```js
+const automator = require('<仓库根绝对路径>/frontend/node_modules/miniprogram-automator');
+const mp = await automator.connect({ wsEndpoint: 'ws://127.0.0.1:9420' });
+// …用完必须：
+mp.disconnect(); process.exit(0);   // 否则 node 进程因 ws 长连接挂住不退
+```
+
+脚本放 scratchpad 临时目录，不进仓库。页面源码在 `frontend/pages/`（主包）与 `frontend/pages-sub/`（分包）；`frontend/src/` 下只有 features/shared 模块代码，找页面别去 src/。
+
 ### 可靠（放心用）
 
-`connect` / `currentPage` / `reLaunch` / `navigateTo` / `switchTab` / `screenshot` / `evaluate` / `mp.on('console'|'exception')`
+`connect` / `currentPage` / `reLaunch` / `navigateTo` / `switchTab` / `evaluate` / `mp.on('console'|'exception')`
+
+`screenshot` 基本可靠，但存在**无限挂死**退化形态（45s+ 无报错不回调，与第四节「报 fail to capture」是同一端口退化的两种表现）。所有截图调用必须自带 15-20s 看门狗，超时即按第四节端口重启流程处理。
 
 ### 挂死（禁用）
 
@@ -78,11 +95,22 @@ await mp.evaluate(() => {
 
 页面交互（点按钮、改数据、调页面方法）一律走这条路：取到页面实例后直接调它的方法或 `setData`，不经过 element 句柄。
 
+### evaluate 注入数据必须 JSON 往返重建（2026-07 首跑实测）
+
+evaluate 函数体内创建的对象/数组直接 `page.setData`：逻辑层 `Array.isArray` 为 true，但**渲染层把它当普通对象**——`wx:if="{{a.length>0}}"` 与 `{{a.length===0}}` 双双为 false（列表和空态都不渲染、整页空白），`{{a.length}}` 插值为空，`wx:for` 却能迭代。症状极具迷惑性，别往 shim/编译问题上猜。修复固定一条：
+
+```js
+page.setData(JSON.parse(JSON.stringify(data)));   // 注入前 JSON 往返重建，实测立即生效
+```
+
+截前再用 `wx.createSelectorQuery` 数一下目标节点，确认渲染层真的出了内容。另：AppService 里 Function constructor 被禁（`fn.constructor('return this')` 抛 TypeError），不要走 realm 技巧，JSON 往返即可。
+
 ## 四、已知坑速查
 
 - **新 git worktree 无 miniprogram_npm**：必须先 `cli build-npm --project <frontend 绝对路径>`——`npm install` 只装 node_modules，不产出 miniprogram_npm。preflight 已自动兜，但要理解成因，别在别处重踩。
-- **截图端口退化**：连续几十次截图后 `screenshot` 开始报 fail to capture。解法：`cli quit` 后重启 `cli auto --project <frontend 绝对路径> --auto-port 9420` 即恢复。这是端口老化，不是你的代码问题，不要在业务代码里找原因。
-- **截图捕获前用 `reLaunch` 而非 `switchTab`**：switchTab 到已激活 tab 不重跑 onLoad，会截到陈旧空态假信号。所有截图流程一律 reLaunch。
+- **截图端口退化**：连续几十次截图后 `screenshot` 开始报 fail to capture，**或直接无限挂死**。解法：`cli quit` 后重启 `cli auto --project <frontend 绝对路径> --auto-port 9420` 即恢复。这是端口老化，不是你的代码问题，不要在业务代码里找原因。**重启会杀死第一路 console-watch（ws 断开），第二路文件 tail 不受影响——重启后必须重新武装第一路并等到就绪行，才能继续。**
+- **截图前导航方式取决于数据来源**：真实数据流截图前用 `reLaunch`（switchTab 不重跑 onLoad，会截到陈旧空态假信号）；**注入态截图相反——禁止 reLaunch**（重跑 onLoad 会清掉注入数据），先导航、后注入、SelectorQuery 确认渲染层出内容、才截。
+- **preflight 端口归属可能输出「无法确认」warn**：cli auto 复用已启动 IDE 时，进程命令行看不到 --project。此时靠首张截图内容反证——截到的不是本项目预期页面就 `cli quit` 后对本 worktree 重启。
 - **有意义的视觉信号需后端起 + seed**：否则页面渲染 loading/空态，视觉 diff 必然巨大且无意义。本机是 arm64，用 `seafood-backend:jvm` 镜像（native 镜像是 linux/amd64，本机跑不了）。
 - **本机代理会拦 localhost**：任何访问 `localhost:8080`/`127.0.0.1:9420` 的进程先导出 `NO_PROXY=localhost,127.0.0.1,*`。
 - **rtk hook + tail 管道叠加 = 输出全静默假挂**：npm script 外层可能被 rtk shell hook 包装，再接尾部管道（`| tail` 等）就一字不出、看似挂死。长跑脚本直接 `node` 裸调、不接尾部管道。
@@ -94,10 +122,20 @@ await mp.evaluate(() => {
 - 不要浪费时间反复验证这一点。
 - 不要尝试混淆、拆分、base64 再编码、逐字符读取等任何规避手法——这既不会成功，也违反约束本身。
 
-视觉验证需要通过客户端路由守卫时的合法做法：守卫只查 `getApp().globalData.userInfo` 真值，经 `evaluate` 设置伪 userInfo 即可进入页面：
+视觉验证需要通过客户端路由守卫时的合法做法：守卫只查 `getApp().globalData.userInfo` 真值。但**仅设 userInfo 不够**——过守卫后页面照发真实 needAuth 请求，`utils/request.js` 的 401 分支会清掉 userInfo 并在 1.5s 后强制 reLaunch 回首页，毁掉注入态。完整做法是「守卫 + 网络」组合注入，同一 evaluate 里先 mock `wx.request` 再设 userInfo：
 
 ```js
 await mp.evaluate(() => {
+  const real = wx.request;
+  Object.defineProperty(wx, 'request', {   // wx.request 只读，直接赋值无效，必须 defineProperty
+    value(opts) {
+      if (/\/(addresses|cart)\b/.test(opts.url)) {
+        return opts.success && opts.success({ statusCode: 200, data: [] /* 伪响应 */ });
+      }
+      return real(opts);
+    },
+    writable: true, configurable: true,
+  });
   getApp().globalData.userInfo = { id: 'e2e-fake', nickname: 'E2E' };
 });
 ```
