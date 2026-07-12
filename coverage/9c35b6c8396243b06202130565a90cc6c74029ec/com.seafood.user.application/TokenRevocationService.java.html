@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TokenRevocationService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.application</a> &gt; <span class="el_source">TokenRevocationService.java</span></div><h1>TokenRevocationService.java</h1><pre class="source lang-java linenums">package com.seafood.user.application;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
+import com.seafood.user.infra.RevokedToken;
+import com.seafood.user.infra.RevokedTokenRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Token 撤销服务(Sprint 2 §3.4,specs/auth §Token revocation,design §3 decision 3)。
+ *
+ * &lt;p&gt;职责:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@link #revoke(String, String, Instant)} — 单 jti 撤销(对应 logout)&lt;/li&gt;
+ *   &lt;li&gt;{@link #revokeAllForUser(String)} — 把整个 user 的所有 jti 标记为已撤销
+ *       (对应 admin force-logout;由于 active jti 不可枚举 — 找不到地方存&quot;我发过
+ *       的所有 jti&quot;,用通配符 sentinel 文档,见下)&lt;/li&gt;
+ *   &lt;li&gt;{@link #isRevoked(String, String)} — 高频读路径;先 Caffeine 再 MongoDB&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;缓存策略&lt;/b&gt;(design §3 decision 3):双 TTL Caffeine:
+ * &lt;ul&gt;
+ *   &lt;li&gt;positive TTL(已撤销)60s:logout 后 60s 内 JwtAuthenticationFilter 直接命中缓存,
+ *       0 次 Mongo lookup&lt;/li&gt;
+ *   &lt;li&gt;negative TTL(未撤销)5s:防止同一 jti 在 5s 内反复穿透到 Mongo,吸收突发流量
+ *       (例如前端轮询)&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;force-logout 实现&lt;/b&gt;(PR review #26):在 {@code revoked_tokens} 集合里写一条
+ * {@code _id = &quot;u:&lt;userId&gt;&quot;} 的 sentinel 文档(实际常量 {@link #FORCE_LOGOUT_PREFIX} = {@code &quot;u:&quot;});
+ * {@link #isRevoked(String, String)} 检测到这一前缀时,即使 jti 不在显式列表也返回 true。
+ * 这种设计的代价是 1 个 Mongo 文档永远存活(TTL 不会过期它);但 {@code revoke} 时设很远的
+ * {@code expiresAt},配合定期清理 job(本次不实现)即可。
+ */
+@Service
+public class TokenRevocationService {
+
+<span class="fc" id="L46">    private static final Logger log = LoggerFactory.getLogger(TokenRevocationService.class);</span>
+
+    /** 前缀 sentinel;同一前缀下所有真实 jti 视为被 force-logout。 */
+    static final String FORCE_LOGOUT_PREFIX = &quot;u:&quot;;
+
+    /**
+     * PR review I8:user-scope force-logout 缓存 key 前缀。
+     * 该 key 在缓存中 value=TRUE 表示&quot;该 user 已被 force-logout,任意 jti 都视为撤销&quot;。
+     * 用&lt;em&gt;独立&lt;/em&gt;key(而非清全缓存),把 force-logout 失效范围缩小到单 user。
+     */
+    static final String FORCE_CACHE_KEY_PREFIX = &quot;force:&quot;;
+
+<span class="fc" id="L58">    private static final Duration POSITIVE_TTL = Duration.ofSeconds(60);</span>
+<span class="fc" id="L59">    private static final Duration NEGATIVE_TTL = Duration.ofSeconds(5);</span>
+
+    private final RevokedTokenRepository repo;
+    private final Cache&lt;String, Boolean&gt; cache;
+    private final Ticker ticker;
+
+    /**
+     * CI 修复:同 {@link com.seafood.shared.security.AdminRateLimiter} ——
+     * 两个 constructor 触发 Spring 6 AOT 失败。{@code @Autowired} 显式标记 1-arg 为首选。
+     */
+    @Autowired
+    public TokenRevocationService(RevokedTokenRepository repo) {
+<span class="fc" id="L71">        this(repo, Ticker.systemTicker());</span>
+<span class="fc" id="L72">    }</span>
+
+    /** 测试用:注入假 {@link Ticker}。 */
+<span class="fc" id="L75">    TokenRevocationService(RevokedTokenRepository repo, Ticker ticker) {</span>
+<span class="fc" id="L76">        this.repo = repo;</span>
+<span class="fc" id="L77">        this.ticker = ticker;</span>
+<span class="fc" id="L78">        this.cache = Caffeine.newBuilder()</span>
+<span class="fc" id="L79">                .ticker(ticker)</span>
+<span class="fc" id="L80">                .expireAfter(new com.github.benmanes.caffeine.cache.Expiry&lt;String, Boolean&gt;() {</span>
+                    @Override
+                    public long expireAfterCreate(String key, Boolean value, long currentTime) {
+<span class="fc bfc" id="L83" title="All 2 branches covered.">                        Duration d = Boolean.TRUE.equals(value) ? POSITIVE_TTL : NEGATIVE_TTL;</span>
+<span class="fc" id="L84">                        return d.toNanos();</span>
+                    }
+                    @Override
+                    public long expireAfterUpdate(String key, Boolean value, long currentTime, long currentDuration) {
+<span class="fc" id="L88">                        return expireAfterCreate(key, value, currentTime);</span>
+                    }
+                    @Override
+                    public long expireAfterRead(String key, Boolean value, long currentTime, long currentDuration) {
+<span class="fc" id="L92">                        return currentDuration;</span>
+                    }
+                })
+<span class="fc" id="L95">                .build();</span>
+<span class="fc" id="L96">    }</span>
+
+    /** 撤销单个 jti。logout 用。 */
+    public void revoke(String jti, String userId, Instant expiresAt) {
+<span class="pc bpc" id="L100" title="2 of 4 branches missed.">        if (jti == null || jti.isBlank()) return;</span>
+        // already-expired token 没必要写库:filter 看到 exp 早过就会拒绝(签名/exp 校验先行)
+<span class="pc bpc" id="L102" title="1 of 4 branches missed.">        if (expiresAt != null &amp;&amp; expiresAt.isBefore(Instant.now())) {</span>
+<span class="fc" id="L103">            log.debug(&quot;[revoke] skip already-expired jti={} exp={}&quot;, jti, expiresAt);</span>
+<span class="fc" id="L104">            return;</span>
+        }
+<span class="fc" id="L106">        RevokedToken rec = new RevokedToken(jti, userId, expiresAt);</span>
+<span class="fc" id="L107">        repo.save(rec);</span>
+<span class="fc" id="L108">        cache.put(jti, Boolean.TRUE);</span>
+<span class="fc" id="L109">    }</span>
+
+    /**
+     * Force-logout:写一个 sentinel 文档使该 user 的所有 jti 被视为已撤销。
+     *
+     * &lt;p&gt;{@code _id} 形如 {@code u:USER_ID};{@link #isRevoked} 检测到这一前缀
+     * 时即返回 true。{@code expiresAt} 设为 far-future(100 年),实践中依赖
+     * 数据库 ops 清理(本服务不主动删)。
+     */
+    public void revokeAllForUser(String userId) {
+<span class="pc bpc" id="L119" title="2 of 4 branches missed.">        if (userId == null || userId.isBlank()) return;</span>
+<span class="fc" id="L120">        String sentinelId = FORCE_LOGOUT_PREFIX + userId;</span>
+<span class="fc" id="L121">        Instant farFuture = Instant.now().plus(Duration.ofDays(365L * 100L));</span>
+<span class="fc" id="L122">        RevokedToken rec = new RevokedToken(sentinelId, userId, farFuture);</span>
+<span class="fc" id="L123">        repo.save(rec);</span>
+        // PR review I8:不再 {@code cache.invalidateAll()} ——
+        // 原实现清空整个 Caffeine,意味着 force-logout 一来,所有 user 的所有
+        // jti 缓存都失效,下一个 5s 内 N 个并发 isRevoked 全部打 Mongo,
+        // 形成 stampede(实测 QPS 高的 service 一次能打 5k+ Mongo lookup)。
+        //
+        // 现:只 invalidate 与本 user &lt;em&gt;直接相关&lt;/em&gt;的缓存。
+        // 具体策略:
+        //   1. 写一个 user-scope 的 short TTL(&lt;em&gt;负&lt;/em&gt;含义)的 force-cache 条目
+        //      (key = &quot;force:&quot; + userId, value = TRUE)。
+        //   2. isRevoked 检查这个 cache,若 TRUE 直接返,不必每次查 Mongo。
+        //   3. revokeAll 写 sentinel + 写&quot;force:&lt;userId&gt;=TRUE&quot;,仅本 user 的
+        //      后续 isRevoked 命中此 cache;jti-cache 留给 5s TTL 自然过期。
+<span class="fc" id="L136">        cache.put(FORCE_CACHE_KEY_PREFIX + userId, Boolean.TRUE);</span>
+<span class="fc" id="L137">    }</span>
+
+    /**
+     * 检查 jti 是否已撤销。
+     *
+     * &lt;p&gt;实现:
+     * &lt;ol&gt;
+     *   &lt;li&gt;查 Caffeine;命中即返回&lt;/li&gt;
+     *   &lt;li&gt;未命中 → 查 MongoDB:存在文档 → true;否则 false&lt;/li&gt;
+     *   &lt;li&gt;同时查 user sentinel;若 userId 提供,匹配则 true&lt;/li&gt;
+     * &lt;/ol&gt;
+     *
+     * @param jti    JWT id(从 claims.getId() 取)
+     * @param userId 可选 — 传 null 时跳过 sentinel 检查(性能更快,filter 已知 userId)
+     */
+    public boolean isRevoked(String jti, String userId) {
+<span class="fc bfc" id="L153" title="All 4 branches covered.">        if (jti == null || jti.isBlank()) return false;</span>
+        // PR review I8:先查 user-scope force-cache —— 若有 TRUE,直接返
+        // (不走 Mongo,jti-cache 也不动)。这把 force-logout 失效范围压到单 user,
+        // 避免 cache.invalidateAll() 引发全 QPS stampede。
+<span class="pc bpc" id="L157" title="1 of 2 branches missed.">        if (userId != null) {</span>
+<span class="fc" id="L158">            Boolean forceCached = cache.getIfPresent(FORCE_CACHE_KEY_PREFIX + userId);</span>
+<span class="fc bfc" id="L159" title="All 2 branches covered.">            if (Boolean.TRUE.equals(forceCached)) {</span>
+<span class="fc" id="L160">                return true;</span>
+            }
+        }
+<span class="fc" id="L163">        Boolean cached = cache.getIfPresent(jti);</span>
+<span class="fc bfc" id="L164" title="All 2 branches covered.">        if (Boolean.TRUE.equals(cached)) {</span>
+<span class="fc" id="L165">            return true;</span>
+        }
+<span class="fc bfc" id="L167" title="All 2 branches covered.">        if (Boolean.FALSE.equals(cached)) {</span>
+<span class="fc" id="L168">            return false;</span>
+        }
+<span class="fc" id="L170">        boolean inDb = repo.existsById(jti);</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        if (inDb) {</span>
+<span class="fc" id="L172">            cache.put(jti, Boolean.TRUE);</span>
+<span class="fc" id="L173">            return true;</span>
+        }
+<span class="pc bpc" id="L175" title="1 of 2 branches missed.">        if (userId != null) {</span>
+            // Mongo 上的 sentinel 仅在 force-cache miss 时查 ——
+            // force-cache hit 已直接走 TRUE 短路,不会到这里。
+<span class="fc" id="L178">            boolean force = repo.existsById(FORCE_LOGOUT_PREFIX + userId);</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            if (force) {</span>
+                // 顺手把 force-cache 也填上,后续同 user 请求 0 Mongo
+<span class="fc" id="L181">                cache.put(FORCE_CACHE_KEY_PREFIX + userId, Boolean.TRUE);</span>
+<span class="fc" id="L182">                cache.put(jti, Boolean.TRUE);</span>
+<span class="fc" id="L183">                return true;</span>
+            }
+        }
+        // PR review #22 — 关键:用 putIfAbsent 写 FALSE。如果并发 {@link #revoke} 在
+        // 我们 DB 读与缓存写之间抢先 put 了 TRUE,我们的 FALSE 不会覆盖它。
+        // 原实现用 {@code cache.put(jti, FALSE)} 是 last-write-wins,存在窗口:
+        //   T1 isRevoked → cache miss → DB 读 false
+        //   T2 revoke     → DB save + cache.put(TRUE)
+        //   T1            → cache.put(FALSE) 覆盖 TRUE → 后续 5s 内 isRevoked 都返 false(错)
+        // putIfAbsent 让 TRUE 永远赢。
+<span class="fc" id="L193">        Boolean prev = cache.asMap().putIfAbsent(jti, Boolean.FALSE);</span>
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">        if (Boolean.TRUE.equals(prev)) {</span>
+            // 并发 revoke 在我们读 DB 期间抢先 put 了 TRUE;以 TRUE 为准
+<span class="nc" id="L196">            return true;</span>
+        }
+<span class="fc" id="L198">        return false;</span>
+    }
+
+    /** 暴露给 controller / service 内部用:把 jti 列表展开(便于测试断言)。 */
+    public List&lt;RevokedToken&gt; findRevokedByUser(String userId) {
+<span class="nc" id="L203">        return repo.findByUserId(userId);</span>
+    }
+
+    /** 测试/管理用:清空缓存(不删 Mongo 文档)。 */
+    public void invalidateCache() {
+<span class="fc" id="L208">        cache.invalidateAll();</span>
+<span class="fc" id="L209">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

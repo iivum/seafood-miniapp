@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderStatus.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.domain</a> &gt; <span class="el_source">OrderStatus.java</span></div><h1>OrderStatus.java</h1><pre class="source lang-java linenums">package com.seafood.order.domain;
+
+import com.seafood.shared.error.DomainException;
+
+/**
+ * 订单状态机(参见 design.md §6.3,specs/backend-api §Order lifecycle)。
+ *
+ * &lt;p&gt;完整合法转移(Sprint 3 4.7 / 4.8 补完后):
+ * &lt;pre&gt;
+ *   PENDING → PAID → SHIPPED → COMPLETED → REFUNDING → REFUNDED(终态)
+ *      ↓        ↓                       ↑
+ *   CANCELLED  CANCELLED                (Sprint 3 4.7 — mp 申请退款)
+ *                                     (admin 拒绝 4.8:REFUNDING → COMPLETED)
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;历史:
+ * &lt;ul&gt;
+ *   &lt;li&gt;2.6 引入 {@link Refunding} 状态值(M-3 准备,无出/入转换)&lt;/li&gt;
+ *   &lt;li&gt;4.7 补 {@code COMPLETED → REFUNDING} 入转换(mp 申请退款),并引入 {@link Refunded} 终态
+ *       供 admin 同意路径使用&lt;/li&gt;
+ *   &lt;li&gt;4.8 补 {@code REFUNDING → REFUNDED}(admin 同意)/ {@code REFUNDING → COMPLETED}
+ *       (admin 拒绝)。admin 拒绝时回到 COMPLETED 而不是 CANCELLED,因为订单本身已经完成
+ *       履约,只是&quot;没退成&quot;;业务上继续走售后期&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+public sealed interface OrderStatus
+        permits OrderStatus.Pending, OrderStatus.Paid, OrderStatus.Shipped,
+                OrderStatus.Completed, OrderStatus.Cancelled,
+                OrderStatus.Refunding, OrderStatus.Refunded {
+
+    String code();
+
+<span class="fc" id="L33">    record Pending()   implements OrderStatus { public String code() { return &quot;PENDING&quot;; } }</span>
+<span class="fc" id="L34">    record Paid()      implements OrderStatus { public String code() { return &quot;PAID&quot;; } }</span>
+<span class="fc" id="L35">    record Shipped()   implements OrderStatus { public String code() { return &quot;SHIPPED&quot;; } }</span>
+<span class="fc" id="L36">    record Completed() implements OrderStatus { public String code() { return &quot;COMPLETED&quot;; } }</span>
+<span class="fc" id="L37">    record Cancelled() implements OrderStatus { public String code() { return &quot;CANCELLED&quot;; } }</span>
+    /**
+     * 退款中(2.6 引入)。订单已 COMPLETED,等待 admin 审核退款申请 → {@link Refunded}。
+     * 申请入口:4.7(mp 端)将 {@code COMPLETED} 转 {@code REFUNDING};
+     * 拒绝回退:4.8 admin 拒绝时 {@code REFUNDING → COMPLETED}。
+     */
+<span class="fc" id="L43">    record Refunding() implements OrderStatus { public String code() { return &quot;REFUNDING&quot;; } }</span>
+    /**
+     * 已退款(4.7 引入,终态)。admin 同意退款后落到此状态 — 不可再流转。
+     * 与 {@link Cancelled} 终态并列。
+     */
+<span class="fc" id="L48">    record Refunded()  implements OrderStatus { public String code() { return &quot;REFUNDED&quot;; } }</span>
+
+    /** 字符串 → 状态(API/DB 反序列化)。 */
+    static OrderStatus of(String code) {
+<span class="fc bfc" id="L52" title="All 8 branches covered.">        return switch (code) {</span>
+<span class="fc" id="L53">            case &quot;PENDING&quot;   -&gt; new Pending();</span>
+<span class="fc" id="L54">            case &quot;PAID&quot;      -&gt; new Paid();</span>
+<span class="fc" id="L55">            case &quot;SHIPPED&quot;   -&gt; new Shipped();</span>
+<span class="fc" id="L56">            case &quot;COMPLETED&quot; -&gt; new Completed();</span>
+<span class="fc" id="L57">            case &quot;CANCELLED&quot; -&gt; new Cancelled();</span>
+<span class="fc" id="L58">            case &quot;REFUNDING&quot; -&gt; new Refunding();</span>
+<span class="fc" id="L59">            case &quot;REFUNDED&quot;  -&gt; new Refunded();</span>
+<span class="fc" id="L60">            default -&gt; throw new DomainException(&quot;未知订单状态:&quot; + code);</span>
+        };
+    }
+
+    /** 当前状态是否允许进入 target。集中规则,避免散落判断。 */
+    default boolean canTransitionTo(OrderStatus target) {
+<span class="fc bfc" id="L66" title="All 7 branches covered.">        return switch (this) {</span>
+<span class="fc bfc" id="L67" title="All 4 branches covered.">            case Pending _   -&gt; target instanceof Paid || target instanceof Cancelled;</span>
+<span class="fc bfc" id="L68" title="All 4 branches covered.">            case Paid _      -&gt; target instanceof Shipped || target instanceof Cancelled;</span>
+<span class="fc" id="L69">            case Shipped _   -&gt; target instanceof Completed;</span>
+            // 4.7 补:COMPLETED → REFUNDING(mp 申请退款)
+<span class="fc" id="L71">            case Completed _ -&gt; target instanceof Refunding;</span>
+<span class="fc" id="L72">            case Cancelled _ -&gt; false;</span>
+            // 4.8 补:REFUNDING → REFUNDED(admin 同意) / REFUNDING → COMPLETED(admin 拒绝回退)
+<span class="fc bfc" id="L74" title="All 4 branches covered.">            case Refunding _ -&gt; target instanceof Refunded || target instanceof Completed;</span>
+<span class="fc" id="L75">            case Refunded _  -&gt; false;</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtTokenProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.security</a> &gt; <span class="el_source">JwtTokenProvider.java</span></div><h1>JwtTokenProvider.java</h1><pre class="source lang-java linenums">package com.seafood.shared.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
+
+/**
+ * JWT 签发/校验(参见 design.md §4.1,specs/auth §JWT issuance)。
+ *
+ * &lt;p&gt;失败模式:
+ * &lt;ul&gt;
+ *   &lt;li&gt;启动时 {@code secret}/{@code adminSecret} 缺失 → 抛 IllegalStateException,进程退出&lt;/li&gt;
+ *   &lt;li&gt;密钥长度 &lt; 32 字节(HS256 要求) → 抛 IllegalStateException&lt;/li&gt;
+ *   &lt;li&gt;解析失败 → 抛 {@link JwtException},由 {@link JwtAuthenticationFilter} 翻译为 401&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@Component
+public class JwtTokenProvider {
+
+    private final JwtProperties props;
+    private SecretKey userKey;
+    private SecretKey adminKey;
+
+<span class="fc" id="L34">    public JwtTokenProvider(JwtProperties props) {</span>
+<span class="fc" id="L35">        this.props = props;</span>
+<span class="fc" id="L36">    }</span>
+
+    @PostConstruct
+    public void init() {
+<span class="fc" id="L40">        this.userKey = buildKey(&quot;JWT_SECRET&quot;, props.getSecret());</span>
+<span class="fc" id="L41">        this.adminKey = buildKey(&quot;JWT_ADMIN_SECRET&quot;, props.getAdminSecret());</span>
+<span class="fc" id="L42">    }</span>
+
+    private static SecretKey buildKey(String envName, String secret) {
+<span class="pc bpc" id="L45" title="2 of 4 branches missed.">        if (secret == null || secret.isBlank()) {</span>
+<span class="nc" id="L46">            throw new IllegalStateException(envName + &quot; is missing; set env var or security.jwt.* property to enable auth&quot;);</span>
+        }
+<span class="fc" id="L48">        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);</span>
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">        if (bytes.length &lt; 32) {</span>
+<span class="nc" id="L50">            throw new IllegalStateException(envName + &quot; must be at least 32 bytes for HS256&quot;);</span>
+        }
+<span class="fc" id="L52">        return Keys.hmacShaKeyFor(bytes);</span>
+    }
+
+    // ----- 小程序 /api/auth/** -----
+
+    /** 签发 access token(sub=userId, role, jti, iat, exp)。 */
+    public IssuedToken issueAccessToken(String userId, Role role) {
+<span class="fc" id="L59">        return issue(userKey, userId, role, props.getAccessTokenTtl(), &quot;access&quot;);</span>
+    }
+
+    /**
+     * 签发 refresh token(sub=userId, type=refresh, role, jti, iat, exp)。
+     *
+     * &lt;p&gt;PR review #30:必须包含 {@code role} claim —— {@code AuthService.refresh()}
+     * 走 happy path 时会 {@code Role.valueOf(claims.get(&quot;role&quot;, String.class))} 拿角色
+     * 签发新 access。原实现省略 role(传 null),refresh 路径在 line 158 NPE;此 bug 此前
+     * 0 测试覆盖,因为本仓库曾经完全没 happy-path refresh 测试。
+     */
+    public IssuedToken issueRefreshToken(String userId, Role role) {
+<span class="fc" id="L71">        return issue(userKey, userId, role, props.getRefreshTokenTtl(), &quot;refresh&quot;);</span>
+    }
+
+    // ----- admin-ui /api/admin/auth/**(独立密钥)-----
+
+    public IssuedToken issueAdminAccessToken(String userId, Role role) {
+<span class="fc" id="L77">        return issue(adminKey, userId, role, props.getAccessTokenTtl(), &quot;access&quot;);</span>
+    }
+
+    public IssuedToken issueAdminRefreshToken(String userId, Role role) {
+<span class="fc" id="L81">        return issue(adminKey, userId, role, props.getRefreshTokenTtl(), &quot;refresh&quot;);</span>
+    }
+
+    // ----- 解析 -----
+
+    public Claims parseUser(String token) {
+<span class="fc" id="L87">        return Jwts.parser().verifyWith(userKey).build().parseSignedClaims(token).getPayload();</span>
+    }
+
+    public Claims parseAdmin(String token) {
+<span class="fc" id="L91">        return Jwts.parser().verifyWith(adminKey).build().parseSignedClaims(token).getPayload();</span>
+    }
+
+    private IssuedToken issue(SecretKey key, String subject, Role role, Duration ttl, String type) {
+<span class="fc" id="L95">        Instant now = Instant.now();</span>
+<span class="fc" id="L96">        Instant exp = now.plus(ttl);</span>
+<span class="fc" id="L97">        String jti = UUID.randomUUID().toString();</span>
+<span class="fc" id="L98">        var builder = Jwts.builder()</span>
+<span class="fc" id="L99">                .id(jti)</span>
+<span class="fc" id="L100">                .subject(subject)</span>
+<span class="fc" id="L101">                .issuedAt(Date.from(now))</span>
+<span class="fc" id="L102">                .expiration(Date.from(exp))</span>
+<span class="fc" id="L103">                .claim(&quot;type&quot;, type);</span>
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">        if (role != null) {</span>
+<span class="fc" id="L105">            builder.claim(&quot;role&quot;, role.name());</span>
+        }
+<span class="fc" id="L107">        String token = builder.signWith(key).compact();</span>
+<span class="fc" id="L108">        return new IssuedToken(token, jti, now, exp);</span>
+    }
+
+    /** 解析失败时区分过期/无效/签名错。 */
+    public static String classify(Throwable t) {
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        if (t instanceof io.jsonwebtoken.ExpiredJwtException) return &quot;TOKEN_EXPIRED&quot;;</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (t instanceof JwtException) return &quot;TOKEN_INVALID&quot;;</span>
+<span class="nc" id="L115">        return &quot;TOKEN_INVALID&quot;;</span>
+    }
+
+<span class="fc" id="L118">    public record IssuedToken(String token, String jti, Instant issuedAt, Instant expiresAt) {</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

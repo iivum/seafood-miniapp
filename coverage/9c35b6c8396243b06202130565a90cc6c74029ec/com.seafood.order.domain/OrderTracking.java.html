@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderTracking.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.domain</a> &gt; <span class="el_source">OrderTracking.java</span></div><h1>OrderTracking.java</h1><pre class="source lang-java linenums">package com.seafood.order.domain;
+
+import com.seafood.shared.error.DomainException;
+
+import java.util.List;
+
+/**
+ * 订单物流值对象(参见 design.md §6.3 + specs/admin-batch-operations §Logistics tracking)。
+ *
+ * &lt;p&gt;挂在 {@link Order} 上的不可变 record;Order 在 SHIPPED 状态之后才会有此值
+ * (PENDING / PAID / COMPLETED / CANCELLED / REFUNDING 都不挂)。
+ *
+ * &lt;p&gt;字段:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code carrier} — 物流公司名(&quot;顺丰&quot; / &quot;中通&quot; / &quot;京东&quot; 等,自由字符串,2.5 / 4.3 走常量池);&lt;/li&gt;
+ *   &lt;li&gt;{@code trackingNumber} — 物流单号(由物流公司分配,14-30 位);&lt;/li&gt;
+ *   &lt;li&gt;{@code events} — 事件流,按时间正序(创建时校验;调用方保证,本构造不重新排序)。&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;业务约束:
+ * &lt;ul&gt;
+ *   &lt;li&gt;events 不能为空(挂在 Order 时至少有 1 条 &quot;SHIPPED&quot; 起始事件);&lt;/li&gt;
+ *   &lt;li&gt;carrier / trackingNumber 非空;&lt;/li&gt;
+ *   &lt;li&gt;本迭代(4.1)只引入值对象;真实数据由 4.3 / 4.4 admin 端录入(后端不动,后端只暴露
+ *       GET /api/orders/{id}/tracking,见 4.2)。&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+public record OrderTracking(
+        String carrier,
+        String trackingNumber,
+        List&lt;TrackingEvent&gt; events
+) {
+<span class="fc" id="L33">    public OrderTracking {</span>
+<span class="pc bpc" id="L34" title="1 of 4 branches missed.">        if (carrier == null || carrier.isBlank()) {</span>
+<span class="fc" id="L35">            throw new DomainException(&quot;物流公司不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L37" title="1 of 4 branches missed.">        if (trackingNumber == null || trackingNumber.isBlank()) {</span>
+<span class="fc" id="L38">            throw new DomainException(&quot;物流单号不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L40" title="1 of 4 branches missed.">        if (events == null || events.isEmpty()) {</span>
+<span class="fc" id="L41">            throw new DomainException(&quot;物流事件流不能为空&quot;);</span>
+        }
+<span class="fc" id="L43">        events = List.copyOf(events);</span>
+<span class="fc" id="L44">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

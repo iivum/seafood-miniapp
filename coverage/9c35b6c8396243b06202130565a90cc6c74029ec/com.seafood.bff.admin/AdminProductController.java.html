@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminProductController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.bff.admin</a> &gt; <span class="el_source">AdminProductController.java</span></div><h1>AdminProductController.java</h1><pre class="source lang-java linenums">package com.seafood.bff.admin;
+
+import com.seafood.bff.admin.dto.BatchStatusRequest;
+import com.seafood.bff.admin.dto.BatchStatusResponse;
+import com.seafood.product.api.dto.ProductResponse;
+import com.seafood.product.application.ProductService;
+import com.seafood.shared.error.NotFoundException;
+import com.seafood.shared.error.DomainException;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 管理后台商品操作端点(参见 design.md §5.1 admin BFF + specs/backend-api §Admin product operations)。
+ *
+ * &lt;p&gt;目前只承载 3.1 duplicate;后续 Sprint 2/3 的 export(3.2)、upload(3.6)等也走这里(均
+ * ADMIN-only,与 bff/admin/AdminBffController 路径前缀 / 角色限制一致)。
+ *
+ * &lt;p&gt;商品 CRUD 基础操作仍由 {@code /api/products/...} 承载(同进程同模块,通过
+ * @PreAuthorize 区分角色),这里只放 admin 专属操作。
+ */
+@RestController
+@RequestMapping(&quot;/api/admin/products&quot;)
+@PreAuthorize(&quot;hasRole('ADMIN')&quot;)
+public class AdminProductController {
+
+    private final ProductService products;
+
+<span class="fc" id="L40">    public AdminProductController(ProductService products) {</span>
+<span class="fc" id="L41">        this.products = products;</span>
+<span class="fc" id="L42">    }</span>
+
+    /**
+     * 路线图 3.1:复制商品 — ad-03 表格行的&quot;复制&quot;按钮 + 3.4 E2E「筛选 → duplicate」基础。
+     *
+     * &lt;p&gt;复制语义见 {@link ProductService#duplicate(String)}:新 id / name +&quot; (副本)&quot;/ stock=0 /
+     * status=ACTIVE / 新时间戳;其他字段原样复制。
+     *
+     * &lt;p&gt;返回 201 + Location 头指向新商品(与 create 同形,便于前端 Router 跳详情)。
+     */
+    @PostMapping(&quot;/{id}/duplicate&quot;)
+    public ResponseEntity&lt;ProductResponse&gt; duplicate(@PathVariable String id) {
+<span class="fc" id="L54">        ProductResponse created = products.duplicate(id);</span>
+<span class="fc" id="L55">        return ResponseEntity</span>
+<span class="fc" id="L56">                .created(URI.create(&quot;/api/admin/products/&quot; + created.id()))</span>
+<span class="fc" id="L57">                .body(created);</span>
+    }
+
+    /**
+     * 3.2 商品导出 CSV — ad-03 表格&quot;导出&quot;按钮。返回 text/csv;charset=UTF-8 + Content-Disposition: attachment。
+     * 8 列(商品ID / 名称 / 分类 / 价格 / 库存 / 状态 / 创建时间 / 更新时间),UTF-8 BOM 防 Excel 乱码。
+     * 同 4.15 订单导出同形;BOM 在 ProductService.exportRecentProductsAsCsv 已拼好,前端 BlobReader 直接读。
+     */
+    @GetMapping(&quot;/export&quot;)
+    public ResponseEntity&lt;byte[]&gt; export() {
+<span class="fc" id="L67">        String csv = products.exportRecentProductsAsCsv();</span>
+<span class="fc" id="L68">        byte[] body = csv.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L69">        return ResponseEntity.ok()</span>
+<span class="fc" id="L70">                .header(HttpHeaders.CONTENT_TYPE, &quot;text/csv;charset=UTF-8&quot;)</span>
+<span class="fc" id="L71">                .header(HttpHeaders.CONTENT_DISPOSITION,</span>
+                        &quot;attachment; filename=\&quot;products.csv\&quot;&quot;)
+<span class="fc" id="L73">                .contentLength(body.length)</span>
+<span class="fc" id="L74">                .body(body);</span>
+    }
+
+    /**
+     * 3.3 批量状态变更(ad-03 DataTable &quot;批量上架/下架&quot;按钮)。
+     *
+     * &lt;p&gt;逐商品处理 + 部分失败(同 4.13 batchShip 模式):HTTP 200 + 业务结果
+     * (successCount / failedCount / failed 列表),UI 提示用户;不返 207 Multi-Status
+     * (前端 axios 处理更简单)。
+     *
+     * &lt;p&gt;校验:ids 非空 / status 非空 / 状态转换合法性走 {@code Product.withStatus()}
+     * 命名方法(同状态转换拒 409)。
+     */
+    @PostMapping(&quot;/batch-status&quot;)
+    public ResponseEntity&lt;BatchStatusResponse&gt; batchStatus(@RequestBody BatchStatusRequest body) {
+<span class="pc bpc" id="L89" title="2 of 6 branches missed.">        if (body == null || body.ids() == null || body.ids().isEmpty()) {</span>
+<span class="fc" id="L90">            throw new DomainException(&quot;ids 不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">        if (body.status() == null) {</span>
+<span class="nc" id="L93">            throw new DomainException(&quot;status 不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        if (body.ids().size() &gt; 200) {</span>
+<span class="nc" id="L96">            throw new DomainException(&quot;单次最多 200 个商品&quot;);</span>
+        }
+<span class="fc" id="L98">        List&lt;String&gt; success = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L99">        List&lt;BatchStatusResponse.FailedItem&gt; failed = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        for (String id : body.ids()) {</span>
+            try {
+<span class="fc" id="L102">                products.updateStatus(id, body.status());</span>
+<span class="fc" id="L103">                success.add(id);</span>
+<span class="nc" id="L104">            } catch (NotFoundException e) {</span>
+<span class="nc" id="L105">                failed.add(new BatchStatusResponse.FailedItem(id, &quot;商品不存在&quot;));</span>
+<span class="nc" id="L106">            } catch (DomainException e) {</span>
+<span class="nc" id="L107">                failed.add(new BatchStatusResponse.FailedItem(id, e.getMessage()));</span>
+<span class="pc" id="L108">            }</span>
+<span class="fc" id="L109">        }</span>
+<span class="fc" id="L110">        return ResponseEntity.ok(BatchStatusResponse.of(success, failed));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

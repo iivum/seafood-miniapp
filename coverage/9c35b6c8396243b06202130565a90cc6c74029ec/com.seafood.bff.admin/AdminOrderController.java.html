@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminOrderController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.bff.admin</a> &gt; <span class="el_source">AdminOrderController.java</span></div><h1>AdminOrderController.java</h1><pre class="source lang-java linenums">package com.seafood.bff.admin;
+
+import com.seafood.bff.admin.dto.BatchShipRequest;
+import com.seafood.bff.admin.dto.BatchShipResponse;
+import com.seafood.order.application.OrderService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 管理后台订单操作端点(参见 design.md §5.1 admin BFF + specs/admin-batch-operations)。
+ *
+ * &lt;p&gt;路线图 4.13 — ad-05 订单列表「批量发货」按钮 + 4.15「导出 CSV」按钮。
+ * 与 3.1 duplicate / 4.8 refund 审核风格一致:@PreAuthorize ADMIN + 业务全走 OrderService。
+ */
+@RestController
+@RequestMapping(&quot;/api/admin/orders&quot;)
+@PreAuthorize(&quot;hasRole('ADMIN')&quot;)
+public class AdminOrderController {
+
+    private final OrderService orders;
+
+<span class="fc" id="L31">    public AdminOrderController(OrderService orders) {</span>
+<span class="fc" id="L32">        this.orders = orders;</span>
+<span class="fc" id="L33">    }</span>
+
+    /**
+     * 路线图 4.13:批量发货。{@code orderIds} 1..50 个;{@code carrier} / {@code trackingNumber}
+     * 可选(同时填或同时留空 — 半填报&quot;global&quot;失败项),不填时只把状态 PAID → SHIPPED。
+     *
+     * &lt;p&gt;返回 200(注意:即便有单失败也返 200 — 4.13 设计就是 partial success;UI 看
+     * successCount / failedCount 决定弹哪种 toast)。HTTP 200 + 业务结果的双层
+     * 语义,符合&quot;逐单处理 + 失败跳过&quot;策略(若用 207 Multi-Status 也可,但前端
+     * 通常更熟悉 200 + JSON)。
+     */
+    @PostMapping(&quot;/batch-ship&quot;)
+    public BatchShipResponse batchShip(@Valid @RequestBody BatchShipRequest body) {
+<span class="fc" id="L46">        return orders.batchShip(body.orderIds(), body.carrier(), body.trackingNumber());</span>
+    }
+
+    /**
+     * 路线图 4.15:导出订单 CSV(ad-05 订单列表「导出」按钮)。
+     *
+     * &lt;p&gt;策略:复用 {@link OrderService#findRecent(int)} 取最近 500 单(单仓单 seller
+     * 阶段够用,生产应换 Mongo aggregation pipeline — 留 TODO,与 findRecent 注释
+     * 同步)。500 条数据走内存拼 String 即可,无需 StreamingResponseBody。
+     *
+     * &lt;p&gt;格式:UTF-8 BOM + RFC 4180 CSV(逗号分隔 + 双引号转义包含逗号/引号/换行的
+     * 字段)。Excel 打开 UTF-8 BOM 自动识别中文不乱码;Linux 工具(cat / less)看
+     * 头 3 字节为 BOM 但不影响。
+     *
+     * &lt;p&gt;列:订单号 / 用户 ID / 金额(元) / 状态 / 取消原因(仅 CANCELLED) /
+     * 创建时间(ISO-8601 UTC) / 更新时间(ISO-8601 UTC)。物流不在 CSV 内(信息
+     * 密度低,Excel 也难展示嵌套结构)— ad-06 详情页看。
+     */
+    @GetMapping(&quot;/export&quot;)
+    public ResponseEntity&lt;String&gt; exportCsv() {
+<span class="fc" id="L66">        String csv = orders.exportRecentOrdersAsCsv(500);</span>
+<span class="fc" id="L67">        String filename = &quot;orders-&quot; + java.time.LocalDate.now() + &quot;.csv&quot;;</span>
+<span class="fc" id="L68">        return ResponseEntity.ok()</span>
+<span class="fc" id="L69">                .header(HttpHeaders.CONTENT_DISPOSITION,</span>
+                        &quot;attachment; filename=\&quot;&quot; + filename + &quot;\&quot;&quot;)
+<span class="fc" id="L71">                .contentType(MediaType.parseMediaType(&quot;text/csv; charset=UTF-8&quot;))</span>
+<span class="fc" id="L72">                .body(&quot;﻿&quot; + csv);</span>
+    }
+
+    /**
+     * 路线图 4.14:打印拣货单(ad-05 订单详情/列表&quot;打印拣货单&quot;按钮)。
+     *
+     * &lt;p&gt;本期实现为可打印 HTML 兜底(Content-Type: text/html; Content-Disposition
+     * attachment; 浏览器 Ctrl+P → 另存为 PDF,或 admin 端直接打印)。选择 HTML 而非
+     * PDF 库的原因:
+     * &lt;ul&gt;
+     *   &lt;li&gt;OpenPDF 7.x(AGPL 之外最友好)在 GraalVM Native 反射 metadata 复杂
+     *       (font / image / resource 全要 agent 收集),初次落地需多轮 nativeTest
+     *       调 — design §5.2 当前 BFF 不缓存,不应在 PDF 链路阻塞主进程 native 构建;&lt;/li&gt;
+     *   &lt;li&gt;HTML 兜底 0 依赖、0 反射、native binary 体积不变(几十 KB 字符串),&lt;/li&gt;
+     *   &lt;li&gt;admin 浏览器端 Ctrl+P 选「另存为 PDF」生成的 PDF 与 iText 生成的几乎无差
+     *       (现代浏览器 print-to-PDF 体验稳定)。&lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;p&gt;Sprint 后 4.14 重做时,接 OpenPDF 7.x(AGPL-MIT 双协议,商业友好)+ Flying
+     * Saucer(HTML→PDF)或纯 OpenPDF;此处留 TODO。
+     */
+    @GetMapping(&quot;/{id}/print-picklist&quot;)
+    public ResponseEntity&lt;String&gt; printPicklist(@PathVariable String id) {
+<span class="nc" id="L94">        String html = orders.renderPicklistHtml(id);</span>
+<span class="nc" id="L95">        return ResponseEntity.ok()</span>
+<span class="nc" id="L96">                .header(HttpHeaders.CONTENT_DISPOSITION,</span>
+                        &quot;inline; filename=\&quot;picklist-&quot; + id + &quot;.html\&quot;&quot;)
+<span class="nc" id="L98">                .contentType(MediaType.parseMediaType(&quot;text/html; charset=UTF-8&quot;))</span>
+<span class="nc" id="L99">                .body(html);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

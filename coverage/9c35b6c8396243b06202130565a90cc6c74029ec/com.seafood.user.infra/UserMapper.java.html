@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserMapper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.infra</a> &gt; <span class="el_source">UserMapper.java</span></div><h1>UserMapper.java</h1><pre class="source lang-java linenums">package com.seafood.user.infra;
+
+import com.seafood.shared.security.Role;
+import com.seafood.user.domain.User;
+
+import java.time.Instant;
+
+public final class UserMapper {
+
+    private UserMapper() {}
+
+    public static User toDomain(UserDocument d) {
+<span class="pc bpc" id="L13" title="1 of 2 branches missed.">        if (d == null) return null;</span>
+<span class="pc bpc" id="L14" title="1 of 2 branches missed.">        Role role = d.getRole() == null ? Role.CUSTOMER : Role.valueOf(d.getRole());</span>
+<span class="fc" id="L15">        return new User(</span>
+<span class="fc" id="L16">                d.getId(),</span>
+<span class="fc" id="L17">                d.getOpenId(),</span>
+<span class="fc" id="L18">                d.getNickname(),</span>
+<span class="fc" id="L19">                d.getAvatarUrl(),</span>
+                role,
+<span class="fc" id="L21">                d.getPhone(),</span>
+<span class="fc" id="L22">                d.getAddresses(),</span>
+<span class="fc" id="L23">                d.getFavoriteProductIds(),</span>
+<span class="fc" id="L24">                d.getCreatedAt());</span>
+    }
+
+    public static UserDocument toDocument(User u) {
+<span class="fc" id="L28">        UserDocument d = new UserDocument();</span>
+<span class="fc" id="L29">        d.setId(u.id());</span>
+<span class="fc" id="L30">        d.setOpenId(u.openId());</span>
+<span class="fc" id="L31">        d.setNickname(u.nickname());</span>
+<span class="fc" id="L32">        d.setAvatarUrl(u.avatarUrl());</span>
+<span class="fc" id="L33">        d.setRole(u.role().name());</span>
+<span class="fc" id="L34">        d.setPhone(u.phone());</span>
+<span class="pc bpc" id="L35" title="1 of 2 branches missed.">        d.setAddresses(u.addresses() == null ? java.util.List.of() : u.addresses());</span>
+<span class="pc bpc" id="L36" title="1 of 2 branches missed.">        d.setFavoriteProductIds(u.favoriteProductIds() == null ? java.util.List.of() : u.favoriteProductIds());</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">        d.setCreatedAt(u.createdAt() == null ? Instant.now() : u.createdAt());</span>
+<span class="fc" id="L38">        return d;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WechatPhoneNumberExchanger.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.application</a> &gt; <span class="el_source">WechatPhoneNumberExchanger.java</span></div><h1>WechatPhoneNumberExchanger.java</h1><pre class="source lang-java linenums">package com.seafood.user.application;
+
+import com.seafood.shared.error.DomainException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+import java.time.Instant;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * 微信手机号绑定 code → 手机号(对齐 specs/backend-api §Customer phone number binding)。
+ *
+ * &lt;p&gt;真实实现:先用 {@code cgi-bin/token} 换 access_token(内存缓存,避免撞微信限流),
+ * 再调 {@code wxa/business/getuserphonenumber} 用 code 换手机号。
+ * 与 {@link WechatCodeExchanger} 一致的开发期约定:{@code wechat.enabled=false} 时
+ * 接受 {@code dev-*} 前缀 code,派生一个确定性测试手机号,不发起真实请求。
+ */
+@Component
+public class WechatPhoneNumberExchanger {
+
+    private final RestClient http;
+
+    @Value(&quot;${wechat.appid:dummy}&quot;)
+    private String appid;
+    @Value(&quot;${wechat.secret:dummy}&quot;)
+    private String secret;
+    @Value(&quot;${wechat.enabled:false}&quot;)
+    private boolean enabled;
+    @Value(&quot;${wechat.phone-binding.enabled:false}&quot;)
+    private boolean phoneBindingEnabled;
+
+    // 微信标准错误码:access_token 失效/过期(凭证问题,值得清缓存重试一次;
+    // 其它错误码——如 40029 code 无效——重试没有意义,直接抛错)。
+<span class="fc" id="L37">    private static final Set&lt;Integer&gt; INVALID_TOKEN_ERRCODES = Set.of(40001, 40014, 42001);</span>
+
+    private volatile String cachedAccessToken;
+<span class="fc" id="L40">    private volatile Instant accessTokenExpiresAt = Instant.MIN;</span>
+
+    /**
+     * Spring 装配用的唯一公开构造函数——不要删除或给它加 {@code @Autowired}。
+     * 本类曾直接注入 {@code RestClient.Builder},结果应用启动时报
+     * {@code NoSuchBeanDefinitionException}(该 bean 在本项目里不是自动装配的);
+     * 现在自己 new 一个 RestClient(同 {@link WechatCodeExchanger} 既有约定),
+     * 靠&quot;唯一公开构造函数 + 无 @Autowired 时 Spring 隐式选它&quot;这条规则被装配。
+     */
+    public WechatPhoneNumberExchanger() {
+<span class="fc" id="L50">        this(RestClient.builder().baseUrl(&quot;https://api.weixin.qq.com&quot;).build());</span>
+<span class="fc" id="L51">    }</span>
+
+    // 测试专用(package-private,不是给 Spring 用的):注入已绑定 MockRestServiceServer
+    // 的 RestClient,让单测能真正驱动 exchange()/accessToken() 的 HTTP 逻辑而不用碰网络。
+<span class="fc" id="L55">    WechatPhoneNumberExchanger(RestClient http) {</span>
+<span class="fc" id="L56">        this.http = http;</span>
+<span class="fc" id="L57">    }</span>
+
+    public String exchange(String code) {
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (!enabled) {</span>
+<span class="pc bpc" id="L61" title="1 of 4 branches missed.">            if (code != null &amp;&amp; code.startsWith(&quot;dev-&quot;)) {</span>
+<span class="fc" id="L62">                return devPhoneFor(code);</span>
+            }
+<span class="fc" id="L64">            throw new DomainException(&quot;微信手机号绑定未启用(wechat.enabled=false),code 必须以 dev- 开头&quot;);</span>
+        }
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (!phoneBindingEnabled) {</span>
+<span class="fc" id="L67">            throw new DomainException(&quot;手机号绑定功能暂未开放(wechat.phone-binding.enabled=false)&quot;);</span>
+        }
+<span class="fc" id="L69">        return exchangeViaWechat(code, true);</span>
+    }
+
+    /**
+     * @param allowRetry 首次调用为 true;若微信判定当前 access_token 失效(而非 code 本身有问题),
+     *                   清缓存换新 token 后重试恰好一次(避免缓存的 token 被微信提前失效——比如
+     *                   appsecret 轮换——导致后续请求在 TTL 到期前持续失败,最长可达 ~2 小时)。
+     */
+    private String exchangeViaWechat(String code, boolean allowRetry) {
+<span class="fc" id="L78">        String accessToken = accessToken();</span>
+<span class="fc" id="L79">        Map&lt;?, ?&gt; body = http.post()</span>
+<span class="fc" id="L80">                .uri(uri -&gt; uri.path(&quot;/wxa/business/getuserphonenumber&quot;)</span>
+<span class="fc" id="L81">                        .queryParam(&quot;access_token&quot;, accessToken)</span>
+<span class="fc" id="L82">                        .build())</span>
+<span class="fc" id="L83">                .body(Map.of(&quot;code&quot;, code))</span>
+<span class="fc" id="L84">                .retrieve()</span>
+<span class="fc" id="L85">                .body(Map.class);</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        Object errcode = body == null ? null : body.get(&quot;errcode&quot;);</span>
+<span class="pc bpc" id="L87" title="1 of 6 branches missed.">        if (allowRetry &amp;&amp; errcode instanceof Number n &amp;&amp; INVALID_TOKEN_ERRCODES.contains(n.intValue())) {</span>
+<span class="fc" id="L88">            invalidateAccessTokenCache();</span>
+<span class="fc" id="L89">            return exchangeViaWechat(code, false);</span>
+        }
+<span class="pc bpc" id="L91" title="1 of 2 branches missed.">        Object phoneInfoObj = body == null ? null : body.get(&quot;phone_info&quot;);</span>
+<span class="fc bfc" id="L92" title="All 4 branches covered.">        if (!(phoneInfoObj instanceof Map&lt;?, ?&gt; phoneInfo) || !(phoneInfo.get(&quot;phoneNumber&quot;) instanceof String phoneNumber)) {</span>
+<span class="fc" id="L93">            throw new DomainException(&quot;微信手机号换取失败:&quot; + errMsgOf(body));</span>
+        }
+<span class="fc" id="L95">        return phoneNumber;</span>
+    }
+
+    private synchronized void invalidateAccessTokenCache() {
+<span class="fc" id="L99">        cachedAccessToken = null;</span>
+<span class="fc" id="L100">        accessTokenExpiresAt = Instant.MIN;</span>
+<span class="fc" id="L101">    }</span>
+
+    private synchronized String accessToken() {
+<span class="fc" id="L104">        Instant now = Instant.now();</span>
+<span class="pc bpc" id="L105" title="1 of 4 branches missed.">        if (cachedAccessToken != null &amp;&amp; now.isBefore(accessTokenExpiresAt)) {</span>
+<span class="fc" id="L106">            return cachedAccessToken;</span>
+        }
+<span class="fc" id="L108">        Map&lt;?, ?&gt; body = http.get()</span>
+<span class="fc" id="L109">                .uri(uri -&gt; uri.path(&quot;/cgi-bin/token&quot;)</span>
+<span class="fc" id="L110">                        .queryParam(&quot;grant_type&quot;, &quot;client_credential&quot;)</span>
+<span class="fc" id="L111">                        .queryParam(&quot;appid&quot;, appid)</span>
+<span class="fc" id="L112">                        .queryParam(&quot;secret&quot;, secret)</span>
+<span class="fc" id="L113">                        .build())</span>
+<span class="fc" id="L114">                .retrieve()</span>
+<span class="fc" id="L115">                .body(Map.class);</span>
+<span class="pc bpc" id="L116" title="1 of 4 branches missed.">        if (body == null || !(body.get(&quot;access_token&quot;) instanceof String token)) {</span>
+<span class="fc" id="L117">            throw new DomainException(&quot;微信 access_token 获取失败:&quot; + errMsgOf(body));</span>
+        }
+<span class="fc" id="L119">        cachedAccessToken = token;</span>
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">        int expiresIn = body.get(&quot;expires_in&quot;) instanceof Number n ? n.intValue() : 7200;</span>
+        // 提前 60s 过期,避免请求发出瞬间恰好撞上失效边界
+<span class="fc" id="L122">        accessTokenExpiresAt = now.plusSeconds(Math.max(expiresIn - 60, 0));</span>
+<span class="fc" id="L123">        return cachedAccessToken;</span>
+    }
+
+    private static String errMsgOf(Map&lt;?, ?&gt; body) {
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">        if (body == null) {</span>
+<span class="nc" id="L128">            return &quot;empty&quot;;</span>
+        }
+<span class="fc" id="L130">        Object errmsg = body.get(&quot;errmsg&quot;);</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        return errmsg == null ? &quot;empty&quot; : errmsg.toString();</span>
+    }
+
+    private static String devPhoneFor(String code) {
+<span class="fc" id="L135">        return phoneFromHash(code.hashCode());</span>
+    }
+
+    /**
+     * package-private 便于直测 Integer.MIN_VALUE 这类边界(找一个真 hashCode 恰好等于
+     * Integer.MIN_VALUE 的字符串不现实,直接测这个纯函数更可靠)。
+     *
+     * &lt;p&gt;用位运算 {@code &amp; Integer.MAX_VALUE} 清符号位而非 {@code Math.abs}——Java 里
+     * {@code Math.abs(Integer.MIN_VALUE) == Integer.MIN_VALUE}(两补码溢出,仍是负数),
+     * 位运算对任何 int 输入都保证非负,不存在这个边界。
+     */
+    static String phoneFromHash(int hash) {
+<span class="fc" id="L147">        int nonNegative = hash &amp; Integer.MAX_VALUE;</span>
+<span class="fc" id="L148">        return String.format(Locale.ROOT, &quot;138%08d&quot;, nonNegative % 100000000);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

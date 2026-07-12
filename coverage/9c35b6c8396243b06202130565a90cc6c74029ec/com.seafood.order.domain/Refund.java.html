@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Refund.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.domain</a> &gt; <span class="el_source">Refund.java</span></div><h1>Refund.java</h1><pre class="source lang-java linenums">package com.seafood.order.domain;
+
+import com.seafood.shared.error.DomainException;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+/**
+ * 退款单聚合根(参见 design.md §6.3 + specs/admin-batch-operations §Refund lifecycle)。
+ *
+ * &lt;p&gt;职责:
+ * &lt;ul&gt;
+ *   &lt;li&gt;持有 {@code orderId} 关联到 {@link Order};&lt;/li&gt;
+ *   &lt;li&gt;{@code amount} 由退款方在申请时声明,后续 admin 审核可能调整(本期 4.6 不实现部分退款,
+ *       Sprint 3 4.8 仍可整体同意 / 拒绝);&lt;/li&gt;
+ *   &lt;li&gt;{@code reason} 是用户填的退款原因(海鲜质量 / 发货错误 等),长度 ≤ 200 字符;&lt;/li&gt;
+ *   &lt;li&gt;状态机:REQUESTED → APPROVED / REJECTED(都是终态)。&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;约束:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code amount &gt; 0} — 0 元退款无意义;&lt;/li&gt;
+ *   &lt;li&gt;{@code orderId} / {@code userId} 非空 — 退款单必须能回溯到原订单 + 申请人;&lt;/li&gt;
+ *   &lt;li&gt;状态由命名方法推进,集中异常,避免外部 setStatus 漂移。&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+public record Refund(
+        String id,
+        String orderId,
+        String userId,
+        BigDecimal amount,
+        String reason,
+        RefundStatus status,
+        Instant createdAt,
+        Instant updatedAt
+) {
+
+<span class="fc" id="L38">    public Refund {</span>
+<span class="pc bpc" id="L39" title="1 of 4 branches missed.">        if (orderId == null || orderId.isBlank()) {</span>
+<span class="fc" id="L40">            throw new DomainException(&quot;退款单必须关联原订单&quot;);</span>
+        }
+<span class="pc bpc" id="L42" title="1 of 4 branches missed.">        if (userId == null || userId.isBlank()) {</span>
+<span class="fc" id="L43">            throw new DomainException(&quot;退款单必须记录申请人&quot;);</span>
+        }
+<span class="fc bfc" id="L45" title="All 4 branches covered.">        if (amount == null || amount.signum() &lt;= 0) {</span>
+<span class="fc" id="L46">            throw new DomainException(&quot;退款金额必须大于 0&quot;);</span>
+        }
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">        if (reason == null) {</span>
+<span class="nc" id="L49">            throw new DomainException(&quot;退款原因不能为空&quot;);</span>
+        }
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (reason.length() &gt; 200) {</span>
+<span class="fc" id="L52">            throw new DomainException(&quot;退款原因超过 200 字符上限&quot;);</span>
+        }
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        if (status == null) {</span>
+<span class="nc" id="L55">            throw new DomainException(&quot;退款状态不能为空&quot;);</span>
+        }
+<span class="fc" id="L57">    }</span>
+
+    /** admin 同意退款:REQUESTED → APPROVED。 */
+    public Refund approve(Instant when) {
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        if (!(status instanceof RefundStatus.Requested)) {</span>
+<span class="fc" id="L62">            throw new DomainException(&quot;仅 REQUESTED 退款可同意,当前:&quot; + status.code());</span>
+        }
+<span class="fc" id="L64">        return mutate(new RefundStatus.Approved(), when);</span>
+    }
+
+    /** admin 拒绝退款:REQUESTED → REJECTED。 */
+    public Refund reject(Instant when) {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        if (!(status instanceof RefundStatus.Requested)) {</span>
+<span class="fc" id="L70">            throw new DomainException(&quot;仅 REQUESTED 退款可拒绝,当前:&quot; + status.code());</span>
+        }
+<span class="fc" id="L72">        return mutate(new RefundStatus.Rejected(), when);</span>
+    }
+
+    private Refund mutate(RefundStatus newStatus, Instant when) {
+<span class="fc" id="L76">        return new Refund(id, orderId, userId, amount, reason, newStatus,</span>
+<span class="pc bpc" id="L77" title="1 of 2 branches missed.">                createdAt, when == null ? Instant.now() : when);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

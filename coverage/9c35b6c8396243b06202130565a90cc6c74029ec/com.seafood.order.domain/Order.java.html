@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Order.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.domain</a> &gt; <span class="el_source">Order.java</span></div><h1>Order.java</h1><pre class="source lang-java linenums">package com.seafood.order.domain;
+
+import com.seafood.shared.error.DomainException;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Order 聚合根(参见 design.md §6.3 + §6.1 orders schema + specs/admin-batch-operations)。
+ *
+ * &lt;p&gt;状态变更走命名方法,集中规则;外部只读状态用 {@code status()}。
+ *
+ * &lt;p&gt;Sprint 3 4.1:新增 {@code tracking} 字段(物流值对象,SHIPPED 之后才有值),
+ * 用于 4.3 mp 端时间线 / 4.4 admin 端时间线组件 / 4.5 E2E「发货 → 查物流 → 时间线可见」。
+ */
+public record Order(
+        String id,
+        String userId,
+        List&lt;OrderItem&gt; items,
+        BigDecimal totalAmount,
+        OrderStatus status,
+        String cancelReason,
+        OrderTracking tracking,
+        String refundId,
+        Instant estimatedDelivery,
+        Instant createdAt,
+        Instant updatedAt
+) {
+
+<span class="fc" id="L31">    public Order {</span>
+<span class="pc bpc" id="L32" title="2 of 4 branches missed.">        if (userId == null || userId.isBlank()) {</span>
+<span class="nc" id="L33">            throw new DomainException(&quot;userId 不能为空&quot;);</span>
+        }
+<span class="pc bpc" id="L35" title="1 of 4 branches missed.">        if (items == null || items.isEmpty()) {</span>
+<span class="fc" id="L36">            throw new DomainException(&quot;订单必须至少包含一行&quot;);</span>
+        }
+<span class="fc" id="L38">        items = List.copyOf(items);</span>
+<span class="pc bpc" id="L39" title="1 of 4 branches missed.">        if (totalAmount == null || totalAmount.signum() &lt;= 0) {</span>
+<span class="fc" id="L40">            throw new DomainException(&quot;订单金额必须大于 0&quot;);</span>
+        }
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">        if (status == null) {</span>
+<span class="nc" id="L43">            throw new DomainException(&quot;订单状态不能为空&quot;);</span>
+        }
+        // tracking 字段(4.1 新增)校验:有值时必须挂在 SHIPPED 之后的状态。
+        // COMPLETED / REFUNDING / REFUNDED 状态保留 tracking — 用户/客服可能想看历史物流。
+        // 其它(PENDING / PAID / CANCELLED)理论上不应有 tracking,误传就拒。
+<span class="pc bpc" id="L48" title="2 of 10 branches missed.">        if (tracking != null &amp;&amp; !(status instanceof OrderStatus.Shipped</span>
+                || status instanceof OrderStatus.Completed
+                || status instanceof OrderStatus.Refunding
+                || status instanceof OrderStatus.Refunded)) {
+<span class="fc" id="L52">            throw new DomainException(&quot;仅 SHIPPED/COMPLETED/REFUNDING/REFUNDED 订单可挂物流,当前:&quot; + status.code());</span>
+        }
+        // refundId(4.20 新增)校验:仅 REFUNDING / REFUNDED 状态挂值,
+        // 其它状态有值即拒。空字符串视同 null。
+<span class="pc bpc" id="L56" title="4 of 8 branches missed.">        if (refundId != null &amp;&amp; !refundId.isBlank()</span>
+                &amp;&amp; !(status instanceof OrderStatus.Refunding || status instanceof OrderStatus.Refunded)) {
+<span class="nc" id="L58">            throw new DomainException(&quot;仅 REFUNDING/REFUNDED 订单可挂退款单 id,当前:&quot; + status.code());</span>
+        }
+<span class="pc bpc" id="L60" title="1 of 4 branches missed.">        if (refundId != null &amp;&amp; refundId.isBlank()) {</span>
+<span class="nc" id="L61">            refundId = null;</span>
+        }
+<span class="fc" id="L63">    }</span>
+
+    /** PENDING → PAID。 */
+    public Order markPaid(Instant when) {
+<span class="fc" id="L67">        requireTransition(OrderStatus.Paid.class);</span>
+<span class="fc" id="L68">        return mutate(new OrderStatus.Paid(), null, null, null, when);</span>
+    }
+
+    /** PAID → SHIPPED。 */
+    public Order markShipped(Instant when) {
+<span class="fc" id="L73">        requireTransition(OrderStatus.Shipped.class);</span>
+<span class="fc" id="L74">        return mutate(new OrderStatus.Shipped(), null, null, null, when);</span>
+    }
+
+    /** SHIPPED → COMPLETED。 */
+    public Order markCompleted(Instant when) {
+<span class="fc" id="L79">        requireTransition(OrderStatus.Completed.class);</span>
+<span class="fc" id="L80">        return mutate(new OrderStatus.Completed(), null, null, null, when);</span>
+    }
+
+    /**
+     * 4.7:COMPLETED → REFUNDING(mp 申请退款,先在 Service 层做金额/状态/owner 校验,
+     * 这里只负责状态机)。{@code tracking} 字段保留:用户可能想看历史物流。
+     */
+    public Order markRefunding(Instant when) {
+<span class="fc" id="L88">        requireTransition(OrderStatus.Refunding.class);</span>
+<span class="fc" id="L89">        return mutate(new OrderStatus.Refunding(), null, tracking, refundId, when);</span>
+    }
+
+    /**
+     * 4.8:REFUNDING → REFUNDED(admin 同意,终态)。{@code tracking} 保留(售后期查询用)。
+     */
+    public Order markRefunded(Instant when) {
+<span class="fc" id="L96">        requireTransition(OrderStatus.Refunded.class);</span>
+<span class="fc" id="L97">        return mutate(new OrderStatus.Refunded(), null, tracking, refundId, when);</span>
+    }
+
+    /**
+     * 4.8:REFUNDING → COMPLETED(admin 拒绝退款,订单回退到&quot;已签收&quot;业务态)。
+     * 之所以回退到 COMPLETED 而不是 CANCELLED:订单本身履约已完成,只是&quot;没退成&quot;;
+     * 业务上仍可走售后期(补发/换货),与 cancel 语义不同。
+     * 拒绝时同时清空 refundId,退回无退款单关联状态。
+     */
+    public Order markRefundRejected(Instant when) {
+<span class="fc" id="L107">        requireTransition(OrderStatus.Completed.class);</span>
+<span class="fc" id="L108">        return mutate(new OrderStatus.Completed(), null, tracking, null, when);</span>
+    }
+
+    /** 任意可取消状态 → CANCELLED。 */
+    public Order cancel(String reason, Instant when) {
+<span class="fc bfc" id="L113" title="All 4 branches covered.">        if (!(status instanceof OrderStatus.Pending || status instanceof OrderStatus.Paid)) {</span>
+<span class="fc" id="L114">            throw new DomainException(&quot;仅 PENDING/PAID 订单可取消,当前:&quot; + status.code());</span>
+        }
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">        return mutate(new OrderStatus.Cancelled(), reason == null ? &quot;&quot; : reason, null, null, when);</span>
+    }
+
+    /**
+     * 4.1 命名方法:挂载物流信息。仅 SHIPPED / COMPLETED 状态可挂(校验在 record compact
+     * constructor 内),其他状态抛 DomainException。
+     *
+     * &lt;p&gt;本迭代(4.1)只引入入口;Sprint 3 4.3 / 4.4 UI 端 / 4.5 E2E 走完后,管理端
+     * 「录入物流单号」按钮会调 admin 端 POST 端点(后续 4.13 批量发货时也可能带物流单号)。
+     */
+    public Order attachTracking(OrderTracking tracking) {
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">        if (tracking == null) {</span>
+<span class="nc" id="L128">            throw new DomainException(&quot;物流值对象不能为 null,需要清空请传 null 给 clearTracking&quot;);</span>
+        }
+<span class="fc" id="L130">        return mutate(status, cancelReason, tracking, refundId, Instant.now());</span>
+    }
+
+    /** 清空物流(异常路径,Sprint 3 可能用不到,先留入口)。 */
+    public Order clearTracking() {
+<span class="fc" id="L135">        return mutate(status, cancelReason, null, refundId, Instant.now());</span>
+    }
+
+    /**
+     * 4.20 命名方法:挂载退款单 id。{@code requestRefund} 成功路径由 Service 层
+     * 在 {@code markRefunding} 后调用,挂上 Refund 聚合根的 id;校验在 record compact
+     * constructor 内,仅 REFUNDING/REFUNDED 状态可挂。
+     */
+    public Order attachRefundId(String newRefundId) {
+<span class="pc bpc" id="L144" title="2 of 4 branches missed.">        if (newRefundId == null || newRefundId.isBlank()) {</span>
+<span class="nc" id="L145">            throw new DomainException(&quot;退款单 id 不能为空,需要清空请传 null 给 clearRefundId&quot;);</span>
+        }
+<span class="fc" id="L147">        return mutate(status, cancelReason, tracking, newRefundId, Instant.now());</span>
+    }
+
+    /** 清空退款单 id(异常路径,markRefundRejected 内部使用)。 */
+    public Order clearRefundId() {
+<span class="nc" id="L152">        return mutate(status, cancelReason, tracking, null, Instant.now());</span>
+    }
+
+    /**
+     * mp-09 路线图 4.20:挂载预计送达时间(Estimated Time of Arrival)。
+     *
+     * &lt;p&gt;约定:{@code estimatedDelivery} 在 create 时由 Service 层计算为 {@code now + 24h};
+     * 后续状态机(markPaid / markShipped / markCompleted)保持不变 — ETA 一次写入,持久跟随订单。
+     * 显式传 {@code null} 表示清空(异常路径,本期未使用,先留入口)。
+     *
+     * &lt;p&gt;record 不可变,本方法返回新实例;{@code createdAt} 保持不变(不视为订单修改),
+     * {@code updatedAt} 写为当前时刻。
+     */
+    public Order withEstimatedDelivery(Instant newEstimated) {
+<span class="fc" id="L166">        return new Order(id, userId, items, totalAmount, status,</span>
+<span class="fc" id="L167">                cancelReason, tracking, refundId, newEstimated, createdAt, Instant.now());</span>
+    }
+
+    private void requireTransition(Class&lt;? extends OrderStatus&gt; target) {
+<span class="pc bpc" id="L171" title="1 of 6 branches missed.">        OrderStatus t = switch (target.getSimpleName()) {</span>
+<span class="fc" id="L172">            case &quot;Paid&quot;      -&gt; new OrderStatus.Paid();</span>
+<span class="fc" id="L173">            case &quot;Shipped&quot;   -&gt; new OrderStatus.Shipped();</span>
+<span class="fc" id="L174">            case &quot;Completed&quot; -&gt; new OrderStatus.Completed();</span>
+<span class="fc" id="L175">            case &quot;Refunding&quot; -&gt; new OrderStatus.Refunding();</span>
+<span class="fc" id="L176">            case &quot;Refunded&quot;  -&gt; new OrderStatus.Refunded();</span>
+<span class="nc" id="L177">            default -&gt; throw new IllegalStateException();</span>
+        };
+<span class="fc bfc" id="L179" title="All 2 branches covered.">        if (!status.canTransitionTo(t)) {</span>
+<span class="fc" id="L180">            throw new DomainException(&quot;非法状态转移:&quot; + status.code() + &quot; → &quot; + t.code());</span>
+        }
+<span class="fc" id="L182">    }</span>
+
+    private Order mutate(OrderStatus newStatus, String reason, OrderTracking newTracking, String newRefundId, Instant when) {
+<span class="fc" id="L185">        return new Order(id, userId, items, totalAmount, newStatus, reason,</span>
+                newTracking, newRefundId, estimatedDelivery,
+<span class="pc bpc" id="L187" title="1 of 2 branches missed.">                createdAt, when == null ? Instant.now() : when);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
