@@ -3,6 +3,8 @@
 export interface EmptyProps {
   message: string;
   retryable?: boolean;
+  icon?: string;
+  retryText?: string;
 }
 
 export const EMPTY_DEFAULT_MESSAGE = '暂无数据';

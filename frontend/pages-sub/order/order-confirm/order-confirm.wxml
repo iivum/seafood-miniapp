@@ -23,7 +23,7 @@
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="confirm-topbar__back-icon">‹</text>
+      <van-icon class="confirm-topbar__back-icon" name="arrow-left" size="20px" />
     </view>
     <text class="confirm-topbar__title">订单确认</text>
     <view class="confirm-topbar__placeholder"></view>
@@ -50,7 +50,10 @@
     </block>
     <block wx:else>
       <view class="address-card__empty">
-        <text class="address-card__placeholder">📍 请选择收货地址</text>
+        <view class="address-card__placeholder">
+          <van-icon name="location-o" size="14px" />
+          <text>请选择收货地址</text>
+        </view>
       </view>
       <text class="address-card__arrow">›</text>
     </block>
@@ -86,7 +89,7 @@
       >
         <text class="delivery-option__name">免运费</text>
         <text class="delivery-option__fee">¥ 0</text>
-        <view wx:if="{{shippingMethod === 'FREE'}}" class="delivery-option__check">✓</view>
+        <van-icon wx:if="{{shippingMethod === 'FREE'}}" class="delivery-option__check" name="success" size="18px" />
       </view>
       <view
         class="delivery-option {{shippingMethod === 'SF' ? 'is-selected' : ''}}"
@@ -97,7 +100,7 @@
       >
         <text class="delivery-option__name">顺丰速运</text>
         <text class="delivery-option__fee">¥ 12</text>
-        <view wx:if="{{shippingMethod === 'SF'}}" class="delivery-option__check">✓</view>
+        <van-icon wx:if="{{shippingMethod === 'SF'}}" class="delivery-option__check" name="success" size="18px" />
       </view>
       <view
         class="delivery-option {{shippingMethod === 'ZTO' ? 'is-selected' : ''}}"
@@ -108,7 +111,7 @@
       >
         <text class="delivery-option__name">中通快递</text>
         <text class="delivery-option__fee">¥ 8</text>
-        <view wx:if="{{shippingMethod === 'ZTO'}}" class="delivery-option__check">✓</view>
+        <van-icon wx:if="{{shippingMethod === 'ZTO'}}" class="delivery-option__check" name="success" size="18px" />
       </view>
     </view>
   </view>

@@ -30,7 +30,7 @@
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="addr-topbar__back-icon">‹</text>
+      <van-icon class="addr-topbar__back-icon" name="arrow-left" size="20px" />
     </view>
     <text class="addr-topbar__title">{{selectMode ? '选择收货地址' : '地址管理'}}</text>
     <view class="addr-topbar__placeholder"></view>
@@ -38,7 +38,7 @@
 
   <view class="address-list" wx:if="{{addresses.length > 0}}">
     <view
-      class="address-card {{selectMode && selectedId === item.id ? 'is-selected' : ''}}"
+      class="address-card {{selectMode && selectedAddress.id === item.id ? 'is-selected' : ''}}"
       wx:for="{{addresses}}"
       wx:key="id"
     >
@@ -79,7 +79,7 @@
           hover-class="is-clicked"
           hover-stay-time="100"
         >
-          <text class="address-card__action-icon">✏️</text>
+          <van-icon class="address-card__action-icon" name="edit" size="16px" />
           <text>编辑</text>
         </view>
         <view
@@ -89,20 +89,20 @@
           hover-class="is-clicked"
           hover-stay-time="100"
         >
-          <text class="address-card__action-icon">🗑️</text>
+          <van-icon class="address-card__action-icon" name="delete-o" size="16px" />
           <text>删除</text>
         </view>
       </view>
       <!-- 选择模式:radio 圆圈 -->
-      <view wx:if="{{selectMode}}" class="address-card__radio {{selectedId === item.id ? 'is-checked' : ''}}">
-        <text wx:if="{{selectedId === item.id}}" class="address-card__radio-check">✓</text>
+      <view wx:if="{{selectMode}}" class="address-card__radio {{selectedAddress.id === item.id ? 'is-checked' : ''}}">
+        <van-icon wx:if="{{selectedAddress.id === item.id}}" class="address-card__radio-check" name="success" size="16px" />
       </view>
     </view>
   </view>
 
   <!-- 空状态 -->
   <view class="empty-state" wx:if="{{addresses.length === 0}}">
-    <text class="empty-state__icon">📭</text>
+    <van-icon class="empty-state__icon" name="location-o" size="48px" />
     <text class="empty-state__title">还没有收货地址哦</text>
     <text class="empty-state__sub">添加收货地址,方便下单收货</text>
   </view>

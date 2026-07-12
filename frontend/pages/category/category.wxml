@@ -19,7 +19,7 @@
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="cat-topbar__search-icon">🔍</text>
+      <van-icon class="cat-topbar__search-icon" name="search" size="18px" />
     </view>
   </view>
 
@@ -55,8 +55,9 @@
       <!-- 错误状态 -->
       <view class="cat-state" wx:elif="{{isError}}">
         <shared-empty
-          icon="⚠️"
+          icon="warning-o"
           message="{{errorMessage || '加载失败'}}"
+          retryable="{{true}}"
           retry-text="重新加载"
           bind:retry="onRetry"
         ></shared-empty>
@@ -65,7 +66,7 @@
       <!-- 空状态 -->
       <view class="cat-state" wx:elif="{{isEmpty}}">
         <shared-empty
-          icon="🦐"
+          icon="search"
           message="该分类暂无商品"
         ></shared-empty>
       </view>

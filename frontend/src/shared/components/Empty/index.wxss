@@ -49,7 +49,7 @@
   line-height: 1.4;
   font-family: var(--font-body, -apple-system, sans-serif);
   font-weight: 600;
-  box-shadow: 0 6rpx 20rpx #231814;
+  box-shadow: 0 6rpx 20rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .empty__retry::after {

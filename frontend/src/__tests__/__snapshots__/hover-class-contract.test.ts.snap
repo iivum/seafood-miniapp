@@ -28,8 +28,9 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
   <!-- 空购物车 -->
   <view class="cart-empty" wx:if="{{cartItems.length === 0}}">
     <shared-empty
-      icon="🛒"
+      icon="cart-o"
       message="购物车空空如也"
+      retryable="{{true}}"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
     ></shared-empty>
@@ -48,7 +49,10 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
         </text>
       </view>
       <view class="address-card__empty" wx:else>
-        <text class="address-card__placeholder">📍 请选择收货地址</text>
+        <view class="address-card__placeholder">
+          <van-icon name="location-o" size="14px" />
+          <text>请选择收货地址</text>
+        </view>
       </view>
       <text class="address-card__arrow">›</text>
     </navigator>
@@ -57,7 +61,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
     <view class="cart-bar">
       <view class="cart-bar__select-all" bindtap="onSelectAllTap" hover-class="is-clicked" hover-stay-time="100">
         <view class="cart-checkbox {{isAllSelected ? 'cart-checkbox--checked' : ''}}">
-          <text wx:if="{{isAllSelected}}" class="cart-checkbox__icon">✓</text>
+          <van-icon wx:if="{{isAllSelected}}" class="cart-checkbox__icon" name="success" size="16px" />
         </view>
         <text class="cart-bar__label">全选</text>
       </view>
@@ -79,7 +83,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/cart/c
           hover-stay-time="100"
         >
           <view class="cart-checkbox {{item.selected ? 'cart-checkbox--checked' : ''}}">
-            <text wx:if="{{item.selected}}" class="cart-checkbox__icon">✓</text>
+            <van-icon wx:if="{{item.selected}}" class="cart-checkbox__icon" name="success" size="16px" />
           </view>
         </view>
         <image
@@ -175,7 +179,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/catego
       hover-class="is-clicked"
       hover-stay-time="100"
     >
-      <text class="cat-topbar__search-icon">🔍</text>
+      <van-icon class="cat-topbar__search-icon" name="search" size="18px" />
     </view>
   </view>
 
@@ -211,8 +215,9 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/catego
       <!-- 错误状态 -->
       <view class="cat-state" wx:elif="{{isError}}">
         <shared-empty
-          icon="⚠️"
+          icon="warning-o"
           message="{{errorMessage || '加载失败'}}"
+          retryable="{{true}}"
           retry-text="重新加载"
           bind:retry="onRetry"
         ></shared-empty>
@@ -221,7 +226,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/catego
       <!-- 空状态 -->
       <view class="cat-state" wx:elif="{{isEmpty}}">
         <shared-empty
-          icon="🦐"
+          icon="search"
           message="该分类暂无商品"
         ></shared-empty>
       </view>
@@ -292,7 +297,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
   <view class="home-header safe-area-top">
     <view class="home-location-row">
       <view class="home-location">
-        <text class="home-location__icon">📍</text>
+        <van-icon class="home-location__icon" name="location-o" size="18px" />
         <text class="home-location__text">厦门·高崎码头</text>
       </view>
       <view
@@ -301,11 +306,11 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
         hover-class="is-clicked"
         hover-stay-time="100"
       >
-        <text class="home-bell__icon">🔔</text>
+        <van-icon class="home-bell__icon" name="bell" size="18px" />
       </view>
     </view>
     <view class="home-search">
-      <text class="home-search__icon">🔍</text>
+      <van-icon class="home-search__icon" name="search" size="18px" />
       <input
         class="home-search__input"
         placeholder="试试「波龙」「黄花鱼」"
@@ -421,8 +426,9 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
   <!-- 错误状态 -->
   <view class="home-state" wx:elif="{{isError}}">
     <shared-empty
-      icon="⚠️"
+      icon="warning-o"
       message="{{errorMessage || '加载失败'}}"
+      retryable="{{true}}"
       retry-text="重新加载"
       bind:retry="onRetry"
     ></shared-empty>
@@ -431,8 +437,9 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages/index/
   <!-- 空状态(过滤后无产品) -->
   <view class="home-state" wx:elif="{{isEmpty}}">
     <shared-empty
-      icon="🦐"
+      icon="search"
       message="该分类暂无商品"
+      retryable="{{true}}"
       retry-text="查看全部"
       bind:retry="onClearFilter"
     ></shared-empty>
@@ -503,7 +510,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
     </view>
     <text class="order-list__title">我的订单</text>
     <view class="order-list__search" bindtap="onSearch" hover-class="order-list__search--hover">
-      <text class="order-list__search-icon">⌕</text>
+      <van-icon class="order-list__search-icon" name="search" size="18px" />
     </view>
   </view>
 
@@ -531,8 +538,9 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
   <!-- 错误状态 -->
   <view class="order-list__state" wx:elif="{{isError}}">
     <shared-empty
-      icon="⚠️"
+      icon="warning-o"
       message="{{errorMessage || '加载失败'}}"
+      retryable="{{true}}"
       retry-text="重新加载"
       bind:retry="onRetry"
     ></shared-empty>
@@ -541,8 +549,9 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
   <!-- 空状态 -->
   <view class="order-list__state" wx:elif="{{filteredOrders.length === 0}}">
     <shared-empty
-      icon="📦"
+      icon="orders-o"
       message="还没有相关订单哦"
+      retryable="{{true}}"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
     ></shared-empty>
@@ -562,7 +571,7 @@ exports[`S-2 hover-class 全量合约快照（防止后续误删） pages-sub/or
       <!-- 商家行 + 状态徽标 -->
       <view class="order-card__top">
         <view class="order-card__shop">
-          <text class="order-card__shop-icon">⌂</text>
+          <van-icon class="order-card__shop-icon" name="shop-o" size="16px" />
           <text class="order-card__shop-name">海鲜商城</text>
         </view>
         <text class="order-card__status order-card__status--{{item.status}}">{{statusTextMap[item.status]}}</text>

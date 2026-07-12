@@ -8,13 +8,13 @@
   border-radius: var(--radius-xl, 14px);
   margin: 16rpx;
   padding: 24rpx;
-  box-shadow: 0 2rpx 10rpx #231814;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .order-item-row:active {
   transform: scale(0.99);
-  box-shadow: 0 1rpx 4rpx #231814;
+  box-shadow: 0 1rpx 4rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .order-item-row__head {

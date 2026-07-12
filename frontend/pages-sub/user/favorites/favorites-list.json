@@ -1,5 +1,8 @@
 {
   "navigationBarTitleText": "我的收藏",
   "navigationStyle": "custom",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "van-icon": "@vant/weapp/icon/index"
+  }
 }

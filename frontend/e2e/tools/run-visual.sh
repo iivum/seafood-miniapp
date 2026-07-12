@@ -34,6 +34,17 @@ die()  { printf '\033[1;31m[run-visual] %s\033[0m\n' "$*" >&2; exit 1; }
 
 api_code() { curl -s -o /dev/null -w "%{http_code}" --max-time 2 "$API" 2>/dev/null; }
 
+# ---------- ⓪ miniprogram_npm(新 worktree 常见缺失;npm install 不产出它) ----------
+if [ ! -d "$FRONTEND_DIR/miniprogram_npm" ]; then
+  [ -d "$FRONTEND_DIR/node_modules" ] || die "node_modules 缺失:先 cd frontend && npm install,再重跑"
+  [ -x "$DEVTOOLS_CLI" ] || die "微信 DevTools cli 不存在:$DEVTOOLS_CLI(需先装 + 登录)"
+  say "miniprogram_npm 缺失,执行 cli build-npm …"
+  "$DEVTOOLS_CLI" build-npm --project "$FRONTEND_DIR" || die "build-npm 失败(DevTools 未登录?项目未导入?)"
+  say "miniprogram_npm 构建完成 ✓"
+else
+  say "miniprogram_npm 已存在 ✓"
+fi
+
 # ---------- ① DevTools 自动化端口 ----------
 if lsof -nP -iTCP:$AUTO_PORT -sTCP:LISTEN >/dev/null 2>&1; then
   say "DevTools 自动化端口 $AUTO_PORT 已在监听 ✓"

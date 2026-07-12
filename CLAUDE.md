@@ -25,6 +25,7 @@
 | Java 代码 / Java PR | `iivum-java-style`(必查 `ddd-review-checklist.md`) |
 | CI 报错 | `seafood-ci-hardening` |
 | mp E2E 静默失败 | `seafood-mp-e2e-debug` |
+| mp E2E 验证 / DevTools 自动化操作 | 派发 `mp-e2e-expert` agent(Agent 工具;定义在 `.claude/agents/`,新增/改定义后 `/reload-plugins` 热加载)|
 | 2+ 独立并行 | `superpowers:dispatching-parallel-agents` |
 | 创建 / 编辑 / 验证 skill | `superpowers:writing-skills` |
 

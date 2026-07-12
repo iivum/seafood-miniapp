@@ -145,4 +145,10 @@ describe('login.wxml/js 对齐 OD mp-10-login(align-mp-login-with-od)', () => {
     expect(/bindPhone\(/.test(body)).toBe(true);
     expect(/errMsg/.test(body)).toBe(true);
   });
+
+  it('Step2 微信授权成功提示不再用裸 ✓ 字符,改用 van-icon name="success"(mp-icon-emoji-replacement)', () => {
+    const src = readLoginWxml();
+    expect(src).not.toMatch(/✓/);
+    expect(src).toMatch(/<van-icon\s+name="success"[^/]*\/>\s*<text>微信授权成功<\/text>/);
+  });
 });

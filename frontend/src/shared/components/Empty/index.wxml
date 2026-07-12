@@ -1,10 +1,10 @@
 <!-- shared/components/Empty/index.wxml -->
 <view class="empty">
-  <view class="empty__icon">📭</view>
+  <van-icon class="empty__icon" name="{{icon}}" size="48px" />
   <view class="empty__message">{{message}}</view>
   <button
     wx:if="{{retryable}}"
     class="empty__retry btn"
     bindtap="onRetry"
-  >重试</button>
+  >{{retryText}}</button>
 </view>

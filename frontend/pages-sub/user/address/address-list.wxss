@@ -68,13 +68,13 @@
   align-items: stretch;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
-  box-shadow: 0 2rpx 10rpx #231814;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
   overflow: hidden;
   transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .address-card.is-selected {
-  box-shadow: 0 0 0 3rpx var(--accent, #db633c), 0 2rpx 10rpx #231814;
+  box-shadow: 0 0 0 3rpx var(--accent, #db633c), 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .address-card__body {
@@ -184,7 +184,7 @@
 
 .address-card__radio.is-checked {
   background: var(--accent, #db633c);
-  box-shadow: 0 2rpx 6rpx #231814;
+  box-shadow: 0 2rpx 6rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .address-card__radio-check {
@@ -237,7 +237,7 @@
   z-index: 100;
   background: var(--surface, #fff);
   padding: 24rpx 32rpx;
-  box-shadow: 0 -2rpx 12rpx #231814;
+  box-shadow: 0 -2rpx 12rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .add-btn {
@@ -252,7 +252,7 @@
   font-size: 30rpx;
   font-weight: 600;
   border-radius: var(--radius-pill, 9999px);
-  box-shadow: 0 4rpx 12rpx #231814;
+  box-shadow: 0 4rpx 12rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .add-btn__icon {

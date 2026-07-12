@@ -1,7 +1,7 @@
 <view class="favorites-container">
   <view class="favorites-topbar safe-area-top">
     <view class="favorites-topbar__back" bindtap="onBack" hover-class="is-clicked" hover-stay-time="100">
-      <text class="favorites-topbar__back-icon">‹</text>
+      <van-icon class="favorites-topbar__back-icon" name="arrow-left" size="20px" />
     </view>
     <text class="favorites-topbar__title">我的收藏</text>
     <view class="favorites-topbar__placeholder"></view>
@@ -29,13 +29,13 @@
         hover-class="is-clicked"
         hover-stay-time="100"
       >
-        <text>♥</text>
+        <van-icon name="like" size="18px" />
       </view>
     </view>
   </view>
 
   <view class="empty-state" wx:if="{{items.length === 0 && !isLoading}}">
-    <text class="empty-state__icon">🤍</text>
+    <van-icon class="empty-state__icon" name="like-o" size="48px" />
     <text class="empty-state__title">还没有收藏商品哦</text>
     <text class="empty-state__sub">看到喜欢的商品点个心形收藏吧</text>
   </view>

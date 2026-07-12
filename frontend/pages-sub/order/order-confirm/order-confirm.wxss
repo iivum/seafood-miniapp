@@ -83,7 +83,7 @@
   padding: 32rpx 28rpx;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
-  box-shadow: 0 2rpx 10rpx #231814;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .address-card__body {
@@ -130,6 +130,9 @@
 .address-card__placeholder {
   font-size: 28rpx;
   color: var(--muted, #5a5451);
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
 }
 
 .address-card__arrow {
@@ -146,7 +149,7 @@
   padding: 24rpx 28rpx;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
-  box-shadow: 0 2rpx 10rpx #231814;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .items-list {
@@ -214,7 +217,7 @@
   padding: 24rpx 28rpx;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
-  box-shadow: 0 2rpx 10rpx #231814;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .delivery-options {
@@ -255,6 +258,8 @@
 .delivery-option.is-selected .delivery-option__fee {
   color: var(--accent, #db633c);
   font-weight: 600;
+  /* 给 absolute 定位的勾选徽章(right:16rpx + 宽 36rpx)让位,防遮挡费用 */
+  margin-right: 60rpx;
 }
 
 .delivery-option__check {
@@ -283,7 +288,7 @@
   padding: 24rpx 28rpx;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
-  box-shadow: 0 2rpx 10rpx #231814;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .remark-counter {
@@ -318,7 +323,7 @@
   padding: 24rpx 28rpx;
   background: var(--surface, #fff);
   border-radius: var(--radius-xl, 14px);
-  box-shadow: 0 2rpx 10rpx #231814;
+  box-shadow: 0 2rpx 10rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .summary-row {
@@ -378,7 +383,7 @@
   justify-content: space-between;
   background: var(--surface, #fff);
   padding: 20rpx 32rpx;
-  box-shadow: 0 -2rpx 12rpx #231814;
+  box-shadow: 0 -2rpx 12rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .bottom-bar__left {
@@ -407,7 +412,7 @@
   font-weight: 600;
   padding: 20rpx 48rpx;
   border-radius: var(--radius-pill, 9999px);
-  box-shadow: 0 4rpx 12rpx #231814;
+  box-shadow: 0 4rpx 12rpx var(--shadow-sm, rgba(35, 24, 20, 0.05));
 }
 
 .bottom-bar__submit.is-disabled {

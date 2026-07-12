@@ -15,7 +15,7 @@
     </view>
     <text class="order-list__title">我的订单</text>
     <view class="order-list__search" bindtap="onSearch" hover-class="order-list__search--hover">
-      <text class="order-list__search-icon">⌕</text>
+      <van-icon class="order-list__search-icon" name="search" size="18px" />
     </view>
   </view>
 
@@ -43,8 +43,9 @@
   <!-- 错误状态 -->
   <view class="order-list__state" wx:elif="{{isError}}">
     <shared-empty
-      icon="⚠️"
+      icon="warning-o"
       message="{{errorMessage || '加载失败'}}"
+      retryable="{{true}}"
       retry-text="重新加载"
       bind:retry="onRetry"
     ></shared-empty>
@@ -53,8 +54,9 @@
   <!-- 空状态 -->
   <view class="order-list__state" wx:elif="{{filteredOrders.length === 0}}">
     <shared-empty
-      icon="📦"
+      icon="orders-o"
       message="还没有相关订单哦"
+      retryable="{{true}}"
       retry-text="去逛逛"
       bind:retry="onGoShopping"
     ></shared-empty>
@@ -74,7 +76,7 @@
       <!-- 商家行 + 状态徽标 -->
       <view class="order-card__top">
         <view class="order-card__shop">
-          <text class="order-card__shop-icon">⌂</text>
+          <van-icon class="order-card__shop-icon" name="shop-o" size="16px" />
           <text class="order-card__shop-name">海鲜商城</text>
         </view>
         <text class="order-card__status order-card__status--{{item.status}}">{{statusTextMap[item.status]}}</text>
