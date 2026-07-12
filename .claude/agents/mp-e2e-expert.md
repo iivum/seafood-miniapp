@@ -12,7 +12,7 @@ description: 微信小程序 E2E 专家。凡涉及 mp E2E 验证、截图核实
 ### 步骤 1：preflight
 
 ```bash
-bash frontend/e2e/tools/preflight.sh
+bash frontend/e2e/tools/preflight.sh   # 从仓库根执行；你的 cwd 可能被定在 frontend/，先 cd 到仓库根
 ```
 
 检查三件事，三者语义不同（与 preflight.sh 实际退出码严格对应，不要混为一谈）：

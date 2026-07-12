@@ -5,7 +5,7 @@
  * mp-03 OD 原型对齐(openspec change mp-od-prototype-alignment,brief
  * `.superpowers/sdd/mp-od-3-product-detail-brief.md`):新增 .detail-hero /
  * .detail-topbar(悬浮顶栏,brief §1);.detail-info / .detail-footer 的
- * box-shadow 此前裸写 var(--shadow-sm, rgba(35, 24, 20, 0.05))(违反"不裸写 hex"约束),改成 var(--shadow-*,
+ * box-shadow 此前裸写 #231814(违反"不裸写 hex"约束),改成 var(--shadow-*,
  * fallback) 形式,与 mp-01/mp-02(index.wxss / category.wxss)token 用法惯例
  * 对齐(brief §2/§3)。
  */
