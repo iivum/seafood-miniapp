@@ -11,10 +11,12 @@
   background: var(--bg, #fffbf8);
 }
 
-/* hero 视觉区 —— 暂无产品实拍图素材,用品牌暖色渐变代替 OD 原型里的照片背景 */
+/* hero 视觉区 —— 暂无产品实拍图素材,用品牌暖色渐变代替 OD 原型里的照片背景。
+   高度对齐 OD .hero-visual(390 宽参照下 322px,即 620rpx;verify-mp-login-visual-parity
+   实机走查实测此前 420rpx≈218px 矮了约 32%)。 */
 .login-hero {
   position: relative;
-  height: 420rpx;
+  height: 620rpx;
   flex: none;
   background: linear-gradient(135deg, var(--accent-deep, #64230d) 0%, var(--accent, #db633c) 100%);
   overflow: hidden;
@@ -26,10 +28,12 @@
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.04) 45%, var(--bg, #fffbf8) 100%);
 }
 
+/* 品牌文字块锚 hero 顶部(对齐 OD .brand-mark:top:116px≈224rpx,贴近状态栏下方深色渐变区,
+   而非底部——verify-mp-login-visual-parity 实机走查确认此前 bottom 锚方向与 OD 相反)。 */
 .login-brand {
   position: absolute;
   left: 48rpx;
-  bottom: 64rpx;
+  top: 224rpx;
   z-index: 1;
   color: #fffdf9;
 }

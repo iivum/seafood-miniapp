@@ -57,6 +57,26 @@ const SCREENS = [
     waitFor: (d) => Array.isArray(d.orders) && d.orders.length > 0 },
   { name: 'mp-09-order-detail', path: `/pages-sub/order/order-detail/order-detail?id=${ORDER_ID}`, auth: true,
     waitFor: (d) => !d.isLoading && !!d.order },
+  // verify-mp-login-visual-parity:登录页状态机(data.step)有两个视觉上独立的态,
+  // 按 spec「多状态页面按状态而非按路由生成 golden」each 单独一条记录(不共用一份 golden)。
+  // step1 = 默认态,无需注入。
+  { name: 'mp-10-login-step1', path: '/pages-sub/user/login/login' },
+  // step2 本想靠 design.md D2 决策调页面自带的 onDevLogin() 进 step2,但实机走查(mp-e2e-expert)
+  // 实测推翻了这个假设:onDevLogin() 内部无条件 handleLoginSuccess() 直接登首页,不像 onWxLogin()
+  // 那样按 user.phone 分支——这是它"开发者一键直登"本身的既有产品行为(本地开发者高频用它跳过
+  // 整个登录流程),不是 bug,不该为了本 change 改。DevTools 里也走不通真实 onWxLogin() 路径
+  // (模拟 wx.login 返回的 code 不带 dev- 前缀,后端 wechat.enabled=false 时 409 拒绝)。
+  // 故改为直接 setData 注入登录页自身状态字段渲染该态,与 mp-04/06/07/08/09 既有的 auth/seed
+  // 注入(injectAuth 等)同类做法——都是"绕过不可达的真实业务路径,直接注入目标渲染状态"。
+  { name: 'mp-10-login-step2', path: '/pages-sub/user/login/login',
+    afterLand: (mp) => mp.evaluate(() => {
+      const pages = getCurrentPages();
+      const page = pages[pages.length - 1];
+      if (page) page.setData(JSON.parse(JSON.stringify({
+        step: 2, userNickname: '林一帆', userAvatarInitial: '林',
+      })));
+    }),
+    waitFor: (d) => d.step === 2 },
 ];
 
 /** 用 macOS 内置 sips 把 src 缩放到 w×h(归一化到 golden 尺寸,消除 DPR 差)。 */
@@ -101,6 +121,16 @@ async function captureActual(mp, screen, auth) {
     if (screen.auth && auth) await injectAuth(mp, auth);
     await race(mp.reLaunch(screen.path), 6000, 'reLaunch').catch(() => {});
     await new Promise((r) => setTimeout(r, 4000));
+  }
+  // afterLand:落页后、截图前需要驱动页面进入某个非默认态时用(如 mp-10-login-step2
+  // 直接 setData 注入 step:2)。不涉及鉴权/seed,页面自身状态机内的转场。
+  if (screen.afterLand) {
+    await screen.afterLand(mp);
+    // setData 是纯本地同步更新,data 层几乎立刻可读,但 wx:if 块切换的实际重渲染/repaint
+    // 会滞后几百毫秒(不像网络驱动的数据屏那样天然有请求往返垫底延迟)。mp-e2e-expert 复现
+    // 实测:零延迟必现"data.step=2 但截图仍是切换前的旧帧",600ms 稳定可拿到重渲染后画面
+    // (frontend/e2e/tools/README.md 未收录此坑,见 verify-mp-login-visual-parity 记录)。
+    await new Promise((r) => setTimeout(r, 800));
   }
   // 数据屏:固定 sleep 后再轮询内容就绪,抢不过异步取数时不截空态(最多再等 9s)。
   if (screen.waitFor) {

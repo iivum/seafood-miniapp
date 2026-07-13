@@ -36,8 +36,8 @@
 - [x] 6.1 更新 `frontend/src/__tests__/login-flow.test.ts`,覆盖 `specs/mini-program/spec.md` 新增场景:未勾选协议阻断登录、Step2 展示与跳过、开发者登录入口仍可用(15/15 新增+既有断言全绿)
 - [x] 6.2 后端跑 `cd backend && ./gradlew test check`,确认新增用例全绿且 ArchUnit/`checkNoRefreshScope` 无回归(669/669,含顺带修复的 OpenAPI 契约漂移——见下方说明)
 - [x] 6.3 前端跑 `cd frontend && npm test`,确认无回归(648/648,`TZ=UTC` 下全绿;唯一一处失败在无 `TZ=UTC` 时出现,是既存的、与本次改动无关的环境依赖问题)
-- [ ] 6.4 用 `weapp-dev` mcp 在开发者工具内实机走查登录页 Step1/Step2 两态截图,与 `mp-10-login.html` 做视觉比对,记录明显偏离项 —— **本次会话未完成**:本环境没有运行中的微信开发者工具(`mp_ensureConnection` 连接 `ws://localhost:9420` 失败,无自动化端口可连),需要在有 DevTools 运行的环境里补跑
-- [ ] 6.5(可选,视 sprint 时间预算)将登录页两态纳入 C5 视觉/几何验证 golden set(`frontend/e2e/od-golden/`、`od-geometry/`),补充对应断言 —— 本次未做,留后续
+- [x] 6.4 用 `weapp-dev` mcp 在开发者工具内实机走查登录页 Step1/Step2 两态截图,与 `mp-10-login.html` 做视觉比对,记录明显偏离项 —— **已由 `verify-mp-login-visual-parity` 完成**(2026-07-13,`mp-e2e-expert` agent 实机走查):发现 2 项真实偏离并已修复——① `.login-hero` 高度 420rpx(≈218px)比 OD 322px 矮约 32% → 改 620rpx;② `.login-brand` 锚点方向反了(mp 原 `bottom:64rpx` 贴底,OD `top:116px` 贴顶)→ 改 `top:224rpx`。协议勾选框/按钮尺寸/skip 链接/Step2 头像行均实测与 OD 一致或仅轻微差异,未修。另发现 `onDevLogin()` 无法驱动进入 Step2(是其"一键直登"既有产品行为,非 bug,未改;golden 捕获改用直接 setData 注入)、OD 原型 footer 版权文案 mp 未渲染(留待后续决策,不在此次范围)。详见 `openspec/changes/verify-mp-login-visual-parity/design.md` Amendments 章节。
+- [x] 6.5(可选,视 sprint 时间预算)将登录页两态纳入 C5 视觉/几何验证 golden set(`frontend/e2e/od-golden/`、`od-geometry/`),补充对应断言 —— **已由 `verify-mp-login-visual-parity` 完成**(2026-07-13):`od-golden/mp-10-login-step1.png` + `mp-10-login-step2.png` 已生成并接入 `frontend/e2e/tools/visual-diff.cjs` 的 `SCREENS`(`npm run test:visual` 可跑,当前 diff 46.55%/48.99%,与其他 9 屏 20-70% 历史基线一致,感知层非 gate)。几何断言(`od-geometry/`)判断不补:两处真实偏离(高度/位置)现有 `geometry-diff.cjs` 的 `present`/`count`/`columns` 三种 metric 表达不了,且正是感知层该抓的类型,不为补齐清单硬凑。
 
 ## 7. 收尾
 
