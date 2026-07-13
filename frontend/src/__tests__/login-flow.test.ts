@@ -152,3 +152,38 @@ describe('login.wxml/js 对齐 OD mp-10-login(align-mp-login-with-od)', () => {
     expect(src).toMatch(/<van-icon\s+name="success"[^/]*\/>\s*<text>微信授权成功<\/text>/);
   });
 });
+
+describe('verify-mp-login-visual-parity — hero 与 OD mp-10-login.html 实机走查偏离修复', () => {
+  function readLoginWxss(): string {
+    return fs.readFileSync(
+      path.join(__dirname, '../../pages-sub/user/login/login.wxss'),
+      'utf-8'
+    );
+  }
+
+  /**
+   * rpx→px:mp rpx 以 750rpx = 屏幕宽度换算,本项目视觉验证统一用 390px 参照宽度
+   * (od-golden/mp 实截图归一化的共同宽度,见 e2e/tools/README.md)。
+   */
+  function rpxToPx(rpx: number): number {
+    return (rpx * 390) / 750;
+  }
+
+  it('.login-hero 高度与 OD .hero-visual(390 宽下 322px)对齐(±10%)——mp-e2e-expert 实机走查实测:此前 420rpx≈218px,矮了约 32%', () => {
+    const src = readLoginWxss();
+    const match = src.match(/\.login-hero\s*\{[^}]*\bheight:\s*(\d+(?:\.\d+)?)rpx/);
+    expect(match).not.toBeNull();
+    const px = rpxToPx(Number(match![1]));
+    expect(px).toBeGreaterThanOrEqual(290);
+    expect(px).toBeLessThanOrEqual(354);
+  });
+
+  it('.login-brand 锚定 hero 顶部(top),不是底部(bottom)——OD .brand-mark 用 top:116px 贴近顶部,mp 此前反向锚 bottom:64rpx(实机走查确认方向性偏离)', () => {
+    const src = readLoginWxss();
+    const match = src.match(/\.login-brand\s*\{([^}]*)\}/);
+    expect(match).not.toBeNull();
+    const body = match![1];
+    expect(/\btop:\s*\d/.test(body)).toBe(true);
+    expect(/\bbottom:\s*\d/.test(body)).toBe(false);
+  });
+});
