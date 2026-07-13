@@ -37,4 +37,4 @@
 
 - [x] 7.1 回填 `openspec/changes/align-mp-login-with-od/tasks.md` 的 6.4(标注已由本 change 完成,附走查结论)与 6.5(标注已补 golden,几何视 6.1/6.2 结论注明)
 - [x] 7.2 `cd frontend && npm test` 全量回归(若第 4 节有修复,已在 4.3 验证过,此处确认无新增回归)
-- [ ] 7.3 走 `superpowers:requesting-code-review` 自查后再提交
+- [x] 7.3 走 `superpowers:requesting-code-review` 自查后再提交 —— code reviewer subagent 结论 "Ready to merge: Yes"(0 Critical/Important,6 Minor 非阻塞,详见对两处关键判断——onDevLogin 不改 + rpx↔px 换算——的独立核实);已按逻辑拆 3 个 commit 提交(`dc49ef5`/`c50b72e`/`ba18546`)
