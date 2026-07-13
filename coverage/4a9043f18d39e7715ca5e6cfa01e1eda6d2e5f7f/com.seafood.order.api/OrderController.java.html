@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.api</a> &gt; <span class="el_source">OrderController.java</span></div><h1>OrderController.java</h1><pre class="source lang-java linenums">package com.seafood.order.api;
+
+import com.seafood.order.api.dto.CartItemResponse;
+import com.seafood.order.api.dto.CreateOrderRequest;
+import com.seafood.order.api.dto.OrderResponse;
+import com.seafood.order.api.dto.RefundRequest;
+import com.seafood.order.api.dto.RefundResponse;
+import com.seafood.order.application.OrderService;
+import com.seafood.order.domain.OrderTracking;
+import com.seafood.shared.security.UserPrincipal;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.net.URI;
+import java.util.List;
+
+/**
+ * 订单 API(参见 specs/backend-api §Order lifecycle + 4.2 tracking)。
+ *
+ * &lt;p&gt;权限:
+ * &lt;ul&gt;
+ *   &lt;li&gt;POST /api/orders — CUSTOMER(自己) / ADMIN(代下单)&lt;/li&gt;
+ *   &lt;li&gt;GET  /api/orders — CUSTOMER 强制 own,ADMIN 可查任意 userId&lt;/li&gt;
+ *   &lt;li&gt;GET  /api/orders/{id}/tracking — CUSTOMER(自己) / ADMIN;Service 层做 own 校验,
+ *       失败抛 NotFoundException 防 enumeration&lt;/li&gt;
+ *   &lt;li&gt;POST /api/orders/{id}/ship — ADMIN only&lt;/li&gt;
+ *   &lt;li&gt;POST /api/orders/{id}/cancel — 订单所属用户(自己) / ADMIN&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@RestController
+@RequestMapping(&quot;/api/orders&quot;)
+public class OrderController {
+
+    private final OrderService orders;
+
+<span class="fc" id="L48">    public OrderController(OrderService orders) {</span>
+<span class="fc" id="L49">        this.orders = orders;</span>
+<span class="fc" id="L50">    }</span>
+
+    /**
+     * mp-backend-contract-gaps Task 2a(design.md Gap 2 / D3):body 可选。无 body / items
+     * 为 null 或空 → 现有购物车路径(未变);带非空 items → 显式直接购买建单,绕开购物车。
+     */
+    @PostMapping
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public ResponseEntity&lt;OrderResponse&gt; create(@AuthenticationPrincipal UserPrincipal me,
+                                                 @Valid @RequestBody(required = false) CreateOrderRequest body) {
+<span class="pc bpc" id="L60" title="1 of 6 branches missed.">        OrderResponse created = (body != null &amp;&amp; body.items() != null &amp;&amp; !body.items().isEmpty())</span>
+<span class="fc" id="L61">                ? orders.create(me.getId(), body.items())</span>
+<span class="fc" id="L62">                : orders.create(me.getId());</span>
+<span class="fc" id="L63">        return ResponseEntity.created(URI.create(&quot;/api/orders/&quot; + created.id())).body(created);</span>
+    }
+
+    @GetMapping
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public Page&lt;OrderResponse&gt; list(
+            @RequestParam(required = false) String userId,
+            @PageableDefault(size = 20) Pageable pageable) {
+<span class="fc" id="L71">        return orders.list(userId, pageable);</span>
+    }
+
+    @GetMapping(&quot;/{id}&quot;)
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public OrderResponse get(@PathVariable String id) {
+<span class="pc" id="L77">        return orders.list(null, org.springframework.data.domain.PageRequest.of(0, 1))</span>
+<span class="pc" id="L78">                .stream().filter(o -&gt; o.id().equals(id)).findFirst()</span>
+<span class="pc" id="L79">                .orElseThrow(() -&gt; new com.seafood.shared.error.NotFoundException(&quot;订单不存在:&quot; + id));</span>
+    }
+
+    /**
+     * 路线图 4.2:订单物流查询。PENDING / PAID / CANCELLED 订单的 tracking 字段为 null,
+     * 返回 200 + null(不是 404 — 订单存在但没物流);订单不存在 404;非订单主且非 ADMIN 404
+     * (防 enumeration)。
+     */
+    @GetMapping(&quot;/{id}/tracking&quot;)
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public OrderTracking getTracking(@PathVariable String id) {
+<span class="nc" id="L90">        return orders.getTracking(id);</span>
+    }
+
+    @PostMapping(&quot;/{id}/ship&quot;)
+    @PreAuthorize(&quot;hasRole('ADMIN')&quot;)
+    public OrderResponse ship(@PathVariable String id) {
+<span class="fc" id="L96">        return orders.ship(id);</span>
+    }
+
+    @PostMapping(&quot;/{id}/cancel&quot;)
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public OrderResponse cancel(@PathVariable String id,
+                                @RequestParam(required = false) String reason) {
+<span class="nc" id="L103">        return orders.cancel(id, reason);</span>
+    }
+
+    /**
+     * 路线图 4.7:mp 端申请退款(POST /api/orders/{id}/refund)。鉴权:订单所属用户(自己)
+     * 或 ADMIN;Service 层做 own 校验,失败抛 NotFoundException 防 enumeration。
+     * 成功返回 201 + RefundResponse(JSON 含 Refund.id,供 mp 端乐观更新本地状态)。
+     */
+    @PostMapping(&quot;/{id}/refund&quot;)
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public ResponseEntity&lt;RefundResponse&gt; requestRefund(
+            @PathVariable String id,
+            @Valid @RequestBody RefundRequest body) {
+<span class="nc" id="L116">        RefundResponse resp = orders.requestRefund(id, body.amount(), body.reason());</span>
+<span class="nc" id="L117">        return ResponseEntity</span>
+<span class="nc" id="L118">                .created(URI.create(&quot;/api/admin/refunds/&quot; + resp.id()))</span>
+<span class="nc" id="L119">                .body(resp);</span>
+    }
+
+    // ----- sprint-1-closure 1.4 / 1.5 新增 3 个 customer-side 状态机端点 -----
+
+    @PostMapping(&quot;/{id}/pay&quot;)
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public OrderResponse pay(@PathVariable String id) {
+<span class="nc" id="L127">        return orders.transition(id, com.seafood.order.domain.OrderAction.PAY);</span>
+    }
+
+    @PostMapping(&quot;/{id}/confirm-receive&quot;)
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public OrderResponse confirmReceive(@PathVariable String id) {
+<span class="nc" id="L133">        return orders.transition(id, com.seafood.order.domain.OrderAction.CONFIRM_RECEIVE);</span>
+    }
+
+    @PostMapping(&quot;/{id}/rebuy&quot;)
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public List&lt;CartItemResponse&gt; rebuy(@PathVariable String id) {
+<span class="nc" id="L139">        return orders.rebuy(id);</span>
+    }
+
+    @PostMapping(&quot;/{id}/remind-ship&quot;)
+    @PreAuthorize(&quot;hasAnyRole('CUSTOMER','ADMIN')&quot;)
+    public ResponseEntity&lt;Void&gt; remindShip(@PathVariable String id) {
+<span class="nc" id="L145">        orders.remindShip(id);</span>
+<span class="nc" id="L146">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

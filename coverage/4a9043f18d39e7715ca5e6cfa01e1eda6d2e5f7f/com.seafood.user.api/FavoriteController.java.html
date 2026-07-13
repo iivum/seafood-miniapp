@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FavoriteController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.api</a> &gt; <span class="el_source">FavoriteController.java</span></div><h1>FavoriteController.java</h1><pre class="source lang-java linenums">package com.seafood.user.api;
+
+import com.seafood.shared.security.UserPrincipal;
+import com.seafood.user.api.dto.FavoriteItemResponse;
+import com.seafood.user.application.FavoriteService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+/**
+ * 收藏 API(self-scoped 门面,同 {@code AddressController}/{@code CartController}
+ * 既有惯例——身份取自 JWT principal,不接受外部 userId 参数)。
+ */
+@RestController
+@RequestMapping(&quot;/api/favorites&quot;)
+public class FavoriteController {
+
+    private final FavoriteService favorites;
+
+<span class="fc" id="L27">    public FavoriteController(FavoriteService favorites) {</span>
+<span class="fc" id="L28">        this.favorites = favorites;</span>
+<span class="fc" id="L29">    }</span>
+
+    @PostMapping(&quot;/{productId}&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public List&lt;String&gt; add(@PathVariable String productId, @AuthenticationPrincipal UserPrincipal me) {
+<span class="fc" id="L34">        return favorites.addFavorite(me.getId(), productId);</span>
+    }
+
+    @DeleteMapping(&quot;/{productId}&quot;)
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public List&lt;String&gt; remove(@PathVariable String productId, @AuthenticationPrincipal UserPrincipal me) {
+<span class="fc" id="L40">        return favorites.removeFavorite(me.getId(), productId);</span>
+    }
+
+    @GetMapping
+    @PreAuthorize(&quot;isAuthenticated()&quot;)
+    public List&lt;FavoriteItemResponse&gt; list(@AuthenticationPrincipal UserPrincipal me) {
+<span class="fc" id="L46">        return favorites.list(me.getId());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

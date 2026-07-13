@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CartController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.api</a> &gt; <span class="el_source">CartController.java</span></div><h1>CartController.java</h1><pre class="source lang-java linenums">package com.seafood.order.api;
+
+import com.seafood.order.api.dto.CartItemRequest;
+import com.seafood.order.api.dto.CartQuantityUpdateRequest;
+import com.seafood.order.api.dto.CartResponse;
+import com.seafood.order.application.CartService;
+import com.seafood.shared.security.UserPrincipal;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 购物车 API — userId 始终从 SecurityContext 取,绝不接受 query/path 参数(防越权)。
+ */
+@RestController
+@RequestMapping(&quot;/api/cart&quot;)
+public class CartController {
+
+    private final CartService carts;
+
+<span class="fc" id="L30">    public CartController(CartService carts) {</span>
+<span class="fc" id="L31">        this.carts = carts;</span>
+<span class="fc" id="L32">    }</span>
+
+    @GetMapping
+    public CartResponse get(@AuthenticationPrincipal UserPrincipal me) {
+<span class="fc" id="L36">        return carts.get(me.getId());</span>
+    }
+
+    @PostMapping(&quot;/items&quot;)
+    public CartResponse addItem(@AuthenticationPrincipal UserPrincipal me,
+                                @Valid @RequestBody CartItemRequest req) {
+<span class="nc" id="L42">        return carts.addItem(me.getId(), req);</span>
+    }
+
+    @DeleteMapping(&quot;/items/{productId}&quot;)
+    public CartResponse removeItem(@AuthenticationPrincipal UserPrincipal me,
+                                   @PathVariable String productId) {
+<span class="nc" id="L48">        return carts.removeItem(me.getId(), productId);</span>
+    }
+
+    /**
+     * 整数替换某行数量(design D2:PUT 全量替换语义,不同于 {@link #addItem} 的合并语义)。
+     * 行不存在时 {@link CartService#updateQuantity} 抛 {@code NotFoundException} → 404
+     * (design D1),由 {@code GlobalExceptionHandler} 统一翻译,这里不用另接 catch。
+     */
+    @PutMapping(&quot;/items/{productId}&quot;)
+    public CartResponse updateQuantity(@AuthenticationPrincipal UserPrincipal me,
+                                       @PathVariable String productId,
+                                       @Valid @RequestBody CartQuantityUpdateRequest req) {
+<span class="fc" id="L60">        return carts.updateQuantity(me.getId(), productId, req.quantity());</span>
+    }
+
+    /** 翻转某行 {@code selected}。行不存在时 404(design D1,同 {@link #updateQuantity})。 */
+    @PatchMapping(&quot;/items/{productId}&quot;)
+    public CartResponse toggleSelected(@AuthenticationPrincipal UserPrincipal me,
+                                       @PathVariable String productId) {
+<span class="fc" id="L67">        return carts.toggleSelected(me.getId(), productId);</span>
+    }
+
+    @DeleteMapping
+    public ResponseEntity&lt;Void&gt; clear(@AuthenticationPrincipal UserPrincipal me) {
+<span class="fc" id="L72">        carts.clear(me.getId());</span>
+<span class="fc" id="L73">        return ResponseEntity.noContent().build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminCookieAuthController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.api</a> &gt; <span class="el_source">AdminCookieAuthController.java</span></div><h1>AdminCookieAuthController.java</h1><pre class="source lang-java linenums">package com.seafood.user.api;
+
+import com.seafood.shared.security.JwtTokenProvider;
+import com.seafood.user.api.dto.AdminLoginRequest;
+import com.seafood.user.api.dto.TokenResponse;
+import com.seafood.user.application.AuthService;
+import com.seafood.user.application.LoginLockoutService;
+import com.seafood.user.application.TokenRevocationService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.HexFormat;
+import java.util.Map;
+
+/**
+ * Admin UI cookie-based 鉴权(路线图 2.12,specs/auth §Admin cookie-based authentication)。
+ *
+ * &lt;p&gt;三端点(全部独立签名密钥 {@code JWT_ADMIN_SECRET}):
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code POST /api/admin/auth/cookie-login} — 设 httpOnly cookie + 返 csrf token(204)&lt;/li&gt;
+ *   &lt;li&gt;{@code POST /api/admin/auth/logout} — 清 cookie + revoke 当前 jti(204)&lt;/li&gt;
+ *   &lt;li&gt;{@code GET  /api/admin/auth/csrf} — 返 csrf token(200,JSON)&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Cookie 配置(决策 2):httpOnly + Secure(可关) + SameSite=Lax + Path=/ + Max-Age=900。
+ * 系统 MUST NOT 接受 {@code Authorization: Bearer ...} 头部 — 仅 cookie;
+ * 由 {@link com.seafood.shared.security.JwtAuthenticationFilter} 在 cookie 缺失时
+ * 走 fallback 读 {@code Authorization}(Sprint 1 后会让 mp 路径走 fallback 而 admin 路径被
+ * SecurityConfig 强制仅 cookie,本期暂保留 fallback 路径以兼容现有 admin 端点)。
+ */
+@RestController
+@RequestMapping(&quot;/api/admin/auth&quot;)
+public class AdminCookieAuthController {
+
+    private static final String ADMIN_COOKIE = &quot;seafood_admin_token&quot;;
+    private static final int COOKIE_MAX_AGE_SECONDS = 900; // 15 min
+<span class="fc" id="L52">    private static final SecureRandom RNG = new SecureRandom();</span>
+
+    private final AuthService auth;
+    private final TokenRevocationService revocation;
+    private final JwtTokenProvider tokens;
+    private final LoginLockoutService lockout;
+
+    /** 部署在 HTTPS 时设 true;dev 本机 HTTP 下设 false 让浏览器保留 cookie。 */
+    @Value(&quot;${admin.cookie.secure:false}&quot;)
+    private boolean cookieSecure;
+
+    /**
+     * sprint-1-closure 验证发现:dev 下 admin-ui (5173) 与 backend (8080) 端口不同,
+     * Set-Cookie 默认绑在 8080,浏览器访问 5173 不带 cookie → 403。
+     * 修:可配 cookie Domain,dev 设 &quot;localhost&quot; 让两端口共享;prod 留空(按请求 host 绑)。
+     */
+    @Value(&quot;${admin.cookie.domain:}&quot;)
+    private String cookieDomain;
+
+    public AdminCookieAuthController(AuthService auth,
+                                     TokenRevocationService revocation,
+                                     JwtTokenProvider tokens,
+<span class="fc" id="L74">                                     LoginLockoutService lockout) {</span>
+<span class="fc" id="L75">        this.auth = auth;</span>
+<span class="fc" id="L76">        this.revocation = revocation;</span>
+<span class="fc" id="L77">        this.tokens = tokens;</span>
+<span class="fc" id="L78">        this.lockout = lockout;</span>
+<span class="fc" id="L79">    }</span>
+
+    // ----- POST /api/admin/auth/cookie-login -----
+
+    /**
+     * 登录并下发 httpOnly cookie。
+     * &lt;ul&gt;
+     *   &lt;li&gt;成功 → 204 No Content,响应头 {@code Set-Cookie: seafood_admin_token=...; HttpOnly; ...}&lt;/li&gt;
+     *   &lt;li&gt;失败 → {@code AuthService.adminLogin} 抛 {@code DomainException} /
+     *       {@code AccountLockedException},由 {@code GlobalExceptionHandler} 翻译为 401/423&lt;/li&gt;
+     * &lt;/ul&gt;
+     * CSRF token 不放在 204 body(规范要求 body 为空),改由首次加载 dashboard 前
+     * 调 {@code GET /api/admin/auth/csrf} 获取(详见 2.15 admin-ui 拦截器)。
+     */
+    @PostMapping(&quot;/cookie-login&quot;)
+    public ResponseEntity&lt;?&gt; cookieLogin(@Valid @RequestBody AdminLoginRequest req,
+                                            HttpServletRequest httpReq,
+                                            HttpServletResponse httpRes) {
+<span class="fc" id="L97">        String ip = httpReq.getRemoteAddr();</span>
+
+        // sprint-1-closure 2.4:IP 锁先于账户锁(防 admin 拿同一个错误密码扫 100 个账号)
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        if (lockout.isIpLocked(ip)) {</span>
+<span class="fc" id="L101">            return ResponseEntity.status(429)</span>
+<span class="fc" id="L102">                    .header(&quot;Retry-After&quot;, &quot;900&quot;)</span>
+<span class="fc" id="L103">                    .body(Map.of(</span>
+                            &quot;code&quot;, &quot;AUTH_LOCKED&quot;,
+                            &quot;message&quot;, &quot;登录尝试次数过多,请 15 分钟后再试&quot;,
+<span class="fc" id="L106">                            &quot;retryAfterSeconds&quot;, 900));</span>
+        }
+<span class="fc bfc" id="L108" title="All 2 branches covered.">        if (lockout.isAccountLocked(req.username())) {</span>
+<span class="fc" id="L109">            return ResponseEntity.status(423)</span>
+<span class="fc" id="L110">                    .body(Map.of(</span>
+                            &quot;code&quot;, &quot;ACCOUNT_LOCKED&quot;,
+                            &quot;message&quot;, &quot;账户已被锁定,请 15 分钟后再试&quot;,
+<span class="fc" id="L113">                            &quot;retryAfterSeconds&quot;, 900));</span>
+        }
+
+        try {
+            // 复用 AuthService.adminLogin 的凭据校验 + access/refresh 签发
+<span class="fc" id="L118">            TokenResponse body = auth.adminLogin(req, ip);</span>
+<span class="fc" id="L119">            lockout.recordSuccess(ip, req.username());</span>
+<span class="fc" id="L120">            writeAdminCookie(httpRes, body.accessToken());</span>
+<span class="fc" id="L121">            return ResponseEntity.noContent().build();</span>
+<span class="nc" id="L122">        } catch (com.seafood.shared.error.DomainException e) {</span>
+            // 业务失败 → 记一次失败;若本次失败触发 lock,直接返 423/429
+            // 避免下轮 request 的&quot;先 isXLocked 后 recordFailure&quot;read-after-write
+            // 竞态(否则第 4 次失败仍走 catch DomainException 路径 → 409)
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            if (lockout.recordFailure(ip, req.username())) {</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">                if (lockout.isIpLocked(ip)) {</span>
+<span class="nc" id="L128">                    return ResponseEntity.status(429)</span>
+<span class="nc" id="L129">                            .header(&quot;Retry-After&quot;, &quot;900&quot;)</span>
+<span class="nc" id="L130">                            .body(Map.of(</span>
+                                    &quot;code&quot;, &quot;AUTH_LOCKED&quot;,
+                                    &quot;message&quot;, &quot;登录尝试次数过多,请 15 分钟后再试&quot;,
+<span class="nc" id="L133">                                    &quot;retryAfterSeconds&quot;, 900));</span>
+                }
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                if (lockout.isAccountLocked(req.username())) {</span>
+<span class="nc" id="L136">                    return ResponseEntity.status(423)</span>
+<span class="nc" id="L137">                            .body(Map.of(</span>
+                                    &quot;code&quot;, &quot;ACCOUNT_LOCKED&quot;,
+                                    &quot;message&quot;, &quot;账户已被锁定,请 15 分钟后再试&quot;,
+<span class="nc" id="L140">                                    &quot;retryAfterSeconds&quot;, 900));</span>
+                }
+            }
+<span class="nc" id="L143">            throw e;  // GlobalExceptionHandler 翻译 401/AccountLockedException</span>
+        }
+    }
+
+    /**
+     * sprint-1-closure 2.6 — 查询锁状态(只读,公开)。前端在登录页 mount 时
+     * 调一次,看是否需要进入倒计时。
+     */
+    @GetMapping(&quot;/login-lock&quot;)
+    public Map&lt;String, Object&gt; loginLock(
+            @RequestParam(required = false) String phone,
+            @RequestParam(required = false) String ip) {
+<span class="fc" id="L155">        LoginLockoutService.LockoutState s = lockout.getLockoutState(ip, phone);</span>
+<span class="fc" id="L156">        return Map.of(</span>
+<span class="fc" id="L157">                &quot;locked&quot;, s.locked(),</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">                &quot;until&quot;, s.until() == null ? &quot;&quot; : s.until().toString(),</span>
+<span class="fc" id="L159">                &quot;scope&quot;, s.scope());</span>
+    }
+
+    // ----- POST /api/admin/auth/logout -----
+
+    /**
+     * 登出:从 cookie 读 access JWT,parse jti,revoke;清 cookie。
+     * &lt;p&gt;无 cookie / cookie 失效也返 204(幂等)— 安全日志记录原因即可。
+     */
+    @PostMapping(&quot;/logout&quot;)
+    public ResponseEntity&lt;Void&gt; logout(HttpServletRequest httpReq, HttpServletResponse httpRes) {
+<span class="fc" id="L170">        String token = readAdminCookie(httpReq);</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        if (token != null) {</span>
+            try {
+<span class="fc" id="L173">                Claims claims = tokens.parseAdmin(token);</span>
+<span class="fc" id="L174">                String jti = claims.getId();</span>
+<span class="fc" id="L175">                String userId = claims.getSubject();</span>
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">                Instant exp = claims.getExpiration() == null ? null : claims.getExpiration().toInstant();</span>
+<span class="pc bpc" id="L177" title="1 of 2 branches missed.">                if (jti != null) {</span>
+<span class="fc" id="L178">                    revocation.revoke(jti, userId, exp);</span>
+                }
+<span class="fc" id="L180">            } catch (JwtException ignored) {</span>
+                // cookie 里的 token 已失效/伪造 — 不再 revoke,只清 cookie 让浏览器丢弃
+<span class="fc" id="L182">            }</span>
+        }
+<span class="fc" id="L184">        clearAdminCookie(httpRes);</span>
+<span class="fc" id="L185">        return ResponseEntity.noContent().build();</span>
+    }
+
+    // ----- GET /api/admin/auth/csrf -----
+
+    /**
+     * 返 CSRF token 字符串(16 字节随机 hex),与当前会话 cookie 隐式绑定
+     * (无状态,验证时由 {@code CsrfFilter} 校验 header 与 cookie/cookie-jti 哈希一致)。
+     * &lt;p&gt;本期实现极简:返回新 token,无 server-side 存储,后续 2.13 升级为 HMAC(cookie-jti) 派生。
+     */
+    @GetMapping(&quot;/csrf&quot;)
+    public ResponseEntity&lt;Map&lt;String, String&gt;&gt; csrf() {
+<span class="fc" id="L197">        byte[] bytes = new byte[16];</span>
+<span class="fc" id="L198">        RNG.nextBytes(bytes);</span>
+<span class="fc" id="L199">        String token = HexFormat.of().formatHex(bytes);</span>
+<span class="fc" id="L200">        return ResponseEntity.ok(Map.of(&quot;csrfToken&quot;, token));</span>
+    }
+
+    // ----- helpers -----
+
+    private void writeAdminCookie(HttpServletResponse res, String token) {
+<span class="fc" id="L206">        ResponseCookieBuilder b = ResponseCookieBuilder.start(ADMIN_COOKIE, token)</span>
+<span class="fc" id="L207">                .httpOnly(true)</span>
+<span class="fc" id="L208">                .secure(cookieSecure)</span>
+<span class="fc" id="L209">                .sameSite(&quot;Lax&quot;)</span>
+<span class="fc" id="L210">                .path(&quot;/&quot;)</span>
+<span class="fc" id="L211">                .maxAge(COOKIE_MAX_AGE_SECONDS);</span>
+<span class="pc bpc" id="L212" title="3 of 4 branches missed.">        if (cookieDomain != null &amp;&amp; !cookieDomain.isEmpty()) b.domain(cookieDomain);</span>
+<span class="fc" id="L213">        res.addHeader(HttpHeaders.SET_COOKIE, b.build());</span>
+<span class="fc" id="L214">    }</span>
+
+    private void clearAdminCookie(HttpServletResponse res) {
+<span class="fc" id="L217">        ResponseCookieBuilder b = ResponseCookieBuilder.start(ADMIN_COOKIE, &quot;&quot;)</span>
+<span class="fc" id="L218">                .httpOnly(true)</span>
+<span class="fc" id="L219">                .secure(cookieSecure)</span>
+<span class="fc" id="L220">                .sameSite(&quot;Lax&quot;)</span>
+<span class="fc" id="L221">                .path(&quot;/&quot;)</span>
+<span class="fc" id="L222">                .maxAge(0);</span>
+<span class="pc bpc" id="L223" title="3 of 4 branches missed.">        if (cookieDomain != null &amp;&amp; !cookieDomain.isEmpty()) b.domain(cookieDomain);</span>
+<span class="fc" id="L224">        res.addHeader(HttpHeaders.SET_COOKIE, b.build());</span>
+<span class="fc" id="L225">    }</span>
+
+    private String readAdminCookie(HttpServletRequest req) {
+<span class="fc" id="L228">        Cookie[] cookies = req.getCookies();</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">        if (cookies == null) return null;</span>
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">        for (Cookie c : cookies) {</span>
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">            if (ADMIN_COOKIE.equals(c.getName())) {</span>
+<span class="fc" id="L232">                return c.getValue();</span>
+            }
+        }
+<span class="nc" id="L235">        return null;</span>
+    }
+
+    /**
+     * 极简 Cookie 序列化器 — 避免引入 spring-boot-starter 的 ResponseCookie(本仓 4.0.6
+     * 的 ResponseCookie 在 native-image 下有反射问题,见 PR review #15;
+     * 手写 + path/httpOnly/secure/sameSite/maxAge 5 个 attr 已覆盖 spec 全部要求)。
+     */
+    private static final class ResponseCookieBuilder {
+        private final String name;
+        private final String value;
+        private boolean httpOnly;
+        private boolean secure;
+        private String sameSite;
+        private String path;
+        private String domain;
+        private int maxAge;
+
+<span class="fc" id="L253">        private ResponseCookieBuilder(String name, String value) {</span>
+<span class="fc" id="L254">            this.name = name;</span>
+<span class="fc" id="L255">            this.value = value;</span>
+<span class="fc" id="L256">        }</span>
+
+        static ResponseCookieBuilder start(String name, String value) {
+<span class="fc" id="L259">            return new ResponseCookieBuilder(name, value);</span>
+        }
+
+<span class="fc" id="L262">        ResponseCookieBuilder httpOnly(boolean v) { this.httpOnly = v; return this; }</span>
+<span class="fc" id="L263">        ResponseCookieBuilder secure(boolean v) { this.secure = v; return this; }</span>
+<span class="fc" id="L264">        ResponseCookieBuilder sameSite(String v) { this.sameSite = v; return this; }</span>
+<span class="fc" id="L265">        ResponseCookieBuilder path(String v) { this.path = v; return this; }</span>
+<span class="nc" id="L266">        ResponseCookieBuilder domain(String v) { this.domain = v; return this; }</span>
+<span class="fc" id="L267">        ResponseCookieBuilder maxAge(int v) { this.maxAge = v; return this; }</span>
+
+        String build() {
+<span class="fc" id="L270">            StringBuilder sb = new StringBuilder(name).append('=').append(value);</span>
+<span class="pc bpc" id="L271" title="1 of 2 branches missed.">            if (path != null) sb.append(&quot;; Path=&quot;).append(path);</span>
+<span class="pc bpc" id="L272" title="1 of 2 branches missed.">            if (httpOnly) sb.append(&quot;; HttpOnly&quot;);</span>
+<span class="pc bpc" id="L273" title="1 of 2 branches missed.">            if (secure) sb.append(&quot;; Secure&quot;);</span>
+<span class="pc bpc" id="L274" title="1 of 2 branches missed.">            if (sameSite != null) sb.append(&quot;; SameSite=&quot;).append(sameSite);</span>
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">            if (domain != null) sb.append(&quot;; Domain=&quot;).append(domain);</span>
+<span class="pc bpc" id="L276" title="1 of 4 branches missed.">            if (maxAge &gt; 0 || maxAge == 0) sb.append(&quot;; Max-Age=&quot;).append(maxAge);</span>
+<span class="fc" id="L277">            return sb.toString();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BannerService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.banner.application</a> &gt; <span class="el_source">BannerService.java</span></div><h1>BannerService.java</h1><pre class="source lang-java linenums">package com.seafood.banner.application;
+
+import com.seafood.banner.api.dto.BannerRequest;
+import com.seafood.banner.api.dto.BannerResponse;
+import com.seafood.banner.domain.Banner;
+import com.seafood.banner.domain.BannerStatus;
+import com.seafood.banner.infra.BannerDocument;
+import com.seafood.banner.infra.BannerMapper;
+import com.seafood.banner.infra.BannerRepository;
+import com.seafood.product.application.ProductService;
+import com.seafood.shared.error.DomainException;
+import com.seafood.shared.error.NotFoundException;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Banner 写服务 + 公共读(参见 specs/banner-management)。
+ *
+ * &lt;p&gt;约束(对齐 product):
+ * &lt;ul&gt;
+ *   &lt;li&gt;写操作由 Controller {@code @PreAuthorize ADMIN} 守门&lt;/li&gt;
+ *   &lt;li&gt;公共读 {@link #listActive} 只返回 ACTIVE,按 sortOrder 升序&lt;/li&gt;
+ *   &lt;li&gt;{@code targetProductId} 非空时经 {@link ProductService} 跨模块校验存在性
+ *       (ApplicationService→ApplicationService,不碰 ProductRepository),避免悬空跳转&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@Service
+public class BannerService {
+
+    private final BannerRepository repo;
+    private final ProductService productService;
+
+<span class="fc" id="L35">    public BannerService(BannerRepository repo, ProductService productService) {</span>
+<span class="fc" id="L36">        this.repo = repo;</span>
+<span class="fc" id="L37">        this.productService = productService;</span>
+<span class="fc" id="L38">    }</span>
+
+    // ----- 公共读 -----
+
+    public List&lt;BannerResponse&gt; listActive() {
+<span class="fc" id="L43">        return repo.findByStatusOrderBySortOrderAsc(BannerStatus.ACTIVE).stream()</span>
+<span class="fc" id="L44">                .map(BannerMapper::toDomain)</span>
+<span class="fc" id="L45">                .map(BannerResponse::from)</span>
+<span class="fc" id="L46">                .toList();</span>
+    }
+
+    public BannerResponse get(String id) {
+<span class="pc" id="L50">        return repo.findById(id)</span>
+<span class="fc" id="L51">                .map(BannerMapper::toDomain)</span>
+<span class="fc" id="L52">                .map(BannerResponse::from)</span>
+<span class="pc" id="L53">                .orElseThrow(() -&gt; new NotFoundException(&quot;banner 不存在:&quot; + id));</span>
+    }
+
+    // ----- ADMIN -----
+
+    public List&lt;BannerResponse&gt; listAll() {
+<span class="fc" id="L59">        return repo.findAllByOrderBySortOrderAsc().stream()</span>
+<span class="fc" id="L60">                .map(BannerMapper::toDomain)</span>
+<span class="fc" id="L61">                .map(BannerResponse::from)</span>
+<span class="fc" id="L62">                .toList();</span>
+    }
+
+    public BannerResponse create(BannerRequest req) {
+<span class="fc" id="L66">        validateTargetProduct(req.targetProductId());</span>
+<span class="fc" id="L67">        Instant now = Instant.now();</span>
+<span class="fc" id="L68">        Banner b = new Banner(null, req.tone(), req.emoji(), req.title(), req.subtitle(),</span>
+<span class="fc" id="L69">                req.targetProductId(), req.sortOrder(),</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">                req.active() ? BannerStatus.ACTIVE : BannerStatus.INACTIVE, now, now);</span>
+<span class="fc" id="L71">        BannerDocument saved = repo.save(BannerMapper.toDocument(b));</span>
+<span class="fc" id="L72">        return BannerResponse.from(BannerMapper.toDomain(saved));</span>
+    }
+
+    public BannerResponse update(String id, BannerRequest req) {
+<span class="fc" id="L76">        BannerDocument d = repo.findById(id)</span>
+<span class="pc" id="L77">                .orElseThrow(() -&gt; new NotFoundException(&quot;banner 不存在:&quot; + id));</span>
+<span class="fc" id="L78">        validateTargetProduct(req.targetProductId());</span>
+<span class="fc" id="L79">        Banner updated = BannerMapper.toDomain(d)</span>
+<span class="fc" id="L80">                .updateContent(req.tone(), req.emoji(), req.title(), req.subtitle(),</span>
+<span class="fc" id="L81">                        req.targetProductId(), req.sortOrder());</span>
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">        updated = req.active() ? updated.activate() : updated.deactivate();</span>
+<span class="fc" id="L83">        BannerDocument saved = repo.save(BannerMapper.toDocument(updated));</span>
+<span class="fc" id="L84">        return BannerResponse.from(BannerMapper.toDomain(saved));</span>
+    }
+
+    public void delete(String id) {
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">        if (!repo.existsById(id)) {</span>
+<span class="fc" id="L89">            throw new NotFoundException(&quot;banner 不存在:&quot; + id);</span>
+        }
+<span class="nc" id="L91">        repo.deleteById(id);</span>
+<span class="nc" id="L92">    }</span>
+
+    /** targetProductId 非空时经 ProductService 校验商品存在;不存在 → DomainException。 */
+    private void validateTargetProduct(String targetProductId) {
+<span class="pc bpc" id="L96" title="1 of 4 branches missed.">        if (targetProductId == null || targetProductId.isBlank()) {</span>
+<span class="fc" id="L97">            return;</span>
+        }
+        try {
+<span class="fc" id="L100">            productService.get(targetProductId);</span>
+<span class="fc" id="L101">        } catch (NotFoundException e) {</span>
+<span class="fc" id="L102">            throw new DomainException(&quot;targetProductId 指向的商品不存在:&quot; + targetProductId);</span>
+<span class="fc" id="L103">        }</span>
+<span class="fc" id="L104">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

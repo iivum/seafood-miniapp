@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Sku.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.product.domain</a> &gt; <span class="el_source">Sku.java</span></div><h1>Sku.java</h1><pre class="source lang-java linenums">package com.seafood.product.domain;
+
+import com.seafood.shared.error.DomainException;
+
+import java.math.BigDecimal;
+import java.util.Map;
+
+/**
+ * 商品 SKU 值对象(路线图 3.7 — ad-04 商品表单 SKU 行内编辑基础)。
+ *
+ * &lt;p&gt;SKU = Stock Keeping Unit,标识商品某一规格变种(颜色 / 尺寸 / 净含量 等)。
+ * 例如&quot;三文鱼 200g&quot;和&quot;三文鱼 500g&quot;是两个 SKU,共享一个 Product(同名 / 同描述 / 同分类)
+ * 但价格 / 库存不同。
+ *
+ * &lt;p&gt;不可变 record + 紧凑构造器校验。验证规则(参见 ProductService.addSku 复用):
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code name} 非空 / ≤ 100 字符&lt;/li&gt;
+ *   &lt;li&gt;{@code price} &gt; 0&lt;/li&gt;
+ *   &lt;li&gt;{@code stock} &gt;= 0&lt;/li&gt;
+ *   &lt;li&gt;{@code sortOrder} 0-99(列表展示顺序)&lt;/li&gt;
+ *   &lt;li&gt;{@code specs} 可空(空 map = 不分类),key / value 非空&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;设计要点:**向前兼容**(参见 tasks.md §5.13)— {@code Product.price} / {@code stock}
+ * 保留作&quot;默认 SKU&quot;字段;当 {@code Product.skus = []} 时,UI / API 读 price / stock;
+ * 当 skus 非空时,第一 SKU 的 price / stock 与 Product.price / stock 同步(避免不一致)。
+ */
+public record Sku(
+        String id,
+        String name,
+        Map&lt;String, String&gt; specs,
+        BigDecimal price,
+        int stock,
+        int sortOrder
+) {
+<span class="fc" id="L36">    public Sku {</span>
+<span class="pc bpc" id="L37" title="2 of 4 branches missed.">        if (name == null || name.isBlank()) {</span>
+<span class="nc" id="L38">            throw new DomainException(&quot;SKU 名称不能为空&quot;);</span>
+        }
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if (name.length() &gt; 100) {</span>
+<span class="fc" id="L41">            throw new DomainException(&quot;SKU 名称超过 100 字符上限&quot;);</span>
+        }
+<span class="pc bpc" id="L43" title="1 of 4 branches missed.">        if (price == null || price.signum() &lt;= 0) {</span>
+<span class="fc" id="L44">            throw new DomainException(&quot;SKU 价格必须大于 0&quot;);</span>
+        }
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (stock &lt; 0) {</span>
+<span class="fc" id="L47">            throw new DomainException(&quot;SKU 库存不能为负数&quot;);</span>
+        }
+<span class="pc bpc" id="L49" title="2 of 4 branches missed.">        if (sortOrder &lt; 0 || sortOrder &gt; 99) {</span>
+<span class="nc" id="L50">            throw new DomainException(&quot;SKU 排序必须在 0-99 之间&quot;);</span>
+        }
+        // specs:null 等价空 map;key / value 都不能 null
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        if (specs == null) {</span>
+<span class="nc" id="L54">            specs = Map.of();</span>
+        } else {
+<span class="fc" id="L56">            specs = Map.copyOf(specs);</span>
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">            for (var e : specs.entrySet()) {</span>
+<span class="nc bnc" id="L58" title="All 4 branches missed.">                if (e.getKey() == null || e.getKey().isBlank()) {</span>
+<span class="nc" id="L59">                    throw new DomainException(&quot;SKU 规格 key 不能为空&quot;);</span>
+                }
+<span class="nc bnc" id="L61" title="All 2 branches missed.">                if (e.getValue() == null) {</span>
+<span class="nc" id="L62">                    throw new DomainException(&quot;SKU 规格 value 不能为 null,空字符串请传 \&quot;\&quot;&quot;);</span>
+                }
+<span class="nc" id="L64">            }</span>
+        }
+<span class="fc" id="L66">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

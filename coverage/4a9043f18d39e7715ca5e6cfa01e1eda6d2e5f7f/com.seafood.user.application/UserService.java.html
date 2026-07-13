@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UserService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.application</a> &gt; <span class="el_source">UserService.java</span></div><h1>UserService.java</h1><pre class="source lang-java linenums">package com.seafood.user.application;
+
+import com.seafood.shared.error.DomainException;
+import com.seafood.shared.error.NotFoundException;
+import com.seafood.shared.security.Role;
+import com.seafood.shared.security.UserPrincipal;
+import com.seafood.user.api.dto.AddAddressRequest;
+import com.seafood.user.api.dto.UpdateAddressRequest;
+import com.seafood.user.api.dto.UserResponse;
+import com.seafood.user.domain.Address;
+import com.seafood.user.domain.User;
+import com.seafood.user.infra.UserDocument;
+import com.seafood.user.infra.UserMapper;
+import com.seafood.user.infra.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * 用户服务(参见 specs/backend-api §未直接列出 / specs/auth §End-to-end 用户生命周期)。
+ *
+ * &lt;p&gt;权限:所有写操作要求操作者是自己(principal.id == userId)或 ADMIN。
+ */
+@Service
+public class UserService {
+
+    private final UserRepository users;
+    private final ProductViewService productViews;
+    private final WechatPhoneNumberExchanger phoneExchanger;
+
+    public UserService(UserRepository users, ProductViewService productViews,
+<span class="fc" id="L35">                       WechatPhoneNumberExchanger phoneExchanger) {</span>
+<span class="fc" id="L36">        this.users = users;</span>
+<span class="fc" id="L37">        this.productViews = productViews;</span>
+<span class="fc" id="L38">        this.phoneExchanger = phoneExchanger;</span>
+<span class="fc" id="L39">    }</span>
+
+    // ----- 读 -----
+
+    public UserResponse get(String userId, UserPrincipal caller) {
+<span class="fc" id="L44">        authorize(caller, userId, true);</span>
+<span class="fc" id="L45">        User u = loadOrThrow(userId);</span>
+<span class="fc" id="L46">        return UserResponse.from(u, productViews.countForUser(userId));</span>
+    }
+
+    public Page&lt;UserResponse&gt; list(Pageable pageable, UserPrincipal caller) {
+<span class="fc" id="L50">        requireAdmin(caller);</span>
+<span class="fc" id="L51">        Page&lt;UserDocument&gt; page = users.findAll(pageable);</span>
+<span class="fc" id="L52">        List&lt;UserResponse&gt; mapped = page.getContent().stream()</span>
+<span class="fc" id="L53">                .map(UserMapper::toDomain)</span>
+<span class="pc" id="L54">                .map(u -&gt; UserResponse.from(u, productViews.countForUser(u.id())))</span>
+<span class="fc" id="L55">                .toList();</span>
+<span class="fc" id="L56">        return new PageImpl&lt;&gt;(mapped, pageable, page.getTotalElements());</span>
+    }
+
+    // ----- 写(自己或 ADMIN)-----
+
+    public UserResponse addAddress(String userId, AddAddressRequest req, UserPrincipal caller) {
+<span class="fc" id="L62">        authorize(caller, userId, false);</span>
+<span class="fc" id="L63">        User u = loadOrThrow(userId);</span>
+<span class="fc" id="L64">        Address newAddr = new Address(null, req.name(), req.phone(),</span>
+<span class="fc" id="L65">                req.province(), req.city(), req.district(), req.detail(), req.isDefault());</span>
+<span class="fc" id="L66">        return persistAndReturn(u.addAddress(newAddr));</span>
+    }
+
+    public UserResponse updateAddress(String userId, String addressId,
+                                      UpdateAddressRequest req, UserPrincipal caller) {
+<span class="fc" id="L71">        authorize(caller, userId, false);</span>
+<span class="fc" id="L72">        User u = loadOrThrow(userId);</span>
+<span class="fc" id="L73">        Address patch = new Address(addressId, req.name(), req.phone(),</span>
+<span class="fc" id="L74">                req.province(), req.city(), req.district(), req.detail(), req.isDefault());</span>
+<span class="fc" id="L75">        return persistAndReturn(u.updateAddress(addressId, patch));</span>
+    }
+
+    public UserResponse removeAddress(String userId, String addressId, UserPrincipal caller) {
+<span class="fc" id="L79">        authorize(caller, userId, false);</span>
+<span class="fc" id="L80">        User u = loadOrThrow(userId);</span>
+<span class="fc" id="L81">        return persistAndReturn(u.removeAddress(addressId));</span>
+    }
+
+    public UserResponse setDefaultAddress(String userId, String addressId, UserPrincipal caller) {
+<span class="nc" id="L85">        authorize(caller, userId, false);</span>
+<span class="nc" id="L86">        User u = loadOrThrow(userId);</span>
+<span class="nc" id="L87">        return persistAndReturn(u.setDefaultAddress(addressId));</span>
+    }
+
+    // ----- 手机号绑定 -----
+
+    /**
+     * 先换号再加载用户:code 无效/过期时不必浪费一次 DB 读(code review 效率发现)。
+     * authorize 与其它写操作一致——今天调用方(UserPhoneController)只会传 me.getId(),
+     * 但服务层仍应独立守住&quot;自己或 ADMIN&quot;不变量,不依赖调用方永远正确传参。
+     */
+    public UserResponse bindPhone(String userId, String code, UserPrincipal caller) {
+<span class="fc" id="L98">        authorize(caller, userId, false);</span>
+<span class="fc" id="L99">        String phone = phoneExchanger.exchange(code);</span>
+<span class="fc" id="L100">        User u = loadOrThrow(userId);</span>
+<span class="fc" id="L101">        return persistAndReturn(u.bindPhone(phone));</span>
+    }
+
+    // ----- helpers -----
+
+    private User loadOrThrow(String userId) {
+<span class="fc" id="L107">        return users.findById(userId)</span>
+<span class="fc" id="L108">                .map(UserMapper::toDomain)</span>
+<span class="fc" id="L109">                .orElseThrow(() -&gt; new NotFoundException(&quot;用户不存在:&quot; + userId));</span>
+    }
+
+    private UserResponse persistAndReturn(User u) {
+<span class="fc" id="L113">        UserDocument saved = users.save(UserMapper.toDocument(u));</span>
+<span class="fc" id="L114">        User reloaded = UserMapper.toDomain(saved);</span>
+<span class="fc" id="L115">        return UserResponse.from(reloaded, productViews.countForUser(reloaded.id()));</span>
+    }
+
+    private static void authorize(UserPrincipal caller, String targetUserId, boolean readOnly) {
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">        if (caller == null) {</span>
+<span class="nc" id="L120">            throw new DomainException(&quot;未登录&quot;);</span>
+        }
+<span class="fc bfc" id="L122" title="All 2 branches covered.">        if (caller.getRole() == Role.ADMIN) {</span>
+<span class="fc" id="L123">            return;</span>
+        }
+<span class="fc bfc" id="L125" title="All 2 branches covered.">        if (!caller.getId().equals(targetUserId)) {</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">            throw new DomainException(readOnly ? &quot;无权查看该用户&quot; : &quot;无权操作该用户&quot;);</span>
+        }
+<span class="fc" id="L128">    }</span>
+
+    private static void requireAdmin(UserPrincipal caller) {
+<span class="pc bpc" id="L131" title="1 of 4 branches missed.">        if (caller == null || caller.getRole() != Role.ADMIN) {</span>
+<span class="fc" id="L132">            throw new DomainException(&quot;仅管理员可访问&quot;);</span>
+        }
+<span class="fc" id="L134">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

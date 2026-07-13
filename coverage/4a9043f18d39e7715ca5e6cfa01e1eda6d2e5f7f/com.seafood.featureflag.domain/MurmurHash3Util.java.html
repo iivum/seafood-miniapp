@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MurmurHash3Util.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.featureflag.domain</a> &gt; <span class="el_source">MurmurHash3Util.java</span></div><h1>MurmurHash3Util.java</h1><pre class="source lang-java linenums">package com.seafood.featureflag.domain;
+
+/**
+ * 纯 Java 实现 MurmurHash3 32-bit，用于 feature flag 百分比灰度分桶。
+ * 不依赖 Guava 或任何外部库，零 Spring import。
+ */
+final class MurmurHash3Util {
+    private MurmurHash3Util() {}
+
+    static int hash32(String input) {
+<span class="fc" id="L11">        byte[] data = input.getBytes(java.nio.charset.StandardCharsets.UTF_8);</span>
+<span class="fc" id="L12">        int h1 = 0;</span>
+<span class="fc" id="L13">        int len = data.length;</span>
+<span class="fc" id="L14">        int nblocks = len / 4;</span>
+<span class="fc bfc" id="L15" title="All 2 branches covered.">        for (int i = 0; i &lt; nblocks; i++) {</span>
+<span class="fc" id="L16">            int k1 = (data[i*4] &amp; 0xff) | ((data[i*4+1] &amp; 0xff) &lt;&lt; 8)</span>
+                   | ((data[i*4+2] &amp; 0xff) &lt;&lt; 16) | ((data[i*4+3] &amp; 0xff) &lt;&lt; 24);
+<span class="fc" id="L18">            k1 *= 0xcc9e2d51; k1 = Integer.rotateLeft(k1, 15); k1 *= 0x1b873593;</span>
+<span class="fc" id="L19">            h1 ^= k1; h1 = Integer.rotateLeft(h1, 13); h1 = h1 * 5 + 0xe6546b64;</span>
+        }
+<span class="fc" id="L21">        int tail = nblocks * 4, k1 = 0;</span>
+<span class="pc bpc" id="L22" title="1 of 4 branches missed.">        switch (len &amp; 3) {</span>
+<span class="fc" id="L23">            case 3: k1 ^= (data[tail + 2] &amp; 0xff) &lt;&lt; 16; // fall through</span>
+<span class="fc" id="L24">            case 2: k1 ^= (data[tail + 1] &amp; 0xff) &lt;&lt; 8;  // fall through</span>
+<span class="fc" id="L25">            case 1: k1 ^= (data[tail] &amp; 0xff);</span>
+<span class="fc" id="L26">                    k1 *= 0xcc9e2d51; k1 = Integer.rotateLeft(k1, 15); k1 *= 0x1b873593; h1 ^= k1;</span>
+        }
+<span class="fc" id="L28">        h1 ^= len; h1 ^= (h1 &gt;&gt;&gt; 16); h1 *= 0x85ebca6b; h1 ^= (h1 &gt;&gt;&gt; 13);</span>
+<span class="fc" id="L29">        h1 *= 0xc2b2ae35; h1 ^= (h1 &gt;&gt;&gt; 16);</span>
+<span class="fc" id="L30">        return h1 &amp; 0x7fffffff;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
