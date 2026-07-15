@@ -85,6 +85,11 @@ describe('address-edit', () => {
     expect(ctx.setData).not.toHaveBeenCalled();
   });
 
+  // 2026-07-14 fix-mp-address-form-validation:validateForm 收到的 formData 是
+  // wx <form> 真实 bindsubmit 的 e.detail.value —— picker mode="region" 的
+  // form 字段名是 "region"（数组），从未产出过 "province" 这个 key。下面全部
+  // 用真实形状构造 fixture（不再手造 province 字符串），否则测试本身在验证一个
+  // 从不存在的契约，会像旧版一样把真 bug 掩盖成绿灯（同类教训见文件头 request mock 注释）。
   describe('validateForm', () => {
     it('returns errors for empty form', () => {
       const errors = pageConfig.validateForm({});
@@ -92,27 +97,42 @@ describe('address-edit', () => {
     });
 
     it('returns error for short name', () => {
-      const errors = pageConfig.validateForm({ name: '张', phone: '13800138000', province: '北京', detailAddress: '详细地址测试' });
+      const errors = pageConfig.validateForm({ name: '张', phone: '13800138000', region: ['北京', '北京市', '朝阳区'], detailAddress: '详细地址测试' });
       expect(errors).toContain('请输入正确的收件人姓名');
     });
 
     it('returns error for invalid phone', () => {
-      const errors = pageConfig.validateForm({ name: '张三', phone: '123', province: '北京', detailAddress: '详细地址测试' });
+      const errors = pageConfig.validateForm({ name: '张三', phone: '123', region: ['北京', '北京市', '朝阳区'], detailAddress: '详细地址测试' });
       expect(errors).toContain('请输入正确的手机号');
     });
 
-    it('returns error for unselected region', () => {
-      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', province: '请选择', detailAddress: '详细地址测试' });
+    it('returns error when region is the unselected placeholder', () => {
+      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', region: ['请选择', '请选择', '请选择'], detailAddress: '详细地址测试' });
+      expect(errors).toContain('请选择所在地区');
+    });
+
+    it('returns error when region is missing entirely', () => {
+      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', detailAddress: '详细地址测试' });
+      expect(errors).toContain('请选择所在地区');
+    });
+
+    it('returns error when region has fewer than 3 entries', () => {
+      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', region: ['北京', '北京市'], detailAddress: '详细地址测试' });
       expect(errors).toContain('请选择所在地区');
     });
 
     it('returns error for short detail address', () => {
-      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', province: '北京', detailAddress: '短' });
+      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', region: ['北京', '北京市', '朝阳区'], detailAddress: '短' });
       expect(errors).toContain('请输入详细的收货地址');
     });
 
+    it('does not report a region error once a complete region is selected (regression: real form only ever produces `region`, never `province`)', () => {
+      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', region: ['北京', '北京市', '朝阳区'], detailAddress: '详细地址测试内容' });
+      expect(errors).not.toContain('请选择所在地区');
+    });
+
     it('returns empty array for valid form', () => {
-      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', province: '北京', detailAddress: '详细地址测试内容' });
+      const errors = pageConfig.validateForm({ name: '张三', phone: '13800138000', region: ['北京', '北京市', '朝阳区'], detailAddress: '详细地址测试内容' });
       expect(errors).toEqual([]);
     });
   });
@@ -131,7 +151,7 @@ describe('address-edit', () => {
       ctx.data.isEdit = true;
       ctx.saveAddress({
         detail: {
-          value: { name: '张三', phone: '13800138000', province: '北京', region: ['北京', '北京市', '朝阳区'], detailAddress: '详细地址测试内容' },
+          value: { name: '张三', phone: '13800138000', region: ['北京', '北京市', '朝阳区'], detailAddress: '详细地址测试内容' },
         },
       });
       expect(mockRequest).toHaveBeenCalled();
