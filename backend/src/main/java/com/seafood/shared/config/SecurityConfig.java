@@ -54,6 +54,11 @@ public class SecurityConfig {
             .httpBasic(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // fix-error-contract-denyall:未被 GlobalExceptionHandler 兜底捕获的异常
+                // （filter 层异常、404 无 handler 匹配等）会内部转发到 /error；该路径本身
+                // 不含业务数据，只做错误渲染，放行不构成安全问题——放行前它会被
+                // anyRequest().denyAll() 拦成语义不相关的 403 空 body。
+                .requestMatchers("/error").permitAll()
                 // 公共读
                 .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
                 // feature flag 公共端点（小程序匿名读，只含 flagKey + enabled）
