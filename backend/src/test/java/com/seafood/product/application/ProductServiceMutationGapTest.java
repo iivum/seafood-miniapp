@@ -297,17 +297,22 @@ class ProductServiceMutationGapTest {
     }
 
     @Test
-    void listPublic_withCategory_forcesActiveStatusOnEachDoc() {
+    void listPublic_withCategory_queriesByCategoryAndActiveStatus_noInMemoryOverride() {
+        // fix-category-bad-status-500(2026-07-15):旧版用 findByCategory（无状态
+        // 过滤）+ 内存态强制覆写 setStatus(ACTIVE)——这既会让下架商品被谎报成在售，
+        // 又在集合里出现非法 status 值时于 document→entity 转换阶段直接抛异常，
+        // 整个分类 500。新版查询级过滤 status=ACTIVE，天然排除非 ACTIVE（含非法值）
+        // 文档，服务层不再做任何状态覆写。
         Pageable pageable = PageRequest.of(0, 20);
-        // 分类查询返回的 doc 原本 DISCONTINUED,服务应强制改回 ACTIVE 展示
-        ProductDocument d = docOf("p-1", "三文鱼", "鱼类", new BigDecimal("99.00"), 10, ProductStatus.DISCONTINUED);
+        ProductDocument d = docOf("p-1", "三文鱼", "鱼类", new BigDecimal("99.00"), 10, ProductStatus.ACTIVE);
         Page<ProductDocument> page = new PageImpl<>(List.of(d), pageable, 1);
-        when(repo.findByCategory(eq("鱼类"), eq(pageable))).thenReturn(page);
+        when(repo.findByCategoryAndStatus(eq("鱼类"), eq(ProductStatus.ACTIVE), eq(pageable))).thenReturn(page);
 
         Page<ProductResponse> result = service.listPublic("鱼类", pageable);
 
-        // 杀 L145 VoidMethodCall(删掉 setStatus(ACTIVE) → 仍是 DISCONTINUED)
         assertThat(result.getContent().get(0).status()).isEqualTo(ProductStatus.ACTIVE);
+        verify(repo).findByCategoryAndStatus("鱼类", ProductStatus.ACTIVE, pageable);
+        verify(repo, never()).findByCategory(any(String.class), any(Pageable.class));
     }
 
     // ============ helpers ============

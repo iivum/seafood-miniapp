@@ -8,7 +8,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood1/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "金枪鱼",
@@ -19,7 +20,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood2/600/400",
     "onSale": false,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "DISCONTINUED"
   },
   {
     "name": "大闸蟹",
@@ -30,7 +32,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood3/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "鹿角菜",
@@ -41,7 +44,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood4/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "鳕鱼",
@@ -52,7 +56,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood5/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "帝王蟹",
@@ -63,7 +68,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood6/600/400",
     "onSale": false,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "DISCONTINUED"
   },
   {
     "name": "北极贝",
@@ -74,7 +80,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood7/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "鲳鱼",
@@ -85,7 +92,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood8/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "石花菜",
@@ -96,7 +104,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood9/600/400",
     "onSale": false,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "DISCONTINUED"
   },
   {
     "name": "波士顿龙虾",
@@ -107,7 +116,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood10/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "八爪鱼",
@@ -118,7 +128,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood11/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "花蛤",
@@ -129,7 +140,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood12/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "鳕鱼",
@@ -140,7 +152,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood13/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "八爪鱼",
@@ -151,7 +164,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood14/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "帝王蟹",
@@ -162,7 +176,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood15/600/400",
     "onSale": false,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "DISCONTINUED"
   },
   {
     "name": "带鱼",
@@ -173,7 +188,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood16/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "石花菜",
@@ -184,7 +200,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood17/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "墨鱼",
@@ -195,7 +212,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood18/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "海葡萄",
@@ -206,7 +224,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood19/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "海胆",
@@ -217,7 +236,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood20/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "三文鱼",
@@ -228,7 +248,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood21/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "章鱼",
@@ -239,7 +260,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood22/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "海葡萄",
@@ -250,7 +272,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood23/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "黄鱼",
@@ -261,7 +284,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood24/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "墨鱼",
@@ -272,7 +296,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood25/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "蛤蜊",
@@ -283,7 +308,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood26/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "花蛤",
@@ -294,7 +320,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood27/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "紫菜",
@@ -305,7 +332,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood28/600/400",
     "onSale": false,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "DISCONTINUED"
   },
   {
     "name": "北极贝",
@@ -316,7 +344,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood29/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "金枪鱼",
@@ -327,7 +356,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood30/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "裙带菜",
@@ -338,7 +368,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood31/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "波士顿龙虾",
@@ -349,7 +380,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood32/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "大闸蟹",
@@ -360,7 +392,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood33/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "文蛤",
@@ -371,7 +404,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood34/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "皮皮虾",
@@ -382,7 +416,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood35/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "羊栖菜",
@@ -393,7 +428,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood36/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "皮皮虾",
@@ -404,7 +440,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood37/600/400",
     "onSale": false,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "DISCONTINUED"
   },
   {
     "name": "波士顿龙虾",
@@ -415,7 +452,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood38/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "龙须菜",
@@ -426,7 +464,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood39/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "皮皮虾",
@@ -437,7 +476,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood40/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "鲍鱼",
@@ -448,7 +488,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood41/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "三文鱼",
@@ -459,7 +500,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood42/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "鲈鱼",
@@ -470,7 +512,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood43/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "墨鱼",
@@ -481,7 +524,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood44/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "鲷鱼",
@@ -492,7 +536,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood45/600/400",
     "onSale": false,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "DISCONTINUED"
   },
   {
     "name": "紫菜",
@@ -503,7 +548,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood46/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "明虾",
@@ -514,7 +560,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood47/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "鳕鱼",
@@ -525,7 +572,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood48/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "八爪鱼",
@@ -536,7 +584,8 @@
     "imageUrl": "https://picsum.photos/seed/seafood49/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   },
   {
     "name": "龙须菜",
@@ -547,6 +596,7 @@
     "imageUrl": "https://picsum.photos/seed/seafood50/600/400",
     "onSale": true,
     "createdAt": "2026-06-03T00:00:00Z",
-    "updatedAt": "2026-06-03T00:00:00Z"
+    "updatedAt": "2026-06-03T00:00:00Z",
+    "status": "ACTIVE"
   }
 ]

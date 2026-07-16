@@ -34,6 +34,16 @@ for f in "$SEED_DIR"/categories.json; do
 done
 
 # 3. 导入商品
+# fix-category-bad-status-500:非法 status 值（历史上出现过手写 INACTIVE）会让
+# 该分类整个查询在 document→entity 转换阶段抛异常，此处 fail-fast 挡在导入前，
+# 而不是留到运行时靠用户点开某个分类才发现。
+echo "[seed] validate products.json status values"
+bad_status=$(jq -r '[.[] | select(.status != "ACTIVE" and .status != "OUT_OF_STOCK" and .status != "DISCONTINUED") | .name] | length' "$SEED_DIR/products.json")
+if [ "$bad_status" -gt 0 ]; then
+  echo "[seed] ERROR: products.json 中有 $bad_status 条商品的 status 不在 {ACTIVE,OUT_OF_STOCK,DISCONTINUED} 合法枚举内" >&2
+  exit 1
+fi
+
 echo "[seed] import products.json"
 jq -c '.[]' "$SEED_DIR/products.json" | while read -r doc; do
   echo "$doc" | mongosh "$MONGO_URI" --quiet --eval "

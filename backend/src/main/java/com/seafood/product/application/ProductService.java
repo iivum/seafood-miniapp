@@ -139,10 +139,13 @@ public class ProductService {
     }
 
     public Page<ProductResponse> listPublic(String category, Pageable pageable) {
+        // fix-category-bad-status-500:分类分支改用查询级 status 过滤，与无分类分支
+        // 的 findByStatus 语义对齐。旧版 findByCategory（无状态过滤）+ 内存态
+        // setStatus(ACTIVE) 覆写既会谎报非 ACTIVE 商品的在售状态，又在集合出现
+        // 非法 status 值时于 document→entity 转换阶段直接抛异常，整个分类 500。
         Page<ProductDocument> page = (category == null || category.isBlank())
                 ? repo.findByStatus(ProductStatus.ACTIVE, pageable)
-                : repo.findByCategory(category, pageable)
-                        .map(d -> { d.setStatus(ProductStatus.ACTIVE); return d; });
+                : repo.findByCategoryAndStatus(category, ProductStatus.ACTIVE, pageable);
         List<ProductResponse> mapped = page.getContent().stream()
                 .map(ProductMapper::toDomain)
                 .map(ProductResponse::from)

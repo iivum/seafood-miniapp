@@ -14,6 +14,15 @@ public interface ProductRepository extends MongoRepository<ProductDocument, Stri
 
     Page<ProductDocument> findByCategory(String category, Pageable pageable);
 
+    /**
+     * fix-category-bad-status-500:公共分类浏览专用——查询级过滤 status，与
+     * {@link #findByStatus} 的无分类分支语义对齐。区别于 {@link #findByCategory}
+     * （无状态过滤，管理后台需要看到所有状态，含 admin 专用），这条方法只给
+     * {@code ProductService.listPublic} 用，天然排除非 ACTIVE（含非法 status
+     * 值）文档，不会触发 document→entity 转换阶段的枚举反序列化崩溃。
+     */
+    Page<ProductDocument> findByCategoryAndStatus(String category, ProductStatus status, Pageable pageable);
+
     long countByStatus(ProductStatus status);
 
     long countByStock(int stock);
