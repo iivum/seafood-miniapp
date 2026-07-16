@@ -9,7 +9,7 @@
     "createdAt": "2026-06-03T00:00:00Z"
   },
   {
-    "openId": "customer-seed-001",
+    "openId": "dev-customer-seed-001",
     "nickname": "测试用户",
     "avatarUrl": "https://example.com/avatar/customer.png",
     "role": "CUSTOMER",

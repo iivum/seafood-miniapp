@@ -49,6 +49,13 @@ jq -c '.[]' "$SEED_DIR/users.json" | while read -r doc; do
   " >/dev/null
 done
 
+# cleanup-mp-e2e-minor-findings:查询回 seed customer 用户的真实 _id(MongoDB
+# 插入时自动生成,fixture 里不写死)。下面导订单前用它 patch userId —— 不能反过来
+# 在 users.json 里手写固定 _id:openId 无唯一索引,_id 在反复 reseed/relogin 间
+# 不保证稳定(memory c5-visual-test-runbook 已记录过这条教训),动态查询回真实值
+# 才是不依赖"这是不是第一次插入"这个前提的做法(design.md 决策 2)。
+CUSTOMER_ID=$(mongosh "$MONGO_URI" --quiet --eval "print(db.users.findOne({role:'CUSTOMER'})._id.toString())" | tr -d '[:space:]')
+
 # 5. 导入 banner(home hero 轮播,后端驱动)
 echo "[seed] import banners.json"
 jq -c '.[]' "$SEED_DIR/banners.json" | while read -r doc; do
@@ -66,7 +73,10 @@ mongosh "$MONGO_URI" --quiet --eval '
 if [ -f "$SEED_DIR/orders.json" ]; then
   echo "[seed] import orders.json"
   mongosh "$MONGO_URI" --quiet --eval 'db.orders.deleteMany({});' >/dev/null
-  jq -c '.[]' "$SEED_DIR/orders.json" | while read -r doc; do
+  # cleanup-mp-e2e-minor-findings:订单 fixture 的 userId 不再是写死的占位符,
+  # 动态 patch 成上面查回的真实 customer _id —— 否则订单对任何真实登录用户都
+  # 不可见(mp 按 userId 隔离,fixture 原样导入会永久孤儿化)。
+  jq -c --arg uid "$CUSTOMER_ID" 'map(.userId = $uid) | .[]' "$SEED_DIR/orders.json" | while read -r doc; do
     echo "$doc" | mongosh "$MONGO_URI" --quiet --eval "
       db.orders.insertOne($doc);
     " >/dev/null

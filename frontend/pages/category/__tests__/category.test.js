@@ -19,7 +19,7 @@ global.wx = {
   getStorageSync: jest.fn(() => ''),
 };
 
-// getApp —— goToDetail 据 globalData.userInfo 判登录态。
+// getApp —— onAddToCart 据 globalData.userInfo 判登录态。
 const mockApp = { globalData: { userInfo: { id: 'u-1' } } };
 global.getApp = jest.fn(() => mockApp);
 
@@ -81,7 +81,6 @@ describe('category', () => {
       handleError: pageConfig.handleError,
       onPullDownRefresh: pageConfig.onPullDownRefresh,
       onReachBottom: pageConfig.onReachBottom,
-      goToDetail: pageConfig.goToDetail,
       onAddToCart: pageConfig.onAddToCart,
       onRetry: pageConfig.onRetry,
       onBackToCategories: pageConfig.onBackToCategories,
@@ -150,17 +149,6 @@ describe('category', () => {
     mockModule.hasNext = false;
     await ctx.onReachBottom();
     expect(mockLoadNext).not.toHaveBeenCalled();
-  });
-
-  it('goToDetail 已登录跳商品详情', () => {
-    ctx.goToDetail({ currentTarget: { dataset: { id: 'p9' } } });
-    expect(wx.navigateTo).toHaveBeenCalledWith({ url: '/pages-sub/product/product-detail/product-detail?id=p9' });
-  });
-
-  it('goToDetail 未登录跳登录页', () => {
-    mockApp.globalData.userInfo = null;
-    ctx.goToDetail({ currentTarget: { dataset: { id: 'p9' } } });
-    expect(wx.navigateTo).toHaveBeenCalledWith({ url: '/pages-sub/user/login/login' });
   });
 
   it('onAddToCart 已登录调 CartAPI.addItem 并提示', async () => {
