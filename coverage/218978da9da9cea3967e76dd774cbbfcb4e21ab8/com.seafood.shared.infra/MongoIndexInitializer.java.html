@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MongoIndexInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.infra</a> &gt; <span class="el_source">MongoIndexInitializer.java</span></div><h1>MongoIndexInitializer.java</h1><pre class="source lang-java linenums">package com.seafood.shared.infra;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.index.Index;
+import org.springframework.data.mongodb.core.index.IndexOperations;
+import org.springframework.data.mongodb.core.index.IndexResolver;
+import org.springframework.data.mongodb.core.index.MongoPersistentEntityIndexResolver;
+import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
+import org.springframework.stereotype.Component;
+
+import com.seafood.banner.infra.BannerDocument;
+import com.seafood.featureflag.infra.FeatureFlagAuditDocument;
+import com.seafood.featureflag.infra.FeatureFlagDocument;
+import com.seafood.order.infra.OrderDocument;
+import com.seafood.product.infra.ProductDocument;
+import com.seafood.user.infra.LoginAttemptDocument;
+import com.seafood.user.infra.UserDocument;
+
+/**
+ * 启动时建索引(design §6.2,specs/backend-api §Native Image safety)。
+ *
+ * &lt;p&gt;两个来源:
+ * &lt;ol&gt;
+ *   &lt;li&gt;由 {@link MongoPersistentEntityIndexResolver} 从 {@code @Document} / {@code @Indexed}
+ *       注解解析出来的索引(Product/Order/User)&lt;/li&gt;
+ *   &lt;li&gt;手写的额外索引 — 例如 users.openId unique、products 文本索引、orders.createdAt 倒序&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;{@code @EventListener(ApplicationReadyEvent.class)}:确保只在容器启动成功后建;
+ * 用 {@code createIndex} 幂等(同名同 keySpecs 重复调用 OK)。
+ *
+ * &lt;p&gt;&lt;b&gt;关键 vs 非关键索引(PR review #6):&lt;/b&gt;
+ * &lt;ul&gt;
+ *   &lt;li&gt;关键(unique 约束、TTL 索引)— 创建失败必须 fail-fast:unique 不存在会让
+ *       {@code users.openId} 重复入库(同 openId 多次创建账号);TTL 缺失会让 revoked
+ *       tokens 永远留在 DB(每条都进 auth check,O(n) 退化为 DoS 入口)。两者都是
+ *       安全/合规红线,失败时抛 {@link IndexInitializationException} 阻断应用进入 ready 状态。&lt;/li&gt;
+ *   &lt;li&gt;非关键(annotation-derived、text 索引)— 失败时仅 {@code warn}:query 性能降级
+ *       而非安全/正确性问题,不应让应用起不来。&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@Component
+public class MongoIndexInitializer {
+
+<span class="fc" id="L49">    private static final Logger log = LoggerFactory.getLogger(MongoIndexInitializer.class);</span>
+
+    private final MongoTemplate mongo;
+    private final MongoMappingContext mappingContext;
+    /**
+     * PR review push-sweep #2:critical 索引完成时通知 health indicator,
+     * 把 criticalIndexesEnsured 翻为 true。这样 {@code /actuator/health/mongoIndexes}
+     * 从 UNKNOWN(启动中)切到 UP,或 critical 失败时停在 UNKNOWN/触发后续 ready 探针失败。
+     */
+    private final MongoIndexHealthIndicator healthIndicator;
+
+    public MongoIndexInitializer(MongoTemplate mongo,
+                                 MongoMappingContext mappingContext,
+<span class="fc" id="L62">                                 MongoIndexHealthIndicator healthIndicator) {</span>
+<span class="fc" id="L63">        this.mongo = mongo;</span>
+<span class="fc" id="L64">        this.mappingContext = mappingContext;</span>
+<span class="fc" id="L65">        this.healthIndicator = healthIndicator;</span>
+<span class="fc" id="L66">    }</span>
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void init() {
+        // annotation-derived:performance-only,失败仅 warn
+<span class="fc" id="L71">        ensureAnnotationDerived(ProductDocument.class);</span>
+<span class="fc" id="L72">        ensureAnnotationDerived(OrderDocument.class);</span>
+<span class="fc" id="L73">        ensureAnnotationDerived(UserDocument.class);</span>
+        // sprint-1-closure 2.1 — login_attempts 的 @CompoundIndex 注解(无 TTL,
+        // TTL 走下面的 critical TTL index)
+<span class="fc" id="L76">        ensureAnnotationDerived(LoginAttemptDocument.class);</span>
+        // banner sortOrder + status 索引(performance-only:公共列表按 sortOrder 升序)
+<span class="fc" id="L78">        ensureAnnotationDerived(BannerDocument.class);</span>
+        // feature flag flagKey 唯一索引(performance-only:@Indexed(unique=true) 注解派生)
+<span class="fc" id="L80">        ensureAnnotationDerived(FeatureFlagDocument.class);</span>
+        // feature flag 审计记录(append-only):flagKey + timestamp 复合索引
+<span class="fc" id="L82">        ensureAnnotationDerived(FeatureFlagAuditDocument.class);</span>
+<span class="fc" id="L83">        ensureOptional(&quot;feature_flag_audits&quot;,</span>
+<span class="fc" id="L84">                new Index().on(&quot;flagKey&quot;, org.springframework.data.domain.Sort.Direction.ASC)</span>
+<span class="fc" id="L85">                        .on(&quot;timestamp&quot;, org.springframework.data.domain.Sort.Direction.DESC)</span>
+<span class="fc" id="L86">                        .named(&quot;idx_flagKey_timestamp_desc&quot;));</span>
+
+        // text index:performance-only,失败仅 warn
+<span class="fc" id="L89">        ensureOptional(&quot;products&quot;,</span>
+<span class="fc" id="L90">                new Index().on(&quot;name&quot;, org.springframework.data.domain.Sort.Direction.ASC)</span>
+<span class="fc" id="L91">                        .on(&quot;description&quot;, org.springframework.data.domain.Sort.Direction.ASC)</span>
+<span class="fc" id="L92">                        .named(&quot;text_name_description&quot;));</span>
+
+        // unique constraint on openId:security-critical — 缺失会让同一 openId 建多个账号
+        // PR review I7:两个 critical 索引&lt;em&gt;都&lt;/em&gt;跑,失败聚合,而不是第一个失败就 halt
+        // 后续。这样部署期能一次性看到所有坏掉的索引,不用重启 pod 才能发现下一个。
+<span class="fc" id="L97">        java.util.List&lt;IndexInitializationException&gt; criticalFailures = new java.util.ArrayList&lt;&gt;();</span>
+        try {
+<span class="fc" id="L99">            ensureCritical(&quot;users&quot;,</span>
+<span class="fc" id="L100">                    new Index().on(&quot;openId&quot;, org.springframework.data.domain.Sort.Direction.ASC)</span>
+<span class="fc" id="L101">                            .unique()</span>
+<span class="fc" id="L102">                            .named(&quot;uk_openId&quot;),</span>
+                    &quot;unique openId — prevents duplicate accounts for the same WeChat user&quot;);
+<span class="fc" id="L104">        } catch (IndexInitializationException e) {</span>
+<span class="fc" id="L105">            criticalFailures.add(e);</span>
+<span class="fc" id="L106">        }</span>
+
+        // 收藏 + 浏览足迹 —— product_views.userId+productId 复合唯一索引:
+        // 缺失会让&quot;同一商品反复查看只保留最新一条&quot;的去重/裁剪语义失效(退化成每次
+        // 都新增一条记录,ProductViewService 的 upsert 逻辑依赖这条唯一约束防止竞态
+        // 下的重复插入)。design.md D2。
+        try {
+<span class="fc" id="L113">            ensureCritical(&quot;product_views&quot;,</span>
+<span class="fc" id="L114">                    new Index().on(&quot;userId&quot;, org.springframework.data.domain.Sort.Direction.ASC)</span>
+<span class="fc" id="L115">                            .on(&quot;productId&quot;, org.springframework.data.domain.Sort.Direction.ASC)</span>
+<span class="fc" id="L116">                            .unique()</span>
+<span class="fc" id="L117">                            .named(&quot;uk_userId_productId&quot;),</span>
+                    &quot;unique userId+productId — required for view-dedup/prune correctness&quot;);
+<span class="nc" id="L119">        } catch (IndexInitializationException e) {</span>
+<span class="nc" id="L120">            criticalFailures.add(e);</span>
+<span class="fc" id="L121">        }</span>
+
+        // Sprint 2 §3.3 — revoked_tokens TTL index:文档到期后 MongoDB 后台线程
+        // 自动删除(每 60s 扫一次),无需应用层清理。expireAfterSeconds=0 表示
+        // &quot;expiresAt 字段本身的取值即为到期时间&quot;。design.md §3 decision 3。
+        // 关键:缺失会让 revoked token 永远留在 DB,O(n) 退化为 auth check 瓶颈。
+        try {
+<span class="fc" id="L128">            ensureCritical(&quot;revoked_tokens&quot;,</span>
+<span class="fc" id="L129">                    new Index().on(&quot;expiresAt&quot;, org.springframework.data.domain.Sort.Direction.ASC)</span>
+<span class="fc" id="L130">                            .expire(0L)</span>
+<span class="fc" id="L131">                            .named(&quot;ttl_expiresAt&quot;),</span>
+                    &quot;TTL on revoked_tokens.expiresAt — bounds revoked-token collection size&quot;);
+<span class="fc" id="L133">        } catch (IndexInitializationException e) {</span>
+<span class="fc" id="L134">            criticalFailures.add(e);</span>
+<span class="fc" id="L135">        }</span>
+
+        // sprint-1-closure 2.1 — login_attempts TTL index(15 分钟,expireAfterSeconds=900)。
+        // 关键:缺失会让旧失败记录永远留在 DB,IP/account 锁永远不解。
+        try {
+<span class="fc" id="L140">            ensureCritical(&quot;login_attempts&quot;,</span>
+<span class="fc" id="L141">                    new Index().on(&quot;ts&quot;, org.springframework.data.domain.Sort.Direction.ASC)</span>
+<span class="fc" id="L142">                            .expire(900L)</span>
+<span class="fc" id="L143">                            .named(&quot;ttl_ts_15min&quot;),</span>
+                    &quot;TTL on login_attempts.ts — bounds lockout-window storage&quot;);
+<span class="nc" id="L145">        } catch (IndexInitializationException e) {</span>
+<span class="nc" id="L146">            criticalFailures.add(e);</span>
+<span class="fc" id="L147">        }</span>
+
+<span class="fc bfc" id="L149" title="All 2 branches covered.">        if (!criticalFailures.isEmpty()) {</span>
+            // 聚合所有 critical 失败 — 运维一次看到全貌,而不是重启 pod 才发现下一个
+<span class="fc" id="L151">            StringBuilder msg = new StringBuilder(&quot;Critical index creation failed: &quot;);</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">            for (int i = 0; i &lt; criticalFailures.size(); i++) {</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">                if (i &gt; 0) msg.append(&quot;; &quot;);</span>
+<span class="fc" id="L154">                msg.append('[').append(i + 1).append(&quot;] &quot;).append(criticalFailures.get(i).getMessage());</span>
+            }
+<span class="fc" id="L156">            throw new IndexInitializationException(msg.toString(),</span>
+<span class="fc" id="L157">                    criticalFailures.get(0));  // cause 取首个;full detail 在 message</span>
+        }
+
+<span class="fc" id="L160">        log.info(&quot;[mongo] all indexes ensured&quot;);</span>
+        // PR review #2:通知 health indicator,让 /actuator/health/mongoIndexes 切到 UP。
+        // 若 ensureCritical 抛 IndexInitializationException,本行不会执行,
+        // health probe 继续返 UNKNOWN → readiness 探针失败,k8s 不会路由流量。
+<span class="fc" id="L164">        healthIndicator.onCriticalIndexesEnsured();</span>
+<span class="fc" id="L165">    }</span>
+
+    private void ensureAnnotationDerived(Class&lt;?&gt; docClass) {
+<span class="fc" id="L168">        IndexOperations ops = mongo.indexOps(docClass);</span>
+<span class="fc" id="L169">        IndexResolver resolver = new MongoPersistentEntityIndexResolver(mappingContext);</span>
+<span class="fc" id="L170">        resolver.resolveIndexFor(docClass).forEach(def -&gt; {</span>
+            try {
+<span class="fc" id="L172">                ops.ensureIndex(def);</span>
+<span class="fc" id="L173">            } catch (Exception e) {</span>
+<span class="fc" id="L174">                log.warn(&quot;[mongo] ensureIndex {} failed: {}&quot;, def, e.getMessage());</span>
+<span class="fc" id="L175">            }</span>
+<span class="fc" id="L176">        });</span>
+<span class="fc" id="L177">    }</span>
+
+    /** Performance-only extra index — 失败仅 warn。 */
+    private void ensureOptional(String collection, Index index) {
+        try {
+<span class="fc" id="L182">            mongo.indexOps(collection).ensureIndex(index);</span>
+<span class="fc" id="L183">        } catch (Exception e) {</span>
+<span class="fc" id="L184">            log.warn(&quot;[mongo] ensureIndex {} on {} failed: {}&quot;, index, collection, e.getMessage());</span>
+<span class="fc" id="L185">        }</span>
+<span class="fc" id="L186">    }</span>
+
+    /**
+     * Security/compliance-critical index — 失败必须 fail-fast,否则应用带着缺失索引进入
+     * {@code /actuator/health = UP} 状态,把安全/正确性风险埋进生产。
+     *
+     * &lt;p&gt;注意:抛在 {@code ApplicationReadyEvent} 监听器里 &lt;em&gt;不会&lt;/em&gt;中断已发出的 ready
+     * 事件;但会进 ERROR 日志并阻止后续索引创建。运维在启动期会看到,等价的&quot;阻止 ready&quot; 效果
+     * 应当配合 readinessProbe / 健康检查单独实现(参见 design §5.3)。
+     */
+    private void ensureCritical(String collection, Index index, String why) {
+        try {
+<span class="fc" id="L198">            mongo.indexOps(collection).ensureIndex(index);</span>
+<span class="fc" id="L199">        } catch (Exception e) {</span>
+<span class="fc" id="L200">            log.error(&quot;[mongo] CRITICAL ensureIndex {} on {} FAILED: {} — {}&quot;,</span>
+<span class="fc" id="L201">                    index, collection, e.getMessage(), why);</span>
+<span class="fc" id="L202">            throw new IndexInitializationException(</span>
+                    &quot;Failed to ensure critical index on '&quot; + collection
+<span class="fc" id="L204">                            + &quot;': &quot; + e.getMessage() + &quot;. Application cannot start safely. Cause: &quot; + why,</span>
+                    e);
+<span class="fc" id="L206">        }</span>
+<span class="fc" id="L207">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

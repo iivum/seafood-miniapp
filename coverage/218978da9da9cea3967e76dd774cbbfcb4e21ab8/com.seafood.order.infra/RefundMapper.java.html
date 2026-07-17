@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RefundMapper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.infra</a> &gt; <span class="el_source">RefundMapper.java</span></div><h1>RefundMapper.java</h1><pre class="source lang-java linenums">package com.seafood.order.infra;
+
+import com.seafood.order.domain.Refund;
+import com.seafood.order.domain.RefundStatus;
+
+/** RefundDocument ↔ Refund 域对象映射(参照 OrderMapper 风格)。 */
+public final class RefundMapper {
+
+    private RefundMapper() {}
+
+    public static Refund toDomain(RefundDocument d) {
+<span class="pc bpc" id="L12" title="1 of 2 branches missed.">        if (d == null) return null;</span>
+<span class="fc" id="L13">        return new Refund(</span>
+<span class="fc" id="L14">                d.getId(),</span>
+<span class="fc" id="L15">                d.getOrderId(),</span>
+<span class="fc" id="L16">                d.getUserId(),</span>
+<span class="fc" id="L17">                d.getAmount(),</span>
+<span class="fc" id="L18">                d.getReason(),</span>
+<span class="fc" id="L19">                RefundStatus.of(d.getStatus()),</span>
+<span class="fc" id="L20">                d.getCreatedAt(),</span>
+<span class="fc" id="L21">                d.getUpdatedAt());</span>
+    }
+
+    public static RefundDocument toDocument(Refund r) {
+<span class="fc" id="L25">        RefundDocument d = new RefundDocument();</span>
+<span class="fc" id="L26">        d.setId(r.id());</span>
+<span class="fc" id="L27">        d.setOrderId(r.orderId());</span>
+<span class="fc" id="L28">        d.setUserId(r.userId());</span>
+<span class="fc" id="L29">        d.setAmount(r.amount());</span>
+<span class="fc" id="L30">        d.setReason(r.reason());</span>
+<span class="fc" id="L31">        d.setStatus(r.status().code());</span>
+<span class="fc" id="L32">        d.setCreatedAt(r.createdAt());</span>
+<span class="fc" id="L33">        d.setUpdatedAt(r.updatedAt());</span>
+<span class="fc" id="L34">        return d;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

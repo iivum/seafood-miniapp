@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityHeadersFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.security</a> &gt; <span class="el_source">SecurityHeadersFilter.java</span></div><h1>SecurityHeadersFilter.java</h1><pre class="source lang-java linenums">package com.seafood.shared.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+/**
+ * 唯一 HTTP 安全响应头写入者(Sprint 2 §2.2,specs/runtime-security §HTTP responses
+ * carry baseline security headers,design §5 decision 5)。
+ *
+ * &lt;p&gt;本 filter 把 6 个基线头写到 &lt;em&gt;每个&lt;/em&gt; HTTP 响应上:
+ * 静态 admin 资源、JSON API、错误响应、404 一视同仁。
+ * 配合 ArchUnit 规则(2.3)防止其他类再写这 6 个头导致分散。
+ *
+ * &lt;p&gt;&lt;b&gt;顺序由 {@code SecurityConfig} 显式声明&lt;/b&gt;(PR review #25):
+ * &lt;pre&gt;
+ *   http.addFilterBefore(headersFilter, SecurityContextHolderFilter.class)
+ * &lt;/pre&gt;
+ * &lt;em&gt;不&lt;/em&gt;用 {@code @Order} — 一旦 filter 被 {@code addFilterBefore/After} 装入 Spring
+ * Security 链,链内位置完全由插入点决定,@Order 对 OncePerRequestFilter 在 chain 内的实际
+ * 顺序&lt;em&gt;不生效&lt;/em&gt;。原 {@code @Order(HIGHEST_PRECEDENCE + 100)} 是误导性注释 —
+ * 既与 SecurityConfig 冲突,又在 refactor 时容易让维护者误以为&quot;改 @Order 就能改顺序&quot;。
+ *
+ * &lt;p&gt;这样即便鉴权失败抛 401,响应头也已经写好。
+ */
+@Component
+public class SecurityHeadersFilter extends OncePerRequestFilter {
+
+    public static final String HSTS = &quot;Strict-Transport-Security&quot;;
+    public static final String X_CONTENT_TYPE_OPTIONS = &quot;X-Content-Type-Options&quot;;
+    public static final String X_FRAME_OPTIONS = &quot;X-Frame-Options&quot;;
+    public static final String REFERRER_POLICY = &quot;Referrer-Policy&quot;;
+    public static final String PERMISSIONS_POLICY = &quot;Permissions-Policy&quot;;
+    public static final String CSP = &quot;Content-Security-Policy&quot;;
+
+    /** ArchUnit 规则(2.3)用同一份白名单判断&quot;哪几个头属于 SecurityHeadersFilter 的领域&quot;。 */
+<span class="fc" id="L42">    public static final java.util.List&lt;String&gt; MANAGED_HEADERS = java.util.List.of(</span>
+            HSTS, X_CONTENT_TYPE_OPTIONS, X_FRAME_OPTIONS,
+            REFERRER_POLICY, PERMISSIONS_POLICY, CSP);
+
+    private final SecurityHeadersProperties props;
+
+<span class="fc" id="L48">    public SecurityHeadersFilter(SecurityHeadersProperties props) {</span>
+<span class="fc" id="L49">        this.props = props;</span>
+<span class="fc" id="L50">    }</span>
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+            throws ServletException, IOException {
+        // PR review I2:用 containsHeader 守卫 + setHeader 实现&quot;下游能 opt-out&quot;的契约 ——
+        // 之前注释说&quot;setIfAbsent 让下游 opt-out&quot;,代码却用 setHeader 强覆盖,撒谎。
+        // 现:头不存在才 setHeader;存在则保留下游值(WebSocket upgrade、文件下载
+        // 等特殊端点想要覆盖 CSP/HSTS 时合法有效)。
+<span class="fc" id="L59">        writeIfAbsent(res, HSTS, props.getStrictTransportSecurity());</span>
+<span class="fc" id="L60">        writeIfAbsent(res, X_CONTENT_TYPE_OPTIONS, props.getXContentTypeOptions());</span>
+<span class="fc" id="L61">        writeIfAbsent(res, X_FRAME_OPTIONS, props.getXFrameOptions());</span>
+<span class="fc" id="L62">        writeIfAbsent(res, REFERRER_POLICY, props.getReferrerPolicy());</span>
+<span class="fc" id="L63">        writeIfAbsent(res, PERMISSIONS_POLICY, props.getPermissionsPolicy());</span>
+<span class="fc" id="L64">        writeIfAbsent(res, CSP, props.getContentSecurityPolicy());</span>
+<span class="fc" id="L65">        chain.doFilter(req, res);</span>
+<span class="fc" id="L66">    }</span>
+
+    private static void writeIfAbsent(HttpServletResponse res, String name, String value) {
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">        if (!res.containsHeader(name)) {</span>
+<span class="fc" id="L70">            res.setHeader(name, value);</span>
+        }
+<span class="fc" id="L72">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

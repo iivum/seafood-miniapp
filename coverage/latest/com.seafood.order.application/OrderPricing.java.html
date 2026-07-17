@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderPricing.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.application</a> &gt; <span class="el_source">OrderPricing.java</span></div><h1>OrderPricing.java</h1><pre class="source lang-java linenums">package com.seafood.order.application;
+
+import java.math.BigDecimal;
+
+/**
+ * fix-order-amount-contract:运费 + 优惠计算的唯一权威(design.md 决策 1)。
+ *
+ * &lt;p&gt;与 mp {@code order-confirm.js} 的 {@code SHIPPING_FEE_MAP}/{@code calcDiscount}
+ * 数值锁死一致(两侧各自维护一份,靠双方测试守不漂移,见 design.md 决策 2 的取舍)——
+ * mp 端只做&quot;本地预估显示&quot;,真正落库的 {@code totalAmount} 权威计算在这里。
+ */
+public final class OrderPricing {
+
+    /** 免运费(默认档,mp 默认选中项)。 */
+    public static final String SHIPPING_FREE = &quot;FREE&quot;;
+    /** 顺丰速运。 */
+    public static final String SHIPPING_SF = &quot;SF&quot;;
+    /** 中通快递。 */
+    public static final String SHIPPING_ZTO = &quot;ZTO&quot;;
+
+<span class="fc" id="L21">    private static final BigDecimal FEE_FREE = BigDecimal.ZERO;</span>
+<span class="fc" id="L22">    private static final BigDecimal FEE_SF = new BigDecimal(&quot;12&quot;);</span>
+<span class="fc" id="L23">    private static final BigDecimal FEE_ZTO = new BigDecimal(&quot;8&quot;);</span>
+
+<span class="fc" id="L25">    private static final BigDecimal DISCOUNT_THRESHOLD = new BigDecimal(&quot;100&quot;);</span>
+<span class="fc" id="L26">    private static final BigDecimal DISCOUNT_AMOUNT = new BigDecimal(&quot;10&quot;);</span>
+
+    private OrderPricing() {
+        // 工具类禁止实例化
+    }
+
+    /**
+     * 按配送方式查运费表。{@code null}/未识别值一律按 {@link #SHIPPING_FREE} 兜底
+     * (design.md 决策 1 风险清单:直接购买路径此前不带 shippingMethod,缺省按
+     * mp 默认选中项对齐,而不是拒绝建单)。
+     */
+    public static BigDecimal shippingFeeFor(String shippingMethod) {
+<span class="fc bfc" id="L38" title="All 2 branches covered.">        if (SHIPPING_SF.equals(shippingMethod)) {</span>
+<span class="fc" id="L39">            return FEE_SF;</span>
+        }
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        if (SHIPPING_ZTO.equals(shippingMethod)) {</span>
+<span class="fc" id="L42">            return FEE_ZTO;</span>
+        }
+<span class="fc" id="L44">        return FEE_FREE;</span>
+    }
+
+    /** 满 100 减 10(与 mp {@code calcDiscount} 同规则,{@code subtotal &gt;= 100} 触发)。 */
+    public static BigDecimal discountFor(BigDecimal subtotal) {
+<span class="pc bpc" id="L49" title="1 of 4 branches missed.">        if (subtotal != null &amp;&amp; subtotal.compareTo(DISCOUNT_THRESHOLD) &gt;= 0) {</span>
+<span class="fc" id="L50">            return DISCOUNT_AMOUNT;</span>
+        }
+<span class="fc" id="L52">        return BigDecimal.ZERO;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

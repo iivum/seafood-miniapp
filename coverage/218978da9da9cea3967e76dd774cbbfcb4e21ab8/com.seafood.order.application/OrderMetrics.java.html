@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderMetrics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.application</a> &gt; <span class="el_source">OrderMetrics.java</span></div><h1>OrderMetrics.java</h1><pre class="source lang-java linenums">package com.seafood.order.application;
+
+import java.math.BigDecimal;
+import java.util.Set;
+
+/**
+ * 订单域指标工具(OpenSpec setup-observability-stack PR #3 / design §ADR-OQ3)。
+ *
+ * &lt;p&gt;唯一职责:把 {@code BigDecimal} 订单金额映射到 4 档几何分桶字符串,供
+ * {@link OrderService#markPaid} 拼成 Prometheus tag(避免 userId/orderId/productId/email
+ * 这类高基数字段被当成 tag 写入 — ArchUnit 规则见
+ * {@code com.seafood.architecture.MetricsCardinalityTest},design §D5)。
+ *
+ * &lt;p&gt;分桶边界:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code amount &lt;  100}        → {@code lt100}&lt;/li&gt;
+ *   &lt;li&gt;{@code 100 &lt;= amount &lt;  500} → {@code 100to500}&lt;/li&gt;
+ *   &lt;li&gt;{@code 500 &lt;= amount &lt; 2000} → {@code 500to2000}&lt;/li&gt;
+ *   &lt;li&gt;{@code amount &gt;= 2000}       → {@code gte2000}&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;所有 bucket 字符串是 {@code final}、白名单有限集 — Prometheus tag value
+ * 不可枚举会导致时间序列爆炸。
+ */
+public final class OrderMetrics {
+
+    /** Prometheus tag value:订单金额 &lt; 100 元。 */
+    public static final String BUCKET_LT_100 = &quot;lt100&quot;;
+    /** Prometheus tag value:100 ≤ 金额 &lt; 500 元。 */
+    public static final String BUCKET_100_TO_500 = &quot;100to500&quot;;
+    /** Prometheus tag value:500 ≤ 金额 &lt; 2000 元。 */
+    public static final String BUCKET_500_TO_2000 = &quot;500to2000&quot;;
+    /** Prometheus tag value:金额 ≥ 2000 元。 */
+    public static final String BUCKET_GTE_2000 = &quot;gte2000&quot;;
+
+    /** 所有合法 bucket 值的白名单(ArchUnit 反射扫描时使用)。 */
+<span class="fc" id="L37">    public static final Set&lt;String&gt; ALL_BUCKETS = Set.of(</span>
+            BUCKET_LT_100, BUCKET_100_TO_500, BUCKET_500_TO_2000, BUCKET_GTE_2000);
+
+<span class="fc" id="L40">    private static final BigDecimal BOUND_100 = new BigDecimal(&quot;100&quot;);</span>
+<span class="fc" id="L41">    private static final BigDecimal BOUND_500 = new BigDecimal(&quot;500&quot;);</span>
+<span class="fc" id="L42">    private static final BigDecimal BOUND_2000 = new BigDecimal(&quot;2000&quot;);</span>
+
+    private OrderMetrics() {
+        // 工具类禁止实例化
+    }
+
+    /**
+     * 把订单金额映射到 4 档分桶标签值。
+     *
+     * @param amount 订单金额,不能为 {@code null}
+     * @return 4 档之一:{@code lt100} / {@code 100to500} / {@code 500to2000} / {@code gte2000}
+     * @throws NullPointerException {@code amount == null}
+     * @throws IllegalArgumentException {@code amount &lt; 0}
+     */
+    public static String bucketize(BigDecimal amount) {
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        if (amount == null) {</span>
+<span class="fc" id="L58">            throw new NullPointerException(&quot;amount must not be null&quot;);</span>
+        }
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (amount.signum() &lt; 0) {</span>
+<span class="fc" id="L61">            throw new IllegalArgumentException(</span>
+<span class="fc" id="L62">                    &quot;amount must be non-negative, got: &quot; + amount.toPlainString());</span>
+        }
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        if (amount.compareTo(BOUND_100) &lt; 0) {</span>
+<span class="fc" id="L65">            return BUCKET_LT_100;</span>
+        }
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        if (amount.compareTo(BOUND_500) &lt; 0) {</span>
+<span class="fc" id="L68">            return BUCKET_100_TO_500;</span>
+        }
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (amount.compareTo(BOUND_2000) &lt; 0) {</span>
+<span class="fc" id="L71">            return BUCKET_500_TO_2000;</span>
+        }
+<span class="fc" id="L73">        return BUCKET_GTE_2000;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BizHealthController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.bff.health</a> &gt; <span class="el_source">BizHealthController.java</span></div><h1>BizHealthController.java</h1><pre class="source lang-java linenums">package com.seafood.bff.health;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * 业务端口 8080 上的 /actuator/health 兼容端点(2026-06-14 引入)。
+ *
+ * &lt;p&gt;设计意图:Sprint 2 §2.7.5 known limitation 2 — 业务端口 8080 在
+ * management context 独立后,8080 context 没有 actuator handler,
+ * 命中 `/actuator/**` 应返 404。但实际生产环境很多外部探针(ALB
+ * health check / k8s livenessProbe on port 8080)期望 200 而不是 404。
+ * 本 controller 在 8080 业务 context 上代理 health 端点,**快速返 UP**
+ * (不查 MongoDB,避免 30s serverSelectionTimeout 拖死探针);完整
+ * actuator/health 在 management 端口 9090 暴露(metrics / details /
+ * 内部探针)。
+ *
+ * &lt;p&gt;本端点只服务 200 + 业务级 UP 状态;真实业务依赖健康度由
+ * 9090/actuator/health 的 mongo / diskSpace / ping 等 indicators 守。
+ */
+@RestController
+<span class="fc" id="L26">public class BizHealthController {</span>
+
+    @GetMapping(&quot;/actuator/health&quot;)
+    public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; health() {
+<span class="nc" id="L30">        Map&lt;String, Object&gt; body = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L31">        body.put(&quot;status&quot;, &quot;UP&quot;);</span>
+<span class="nc" id="L32">        return ResponseEntity.ok(body);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

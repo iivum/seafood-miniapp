@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FavoriteService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.user.application</a> &gt; <span class="el_source">FavoriteService.java</span></div><h1>FavoriteService.java</h1><pre class="source lang-java linenums">package com.seafood.user.application;
+
+import com.seafood.product.api.dto.ProductResponse;
+import com.seafood.product.application.ProductService;
+import com.seafood.shared.error.NotFoundException;
+import com.seafood.user.api.dto.FavoriteItemResponse;
+import com.seafood.user.domain.User;
+import com.seafood.user.infra.UserDocument;
+import com.seafood.user.infra.UserMapper;
+import com.seafood.user.infra.UserRepository;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+/**
+ * 收藏服务(收藏 + 浏览足迹,design.md)。self-scoped——身份始终是调用者本人
+ * (由 {@link FavoriteController} 从 JWT principal 取,不接受外部 userId 参数,
+ * 同 {@code AddressController} 既有惯例),不需要额外授权校验。
+ *
+ * &lt;p&gt;富化商品信息 + 失效商品降级复用 {@code CartService#enrich} 已确立的先例
+ * (ApplicationService → ApplicationService,不直碰 ProductRepository)。
+ */
+@Service
+public class FavoriteService {
+
+    private static final String UNAVAILABLE_PRODUCT_NAME = &quot;商品已下架&quot;;
+
+    private final UserRepository users;
+    private final ProductService productService;
+
+<span class="fc" id="L32">    public FavoriteService(UserRepository users, ProductService productService) {</span>
+<span class="fc" id="L33">        this.users = users;</span>
+<span class="fc" id="L34">        this.productService = productService;</span>
+<span class="fc" id="L35">    }</span>
+
+    public List&lt;String&gt; addFavorite(String userId, String productId) {
+<span class="fc" id="L38">        User u = loadOrThrow(userId);</span>
+<span class="fc" id="L39">        User updated = u.addFavorite(productId);</span>
+<span class="fc" id="L40">        persist(updated);</span>
+<span class="fc" id="L41">        return updated.favoriteProductIds();</span>
+    }
+
+    public List&lt;String&gt; removeFavorite(String userId, String productId) {
+<span class="fc" id="L45">        User u = loadOrThrow(userId);</span>
+<span class="fc" id="L46">        User updated = u.removeFavorite(productId);</span>
+<span class="fc" id="L47">        persist(updated);</span>
+<span class="fc" id="L48">        return updated.favoriteProductIds();</span>
+    }
+
+    public List&lt;FavoriteItemResponse&gt; list(String userId) {
+<span class="fc" id="L52">        User u = loadOrThrow(userId);</span>
+<span class="fc" id="L53">        return u.favoriteProductIds().stream().map(this::enrich).toList();</span>
+    }
+
+    private FavoriteItemResponse enrich(String productId) {
+        try {
+<span class="fc" id="L58">            ProductResponse p = productService.get(productId);</span>
+<span class="fc" id="L59">            return new FavoriteItemResponse(productId, p.name(), p.price(), p.imageUrl(), true);</span>
+<span class="fc" id="L60">        } catch (NotFoundException e) {</span>
+<span class="fc" id="L61">            return new FavoriteItemResponse(productId, UNAVAILABLE_PRODUCT_NAME, BigDecimal.ZERO, &quot;&quot;, false);</span>
+        }
+    }
+
+    private User loadOrThrow(String userId) {
+<span class="fc" id="L66">        return users.findById(userId)</span>
+<span class="fc" id="L67">                .map(UserMapper::toDomain)</span>
+<span class="fc" id="L68">                .orElseThrow(() -&gt; new NotFoundException(&quot;用户不存在:&quot; + userId));</span>
+    }
+
+    private void persist(User u) {
+<span class="fc" id="L72">        users.save(UserMapper.toDocument(u));</span>
+<span class="fc" id="L73">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

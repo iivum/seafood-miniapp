@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConfigurationPropertiesRegistration.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.shared.config</a> &gt; <span class="el_source">ConfigurationPropertiesRegistration.java</span></div><h1>ConfigurationPropertiesRegistration.java</h1><pre class="source lang-java linenums">package com.seafood.shared.config;
+
+import com.seafood.shared.security.AdminRateLimitProperties;
+import com.seafood.shared.security.SecurityHeadersProperties;
+import com.seafood.user.application.LoginAttemptProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * Sprint 2 §1.4 / §2.8 / §3.8 — 统一注册 {@code shared/config/}、{@code shared/security/}
+ * 与 {@code user/application/} 下的 {@code @ConfigurationProperties} 类型,触发
+ * {@code @Validated} 在启动期完成 JSR-303 校验。
+ *
+ * &lt;p&gt;{@code JwtProperties} 仍由 {@code SecurityConfig} 注册(历史位置,避免无谓 diff)。
+ * {@code MongoUriValidator} 是 {@code @Component},由组件扫描自动发现,不在此处。
+ * {@code LoginAttemptProperties} 跨 {@code user.application} 包,放这里集中注册
+ * 方便审计。
+ */
+@Configuration
+@EnableConfigurationProperties({
+        WechatProperties.class,
+        SecurityHeadersProperties.class,
+        AdminRateLimitProperties.class,
+        LoginAttemptProperties.class
+})
+<span class="fc" id="L26">public class ConfigurationPropertiesRegistration {</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CartService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">seafood-backend</a> &gt; <a href="index.source.html" class="el_package">com.seafood.order.application</a> &gt; <span class="el_source">CartService.java</span></div><h1>CartService.java</h1><pre class="source lang-java linenums">package com.seafood.order.application;
+
+import com.seafood.order.api.dto.CartItemRequest;
+import com.seafood.order.api.dto.CartLineItemResponse;
+import com.seafood.order.api.dto.CartResponse;
+import com.seafood.order.domain.Cart;
+import com.seafood.order.domain.CartItem;
+import com.seafood.order.domain.CartItemNotFoundException;
+import com.seafood.order.infra.CartDocument;
+import com.seafood.order.infra.CartRepository;
+import com.seafood.product.api.dto.ProductResponse;
+import com.seafood.product.application.ProductService;
+import com.seafood.shared.error.NotFoundException;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * 购物车服务(参见 specs/backend-api §Customer cart operations)。
+ * 所有方法都接收 userId 参数(由 Controller 从 SecurityContext 注入),
+ * 不接受 query/path 中的 userId → 防止越权。
+ *
+ * &lt;p&gt;mp-04 购物车 OD 对齐 brief:响应经 {@link ProductService} 富化商品名/单价/图片
+ * (ApplicationService → ApplicationService,不碰 ProductRepository,同
+ * {@code BannerService} 校验 targetProductId 的既有先例)。购物车里指向已下架/被删除商品的行
+ * 是正常业务场景,单行降级(available=false),不能让一个失效商品 500 掉整个购物车请求。
+ */
+@Service
+public class CartService {
+
+    private static final String UNAVAILABLE_PRODUCT_NAME = &quot;商品已下架&quot;;
+
+    private final CartRepository carts;
+    private final ProductService productService;
+
+<span class="fc" id="L38">    public CartService(CartRepository carts, ProductService productService) {</span>
+<span class="fc" id="L39">        this.carts = carts;</span>
+<span class="fc" id="L40">        this.productService = productService;</span>
+<span class="fc" id="L41">    }</span>
+
+    public CartResponse get(String userId) {
+<span class="fc" id="L44">        return toResponse(loadOrEmpty(userId));</span>
+    }
+
+    public CartResponse addItem(String userId, CartItemRequest req) {
+<span class="fc" id="L48">        Cart current = loadOrEmpty(userId);</span>
+<span class="fc" id="L49">        Cart updated = current.addItem(req.productId(), req.quantity());</span>
+<span class="fc" id="L50">        return toResponse(persist(updated));</span>
+    }
+
+    public CartResponse removeItem(String userId, String productId) {
+<span class="fc" id="L54">        Cart current = loadOrEmpty(userId);</span>
+<span class="fc" id="L55">        Cart updated = current.removeItem(productId);</span>
+<span class="fc" id="L56">        return toResponse(persist(updated));</span>
+    }
+
+    public void clear(String userId) {
+<span class="fc" id="L60">        carts.deleteById(userId);</span>
+<span class="fc" id="L61">    }</span>
+
+    /**
+     * 把某行数量替换成 {@code quantity}(design D2:整数替换,不是累加)。行不存在时
+     * 译成 {@link NotFoundException} → 404(design D1),而不是静默 no-op。
+     */
+    public CartResponse updateQuantity(String userId, String productId, int quantity) {
+<span class="fc" id="L68">        Cart current = loadOrEmpty(userId);</span>
+        try {
+<span class="fc" id="L70">            Cart updated = current.updateQuantity(productId, quantity);</span>
+<span class="fc" id="L71">            return toResponse(persist(updated));</span>
+<span class="fc" id="L72">        } catch (CartItemNotFoundException e) {</span>
+<span class="fc" id="L73">            throw new NotFoundException(e.getMessage());</span>
+        }
+    }
+
+    /**
+     * 翻转某行的 {@code selected}。行不存在时译成 {@link NotFoundException} → 404
+     * (design D1,同 {@link #updateQuantity})。
+     */
+    public CartResponse toggleSelected(String userId, String productId) {
+<span class="fc" id="L82">        Cart current = loadOrEmpty(userId);</span>
+        try {
+<span class="fc" id="L84">            Cart updated = current.toggleSelected(productId);</span>
+<span class="fc" id="L85">            return toResponse(persist(updated));</span>
+<span class="fc" id="L86">        } catch (CartItemNotFoundException e) {</span>
+<span class="fc" id="L87">            throw new NotFoundException(e.getMessage());</span>
+        }
+    }
+
+    // ----- helpers -----
+
+    private Cart loadOrEmpty(String userId) {
+<span class="fc" id="L94">        return carts.findById(userId)</span>
+<span class="fc" id="L95">                .map(d -&gt; new Cart(d.getUserId(), d.getItems(), d.getUpdatedAt()))</span>
+<span class="pc" id="L96">                .orElseGet(() -&gt; Cart.empty(userId));</span>
+    }
+
+    private Cart persist(Cart c) {
+<span class="fc" id="L100">        CartDocument d = new CartDocument();</span>
+<span class="fc" id="L101">        d.setUserId(c.userId());</span>
+<span class="fc" id="L102">        d.setItems(c.items());</span>
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        d.setUpdatedAt(c.updatedAt() == null ? Instant.now() : c.updatedAt());</span>
+<span class="fc" id="L104">        carts.save(d);</span>
+<span class="fc" id="L105">        return c;</span>
+    }
+
+    /** 域对象 Cart → 富化后的 CartResponse:逐行经 ProductService 查商品名/单价/图片。 */
+    private CartResponse toResponse(Cart cart) {
+<span class="fc" id="L110">        List&lt;CartLineItemResponse&gt; items = cart.items().stream()</span>
+<span class="fc" id="L111">                .map(this::enrich)</span>
+<span class="fc" id="L112">                .toList();</span>
+<span class="fc" id="L113">        return new CartResponse(cart.userId(), items, cart.updatedAt());</span>
+    }
+
+    /**
+     * 单行富化。商品不存在(已下架/被删除)时降级返回占位数据,不让异常向上冒泡——
+     * 购物车里存在指向失效商品的行是正常业务场景,不能因为一行失效就 500 掉整个请求。
+     */
+    private CartLineItemResponse enrich(CartItem item) {
+        try {
+<span class="fc" id="L122">            ProductResponse product = productService.get(item.productId());</span>
+<span class="fc" id="L123">            return new CartLineItemResponse(</span>
+<span class="fc" id="L124">                    item.productId(), product.name(), product.price(), product.imageUrl(),</span>
+<span class="fc" id="L125">                    item.quantity(), item.selected(), item.addedAt(), true);</span>
+<span class="fc" id="L126">        } catch (NotFoundException e) {</span>
+<span class="fc" id="L127">            return new CartLineItemResponse(</span>
+<span class="fc" id="L128">                    item.productId(), UNAVAILABLE_PRODUCT_NAME, BigDecimal.ZERO, &quot;&quot;,</span>
+<span class="fc" id="L129">                    item.quantity(), item.selected(), item.addedAt(), false);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
