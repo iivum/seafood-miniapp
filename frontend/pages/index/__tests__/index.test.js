@@ -97,7 +97,6 @@ describe('index (mp-01 首页)', () => {
       highlightProducts: pageConfig.highlightProducts,
       handleError: pageConfig.handleError,
       onRetry: pageConfig.onRetry,
-      goToDetail: pageConfig.goToDetail,
       onAddToCart: pageConfig.onAddToCart,
       onSearchInput: pageConfig.onSearchInput,
       onSearch: pageConfig.onSearch,
@@ -255,17 +254,6 @@ describe('index (mp-01 首页)', () => {
     await ctx.onRetry();
     expect(mockClearError).toHaveBeenCalled();
     expect(mockLoadProducts).toHaveBeenCalledWith({ page: 0 });
-  });
-
-  it('goToDetail 已登录跳商品详情', () => {
-    ctx.goToDetail({ currentTarget: { dataset: { id: 'p9' } } });
-    expect(wx.navigateTo).toHaveBeenCalledWith({ url: '/pages-sub/product/product-detail/product-detail?id=p9' });
-  });
-
-  it('goToDetail 未登录跳登录页', () => {
-    mockApp.globalData.userInfo = null;
-    ctx.goToDetail({ currentTarget: { dataset: { id: 'p9' } } });
-    expect(wx.navigateTo).toHaveBeenCalledWith({ url: '/pages-sub/user/login/login' });
   });
 
   it('onAddToCart 已登录调 CartAPI.addItem 并提示', async () => {

@@ -7,11 +7,21 @@
 ## Requirements
 
 ### Requirement: Public product browsing
-The system SHALL expose product browsing endpoints that allow any client (authenticated or anonymous) to list and inspect products.
+The system SHALL expose product browsing endpoints that allow any client (authenticated or anonymous) to list and inspect products. Public listing (with or without a `category` filter) MUST only surface products whose `status` is `ACTIVE`, filtered at the persistence-query level (not by post-hoc in-memory override). A single product document with an unrecognized/illegal `status` value in the database MUST NOT cause the entire listing query to fail; the offending document MUST be excluded from results while the rest of the page returns normally.
 
 #### Scenario: Anonymous client lists products
 - **WHEN** a client calls `GET /api/products` without an authentication token
 - **THEN** the system returns a paginated list of products with status 200
+
+#### Scenario: Anonymous client lists products by category
+- **WHEN** a client calls `GET /api/products?category=<name>`
+- **THEN** the system returns only products in that category whose `status` is `ACTIVE`, with status 200
+- **AND** the query filters by status at the database level rather than overriding the in-memory status of returned documents
+
+#### Scenario: Category listing tolerates a corrupted status value
+- **WHEN** the `products` collection contains a document in the requested category whose `status` field does not match any `ProductStatus` enum constant
+- **THEN** `GET /api/products?category=<name>` still returns HTTP 200 with the remaining valid-status products in that category
+- **AND** does not return HTTP 500 or an unrelated 403
 
 #### Scenario: Anonymous client views a single product
 - **WHEN** a client calls `GET /api/products/{id}` with a valid product id
@@ -80,7 +90,7 @@ The system SHALL provide per-user cart endpoints that are accessible only to the
 - **THEN** the system returns HTTP 404 with `code=NOT_FOUND` and does not mutate the cart
 
 ### Requirement: Order lifecycle
-The system SHALL let CUSTOMERs place orders from their cart and read their own orders, while ADMINs SHALL be able to read all orders and advance order status.
+The system SHALL let CUSTOMERs place orders from their cart and read their own orders, while ADMINs SHALL be able to read all orders and advance order status. Order pricing (shipping fee and discount) is computed authoritatively on the server; the client MAY submit a `shippingMethod` selection but MUST NOT submit or influence the final `totalAmount` directly.
 
 #### Scenario: CUSTOMER places an order
 - **WHEN** a CUSTOMER calls `POST /api/orders` with a non-empty cart
@@ -114,6 +124,19 @@ The system SHALL let CUSTOMERs place orders from their cart and read their own o
 - **WHEN** a CUSTOMER calls `POST /api/orders` with no request body (or an empty/absent `items` field)
 - **THEN** the system falls back to the existing cart-checkout behavior unchanged
 
+#### Scenario: Order total includes shipping fee and discount
+- **WHEN** a CUSTOMER calls `POST /api/orders` with `shippingMethod` set to a paid option (顺丰速运 / 中通快递) and an item subtotal ≥ ¥100
+- **THEN** the created order's `totalAmount` equals `subtotal + shippingFee - discount`, where `shippingFee` is looked up server-side from the shipping method and `discount` is computed server-side from the ≥¥100 threshold rule
+- **AND** the `OrderResponse` payload exposes `subtotal`, `shippingFee`, and `discount` alongside `totalAmount`
+
+#### Scenario: Order without an explicit shipping method defaults to free shipping
+- **WHEN** a CUSTOMER calls `POST /api/orders` with no `shippingMethod` field
+- **THEN** the system treats it as `FREE` (shippingFee = 0) for pricing purposes
+
+#### Scenario: Client-submitted total amount is ignored
+- **WHEN** a CUSTOMER's request body contains any field resembling a total/amount override
+- **THEN** the system computes `totalAmount` itself from items, shipping method, and discount rule, ignoring any client-submitted amount
+
 ### Requirement: Admin BFF aggregation
 The system SHALL expose three aggregated read endpoints under `/api/admin/**` for the admin UI; each endpoint SHALL assemble data by calling the in-process application services (no network calls) and SHALL be restricted to ADMIN role.
 
@@ -134,7 +157,7 @@ The system SHALL expose three aggregated read endpoints under `/api/admin/**` fo
 - **THEN** the system returns HTTP 403
 
 ### Requirement: Uniform error responses
-The system SHALL translate all unhandled and domain exceptions into a single `ErrorResponse` shape with a stable `code` and human-readable `message`.
+The system SHALL translate all unhandled and domain exceptions into a single `ErrorResponse` shape with a stable `code` and human-readable `message`. This applies to unclassified/unexpected exceptions as well: they MUST NOT be allowed to fall through to a generic authorization rejection or an unrelated status code. The `/error` internal dispatch path MUST NOT be blocked by the authorization allowlist's catch-all deny rule.
 
 #### Scenario: Validation failure on request body
 - **WHEN** a controller receives a request whose body fails Bean Validation
@@ -147,6 +170,16 @@ The system SHALL translate all unhandled and domain exceptions into a single `Er
 #### Scenario: Resource not found
 - **WHEN** any application service throws `NotFoundException`
 - **THEN** the system returns HTTP 404 with `code=NOT_FOUND` and the exception message
+
+#### Scenario: Unclassified exception
+- **WHEN** any controller/service/repository call throws an exception not covered by a specific `@ExceptionHandler`
+- **THEN** the system returns HTTP 500 with `code=INTERNAL` and a generic message (no stack trace or internal details in the body)
+- **AND** the response is NOT HTTP 403 and is NOT an empty body
+
+#### Scenario: /error path is not blocked by authorization
+- **WHEN** a request is internally redispatched to `/error` (e.g. an exception not caught by any `@ExceptionHandler`, or a framework-level dispatch failure)
+- **THEN** the security filter chain does not reject it with `denyAll`
+- **AND** the response still carries a `{code,message}`-shaped body, not Spring Boot's default error attributes shape
 
 ### Requirement: Static admin asset hosting
 The system SHALL serve the production admin-ui build artifacts from `classpath:/static/admin/**` at the URL prefix `/admin/**` and SHALL fall back to `index.html` for unknown client routes.

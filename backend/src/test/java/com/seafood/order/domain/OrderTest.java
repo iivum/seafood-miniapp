@@ -121,7 +121,7 @@ class OrderTest {
         // 单一断言(hasMessage)避免 assertj contains 子串比对时的边界问题
         DomainException ex = null;
         try {
-            new Order("o1", "u1", List.of(), new BigDecimal("1"),
+            new Order("o1", "u1", List.of(), null, null, null, new BigDecimal("1"),
                     new OrderStatus.Pending(), null, null, null, null, t0, t0);
         } catch (DomainException e) {
             ex = e;
@@ -132,7 +132,7 @@ class OrderTest {
 
     @Test
     void constructor_rejectsNonPositiveTotal() {
-        assertThatThrownBy(() -> new Order("o1", "u1", List.of(item), BigDecimal.ZERO,
+        assertThatThrownBy(() -> new Order("o1", "u1", List.of(item), null, null, null, BigDecimal.ZERO,
                 new OrderStatus.Pending(), null, null, null, null, t0, t0))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("金额");

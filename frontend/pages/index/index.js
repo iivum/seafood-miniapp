@@ -231,21 +231,6 @@ Page({
     await this.initProductList();
   },
 
-  goToDetail: function (e) {
-    const app = getApp();
-    if (!app.globalData.userInfo) {
-      wx.navigateTo({
-        url: '/pages-sub/user/login/login'
-      });
-      return;
-    }
-
-    const id = e.currentTarget.dataset.id;
-    wx.navigateTo({
-      url: `/pages-sub/product/product-detail/product-detail?id=${id}`
-    });
-  },
-
   /**
    * Add product to cart — P1 鉴权守卫。
    * 未登录跳 login 页;已登录走 cartApi.addItem(后端 needAuth)。

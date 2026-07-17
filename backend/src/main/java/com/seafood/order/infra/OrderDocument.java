@@ -24,6 +24,16 @@ public class OrderDocument {
     private String status;
 
     private List<OrderItem> items;
+
+    /**
+     * fix-order-amount-contract:商品小计(= Σ items.subtotal)、运费、优惠(design.md
+     * 决策 1)。null 时(改动前创建的历史订单)MongoDB 不写字段,读取按 0 兜底
+     * (决策 3——不回填历史数据,{@code totalAmount} 保持原值不变,零迁移)。
+     */
+    private BigDecimal subtotal;
+    private BigDecimal shippingFee;
+    private BigDecimal discount;
+
     private BigDecimal totalAmount;
     private String cancelReason;
 
@@ -61,6 +71,15 @@ public class OrderDocument {
 
     public List<OrderItem> getItems() { return items; }
     public void setItems(List<OrderItem> items) { this.items = items; }
+
+    public BigDecimal getSubtotal() { return subtotal; }
+    public void setSubtotal(BigDecimal subtotal) { this.subtotal = subtotal; }
+
+    public BigDecimal getShippingFee() { return shippingFee; }
+    public void setShippingFee(BigDecimal shippingFee) { this.shippingFee = shippingFee; }
+
+    public BigDecimal getDiscount() { return discount; }
+    public void setDiscount(BigDecimal discount) { this.discount = discount; }
 
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }

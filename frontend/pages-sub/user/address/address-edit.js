@@ -85,8 +85,9 @@ Page({
       errors.push('请输入正确的手机号');
     }
 
-    // 验证地区
-    if (!formData.province || formData.province === '请选择') {
+    // 验证地区(picker mode="region" 的表单字段名是 region，产出 3 元素数组；
+    // 表单从不产出 province 顶层字段，2026-07-14 修复见 fix-mp-address-form-validation）
+    if (!formData.region || formData.region.length < 3 || formData.region[0] === '请选择') {
       errors.push('请选择所在地区');
     }
 

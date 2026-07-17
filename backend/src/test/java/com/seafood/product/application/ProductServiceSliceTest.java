@@ -66,13 +66,15 @@ class ProductServiceSliceTest {
     }
 
     @Test
-    void listPublic_nonNullCategory_queriesByCategory() {
+    void listPublic_nonNullCategory_queriesByCategoryAndActiveStatus() {
+        // fix-category-bad-status-500:公共分类浏览必须查询级过滤 status=ACTIVE
+        // （findByCategoryAndStatus），不能再用 findByCategory + 内存态覆写。
         Product p = ProductBuilder.aProduct().withId("p-fish")
             .withCategory(new ProductCategory.Fish()).build();
         Page<ProductDocument> page = new PageImpl<>(
             List.of(ProductMapper.toDocument(p)),
             PageRequest.of(0, 20), 1);
-        when(productRepository.findByCategory("鱼类", Pageable.unpaged()))
+        when(productRepository.findByCategoryAndStatus("鱼类", ProductStatus.ACTIVE, Pageable.unpaged()))
             .thenReturn(page);
 
         var resp = productService.listPublic("鱼类", Pageable.unpaged());

@@ -49,6 +49,13 @@ export interface Order {
   id: string;
   userId: string;
   items: OrderItem[];
+  /**
+   * fix-order-amount-contract:商品小计 / 运费 / 优惠明细(后端权威计算,design.md
+   * 决策 1)。历史订单(改动前创建)可能为 0(后端按 0 兜底,非 undefined)。
+   */
+  subtotal?: number;
+  shippingFee?: number;
+  discount?: number;
   totalAmount: number;
   status: OrderStatus;
   cancelReason?: string;
@@ -67,6 +74,11 @@ export interface CreateOrderRequest {
    * 留空/不传时行为不变,仍从购物车建单。
    */
   items?: Array<{ productId: string; quantity: number }>;
+  /**
+   * fix-order-amount-contract:配送方式(FREE/SF/ZTO)。客户端只能选配送方式,
+   * 绝不能提交金额本身 —— 运费/优惠/totalAmount 全部由后端权威计算(design.md 决策 1)。
+   */
+  shippingMethod?: string;
 }
 
 /**

@@ -287,8 +287,10 @@ The order confirmation page (`pages-sub/order/order-confirm/order-confirm`) MUST
 - **Items card**: one row per line item (image, name, price, quantity).
 - **Delivery method card**: 3 selectable options (免运费 / 顺丰速运 / 中通快递), selected option shows a check mark and `is-selected` styling.
 - **Remark card**: a `<textarea>` capped at 50 characters with a live counter.
-- **Summary card**: 商品总额 / 运费 / 优惠 / 实付 rows, 实付 emphasized in `var(--accent)` `font-display`.
+- **Summary card**: 商品总额 / 运费 / 优惠 / 实付 rows, 实付 emphasized in `var(--accent)` `font-display`. These figures are a **local estimate** computed from the same shipping-fee table and discount threshold the backend uses (kept in sync via tests, per `backend-api`'s Order creation pricing requirement) — they are not the authoritative amount.
 - **Bottom bar**: sticky, shows the running total and a submit button that is disabled while `cartItems.length === 0` or a submission is in flight.
+
+The selected `shippingMethod` MUST be included in the `POST /api/orders` request body on submit. After order creation, this page and every downstream screen that displays order amounts (order-success, order-list, order-detail) MUST render `subtotal`/`shippingFee`/`discount`/`totalAmount` from the backend `OrderResponse`, never from the local pre-submit estimate.
 
 This page MUST NOT render with an empty `cartItems` list when reached via the normal checkout flow (cart → confirm) or the direct-buy flow (product detail → confirm, per the `Direct buy from product detail` requirement); an empty items card on entry indicates a state-passing bug, not a valid empty state.
 
@@ -299,7 +301,12 @@ This page MUST NOT render with an empty `cartItems` list when reached via the no
 #### Scenario: Selecting a delivery method updates the summary
 - **WHEN** the user taps "顺丰速运" (¥12)
 - **THEN** the delivery card shows it as selected
-- **AND** the summary card's 运费 row and 实付 total update to include the ¥12 fee
+- **AND** the summary card's 运费 row and 实付 total update to include the ¥12 fee (local estimate)
+
+#### Scenario: Submit includes shipping method and amounts match after creation
+- **WHEN** the user submits the order with a selected delivery method and (if subtotal ≥ ¥100) the discount threshold met
+- **THEN** the `POST /api/orders` request body includes `shippingMethod`
+- **AND** the resulting order's `totalAmount` (as shown on the order-success/list/detail screens) equals the pre-submit estimate shown on this page
 
 #### Scenario: Submit is disabled with no items
 - **WHEN** `cartItems.length === 0`

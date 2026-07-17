@@ -57,9 +57,10 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('CUSTOMER','ADMIN')")
     public ResponseEntity<OrderResponse> create(@AuthenticationPrincipal UserPrincipal me,
                                                  @Valid @RequestBody(required = false) CreateOrderRequest body) {
+        String shippingMethod = body == null ? null : body.shippingMethod();
         OrderResponse created = (body != null && body.items() != null && !body.items().isEmpty())
-                ? orders.create(me.getId(), body.items())
-                : orders.create(me.getId());
+                ? orders.create(me.getId(), body.items(), shippingMethod)
+                : orders.create(me.getId(), "wechat", shippingMethod);
         return ResponseEntity.created(URI.create("/api/orders/" + created.id())).body(created);
     }
 
