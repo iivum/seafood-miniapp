@@ -64,7 +64,12 @@ done
 # 在 users.json 里手写固定 _id:openId 无唯一索引,_id 在反复 reseed/relogin 间
 # 不保证稳定(memory c5-visual-test-runbook 已记录过这条教训),动态查询回真实值
 # 才是不依赖"这是不是第一次插入"这个前提的做法(design.md 决策 2)。
-CUSTOMER_ID=$(mongosh "$MONGO_URI" --quiet --eval "print(db.users.findOne({role:'CUSTOMER'})._id.toString())" | tr -d '[:space:]')
+#
+# code-review 发现:原按 {role:'CUSTOMER'} 查,users.json 目前只有 1 条 CUSTOMER
+# 才恰好确定 —— 未来一旦 fixture 加第 2 个 CUSTOMER,findOne 无排序/唯一性保证,
+# 会在多次 reseed 间不确定地把订单错配给另一个用户。改按 orders.json 实际预期
+# 归属的 openId 精确查,不依赖"当前只有一条"这个隐含假设。
+CUSTOMER_ID=$(mongosh "$MONGO_URI" --quiet --eval "print(db.users.findOne({openId:'dev-customer-seed-001'})._id.toString())" | tr -d '[:space:]')
 
 # 5. 导入 banner(home hero 轮播,后端驱动)
 echo "[seed] import banners.json"

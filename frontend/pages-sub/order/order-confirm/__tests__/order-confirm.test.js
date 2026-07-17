@@ -354,6 +354,24 @@ describe('order-confirm', () => {
         expect(ctx.data.errorMessage).toBe('加载订单失败');
       });
     });
+
+    it('成功时摘要卡金额同步为后端字段(code-review 发现:此前只 setData order,summary card 绑定的是顶层 subtotal/shippingFee/discount/orderTotal,不是 order.xxx,永远显示初始 0)', () => {
+      mockOrderStore.loadById.mockResolvedValue({
+        id: 'o1',
+        items: [{ productId: 'p1' }],
+        subtotal: 100,
+        shippingFee: 12,
+        discount: 10,
+        totalAmount: 102,
+      });
+      ctx.loadExistingOrder('o1');
+      return flushPromises().then(() => {
+        expect(ctx.data.subtotal).toBe(100);
+        expect(ctx.data.shippingFee).toBe(12);
+        expect(ctx.data.discount).toBe(10);
+        expect(ctx.data.orderTotal).toBe(102);
+      });
+    });
   });
 
   describe('refreshCartPreview(既有行为,补覆盖率)', () => {
@@ -429,6 +447,11 @@ describe('order-confirm', () => {
       expect(ctx.data.shippingMethod).toBe('FREE');
       expect(ctx.data.shippingFee).toBe(0);
     });
+
+    it('切换到中通(ZTO)运费为 8 元(与后端 OrderPricing 数值锁死一致,task 3.1)', () => {
+      ctx.onSelectShipping({ currentTarget: { dataset: { method: 'ZTO' } } });
+      expect(ctx.data.shippingFee).toBe(8);
+    });
   });
 
   describe('onRemarkInput(既有行为,补覆盖率)', () => {
@@ -479,6 +502,7 @@ describe('order-confirm', () => {
       ctx.data.order = { items: [{ productId: 'p1' }] };
       ctx.data.selectedAddress = { id: 'addr-1' };
       ctx.data.remark = '轻拿轻放';
+      ctx.data.shippingMethod = 'SF';
       mockOrderStore.placeOrder.mockResolvedValue({ id: 'order-1', totalAmount: 100 });
       mockPaymentModule.requestPayment.mockResolvedValue({
         isSuccess: () => true,
@@ -486,9 +510,76 @@ describe('order-confirm', () => {
       });
       ctx.onSubmitOrder();
       return flushPromises().then(() => {
-        expect(mockOrderStore.placeOrder).toHaveBeenCalledWith({ addressId: 'addr-1', remark: '轻拿轻放' });
+        // fix-order-amount-contract task 3.2:请求体必须带 shippingMethod,后端才有
+        // 依据算运费(design.md 决策 1)。
+        expect(mockOrderStore.placeOrder).toHaveBeenCalledWith({
+          addressId: 'addr-1',
+          remark: '轻拿轻放',
+          shippingMethod: 'SF',
+        });
         expect(ctx.data.isCreating).toBe(false);
         expect(mockPaymentModule.requestPayment).toHaveBeenCalledWith('order-1', 100);
+      });
+    });
+
+    it('创建订单成功后,金额展示切换为后端返回值,不再用本地预估(task 3.3)', () => {
+      // fix-order-amount-contract:提交前摘要卡显示的是本地预估(recalcAmounts 算的
+      // subtotal/shippingFee/discount/orderTotal)。订单真正建成后,这几个字段必须
+      // 被后端返回的权威值覆盖 —— 否则用户在提交那一刻看到的金额可能和后端持久化的
+      // totalAmount 不一致(本次要修的 bug 本身)。
+      ctx.data.order = { items: [{ productId: 'p1' }] };
+      ctx.data.selectedAddress = { id: 'addr-1' };
+      ctx.data.shippingMethod = 'SF';
+      // 本地预估(提交前,故意和后端返回值不同,用来证明确实被覆盖而非碰巧一致)
+      ctx.data.subtotal = 999;
+      ctx.data.shippingFee = 999;
+      ctx.data.discount = 999;
+      ctx.data.orderTotal = 999;
+      mockOrderStore.placeOrder.mockResolvedValue({
+        id: 'order-1',
+        subtotal: 100,
+        shippingFee: 12,
+        discount: 10,
+        totalAmount: 102,
+      });
+      mockPaymentModule.requestPayment.mockResolvedValue({
+        isSuccess: () => true,
+        isCancelled: () => false,
+      });
+
+      ctx.onSubmitOrder();
+
+      return flushPromises().then(() => {
+        expect(ctx.data.subtotal).toBe(100);
+        expect(ctx.data.shippingFee).toBe(12);
+        expect(ctx.data.discount).toBe(10);
+        expect(ctx.data.orderTotal).toBe(102);
+      });
+    });
+
+    it('后端返回的金额写入 data 前必须 roundYuan(code-review 发现:此前直接裸赋值,与本文件自己的精度规范矛盾)', () => {
+      // 本文件顶部 docblock 明确记录过真实精度 bug(¥404.94000000000005 漏给用户),
+      // 修法是"任何写进 data 的金额都先 roundYuan()"。用一个多出 1 位小数的值
+      // 证明订单创建成功回调确实遵守这条规范,不是碰巧当前后端值都是 2 位小数才没暴露。
+      ctx.data.order = { items: [{ productId: 'p1' }] };
+      ctx.data.selectedAddress = { id: 'addr-1' };
+      mockOrderStore.placeOrder.mockResolvedValue({
+        id: 'order-1',
+        subtotal: 100.999,
+        shippingFee: 0,
+        discount: 0,
+        totalAmount: 100.999,
+      });
+      mockPaymentModule.requestPayment.mockResolvedValue({
+        isSuccess: () => true,
+        isCancelled: () => false,
+      });
+
+      ctx.onSubmitOrder();
+
+      return flushPromises().then(() => {
+        expect(ctx.data.subtotal).toBe(101);
+        expect(ctx.data.orderTotal).toBe(101);
       });
     });
 
@@ -514,10 +605,11 @@ describe('order-confirm', () => {
     });
 
     // ===== mp-backend-contract-gaps D3b:direct-buy 模式改走 placeDirectBuyOrder =====
-    it('directBuyItems 非空时调用 orderStore.placeDirectBuyOrder(带 items),不调用 placeOrder', () => {
+    it('directBuyItems 非空时调用 orderStore.placeDirectBuyOrder(带 items + shippingMethod),不调用 placeOrder', () => {
       ctx.data.order = { items: [{ productId: 'p1', productName: '龙虾', unitPrice: 100, quantity: 2 }] };
       ctx.data.selectedAddress = { id: 'addr-1' };
       ctx.data.remark = '轻拿轻放';
+      ctx.data.shippingMethod = 'ZTO';
       ctx.data.directBuyItems = [{ productId: 'p1', quantity: 2 }];
       mockOrderStore.placeDirectBuyOrder.mockResolvedValue({ id: 'order-1', totalAmount: 190 });
       mockPaymentModule.requestPayment.mockResolvedValue({
@@ -532,6 +624,7 @@ describe('order-confirm', () => {
           items: [{ productId: 'p1', quantity: 2 }],
           addressId: 'addr-1',
           remark: '轻拿轻放',
+          shippingMethod: 'ZTO',
         });
         expect(mockOrderStore.placeOrder).not.toHaveBeenCalled();
         expect(ctx.data.isCreating).toBe(false);
@@ -552,7 +645,11 @@ describe('order-confirm', () => {
       ctx.onSubmitOrder();
 
       return flushPromises().then(() => {
-        expect(mockOrderStore.placeOrder).toHaveBeenCalledWith({ addressId: 'addr-1', remark: undefined });
+        expect(mockOrderStore.placeOrder).toHaveBeenCalledWith({
+          addressId: 'addr-1',
+          remark: undefined,
+          shippingMethod: 'FREE',
+        });
         expect(mockOrderStore.placeDirectBuyOrder).not.toHaveBeenCalled();
       });
     });

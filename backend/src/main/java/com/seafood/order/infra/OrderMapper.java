@@ -14,6 +14,9 @@ public final class OrderMapper {
                 d.getId(),
                 d.getUserId(),
                 d.getItems(),
+                d.getSubtotal(),
+                d.getShippingFee(),
+                d.getDiscount(),
                 d.getTotalAmount(),
                 OrderStatus.of(d.getStatus()),
                 d.getCancelReason(),
@@ -29,6 +32,9 @@ public final class OrderMapper {
         d.setId(o.id());
         d.setUserId(o.userId());
         d.setItems(o.items());
+        d.setSubtotal(o.subtotal());
+        d.setShippingFee(o.shippingFee());
+        d.setDiscount(o.discount());
         d.setTotalAmount(o.totalAmount());
         d.setStatus(o.status().code());
         d.setCancelReason(o.cancelReason());

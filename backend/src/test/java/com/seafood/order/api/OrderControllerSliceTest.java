@@ -38,6 +38,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -118,7 +119,7 @@ class OrderControllerSliceTest {
     void list_asCustomer_returnsPagedOrders() {
         Instant now = Instant.parse("2026-06-19T00:00:00Z");
         OrderResponse stub = new OrderResponse(
-                "o-1", "u-1", List.of(), BigDecimal.ZERO,
+                "o-1", "u-1", List.of(), null, null, null, BigDecimal.ZERO,
                 "PENDING", null, null, null, null, now, now);
         Page<OrderResponse> page = new PageImpl<>(List.of(stub), PageRequest.of(0, 20), 1);
         when(orderService.list(any(), any())).thenReturn(page);
@@ -174,7 +175,7 @@ class OrderControllerSliceTest {
     void ship_asAdmin_returnsShippedOrder() {
         Instant now = Instant.parse("2026-06-19T00:00:00Z");
         OrderResponse stub = new OrderResponse(
-                "o-1", "u-1", List.of(), BigDecimal.ZERO,
+                "o-1", "u-1", List.of(), null, null, null, BigDecimal.ZERO,
                 "SHIPPED", null, null, null, null, now, now);
         when(orderService.ship("o-1")).thenReturn(stub);
 
@@ -203,12 +204,16 @@ class OrderControllerSliceTest {
     void create_withItemsBody_returns201AndRoutesToExplicitItemsOverload() {
         Instant now = Instant.parse("2026-06-19T00:00:00Z");
         OrderResponse stub = new OrderResponse(
-                "o-direct", "u-1", List.of(), BigDecimal.ZERO,
+                "o-direct", "u-1", List.of(), null, null, null, BigDecimal.ZERO,
                 "PENDING", null, null, null, null, now, now);
         // 注:userId 用 any() 而非 eq("u-1") — 与本文件既有 CartControllerSliceTest 同规约,
         // @AuthenticationPrincipal 解析出的 UserPrincipal 在 @WebMvcTest 切片下不保证
         // getId() 精确回显手工写入 SecurityContextHolder 的值,断言路由到哪个重载即可。
-        when(orderService.create(any(), anyList())).thenReturn(stub);
+        //
+        // fix-order-amount-contract:Controller 现在总是调 3 参重载(items 分支传
+        // create(userId, items, shippingMethod)),不再有 2 参 create(userId, items)
+        // 调用点 —— 用 anyList() + any() 匹配新签名。
+        when(orderService.create(any(), anyList(), any())).thenReturn(stub);
 
         var result = mvc.post().uri("/api/orders")
             .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
@@ -219,8 +224,37 @@ class OrderControllerSliceTest {
             .hasStatus(201)
             .bodyJson()
             .hasPathSatisfying("$.id", v -> v.assertThat().isEqualTo("o-direct"));
-        verify(orderService).create(any(), anyList());
-        verify(orderService, never()).create(any());
+        verify(orderService).create(any(), anyList(), any());
+        verify(orderService, never()).create(any(), anyString(), any());
+    }
+
+    /**
+     * fix-order-amount-contract /opsx:verify 阶段补(spec.md "Client-submitted total
+     * amount is ignored" scenario):{@code CreateOrderRequest} 压根没有金额字段,
+     * Jackson(Spring Boot 默认 {@code FAIL_ON_UNKNOWN_PROPERTIES=false})对请求体里
+     * 的未知字段静默忽略,不会报 400,更不会把这个值传给 Service。这条用例锁死这个
+     * 行为——以后如果有人给 DTO 加了金额字段又忘了处理,这里会报警。
+     */
+    @Test
+    void create_withClientSubmittedTotalAmountField_ignoredNotErrorNotUsed() {
+        Instant now = Instant.parse("2026-06-19T00:00:00Z");
+        OrderResponse stub = new OrderResponse(
+                "o-real", "u-1", List.of(), new BigDecimal("100.00"), BigDecimal.ZERO, BigDecimal.ZERO,
+                new BigDecimal("100.00"), "PENDING", null, null, null, null, now, now);
+        when(orderService.create(any(), anyList(), any())).thenReturn(stub);
+
+        var result = mvc.post().uri("/api/orders")
+            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+            .content("{\"items\":[{\"productId\":\"p1\",\"quantity\":2}],\"totalAmount\":0.01}")
+            .exchange();
+
+        // 未知字段不导致 400(Jackson 静默忽略);响应金额是 Service 算出来的 100.00,
+        // 不是客户端塞的 0.01 —— 证明这个字段从未被信任过。
+        result.assertThat()
+            .hasStatus(201)
+            .bodyJson()
+            .hasPathSatisfying("$.totalAmount", v -> v.assertThat().isEqualTo(100.00));
+        verify(orderService).create(any(), anyList(), any());
     }
 
     /**
@@ -231,9 +265,11 @@ class OrderControllerSliceTest {
     void create_withNoBodyOrEmptyItems_returns201AndUsesExistingCartPath() {
         Instant now = Instant.parse("2026-06-19T00:00:00Z");
         OrderResponse stub = new OrderResponse(
-                "o-cart", "u-1", List.of(), BigDecimal.ZERO,
+                "o-cart", "u-1", List.of(), null, null, null, BigDecimal.ZERO,
                 "PENDING", null, null, null, null, now, now);
-        when(orderService.create(any())).thenReturn(stub);
+        // fix-order-amount-contract:Controller 无 items 分支现在总是调
+        // create(userId, "wechat", shippingMethod) 3 参重载 —— 用 anyString() + any() 匹配。
+        when(orderService.create(any(), anyString(), any())).thenReturn(stub);
 
         // 无 body
         var noBodyResult = mvc.post().uri("/api/orders").exchange();
@@ -249,7 +285,7 @@ class OrderControllerSliceTest {
             .exchange();
         emptyItemsResult.assertThat().hasStatus(201);
 
-        verify(orderService, org.mockito.Mockito.times(2)).create(any());
-        verify(orderService, never()).create(any(), anyList());
+        verify(orderService, org.mockito.Mockito.times(2)).create(any(), anyString(), any());
+        verify(orderService, never()).create(any(), anyList(), any());
     }
 }

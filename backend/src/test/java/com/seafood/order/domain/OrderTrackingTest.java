@@ -1,6 +1,7 @@
 package com.seafood.order.domain;
 
 import com.seafood.shared.error.DomainException;
+import com.seafood.testsupport.builders.OrderBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -26,8 +27,14 @@ class OrderTrackingTest {
     private final Instant t0 = Instant.parse("2026-06-01T00:00:00Z");
 
     private Order ship() {
-        return new Order("o1", "u1", List.of(item), new java.math.BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, null, null, null, t0, t0)
+        return OrderBuilder.anOrder()
+                .withId("o1")
+                .withUserId("u1")
+                .withItems(List.of(item))
+                .withTotalAmount(new java.math.BigDecimal("198.00"))
+                .withCreatedAt(t0)
+                .withUpdatedAt(t0)
+                .build()
                 .markPaid(t0)
                 .markShipped(t0);
     }
@@ -89,8 +96,14 @@ class OrderTrackingTest {
 
     @Test
     void order_attachTracking_onPending_throws() {
-        Order pending = new Order("o1", "u1", List.of(item), new java.math.BigDecimal("198.00"),
-                new OrderStatus.Pending(), null, null, null, null, t0, t0);
+        Order pending = OrderBuilder.anOrder()
+                .withId("o1")
+                .withUserId("u1")
+                .withItems(List.of(item))
+                .withTotalAmount(new java.math.BigDecimal("198.00"))
+                .withCreatedAt(t0)
+                .withUpdatedAt(t0)
+                .build();
         OrderTracking tracking = new OrderTracking("顺丰", "SF123",
                 List.of(new TrackingEvent(Instant.now(), "SHIPPED", "上海", "已发货")));
         assertThatThrownBy(() -> pending.attachTracking(tracking))
@@ -103,7 +116,7 @@ class OrderTrackingTest {
         OrderTracking tracking = new OrderTracking("顺丰", "SF123",
                 List.of(new TrackingEvent(Instant.now(), "SHIPPED", "上海", "已发货")));
         assertThatThrownBy(() -> new Order("o1", "u1", List.of(item),
-                new java.math.BigDecimal("198.00"),
+                null, null, null, new java.math.BigDecimal("198.00"),
                 new OrderStatus.Pending(), null, tracking, null, null, t0, t0))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("仅 SHIPPED");

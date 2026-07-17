@@ -39,6 +39,20 @@ function calcDiscount(subtotal) {
   return subtotal >= 100 ? 10 : 0;
 }
 
+/**
+ * code-review 发现(简化):loadExistingOrder / onSubmitOrder 成功回调都要把后端
+ * 返回的 subtotal/shippingFee/discount/totalAmount 四个字段 roundYuan() 后写进
+ * data,此前两处各写一遍。收成一个 helper,避免以后改规整逻辑要同步改两处。
+ */
+function roundOrderAmounts(order) {
+  return {
+    subtotal: roundYuan(order.subtotal || 0),
+    shippingFee: roundYuan(order.shippingFee || 0),
+    discount: roundYuan(order.discount || 0),
+    orderTotal: roundYuan(order.totalAmount || 0),
+  };
+}
+
 Page({
   data: {
     order: null,
@@ -121,7 +135,12 @@ Page({
   loadExistingOrder: function (id) {
     orderStore
       .loadById(id)
-      .then((order) => this.setData({ order }))
+      .then((order) => {
+        // code-review 发现:summary card 绑定的是顶层 subtotal/shippingFee/
+        // discount/orderTotal(见 wxml),不是 order.xxx —— 只 setData order
+        // 会让摘要卡永远显示初始 0,不管加载到的订单实际金额是多少。
+        this.setData({ order, ...roundOrderAmounts(order) });
+      })
       .catch((err) => {
         this.setData({
           errorMessage: (err && err.message) || '加载订单失败',
@@ -290,22 +309,27 @@ Page({
 
     // mp-backend-contract-gaps D3b:direct-buy 走显式 items 建单(不清购物车,
     // 因为从未碰过购物车);其余(购物车结算)分支完全不变。
+    // fix-order-amount-contract task 4.1:提交请求体带上 shippingMethod ——
+    // 运费/优惠权威计算在后端(design.md 决策 1),不传这个字段后端只能按 FREE 兜底。
     const directBuyItems = this.data.directBuyItems;
     const hasDirectBuyItems = Array.isArray(directBuyItems) && directBuyItems.length > 0;
+    // code-review 发现(简化):两条分支的 addressId/remark/shippingMethod 此前
+    // 各写一遍字面量,收成一份公共参数,唯一差异(items)在各自分支 spread 补上。
+    const commonParams = {
+      addressId: this.data.selectedAddress.id,
+      remark: this.data.remark || undefined,
+      shippingMethod: this.data.shippingMethod,
+    };
     const placeOrderPromise = hasDirectBuyItems
-      ? orderStore.placeDirectBuyOrder({
-          items: directBuyItems,
-          addressId: this.data.selectedAddress.id,
-          remark: this.data.remark || undefined,
-        })
-      : orderStore.placeOrder({
-          addressId: this.data.selectedAddress.id,
-          remark: this.data.remark || undefined,
-        });
+      ? orderStore.placeDirectBuyOrder({ ...commonParams, items: directBuyItems })
+      : orderStore.placeOrder(commonParams);
 
     placeOrderPromise
       .then((order) => {
-        this.setData({ isCreating: false, order });
+        // fix-order-amount-contract task 4.2:订单真正建成后,摘要卡金额展示切到
+        // 后端返回的权威值 —— 提交前 subtotal/shippingFee/discount/orderTotal 都是
+        // 本地预估(recalcAmounts 算的),不再是本次要展示给用户的最终数字。
+        this.setData({ isCreating: false, order, ...roundOrderAmounts(order) });
         this.initiatePayment(order);
       })
       .catch((err) => {

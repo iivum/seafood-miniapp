@@ -18,6 +18,9 @@ public record Order(
         String id,
         String userId,
         List<OrderItem> items,
+        BigDecimal subtotal,
+        BigDecimal shippingFee,
+        BigDecimal discount,
         BigDecimal totalAmount,
         OrderStatus status,
         String cancelReason,
@@ -36,6 +39,17 @@ public record Order(
             throw new DomainException("订单必须至少包含一行");
         }
         items = List.copyOf(items);
+        // fix-order-amount-contract:历史订单(改动前创建)缺这 3 个字段,读取时按 0
+        // 兜底(design.md 决策 3——不回填历史数据,totalAmount 保持原值不变)。
+        if (subtotal == null) {
+            subtotal = BigDecimal.ZERO;
+        }
+        if (shippingFee == null) {
+            shippingFee = BigDecimal.ZERO;
+        }
+        if (discount == null) {
+            discount = BigDecimal.ZERO;
+        }
         if (totalAmount == null || totalAmount.signum() <= 0) {
             throw new DomainException("订单金额必须大于 0");
         }
@@ -163,7 +177,7 @@ public record Order(
      * {@code updatedAt} 写为当前时刻。
      */
     public Order withEstimatedDelivery(Instant newEstimated) {
-        return new Order(id, userId, items, totalAmount, status,
+        return new Order(id, userId, items, subtotal, shippingFee, discount, totalAmount, status,
                 cancelReason, tracking, refundId, newEstimated, createdAt, Instant.now());
     }
 
@@ -182,7 +196,7 @@ public record Order(
     }
 
     private Order mutate(OrderStatus newStatus, String reason, OrderTracking newTracking, String newRefundId, Instant when) {
-        return new Order(id, userId, items, totalAmount, newStatus, reason,
+        return new Order(id, userId, items, subtotal, shippingFee, discount, totalAmount, newStatus, reason,
                 newTracking, newRefundId, estimatedDelivery,
                 createdAt, when == null ? Instant.now() : when);
     }

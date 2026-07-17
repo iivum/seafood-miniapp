@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> accessDenied(AccessDeniedException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ErrorResponse("FORBIDDEN", "无权访问该资源", null));
+                .body(new ErrorResponse(ErrorResponse.CODE_FORBIDDEN, ErrorResponse.MESSAGE_FORBIDDEN, null));
     }
 
     /**
@@ -102,6 +102,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> unclassified(Exception e) {
         log.error("Unclassified exception", e);
         return ResponseEntity.internalServerError()
-                .body(new ErrorResponse("INTERNAL", "服务器内部错误", null));
+                .body(new ErrorResponse(ErrorResponse.CODE_INTERNAL, ErrorResponse.MESSAGE_INTERNAL, null));
     }
 }

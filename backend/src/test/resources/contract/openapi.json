@@ -386,6 +386,9 @@
               "$ref" : "#/components/schemas/CartItemRequest"
             },
             "type" : "array"
+          },
+          "shippingMethod" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -580,6 +583,9 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "discount" : {
+            "type" : "number"
+          },
           "estimatedDelivery" : {
             "format" : "date-time",
             "type" : "string"
@@ -596,8 +602,14 @@
           "refundId" : {
             "type" : "string"
           },
+          "shippingFee" : {
+            "type" : "number"
+          },
           "status" : {
             "type" : "string"
+          },
+          "subtotal" : {
+            "type" : "number"
           },
           "totalAmount" : {
             "type" : "number"

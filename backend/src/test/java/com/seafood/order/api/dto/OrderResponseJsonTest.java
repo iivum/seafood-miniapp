@@ -29,7 +29,7 @@ class OrderResponseJsonTest {
     @Test
     void estimatedDeliveryRoundtrip() {
         var o = new Order(
-            "o1", "u1", List.of(item), new BigDecimal("198.00"),
+            "o1", "u1", List.of(item), null, null, null, new BigDecimal("198.00"),
             new OrderStatus.Pending(), null, null, null, null, t0, t0);
         var eta = Instant.parse("2026-06-19T10:00:00Z");
         var withEstimate = o.withEstimatedDelivery(eta);
@@ -52,7 +52,7 @@ class OrderResponseJsonTest {
     @Test
     void estimatedDeliveryMongoRoundtrip() {
         var o = new Order(
-            "o1", "u1", List.of(item), new BigDecimal("198.00"),
+            "o1", "u1", List.of(item), null, null, null, new BigDecimal("198.00"),
             new OrderStatus.Pending(), null, null, null, null, t0, t0);
         var eta = Instant.parse("2026-06-19T10:00:00Z");
         var withEstimate = o.withEstimatedDelivery(eta);

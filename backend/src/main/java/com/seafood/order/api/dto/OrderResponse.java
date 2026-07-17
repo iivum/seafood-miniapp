@@ -23,6 +23,9 @@ public record OrderResponse(
         String id,
         String userId,
         List<OrderItem> items,
+        BigDecimal subtotal,
+        BigDecimal shippingFee,
+        BigDecimal discount,
         BigDecimal totalAmount,
         String status,
         String cancelReason,
@@ -34,7 +37,8 @@ public record OrderResponse(
 ) {
     public static OrderResponse from(Order o) {
         return new OrderResponse(
-                o.id(), o.userId(), o.items(), o.totalAmount(),
+                o.id(), o.userId(), o.items(),
+                o.subtotal(), o.shippingFee(), o.discount(), o.totalAmount(),
                 o.status().code(), o.cancelReason(),
                 o.tracking(), o.refundId(),
                 o.estimatedDelivery(),

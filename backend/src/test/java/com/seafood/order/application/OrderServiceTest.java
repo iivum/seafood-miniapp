@@ -98,7 +98,10 @@ class OrderServiceTest {
         OrderResponse res = service.create("u1");
 
         assertThat(res.id()).isEqualTo("o1");
-        assertThat(res.totalAmount()).isEqualByComparingTo("100.00");
+        // fix-order-amount-contract:小计 100.00 触发"满 100 减 10"(未传 shippingMethod
+        // 按 FREE 兜底,运费 0),totalAmount = 100 + 0 - 10 = 90.00(此前是裸小计 100.00,
+        // 语义变化按 design.md task 1.5 更新预期值)
+        assertThat(res.totalAmount()).isEqualByComparingTo("90.00");
         assertThat(res.status()).isEqualTo("PENDING");
     }
 
@@ -195,7 +198,9 @@ class OrderServiceTest {
         OrderResponse res = service.create("u1", List.of(new CartItemRequest("p1", 2)));
 
         assertThat(res.id()).isEqualTo("o1");
-        assertThat(res.totalAmount()).isEqualByComparingTo("100.00");
+        // fix-order-amount-contract:同上,小计 100 触发满 100 减 10,未传 shippingMethod
+        // 按 FREE 兜底 → 90.00
+        assertThat(res.totalAmount()).isEqualByComparingTo("90.00");
         assertThat(res.status()).isEqualTo("PENDING");
         // design D3:direct-buy 路径从不读/清购物车
         verifyNoInteractions(cartRepo);
@@ -219,7 +224,8 @@ class OrderServiceTest {
 
         OrderResponse res = service.create("u1", List.of());
 
-        assertThat(res.totalAmount()).isEqualByComparingTo("100.00");
+        // fix-order-amount-contract:同上,小计 100 触发满 100 减 10 → 90.00
+        assertThat(res.totalAmount()).isEqualByComparingTo("90.00");
         verify(cartRepo).findById("u1");
         verify(cartRepo).deleteById("u1");
     }
@@ -240,6 +246,98 @@ class OrderServiceTest {
         verify(orderRepo, never()).save(any(OrderDocument.class));
         verify(productRepo, never()).save(any(ProductDocument.class));
         assertThat(prod.getStock()).isEqualTo(1);
+    }
+
+    // === fix-order-amount-contract task 1.1-1.4:运费 + 优惠权威计算下沉后端 ===
+
+    @Test
+    void create_withPaidShippingMethodAndSubtotalOver100_totalIncludesFeeAndDiscount() {
+        // task 1.1:顺丰(¥12)+ 小计 ≥100(满 100 减 10)→ totalAmount = subtotal + 12 - 10
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(new CartItem("p1", 2, true, Instant.now())));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        OrderResponse res = service.create("u1", "wechat", OrderPricing.SHIPPING_SF);
+
+        // 小计 2×50=100.00,顺丰 12,满 100 减 10 → 100 + 12 - 10 = 102.00
+        assertThat(res.subtotal()).isEqualByComparingTo("100.00");
+        assertThat(res.shippingFee()).isEqualByComparingTo("12.00");
+        assertThat(res.discount()).isEqualByComparingTo("10.00");
+        assertThat(res.totalAmount()).isEqualByComparingTo("102.00");
+    }
+
+    @Test
+    void create_withoutShippingMethod_defaultsToFreeShipping() {
+        // task 1.2:shippingMethod 缺省/null → 按 FREE 兜底,shippingFee=0
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(new CartItem("p1", 1, true, Instant.now())));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        OrderResponse res = service.create("u1", "wechat", null);
+
+        assertThat(res.shippingFee()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void create_withSubtotalUnder100_discountIsZero() {
+        // task 1.3:小计 < 100 → discount = 0(1 件 × 50.00 = 50.00,不达阈值)
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        CartDocument cartDoc = new CartDocument();
+        cartDoc.setUserId("u1");
+        cartDoc.setItems(List.of(new CartItem("p1", 1, true, Instant.now())));
+        when(cartRepo.findById("u1")).thenReturn(Optional.of(cartDoc));
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        OrderResponse res = service.create("u1", "wechat", OrderPricing.SHIPPING_FREE);
+
+        assertThat(res.subtotal()).isEqualByComparingTo("50.00");
+        assertThat(res.discount()).isEqualByComparingTo("0");
+        assertThat(res.totalAmount()).isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    void create_withExplicitItems_appliesShippingMethodSameAsCartPath() {
+        // task 1.4:直接购买路径(create(userId, items, shippingMethod))同样接收并应用运费/优惠
+        loginAs("u1", com.seafood.shared.security.Role.CUSTOMER);
+        when(productRepo.findAllById(List.of("p1"))).thenReturn(List.of(activeProduct("p1", "三文鱼", 10)));
+        when(productRepo.findById("p1")).thenReturn(Optional.of(activeProduct("p1", "三文鱼", 10)));
+        when(orderRepo.save(any(OrderDocument.class))).thenAnswer(inv -> {
+            OrderDocument d = inv.getArgument(0);
+            d.setId("o1");
+            return d;
+        });
+
+        OrderResponse res = service.create("u1", List.of(new CartItemRequest("p1", 2)), OrderPricing.SHIPPING_ZTO);
+
+        // 小计 100.00,中通 8,满 100 减 10 → 100 + 8 - 10 = 98.00
+        assertThat(res.shippingFee()).isEqualByComparingTo("8.00");
+        assertThat(res.discount()).isEqualByComparingTo("10.00");
+        assertThat(res.totalAmount()).isEqualByComparingTo("98.00");
+        verifyNoInteractions(cartRepo);
     }
 
     @Test

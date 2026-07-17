@@ -117,6 +117,17 @@ public class OrderService {
      *                      字段 + Mongo migration);只用于埋 {@code orders.created} 计数。
      */
     public OrderResponse create(String userId, String paymentMethod) {
+        return create(userId, paymentMethod, null);
+    }
+
+    /**
+     * fix-order-amount-contract:购物车路径建单,新增 {@code shippingMethod} 参数
+     * (design.md 决策 1)。
+     *
+     * @param shippingMethod 配送方式({@link OrderPricing#SHIPPING_FREE}/{@code SF}/{@code ZTO});
+     *                       {@code null}/未识别值按 FREE 兜底,不拒绝建单
+     */
+    public OrderResponse create(String userId, String paymentMethod, String shippingMethod) {
         Cart cart = carts.findById(userId)
                 .map(d -> new com.seafood.order.domain.Cart(d.getUserId(), d.getItems(), d.getUpdatedAt()))
                 .orElseThrow(() -> new DomainException("购物车为空"));
@@ -140,7 +151,7 @@ public class OrderService {
         List<OrderItem> items = validateAndDecrementLines(allLines, selectedLines);
 
         // 3) 持久化订单
-        OrderResponse response = persistOrder(userId, items);
+        OrderResponse response = persistOrder(userId, items, shippingMethod);
 
         // 4) 清空 cart —— 仅 cart 路径才碰 carts repository;
         // explicit-items 直接购买路径(design D3)绝不读/清购物车
@@ -160,8 +171,16 @@ public class OrderService {
      * @param items 直接购买的行(productId + quantity);null/empty 回退 create(userId)
      */
     public OrderResponse create(String userId, List<CartItemRequest> items) {
+        return create(userId, items, null);
+    }
+
+    /**
+     * fix-order-amount-contract:直接购买路径同样接收 {@code shippingMethod}(design.md
+     * 决策 1 + 风险清单——此前该路径不带 shippingMethod,缺省按 FREE 兜底,与 mp 默认选中项一致)。
+     */
+    public OrderResponse create(String userId, List<CartItemRequest> items, String shippingMethod) {
         if (items == null || items.isEmpty()) {
-            return create(userId);
+            return create(userId, "wechat", shippingMethod);
         }
         List<LineItem> lines = items.stream()
                 .map(req -> new LineItem(req.productId(), req.quantity()))
@@ -169,7 +188,7 @@ public class OrderService {
         // explicit-items 路径没有 selected 概念——请求体里的每一行都隐含"已选中",
         // 所以存在性校验范围与建单范围是同一份 list(不像 cart 路径需要拆两份)。
         List<OrderItem> orderItems = validateAndDecrementLines(lines, lines);
-        OrderResponse response = persistOrder(userId, orderItems);
+        OrderResponse response = persistOrder(userId, orderItems, shippingMethod);
         recordOrderCreatedMetric("wechat");
         return response;
     }
@@ -239,15 +258,20 @@ public class OrderService {
      * 需要在"持久化"和"记 metric"之间插入"清空 cart"(恢复 pre-diff 顺序:持久化 →
      * 清 cart → 埋点),见 {@link #recordOrderCreatedMetric}。
      */
-    private OrderResponse persistOrder(String userId, List<OrderItem> items) {
-        BigDecimal total = items.stream().map(OrderItem::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+    private OrderResponse persistOrder(String userId, List<OrderItem> items, String shippingMethod) {
+        // fix-order-amount-contract:运费 + 优惠权威计算在此(design.md 决策 1)——
+        // 绝不信任客户端传入的金额,totalAmount 完全由后端从 items + shippingMethod 算出。
+        BigDecimal subtotal = items.stream().map(OrderItem::subtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal shippingFee = OrderPricing.shippingFeeFor(shippingMethod);
+        BigDecimal discount = OrderPricing.discountFor(subtotal);
+        BigDecimal total = subtotal.add(shippingFee).subtract(discount);
 
         Instant now = Instant.now();
         // mp-09 路线图 4.20:预计送达时间 = now + 24h。海鲜商品配送时效约定(本仓库仅单卖家内部运营,
         // 无外部承运商,delivery SLA 由 admin 配置后此处读配置,先写死 24h)。
         Instant estimatedDelivery = now.plus(Duration.ofHours(24));
-        Order order = new Order(null, userId, items, total, new OrderStatus.Pending(),
-                null, null, null, estimatedDelivery, now, now);
+        Order order = new Order(null, userId, items, subtotal, shippingFee, discount, total,
+                new OrderStatus.Pending(), null, null, null, estimatedDelivery, now, now);
         OrderDocument saved = orders.save(OrderMapper.toDocument(order));
         return OrderResponse.from(OrderMapper.toDomain(saved));
     }

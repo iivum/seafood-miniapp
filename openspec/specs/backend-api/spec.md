@@ -90,7 +90,7 @@ The system SHALL provide per-user cart endpoints that are accessible only to the
 - **THEN** the system returns HTTP 404 with `code=NOT_FOUND` and does not mutate the cart
 
 ### Requirement: Order lifecycle
-The system SHALL let CUSTOMERs place orders from their cart and read their own orders, while ADMINs SHALL be able to read all orders and advance order status.
+The system SHALL let CUSTOMERs place orders from their cart and read their own orders, while ADMINs SHALL be able to read all orders and advance order status. Order pricing (shipping fee and discount) is computed authoritatively on the server; the client MAY submit a `shippingMethod` selection but MUST NOT submit or influence the final `totalAmount` directly.
 
 #### Scenario: CUSTOMER places an order
 - **WHEN** a CUSTOMER calls `POST /api/orders` with a non-empty cart
@@ -123,6 +123,19 @@ The system SHALL let CUSTOMERs place orders from their cart and read their own o
 #### Scenario: CUSTOMER places an order without an items body
 - **WHEN** a CUSTOMER calls `POST /api/orders` with no request body (or an empty/absent `items` field)
 - **THEN** the system falls back to the existing cart-checkout behavior unchanged
+
+#### Scenario: Order total includes shipping fee and discount
+- **WHEN** a CUSTOMER calls `POST /api/orders` with `shippingMethod` set to a paid option (顺丰速运 / 中通快递) and an item subtotal ≥ ¥100
+- **THEN** the created order's `totalAmount` equals `subtotal + shippingFee - discount`, where `shippingFee` is looked up server-side from the shipping method and `discount` is computed server-side from the ≥¥100 threshold rule
+- **AND** the `OrderResponse` payload exposes `subtotal`, `shippingFee`, and `discount` alongside `totalAmount`
+
+#### Scenario: Order without an explicit shipping method defaults to free shipping
+- **WHEN** a CUSTOMER calls `POST /api/orders` with no `shippingMethod` field
+- **THEN** the system treats it as `FREE` (shippingFee = 0) for pricing purposes
+
+#### Scenario: Client-submitted total amount is ignored
+- **WHEN** a CUSTOMER's request body contains any field resembling a total/amount override
+- **THEN** the system computes `totalAmount` itself from items, shipping method, and discount rule, ignoring any client-submitted amount
 
 ### Requirement: Admin BFF aggregation
 The system SHALL expose three aggregated read endpoints under `/api/admin/**` for the admin UI; each endpoint SHALL assemble data by calling the in-process application services (no network calls) and SHALL be restricted to ADMIN role.
